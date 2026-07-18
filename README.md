@@ -1,0 +1,30 @@
+# ArangCada
+
+A localized tricycle hailing and dispatch system for Calamba City, Philippines — a TODA- and LGU-centered capstone project, not a generic ride-hailing clone.
+
+The system digitizes the manual tricycle *pila* process through mobile booking, TODA-based dispatching, LGU fare computation, driver verification, real-time tracking, trip records, and emergency reporting.
+
+## Status
+
+**Pre-implementation.** The design phase (Figma mockups) is complete/ongoing in a separate local planning workspace. This repository holds the project documentation and will hold the Flutter application once implementation mode starts.
+
+## Stack (3-month internal MVP)
+
+- **Mobile app:** Flutter + Dart (Android-first), Riverpod, go_router
+- **Admin dashboard:** Flutter Web
+- **Backend:** Supabase Free tier — Auth, PostgreSQL (+RLS), Realtime, Storage, Edge Functions
+- **Maps/routing:** MapLibre + MapTiler Free + OpenStreetMap, openrouteservice
+- **Dispatch logic:** Point-in-polygon TODA geofencing, Haversine distance, LGU fare matrix
+
+See [docs/TECH_STACK_DECISIONS.md](docs/TECH_STACK_DECISIONS.md) for rationale.
+
+## Key documents
+
+- [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) — build rules for AI coding agents
+- [SAFETY.md](SAFETY.md) — agent sandbox policy
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system architecture
+- [docs/TECH_STACK_DECISIONS.md](docs/TECH_STACK_DECISIONS.md) — stack decisions and migration path
+
+## Scope guardrails
+
+Calamba City only. Internal testing only — no production deployment, no app store release. Booking types: `special` and `pooling`. Payments: cash, GCash record, QR transfer record. No surge pricing.
