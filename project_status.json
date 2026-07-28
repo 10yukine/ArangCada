@@ -1,0 +1,333 @@
+{
+  "audit_meta": {
+    "generated_at": "2026-07-28",
+    "repo_path": "E:\\ArangCadaApp",
+    "repo_remote": "https://github.com/KumaYuki1/ArangCadaApp.git (private)",
+    "method": "Derived from `git log --oneline --all`, `git branch -a --sort=-committerdate`, `git status`, `git diff --stat`, `gh pr list --state all`, `gh issue list --state all`, `gh repo view`, filesystem search for supabase/migrations, test/, integration_test/, pubspec.yaml, and attempted `flutter`/`pg_prove` invocation. No values were inferred beyond what these commands returned.",
+    "caveat": "This is a documentation-only repository at time of audit. There is no Flutter project (no pubspec.yaml), no supabase/ directory, no test/ or integration_test/ directory, and no CI config. Every 'unit of work' below is therefore a planning/doc artifact, not shipped code, except where noted."
+  },
+  "git_evidence": {
+    "commits_all_branches": [
+      {
+        "sha": "50112e0",
+        "message": "Initial commit: project docs, agent rules, and repo scaffolding",
+        "note": "root commit, only commit in the repository"
+      }
+    ],
+    "branches": [
+      { "name": "main", "local": true, "remote_tracking": "origin/main", "committer_date_rank": 1 }
+    ],
+    "other_branches": [],
+    "working_tree_status": "dirty",
+    "uncommitted_changes": {
+      "note": "12 tracked doc files modified in the working tree, not committed, not on a branch of their own",
+      "files": [
+        "AGENTS.md", "CLAUDE.md", "PROMPTS.md", "README.md", "ROADMAP.md",
+        "SECURITY.md", "TOOLS.md", "docs/ARCHITECTURE.md",
+        "docs/CLAUDE_CODE_CODEX_HANDOFF.md", "docs/CODEX_SETUP.md",
+        "docs/TECH_STACK_DECISIONS.md", "docs/ui/UI_MOCKUP_BRIEF.md"
+      ],
+      "diffstat": "12 files changed, 63 insertions(+), 26 deletions(-)",
+      "does_not_fit_status_rubric": "Not a branch, not a PR, not an issue-linked change — cannot be classified as Done/Code Review/In Progress/Sprint Planning/Backlog under the given rubric. Flagged separately below."
+    }
+  },
+  "github_evidence": {
+    "gh_auth_status": "authenticated as KumaYuki1",
+    "pull_requests_all_states": [],
+    "issues_all_states": [],
+    "pr_count": 0,
+    "issue_count": 0
+  },
+  "code_and_test_evidence": {
+    "supabase_migrations_dir_exists": false,
+    "test_dir_exists": false,
+    "integration_test_dir_exists": false,
+    "pubspec_yaml_exists": false,
+    "flutter_binary_resolvable": false,
+    "pg_prove_binary_resolvable": false,
+    "flutter_test_run": "not executed — no Flutter project present (no pubspec.yaml) to run it against",
+    "pgtap_run": "not executed — no supabase/migrations or pgTAP suite present",
+    "test_evidence_summary": { "files": [], "passing": 0, "failing": 0 }
+  },
+  "units_of_work": [
+    {
+      "id": "WU-00",
+      "title": "Repository scaffolding: agent rules and project docs committed and pushed",
+      "evidence": ["commit 50112e0", "branch main", "remote origin/main (verified via git ls-remote, matches local SHA)"],
+      "status": "Done",
+      "status_rationale": "Merged to main (it IS main, root commit) and pushed to origin. No test suite exists for markdown docs, so the 'passing test' clause of the Done definition is not literally satisfiable here; marking Done on the basis of merge/push evidence only — flagged as a rubric edge case, not a guess.",
+      "subtasks": [
+        { "text": "CLAUDE.md copied and re-pointed to E:\\ArangCadaApp", "done": true },
+        { "text": "AGENTS.md copied", "done": true },
+        { "text": "SAFETY.md copied and re-pointed", "done": true },
+        { "text": "SECURITY.md, ROADMAP.md, TOOLS.md, PROMPTS.md copied", "done": true },
+        { "text": "docs/ tree copied", "done": true },
+        { "text": ".gitignore created", "done": true },
+        { "text": "README.md created", "done": true },
+        { "text": "git remote added, pushed to GitHub (private repo)", "done": true }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-01",
+      "title": "Uncommitted documentation edits (stack/architecture detail additions)",
+      "evidence": ["working tree diff, 12 files, not committed, no branch"],
+      "status": "unknown",
+      "status_rationale": "Does not match any status definition in the rubric: it's not merged (no test to check anyway), not an open PR, not a dedicated branch, not an issue, and not merely a TODO note — it's live uncommitted edits on main. Cannot be classified without guessing intent.",
+      "subtasks": [],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-02",
+      "title": "Month 1 Week 1 — Figma Mock UI and UX",
+      "evidence": ["ROADMAP.md lines 41-47"],
+      "status": "Backlog",
+      "status_rationale": "Named only in ROADMAP.md as an unchecked task list; no branch, PR, issue, or commit in this repo references it. (Actual Figma work, if any, lives in the separate local planning workspace E:\\ArangCada, which is out of scope for this repo's git history.)",
+      "subtasks": [
+        { "text": "Build Figma pages: Cover, Foundations, Commuter App, Driver App, Admin Console, Evaluation, Survey, Prototype Flows, Review Notes", "done": false },
+        { "text": "Cover all four objectives in the mockup", "done": false },
+        { "text": "Define design tokens: color roles, type scale, status chips, map states", "done": false },
+        { "text": "Wire clickable prototype flows", "done": false },
+        { "text": "Run docs/review/MOCK_UI_REVIEW_CHECKLIST.md against the finished prototype", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-03",
+      "title": "Month 1 Week 2 — Database and Architecture Planning",
+      "evidence": ["ROADMAP.md lines 49-54"],
+      "status": "Backlog",
+      "status_rationale": "Unchecked TODO list in ROADMAP.md; no branch/PR/issue evidence in this repo.",
+      "subtasks": [
+        { "text": "Draft core tables on paper/SQL draft", "done": false },
+        { "text": "Draft ride status machine and RLS policy shape", "done": false },
+        { "text": "Write docs/ARCHITECTURE.md sign-off", "done": false },
+        { "text": "Confirm MapLibre + MapTiler + openrouteservice covers MVP needs", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-04",
+      "title": "Month 1 Week 3 — TODA Polygons and Fare Matrix",
+      "evidence": ["ROADMAP.md lines 56-61"],
+      "status": "Backlog",
+      "status_rationale": "Unchecked TODO list; no branch/PR/issue evidence.",
+      "subtasks": [
+        { "text": "Collect and digitize Calamba TODA terminal boundaries", "done": false },
+        { "text": "Draft LGU approved distance fare matrix as seed data", "done": false },
+        { "text": "Plan Point-in-Polygon geofencing helper", "done": false },
+        { "text": "Plan Haversine distance helper", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-05",
+      "title": "Month 1 Week 4 — Architecture Sign-Off and Implementation Backlog",
+      "evidence": ["ROADMAP.md lines 63-70"],
+      "status": "Backlog",
+      "status_rationale": "Unchecked TODO list; no branch/PR/issue evidence.",
+      "subtasks": [
+        { "text": "Finalize Flutter/Supabase component boundaries (no implementation folders yet)", "done": false },
+        { "text": "Define provider-neutral map/routing interfaces", "done": false },
+        { "text": "Finalize RLS test matrix, ride status transitions, RPC/Edge Function contracts", "done": false },
+        { "text": "Convert approved Figma flows into prioritized Month 2 backlog", "done": false },
+        { "text": "Confirm physical Android test devices and sanitized test accounts available", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-06",
+      "title": "Month 2 Week 5 — Auth, Roles, and Driver Onboarding",
+      "evidence": ["ROADMAP.md lines 80-87"],
+      "status": "Backlog",
+      "status_rationale": "No apps/, no supabase/migrations, no Flutter project in repo — purely a planned task list.",
+      "subtasks": [
+        { "text": "Enable Supabase Auth (email/password)", "done": false },
+        { "text": "Create profiles table + RLS", "done": false },
+        { "text": "Build login/signup/logout/role-redirect screens", "done": false },
+        { "text": "Create toda_zones, driver_profiles, vehicles tables + driver doc upload", "done": false },
+        { "text": "Build admin driver review list (pending/approved/rejected/suspended)", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-07",
+      "title": "Month 2 Week 6 — Maps and Geofencing",
+      "evidence": ["ROADMAP.md lines 89-96"],
+      "status": "Backlog",
+      "status_rationale": "No code in repo implementing this; TODO list only.",
+      "subtasks": [
+        { "text": "Add MapLibre + MapTiler tiles", "done": false },
+        { "text": "Request location permissions (commuter/driver)", "done": false },
+        { "text": "Render TODA geofence polygons", "done": false },
+        { "text": "Add Point-in-Polygon helper", "done": false },
+        { "text": "Add openrouteservice route preview", "done": false },
+        { "text": "Add location heartbeat table for online drivers", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-08",
+      "title": "Month 2 Week 7 — Fare Matrix and Ride Request",
+      "evidence": ["ROADMAP.md lines 98-104"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only, no supabase/migrations present.",
+      "subtasks": [
+        { "text": "Create fare_matrix table + seed data", "done": false },
+        { "text": "Implement Haversine helper + fare preview", "done": false },
+        { "text": "Create rides table + RLS", "done": false },
+        { "text": "Build commuter booking confirmation screen w/ boundary check", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-09",
+      "title": "Month 2 Week 8 — Driver Assignment and Live Tracking",
+      "evidence": ["ROADMAP.md lines 106-113"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only.",
+      "subtasks": [
+        { "text": "Create driver_availability table", "done": false },
+        { "text": "Create trusted dispatch RPC/Edge Function", "done": false },
+        { "text": "Driver Realtime accept/decline flow", "done": false },
+        { "text": "Create ride_locations table + subscriptions", "done": false },
+        { "text": "Implement full ride status machine", "done": false },
+        { "text": "Test two-driver simultaneous accept / rider-cancel-during-accept", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-10",
+      "title": "Month 2 Week 8 (parallel) — Trip Completion, Payments, Safety",
+      "evidence": ["ROADMAP.md lines 115-121"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only.",
+      "subtasks": [
+        { "text": "Final fare computation + immutable trip ledger row", "done": false },
+        { "text": "Ride summary screen + rating field", "done": false },
+        { "text": "Create payments table (cash/gcash/qr_transfer + proof upload)", "done": false },
+        { "text": "Create emergency_reports table + SOS button", "done": false },
+        { "text": "Create complaints table", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-11",
+      "title": "Month 2 Weeks 6-8 (parallel) — Admin Dashboard",
+      "evidence": ["ROADMAP.md lines 123-129"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only, no apps/admin_web present.",
+      "subtasks": [
+        { "text": "Admin login + dashboard shell", "done": false },
+        { "text": "Driver management (approve/reject/suspend/view docs)", "done": false },
+        { "text": "TODA zone viewer and fare matrix viewer", "done": false },
+        { "text": "Emergency reports and complaints views", "done": false },
+        { "text": "admin_audit_logs for sensitive actions", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-12",
+      "title": "Month 3 Week 9 — Reliability and Edge Case Testing",
+      "evidence": ["ROADMAP.md lines 139-144"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only; depends on Month 2 work that has not started.",
+      "subtasks": [
+        { "text": "Test denied permissions, weak data, offline driver, cancel races, backgrounding", "done": false },
+        { "text": "RLS/security review pass", "done": false },
+        { "text": "Confirm live location access scoping; remove sensitive logs", "done": false },
+        { "text": "Bug-fix pass (no new features)", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-13",
+      "title": "Month 3 Weeks 10-11 — ISO/IEC 25010 Evaluation and TODA Survey",
+      "evidence": ["ROADMAP.md lines 146-152"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only.",
+      "subtasks": [
+        { "text": "Prepare ISO/IEC 25010 questionnaire and test scenarios", "done": false },
+        { "text": "Prepare manual test script + screenshots/recordings", "done": false },
+        { "text": "Prepare manual-pila baseline comparison notes", "done": false },
+        { "text": "Run TODA driver Likert survey", "done": false },
+        { "text": "Summarize survey results", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-14",
+      "title": "Month 3 Week 12 — Field-Style Testing, Bug Fixing, Presentation",
+      "evidence": ["ROADMAP.md lines 154-161"],
+      "status": "Backlog",
+      "status_rationale": "TODO list only.",
+      "subtasks": [
+        { "text": "Test on physical Android devices + admin on laptop browser", "done": false },
+        { "text": "Run full demo route; validate fare + geofence vs sample polygons", "done": false },
+        { "text": "Bug-fix-only code freeze", "done": false },
+        { "text": "Prepare architecture diagram, ERD, screenshots, panel demo script", "done": false },
+        { "text": "Prepare limitation notes", "done": false },
+        { "text": "Confirm test accounts/demo data; backup demo video", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    }
+  ],
+  "summary_table": [
+    { "id": "WU-00", "title": "Repository scaffolding (docs, agent rules, GitHub push)", "status": "Done" },
+    { "id": "WU-01", "title": "Uncommitted doc edits (stack detail additions)", "status": "unknown" },
+    { "id": "WU-02", "title": "Month 1 Wk1 — Figma Mock UI/UX", "status": "Backlog" },
+    { "id": "WU-03", "title": "Month 1 Wk2 — DB/Architecture Planning", "status": "Backlog" },
+    { "id": "WU-04", "title": "Month 1 Wk3 — TODA Polygons/Fare Matrix", "status": "Backlog" },
+    { "id": "WU-05", "title": "Month 1 Wk4 — Architecture Sign-Off", "status": "Backlog" },
+    { "id": "WU-06", "title": "Month 2 Wk5 — Auth/Roles/Driver Onboarding", "status": "Backlog" },
+    { "id": "WU-07", "title": "Month 2 Wk6 — Maps/Geofencing", "status": "Backlog" },
+    { "id": "WU-08", "title": "Month 2 Wk7 — Fare Matrix/Ride Request", "status": "Backlog" },
+    { "id": "WU-09", "title": "Month 2 Wk8 — Driver Assignment/Live Tracking", "status": "Backlog" },
+    { "id": "WU-10", "title": "Month 2 Wk8 — Trip Completion/Payments/Safety", "status": "Backlog" },
+    { "id": "WU-11", "title": "Month 2 Wk6-8 — Admin Dashboard", "status": "Backlog" },
+    { "id": "WU-12", "title": "Month 3 Wk9 — Reliability/Edge Case Testing", "status": "Backlog" },
+    { "id": "WU-13", "title": "Month 3 Wk10-11 — ISO 25010/Survey", "status": "Backlog" },
+    { "id": "WU-14", "title": "Month 3 Wk12 — Field Testing/Presentation", "status": "Backlog" }
+  ],
+  "assumed_vs_actual_flags": [
+    {
+      "flag": "No code has been written yet — this repo is 100% documentation/planning as of the audit commit.",
+      "evidence": "Single commit (50112e0), no supabase/, apps/, test/, or integration_test/ directories, no pubspec.yaml."
+    },
+    {
+      "flag": "Zero GitHub PRs and zero GitHub issues exist for this repo.",
+      "evidence": "`gh pr list --state all` and `gh issue list --state all` both returned empty against KumaYuki1/ArangCadaApp (gh auth confirmed active, not an auth failure)."
+    },
+    {
+      "flag": "No branches other than main exist, local or remote.",
+      "evidence": "`git branch -a --sort=-committerdate` returned only main and remotes/origin/main."
+    },
+    {
+      "flag": "flutter test and pgTAP could not be run — no test infrastructure exists to run.",
+      "evidence": "No pubspec.yaml, no supabase/migrations, `flutter` and `pg_prove` are not installed/resolvable on PATH."
+    },
+    {
+      "flag": "Working tree has uncommitted changes to 12 doc files that don't fit the requested status rubric.",
+      "evidence": "`git status` / `git diff --stat` show modifications to AGENTS.md, CLAUDE.md, and 10 others, not committed, no branch."
+    },
+    {
+      "flag": "No US-01..US-05 user story identifiers exist anywhere in the repo.",
+      "evidence": "grep for 'US-0', 'user story', 'US[0-9]' across ROADMAP.md and docs/**/*.md returned no matches — all 'story' fields set to null, not guessed."
+    }
+  ]
+}

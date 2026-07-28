@@ -11,10 +11,12 @@ The system digitizes the manual tricycle *pila* process through mobile booking, 
 ## Stack (3-month internal MVP)
 
 - **Mobile app:** Flutter + Dart (Android-first), Riverpod, go_router
-- **Admin dashboard:** Flutter Web
-- **Backend:** Supabase Free tier — Auth, PostgreSQL (+RLS), Realtime, Storage, Edge Functions
+- **Admin dashboard:** Flutter Web, hosted on Cloudflare Pages
+- **Backend:** Supabase Free tier — Auth, PostgreSQL + PostGIS (+RLS), Realtime, Storage, Edge Functions
 - **Maps/routing:** MapLibre + MapTiler Free + OpenStreetMap, openrouteservice
-- **Dispatch logic:** Point-in-polygon TODA geofencing, Haversine distance, LGU fare matrix
+- **Location:** geolocator (Android fused location provider)
+- **Local cache:** Hive (read-only, session/profile/fare-matrix/trip-history)
+- **Dispatch logic:** Point-in-polygon TODA geofencing via PostGIS spatial containment queries, Haversine distance, LGU fare matrix
 
 See [docs/TECH_STACK_DECISIONS.md](docs/TECH_STACK_DECISIONS.md) for rationale.
 

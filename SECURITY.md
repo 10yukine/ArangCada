@@ -33,6 +33,7 @@ The current target is internal testing only. Do not expose the app, admin dashbo
 - [ ] MapLibre contains no secret; provider style URLs and tokens are treated as configuration, not committed credentials
 - [ ] `.env`, `.env.local`, and key files are ignored by Git
 - [ ] Edge Function secrets are stored in Supabase secrets, not hardcoded
+- [ ] Hive local cache stores only session/profile/fare-matrix/trip-history display data — never tokens, keys, driver documents, or raw payment details
 
 ---
 
@@ -122,7 +123,7 @@ All driver-document and payment-proof buckets remain private. Access uses authen
 - [ ] MapLibre is only the client renderer and never receives Supabase service-role credentials or unrestricted ride records
 - [ ] MapTiler receives only the tile/style requests needed to draw the map
 - [ ] openrouteservice receives only the coordinates needed for the current route lookup; do not attach names, phone numbers, ride IDs, or document URLs
-- [ ] Point-in-Polygon TODA authorization and LGU fare decisions remain in trusted project logic, not in a third-party map response
+- [ ] Point-in-Polygon TODA authorization (PostGIS spatial containment query, server-side) and LGU fare decisions remain in trusted project logic, not in a third-party map response
 - [ ] Development keys are rotated if exposed and are never reused as future production credentials
 
 ---
