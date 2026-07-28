@@ -47,8 +47,8 @@ Every sensitive table must have RLS enabled.
 - [ ] `toda_zones`
 - [ ] `fare_matrix`
 - [ ] `driver_availability`
-- [ ] `rides`
-- [ ] `ride_locations`
+- [ ] `trips`
+- [ ] `trip_locations`
 - [ ] `payments`
 - [ ] `emergency_reports`
 - [ ] `complaints`
@@ -78,16 +78,16 @@ for select
 to authenticated
 using (id = auth.uid());
 
--- Rides: commuter can read own ride
-create policy "rides_select_rider_own"
-on public.rides
+-- Trips: commuter can read own trip
+create policy "trips_select_rider_own"
+on public.trips
 for select
 to authenticated
 using (rider_id = auth.uid());
 
--- Rides: assigned driver can read assigned ride
-create policy "rides_select_assigned_driver"
-on public.rides
+-- Trips: assigned driver can read assigned trip
+create policy "trips_select_assigned_driver"
+on public.trips
 for select
 to authenticated
 using (driver_id = auth.uid());
