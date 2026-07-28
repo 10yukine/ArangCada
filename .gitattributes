@@ -1,0 +1,4 @@
+# Shell scripts and SQL are executed inside WSL/Postgres, which reject CRLF.
+# Force LF regardless of the checkout platform.
+*.sh  text eol=lf
+*.sql text eol=lf
