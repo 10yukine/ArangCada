@@ -40,9 +40,10 @@ values
 -- Fare matrix
 -- ---------------------------------------------------------------------------
 -- Base fare covers the first base_distance_m metres; every *started* kilometre
--- beyond that adds per_km_php. Pooling is cheaper per the capstone scope.
+-- beyond that adds per_km. Amounts are in centavos: 2500 = PHP 25.00.
+-- Pooling is cheaper than special per the capstone scope.
 
-insert into public.fare_matrix (ride_type, base_fare_php, base_distance_m, per_km_php)
+insert into public.fare_matrix (ride_type, base_fare_centavos, base_distance_m, per_km_centavos)
 values
-  ('special', 25.00, 1000, 8.00),
-  ('pooling', 15.00, 1000, 5.00);
+  ('special', 2500, 1000, 800),
+  ('pooling', 1500, 1000, 500);
