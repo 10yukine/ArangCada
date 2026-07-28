@@ -1,16 +1,23 @@
 {
   "audit_meta": {
     "generated_at": "2026-07-28",
-    "supersedes": "previous audit dated 2026-07-28 (pre-merge, documentation-only repo state)",
+    "supersedes": "audit committed in b61e3aa (state: PRs #1 and #2 merged, #3 and #4 open)",
     "repo_path": "E:\\ArangCadaApp",
     "repo_remote": "https://github.com/KumaYuki1/ArangCadaApp (private)",
-    "audited_ref": "main @ bb00285",
-    "method": "Derived from `git log --oneline main`, `git branch -a --sort=-committerdate`, `git status`, `gh pr list --state all`, `gh issue list --state all`, directory listings of supabase/migrations/ and supabase/tests/, `grep 'select plan('` for assertion counts, and an actual execution of scripts/run_db_tests.sh against PostgreSQL 16 + PostGIS 3.4.2 + pgTAP 1.3.2. No status was inferred without one of these as backing.",
-    "what_changed_since_last_audit": "The repo is no longer documentation-only. PR #1 and #2 are merged; main now carries 9 SQL migrations, a seed file, a reproducible test runner, and 32 passing pgTAP assertions. Two PRs are open."
+    "audited_ref": "main @ bf842dd",
+    "method": "Derived from `git log --oneline main`, `git branch -a --sort=-committerdate`, `git status --short`, `git rev-parse HEAD origin/main`, `gh pr list --state all`, `gh issue list --state all`, directory listings of supabase/migrations/ and supabase/tests/, `grep 'select plan('` for assertion counts, and an actual execution of scripts/run_db_tests.sh against PostgreSQL 16.14 + PostGIS 3.4.2 + pgTAP 1.3.2. No status was inferred without one of these as backing.",
+    "what_changed_since_last_audit": "PRs #3 and #4 merged, closing every open PR. main gained the geofence RPC with its nearest-terminal tiebreak (2 commits) and three governing-document corrections. Assertion count rose from 32 to 52. The high-severity CLAUDE.md build-mode contradiction flagged in the previous audit is now resolved."
   },
 
   "git_evidence": {
     "main_commits": [
+      { "sha": "bf842dd", "message": "feat(geo): resolve shared-edge ties by nearest registered terminal" },
+      { "sha": "34d0941", "message": "feat(geo): PostGIS TODA geofence containment RPC with on-border handling" },
+      { "sha": "78fa361", "message": "docs: correct repo-identity declaration in AGENTS.md to mirror CLAUDE.md" },
+      { "sha": "c426626", "message": "docs: mirror build-mode correction from CLAUDE.md into AGENTS.md" },
+      { "sha": "aa5997b", "message": "chore(docs): rename rides -> trips table identifiers for schema consistency" },
+      { "sha": "577c5a9", "message": "docs: correct build-mode contradiction between CLAUDE.md and merged main" },
+      { "sha": "b61e3aa", "message": "chore: regenerate project_status.json against merged main" },
       { "sha": "bb00285", "message": "refactor(fare): rates from fare_matrix, integer centavos, extracted rounding helper [REFACTOR]" },
       { "sha": "6bbc57f", "message": "feat(fare): implement compute_fare to satisfy the suite [GREEN]" },
       { "sha": "3187389", "message": "test(fare): failing pgTAP suite for compute_fare [RED]" },
@@ -18,24 +25,27 @@
       { "sha": "e30ad76", "message": "docs: sync stack details (PostGIS, Cloudflare Pages, geolocator, Hive)" },
       { "sha": "50112e0", "message": "Initial commit: project docs, agent rules, and repo scaffolding" }
     ],
+    "main_commit_count": 13,
     "branches": [
-      { "name": "main", "pushed": true, "role": "trunk" },
-      { "name": "chore/rename-rides-to-trips", "pushed": true, "role": "open PR #4" },
-      { "name": "feat/geofence-rpc", "pushed": true, "role": "open PR #3" },
+      { "name": "main", "pushed": true, "role": "trunk, HEAD == origin/main" },
+      { "name": "feat/geofence-rpc", "pushed": true, "role": "merged via PR #3, branch not deleted" },
+      { "name": "chore/rename-rides-to-trips", "pushed": true, "role": "merged via PR #4, branch not deleted" },
       { "name": "feat/fare-calculation", "pushed": true, "role": "merged via PR #2, branch not deleted" },
       { "name": "feat/db-schema", "pushed": true, "role": "merged via PR #1, branch not deleted" }
     ],
     "working_tree_status": "clean",
-    "note_on_history": "PRs #1 and #2 were merged with --rebase rather than --squash, deliberately, so the RED -> GREEN -> REFACTOR sequence survives as three distinct commits on main rather than collapsing into one."
+    "local_vs_remote": "in sync; git rev-parse HEAD and origin/main return the same SHA",
+    "note_on_history": "All four PRs were merged with --rebase rather than --squash, deliberately and consistently, so the RED -> GREEN -> REFACTOR sequence survives as three distinct commits on main rather than collapsing into one."
   },
 
   "github_evidence": {
     "pull_requests": [
-      { "number": 1, "state": "MERGED", "head": "feat/db-schema", "base": "main", "title": "feat(db): core schema — profiles, toda_zones, fare_matrix, driver_documents, trips" },
-      { "number": 2, "state": "MERGED", "head": "feat/fare-calculation", "base": "main", "title": "feat(fare): compute_fare via TDD — red, green, refactor" },
-      { "number": 3, "state": "OPEN", "head": "feat/geofence-rpc", "base": "main", "title": "feat(geo): PostGIS TODA geofence containment RPC (on-border inclusive)" },
-      { "number": 4, "state": "OPEN", "head": "chore/rename-rides-to-trips", "base": "main", "title": "chore(docs): rename rides -> trips table identifiers" }
+      { "number": 1, "state": "MERGED", "merged_at": "2026-07-28T08:36:22Z", "head": "feat/db-schema", "base": "main" },
+      { "number": 2, "state": "MERGED", "merged_at": "2026-07-28T08:38:45Z", "head": "feat/fare-calculation", "base": "main" },
+      { "number": 3, "state": "MERGED", "merged_at": "2026-07-28T17:17:02Z", "head": "feat/geofence-rpc", "base": "main" },
+      { "number": 4, "state": "MERGED", "merged_at": "2026-07-28T16:56:24Z", "head": "chore/rename-rides-to-trips", "base": "main" }
     ],
+    "open_pr_count": 0,
     "issues": [],
     "issue_count": 0
   },
@@ -50,36 +60,36 @@
       "20260728090500_trips.sql",
       "20260728090600_compute_fare.sql",
       "20260728090700_fare_matrix_centavos.sql",
-      "20260728090800_compute_fare_from_matrix.sql"
+      "20260728090800_compute_fare_from_matrix.sql",
+      "20260728090900_geofence_rpc.sql"
     ],
-    "migration_count_on_main": 9,
+    "migration_count_on_main": 10,
     "test_files_on_main": [
-      { "file": "supabase/tests/00_bootstrap_local.sql", "is_test": false, "note": "local auth shim, not a test file" },
+      { "file": "supabase/tests/00_bootstrap_local.sql", "is_test": false, "note": "local auth/roles shim, explicitly not a migration and not a test" },
       { "file": "supabase/tests/10_compute_fare_test.sql", "is_test": true, "planned_assertions": 20 },
-      { "file": "supabase/tests/20_fare_helpers_test.sql", "is_test": true, "planned_assertions": 12 }
+      { "file": "supabase/tests/20_fare_helpers_test.sql", "is_test": true, "planned_assertions": 12 },
+      { "file": "supabase/tests/30_geofence_test.sql", "is_test": true, "planned_assertions": 20 }
     ],
     "pgtap_run_on_main": {
       "command": "bash scripts/run_db_tests.sh",
-      "engine": "PostgreSQL 16.14 + PostGIS 3.4.2 + pgTAP 1.3.2 (WSL Ubuntu 24.04, no Docker)",
-      "files": 2,
-      "tests": 32,
-      "passing": 32,
+      "engine": "PostgreSQL 16.14 + PostGIS 3.4.2 + pgTAP 1.3.2 (WSL Ubuntu 24.04, no Docker, no Supabase CLI)",
+      "files": 3,
+      "tests": 52,
+      "passing": 52,
       "failing": 0,
       "result": "PASS"
     },
-    "pgtap_run_on_pr3_branch": {
-      "files": 3,
-      "tests": 45,
-      "passing": 45,
-      "failing": 0,
-      "result": "PASS",
-      "note": "adds supabase/tests/30_geofence_test.sql with 13 assertions"
+    "mutation_test_evidence": {
+      "target": "toda_zone_covering() nearest-terminal tiebreak",
+      "method": "reverted the function to the naive all-matches version and re-ran 30_geofence_test.sql",
+      "outcome": "FAIL at test 12, 'a pickup on a shared edge resolves to exactly one zone, not two' (have: 2, want: 1)",
+      "why_recorded": "confirms the tiebreak assertions are not vacuous. A first attempt at this mutation test reported PASS, but investigation showed the mutation SQL had never been written to disk, so the suite had been re-run against the correct code. That PASS was an artifact of the harness, not evidence."
     },
     "pubspec_yaml_exists": false,
     "test_dir_exists": false,
     "integration_test_dir_exists": false,
     "apps_dir_exists": false,
-    "flutter_test_run": "still not executable — no Flutter project exists (no pubspec.yaml) and E:\\Dev\\flutter is empty. Fare logic is trusted server-side per CLAUDE.md, so pgTAP is its correct home; this is not treated as a coverage gap."
+    "flutter_test_run": "not executable — no Flutter project exists (no pubspec.yaml) and E:\\Dev\\flutter is empty. Fare and geofence logic are trusted server-side per CLAUDE.md, so pgTAP is their correct home; this is not a coverage gap."
   },
 
   "units_of_work": [
@@ -88,13 +98,13 @@
       "title": "Repository scaffolding: agent rules, project docs, GitHub remote",
       "evidence": ["commit 50112e0", "commit e30ad76", "branch main", "remote origin"],
       "status": "Done",
-      "status_rationale": "Merged to main and pushed. No automated test exists for markdown docs, so the rubric's 'has a passing test' clause is not literally satisfiable; marked Done on merge evidence alone. Flagged as a rubric edge case rather than asserted as tested.",
+      "status_rationale": "Merged to main and pushed. No automated test exists for markdown, so the rubric's 'has a passing test' clause is not literally satisfiable; marked Done on merge evidence alone and flagged as a rubric edge case rather than asserted as tested.",
       "subtasks": [
         { "text": "Agent rule files (CLAUDE.md, AGENTS.md, SAFETY.md) present and path-corrected", "done": true },
         { "text": "docs/ tree present", "done": true },
         { "text": ".gitignore and README present", "done": true },
         { "text": "Private GitHub repo created and pushed", "done": true },
-        { "text": ".gitattributes forcing LF for .sh/.sql (WSL/Postgres reject CRLF)", "done": true }
+        { "text": ".gitattributes forcing LF for .sh/.sql (WSL and Postgres reject CRLF)", "done": true }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
@@ -104,84 +114,80 @@
       "title": "Core database schema and seed (PR #1)",
       "evidence": ["PR #1 MERGED", "commit 2eef1c7", "supabase/migrations/20260728090000..090500", "supabase/seed.sql", "scripts/run_db_tests.sh"],
       "status": "Done",
-      "status_rationale": "Merged to main. Exercised on every test run: the runner applies all migrations plus seed from scratch before pgTAP executes, so a schema regression fails the suite. No dedicated schema-assertion file exists, so coverage is indirect.",
+      "status_rationale": "Merged to main. Exercised on every test run: the runner rebuilds a throwaway database and applies all migrations plus seed before pgTAP executes, so a schema regression fails the suite. Coverage is indirect; there is no dedicated schema-assertion file.",
       "subtasks": [
-        { "text": "profiles table with role/status enums", "done": true },
-        { "text": "toda_zones with geometry(Polygon,4326) + GiST index", "done": true },
+        { "text": "profiles table with role and status enums", "done": true },
+        { "text": "toda_zones with geometry(Polygon,4326) and GiST index", "done": true },
         { "text": "fare_matrix with one-active-bracket-per-ride-type constraint", "done": true },
         { "text": "driver_documents with review state", "done": true },
         { "text": "trips with full status machine enum, idempotency_key, updated_at", "done": true },
         { "text": "RLS enabled on all five tables", "done": true },
-        { "text": "is_admin() security-definer helper to avoid recursive RLS on profiles", "done": true },
+        { "text": "is_admin() security-definer helper avoiding recursive RLS on profiles", "done": true },
         { "text": "Partial unique index enforcing one active trip per commuter", "done": true },
-        { "text": "Seed 1-2 TODA zones", "done": true },
-        { "text": "Seed values replaced with real LGU ordinance / digitized boundaries", "done": false }
+        { "text": "Seed two TODA zones and both fare brackets", "done": true },
+        { "text": "Seed values replaced with real LGU ordinance and digitized boundaries", "done": false }
       ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0, "note": "indirectly exercised by both suites; no dedicated schema test file" }
+      "test_evidence": { "files": [], "passing": 0, "failing": 0, "note": "indirectly exercised by all three suites; no dedicated schema test file" }
     },
     {
       "id": "WU-02",
       "title": "Fare computation built test-first: red, green, refactor (PR #2)",
       "evidence": ["PR #2 MERGED", "commit 3187389 [RED]", "commit 6bbc57f [GREEN]", "commit bb00285 [REFACTOR]", "supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql", "supabase/migrations/20260728090600/090700/090800"],
       "status": "Done",
-      "status_rationale": "Merged to main with 32 passing assertions. The full TDD cycle is observable in git history: the RED commit's failure output and the GREEN commit's pass output were both recorded from actual runs.",
+      "status_rationale": "Merged to main with 32 passing assertions. The full TDD cycle is observable in git history: the RED commit records an observed 'Failed 20/20, Result: FAIL' and the GREEN commit an observed 'Tests=20, Result: PASS', both from actual runs.",
       "subtasks": [
-        { "text": "Failing suite written and committed before implementation (observed: Failed 20/20, Result: FAIL)", "done": true },
-        { "text": "compute_fare() implemented to pass (observed: Tests=20, Result: PASS)", "done": true },
+        { "text": "Failing suite written and committed before implementation", "done": true },
+        { "text": "compute_fare() implemented to pass", "done": true },
         { "text": "Rate constants externalized into fare_matrix", "done": true },
         { "text": "Money converted to integer centavos", "done": true },
         { "text": "Rounding rule extracted into fare_km_increments()", "done": true },
-        { "text": "Original 20 assertions kept byte-identical across refactor (verified via git diff)", "done": true },
-        { "text": "Bracket-boundary cases pinned (1000/1001/2000/2001 m)", "done": true },
-        { "text": "Special vs pooling both covered", "done": true },
+        { "text": "Original 20 assertions kept byte-identical across the refactor (verified by git diff)", "done": true },
+        { "text": "Bracket-boundary cases pinned at 1000/1001/2000/2001 m", "done": true },
+        { "text": "Special and pooling both covered", "done": true },
         { "text": "Haversine distance helper feeding compute_fare", "done": false }
       ],
       "story": null,
-      "test_evidence": {
-        "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"],
-        "passing": 32,
-        "failing": 0
-      }
+      "test_evidence": { "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"], "passing": 32, "failing": 0 }
     },
     {
       "id": "WU-03",
-      "title": "PostGIS TODA geofence containment RPC (PR #3)",
-      "evidence": ["PR #3 OPEN", "branch feat/geofence-rpc", "commit a9b3b57", "supabase/migrations/20260728090900_geofence_rpc.sql", "supabase/tests/30_geofence_test.sql"],
-      "status": "Code Review/Test",
-      "status_rationale": "Open PR against main. Tests are green on the branch (13 assertions), so this is awaiting review rather than blocked on failures. Rebased onto main after PR #2 merged, so the PR diff is a single commit.",
+      "title": "PostGIS TODA geofence RPC with nearest-terminal tiebreak (PR #3)",
+      "evidence": ["PR #3 MERGED 2026-07-28T17:17:02Z", "commit 34d0941", "commit bf842dd", "supabase/migrations/20260728090900_geofence_rpc.sql", "supabase/tests/30_geofence_test.sql"],
+      "status": "Done",
+      "status_rationale": "Merged to main with 20 passing assertions, and additionally mutation-tested: reverting the tiebreak makes the suite fail at test 12, so the assertions demonstrably exercise the feature.",
       "subtasks": [
         { "text": "toda_zone_covering(lon,lat) RPC", "done": true },
-        { "text": "is_point_in_toda_zone(zone,lon,lat) helper", "done": true },
+        { "text": "is_point_in_toda_zone(zone,lon,lat) helper, deliberately not tie-broken", "done": true },
         { "text": "On-border edge test (point exactly on polygon edge)", "done": true },
         { "text": "On-vertex edge test", "done": true },
         { "text": "Assertions pinning ST_Covers vs ST_Contains semantics", "done": true },
         { "text": "Inactive-zone and null-coordinate handling", "done": true },
-        { "text": "Reviewed and merged", "done": false },
-        { "text": "Tie-break rule decided for points on a shared edge matching two zones", "done": false }
+        { "text": "Shared-edge tiebreak: single zone returned, nearest registered terminal wins", "done": true },
+        { "text": "Distance computed as geography (metres) rather than geometry (degrees)", "done": true },
+        { "text": "Deterministic fallback to unique code on distance ties", "done": true },
+        { "text": "NULL terminal_point sorts last but still returned as sole match", "done": true },
+        { "text": "Adversarial fixture: losing zone sorts first alphabetically and inserted first", "done": true },
+        { "text": "Causation assertion: moving a terminal nearer flips the winner", "done": true },
+        { "text": "Reviewed and merged", "done": true }
       ],
       "story": null,
-      "test_evidence": {
-        "files": ["supabase/tests/30_geofence_test.sql"],
-        "passing": 13,
-        "failing": 0,
-        "note": "13 on-branch; 45 total when run with the two merged suites"
-      }
+      "test_evidence": { "files": ["supabase/tests/30_geofence_test.sql"], "passing": 20, "failing": 0 }
     },
     {
       "id": "WU-04",
       "title": "Rename rides -> trips table identifiers across docs (PR #4)",
-      "evidence": ["PR #4 OPEN", "branch chore/rename-rides-to-trips", "CLAUDE.md", "ROADMAP.md", "SECURITY.md", "docs/ARCHITECTURE.md", "docs/CONCURRENCY_AND_STATE.md"],
-      "status": "Code Review/Test",
-      "status_rationale": "Open PR against main. Documentation only, no SQL touched, so there is no test to run and no runtime surface to verify.",
+      "evidence": ["PR #4 MERGED 2026-07-28T16:56:24Z", "commit aa5997b", "CLAUDE.md", "ROADMAP.md", "SECURITY.md", "docs/ARCHITECTURE.md", "docs/CONCURRENCY_AND_STATE.md"],
+      "status": "Done",
+      "status_rationale": "Merged to main. Documentation only, no SQL touched, so there is no test to run and no runtime surface to verify. Verified by grep that no table-identifier form of 'rides' remains repo-wide.",
       "subtasks": [
         { "text": "rides -> trips in CLAUDE.md core-table list", "done": true },
         { "text": "ride_locations -> trip_locations", "done": true },
         { "text": "ride_events -> trip_events", "done": true },
         { "text": "SECURITY.md RLS policy examples updated", "done": true },
         { "text": "Prose and UI labels deliberately left as 'rides'", "done": true },
-        { "text": "Reviewed and merged", "done": false },
-        { "text": "ride_type column renamed (would require a new migration; out of scope)", "done": false },
+        { "text": "Reviewed and merged", "done": true },
+        { "text": "ride_type column renamed (requires a new migration against merged schema)", "done": false },
         { "text": "ride_id params in proposed RPC signatures settled", "done": false }
       ],
       "story": null,
@@ -189,6 +195,36 @@
     },
     {
       "id": "WU-05",
+      "title": "Governing-document build-mode and repo-identity correction",
+      "evidence": ["commit 577c5a9", "commit c426626", "commit 78fa361", "CLAUDE.md", "AGENTS.md"],
+      "status": "Done",
+      "status_rationale": "Merged to main across three commits. Resolves the high-severity contradiction flagged in the previous audit, where CLAUDE.md declared 'Mock UI First' and forbade creating Supabase migrations while nine were already merged. Docs have no test, same rubric edge case as WU-00.",
+      "subtasks": [
+        { "text": "CLAUDE.md mode declaration rewritten to state backend active, client not started", "done": true },
+        { "text": "'creating Supabase migrations' removed from CLAUDE.md Forbidden work", "done": true },
+        { "text": "CLAUDE.md 'Verified state' block added citing commits and assertion count", "done": true },
+        { "text": "AGENTS.md build-mode section mirrored byte-identically", "done": true },
+        { "text": "AGENTS.md repo-identity paragraph corrected: this is the application repo, its remote is expected", "done": true }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-06",
+      "title": "Remaining stale mode declarations outside the governing docs",
+      "evidence": ["README.md line 9", "docs/ui/UI_MOCKUP_BRIEF.md line 7", "docs/figma/FIGMA_MOCK_UI_PLAN.md line 8"],
+      "status": "Backlog",
+      "status_rationale": "Identified by a repo-wide sweep but not acted on; no branch, PR, or commit addresses these three files. They still assert the repository is pre-implementation and that no Supabase work has begun.",
+      "subtasks": [
+        { "text": "README.md 'Pre-implementation' status corrected", "done": false },
+        { "text": "docs/ui/UI_MOCKUP_BRIEF.md mock-UI-first assertion corrected", "done": false },
+        { "text": "docs/figma/FIGMA_MOCK_UI_PLAN.md 'no Supabase' assertion corrected", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-07",
       "title": "Month 1 Wk1 — Figma Mock UI and UX",
       "evidence": ["ROADMAP.md lines 41-47"],
       "status": "Backlog",
@@ -204,37 +240,37 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-06",
+      "id": "WU-08",
       "title": "Month 1 Wk2 — Database and Architecture Planning",
-      "evidence": ["ROADMAP.md lines 49-54", "supabase/migrations/ (exceeds the 'draft' bar)"],
+      "evidence": ["ROADMAP.md lines 49-54", "supabase/migrations/ on main"],
       "status": "In Progress",
-      "status_rationale": "Partially satisfied by merged work rather than by a dedicated branch: the core tables and RLS shape were not merely drafted, they were implemented and merged. The remaining sign-off items have no evidence.",
+      "status_rationale": "Partially satisfied by merged work rather than a dedicated branch: the core tables and RLS shape were not merely drafted, they were implemented and merged. The two sign-off items have no evidence.",
       "subtasks": [
         { "text": "Draft core tables (delivered as merged migrations, exceeding 'draft')", "done": true },
         { "text": "Draft ride status machine and RLS policy shape per table", "done": true },
         { "text": "Write docs/ARCHITECTURE.md sign-off confirming Supabase Free covers every layer", "done": false },
-        { "text": "Confirm MapLibre + MapTiler + openrouteservice covers map/geofence/route-preview needs", "done": false }
+        { "text": "Confirm MapLibre + MapTiler + openrouteservice covers map, geofence and route-preview needs", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-07",
+      "id": "WU-09",
       "title": "Month 1 Wk3 — TODA Polygons and Fare Matrix",
-      "evidence": ["ROADMAP.md lines 56-61", "supabase/seed.sql", "PR #3 (point-in-polygon)"],
+      "evidence": ["ROADMAP.md lines 56-61", "supabase/seed.sql", "commit 34d0941"],
       "status": "In Progress",
-      "status_rationale": "The mechanisms exist but the real-world data does not. Seeded polygons and fare figures are explicitly labelled placeholders in seed.sql.",
+      "status_rationale": "The mechanisms exist and are merged, but the real-world data does not. Seeded polygons and fare figures are explicitly labelled placeholders in seed.sql.",
       "subtasks": [
         { "text": "Collect and digitize real Calamba TODA terminal boundaries", "done": false },
-        { "text": "Draft LGU fare matrix as seed data (structure done; figures are placeholders)", "done": true },
-        { "text": "Plan the Point-in-Polygon geofencing helper (implemented server-side in PR #3, not yet merged)", "done": true },
+        { "text": "Draft LGU fare matrix as seed data (structure merged; figures are placeholders)", "done": true },
+        { "text": "Point-in-Polygon geofencing helper (implemented server-side and merged)", "done": true },
         { "text": "Plan the Haversine distance helper for fare computation", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-08",
+      "id": "WU-10",
       "title": "Month 1 Wk4 — Architecture Sign-Off and Implementation Backlog",
       "evidence": ["ROADMAP.md lines 63-70"],
       "status": "Backlog",
@@ -250,76 +286,67 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-09",
+      "id": "WU-11",
       "title": "Month 2 Wk5 — Auth, Roles, and Driver Onboarding",
       "evidence": ["ROADMAP.md lines 80-87", "supabase/migrations/20260728090100_profiles.sql", "supabase/migrations/20260728090400_driver_documents.sql"],
       "status": "In Progress",
-      "status_rationale": "Database half is merged; every client-side and Supabase-project item is untouched. No Supabase project exists — the auth schema used in tests is a local shim, explicitly not a migration.",
+      "status_rationale": "Database half is merged; every client-side and Supabase-project item is untouched. No Supabase project exists — the auth schema used in tests is a local shim, explicitly marked not a migration.",
       "subtasks": [
         { "text": "Enable Supabase Auth email/password on a real project", "done": false },
         { "text": "Create profiles table linked to auth users with commuter/driver/admin roles", "done": true },
-        { "text": "RLS policies for profile self read/update", "done": true },
+        { "text": "RLS policies for profile self read and update", "done": true },
         { "text": "Build login, sign up, logout, role-based redirect screens", "done": false },
         { "text": "Create toda_zones table", "done": true },
         { "text": "Create driver_profiles and vehicles tables", "done": false },
-        { "text": "Driver registration form + private Storage bucket with ownership policies", "done": false },
+        { "text": "Driver registration form and private Storage bucket with ownership policies", "done": false },
         { "text": "Admin driver review list with pending/approved/rejected/suspended states (enum exists, no UI)", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-10",
+      "id": "WU-12",
       "title": "Month 2 Wk6 — Maps and Geofencing",
-      "evidence": ["ROADMAP.md lines 89-96", "PR #3 (server-side containment only)"],
-      "status": "Code Review/Test",
-      "status_rationale": "The only part with any implementation is server-side boundary containment, which sits in open PR #3. Every client-side item (MapLibre, permissions, rendering, routing, heartbeat) has no evidence at all.",
+      "evidence": ["ROADMAP.md lines 89-96", "commit 34d0941", "commit bf842dd"],
+      "status": "In Progress",
+      "status_rationale": "Server-side boundary containment is merged and tested. Every client-side item — MapLibre, permissions, polygon rendering, route preview, heartbeat table — has no evidence of any kind.",
       "subtasks": [
         { "text": "Add MapLibre to the Flutter app with MapTiler tiles", "done": false },
-        { "text": "Request foreground/background location permissions", "done": false },
+        { "text": "Request foreground and background location permissions", "done": false },
         { "text": "Render TODA geofence polygons on the map", "done": false },
-        { "text": "Point-in-Polygon boundary validation (server-side, in open PR #3)", "done": false },
+        { "text": "Point-in-Polygon boundary validation (merged, server-side)", "done": true },
         { "text": "openrouteservice route preview", "done": false },
         { "text": "Location heartbeat table for online drivers", "done": false }
       ],
       "story": null,
-      "test_evidence": {
-        "files": ["supabase/tests/30_geofence_test.sql"],
-        "passing": 13,
-        "failing": 0,
-        "note": "on PR #3 branch, not on main"
-      }
+      "test_evidence": { "files": ["supabase/tests/30_geofence_test.sql"], "passing": 20, "failing": 0 }
     },
     {
-      "id": "WU-11",
+      "id": "WU-13",
       "title": "Month 2 Wk7 — Fare Matrix and Ride Request",
-      "evidence": ["ROADMAP.md lines 98-104", "commits 2eef1c7 / 3187389 / 6bbc57f / bb00285"],
+      "evidence": ["ROADMAP.md lines 98-104", "commits 2eef1c7, 3187389, 6bbc57f, bb00285"],
       "status": "In Progress",
       "status_rationale": "Substantially delivered on the database side and merged, but the client booking screen and the Haversine distance source are absent, so the week is not complete.",
       "subtasks": [
         { "text": "Create fare_matrix table with LGU fare parameters as seed data", "done": true },
         { "text": "Implement Haversine distance helper", "done": false },
-        { "text": "Fare preview / computation for Special ride", "done": true },
+        { "text": "Fare preview and computation for Special ride", "done": true },
         { "text": "Create trips table with status, pickup, dropoff, ride type, fare estimate, timestamps, idempotency_key, updated_at", "done": true },
         { "text": "RLS policies for riders and assigned drivers", "done": true },
         { "text": "Commuter booking confirmation screen with out-of-boundary warning", "done": false }
       ],
       "story": null,
-      "test_evidence": {
-        "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"],
-        "passing": 32,
-        "failing": 0
-      }
+      "test_evidence": { "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"], "passing": 32, "failing": 0 }
     },
     {
-      "id": "WU-12",
+      "id": "WU-14",
       "title": "Month 2 Wk8 — Driver Assignment and Live Tracking",
       "evidence": ["ROADMAP.md lines 106-113"],
       "status": "Backlog",
-      "status_rationale": "No branch, PR, or code. The trips status enum exists to support it, but no dispatch logic has been written.",
+      "status_rationale": "No branch, PR, or code. The trips status enum and the geofence RPC exist to support it, but no dispatch logic has been written.",
       "subtasks": [
         { "text": "Create driver_availability table", "done": false },
-        { "text": "Trusted dispatch RPC/Edge Function for atomic driver assignment", "done": false },
+        { "text": "Trusted dispatch RPC or Edge Function for atomic driver assignment", "done": false },
         { "text": "Realtime accept/decline with timeout", "done": false },
         { "text": "Create trip_locations table and subscriptions", "done": false },
         { "text": "Implement ride status machine end to end", "done": false },
@@ -329,23 +356,23 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-13",
+      "id": "WU-15",
       "title": "Month 2 Wk8 (parallel) — Trip Completion, Payments, Safety",
       "evidence": ["ROADMAP.md lines 115-121"],
       "status": "Backlog",
       "status_rationale": "No branch, PR, or code.",
       "subtasks": [
-        { "text": "Final fare computation + immutable trip ledger row", "done": false },
+        { "text": "Final fare computation and immutable trip ledger row", "done": false },
         { "text": "Ride summary screen for commuter and driver", "done": false },
-        { "text": "Create payments table (cash/gcash/qr_transfer) with private proof upload", "done": false },
-        { "text": "Create emergency_reports table + SOS press-and-hold", "done": false },
+        { "text": "Create payments table (cash, gcash, qr_transfer) with private proof upload", "done": false },
+        { "text": "Create emergency_reports table and SOS press-and-hold", "done": false },
         { "text": "Create complaints table", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-14",
+      "id": "WU-16",
       "title": "Month 2 Wk6-8 (parallel) — Admin Dashboard",
       "evidence": ["ROADMAP.md lines 123-129"],
       "status": "Backlog",
@@ -361,7 +388,7 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-15",
+      "id": "WU-17",
       "title": "Month 3 Wk9 — Reliability and Edge Case Testing",
       "evidence": ["ROADMAP.md lines 139-144"],
       "status": "Backlog",
@@ -376,7 +403,7 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-16",
+      "id": "WU-18",
       "title": "Month 3 Wk10-11 — ISO/IEC 25010 Evaluation and TODA Survey",
       "evidence": ["ROADMAP.md lines 146-152"],
       "status": "Backlog",
@@ -392,7 +419,7 @@
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
-      "id": "WU-17",
+      "id": "WU-19",
       "title": "Month 3 Wk12 — Field Testing, Bug Fixing, Presentation",
       "evidence": ["ROADMAP.md lines 154-161"],
       "status": "Backlog",
@@ -413,83 +440,98 @@
     { "id": "WU-00", "title": "Repo scaffolding", "status": "Done", "subtasks_done": "5/5", "tests": "0" },
     { "id": "WU-01", "title": "Core DB schema + seed (PR #1)", "status": "Done", "subtasks_done": "9/10", "tests": "indirect" },
     { "id": "WU-02", "title": "Fare computation TDD (PR #2)", "status": "Done", "subtasks_done": "8/9", "tests": "32 pass / 0 fail" },
-    { "id": "WU-03", "title": "PostGIS geofence RPC (PR #3)", "status": "Code Review/Test", "subtasks_done": "6/8", "tests": "13 pass / 0 fail" },
-    { "id": "WU-04", "title": "rides -> trips rename (PR #4)", "status": "Code Review/Test", "subtasks_done": "5/8", "tests": "0" },
-    { "id": "WU-05", "title": "M1W1 Figma Mock UI", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
-    { "id": "WU-06", "title": "M1W2 DB/Architecture planning", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
-    { "id": "WU-07", "title": "M1W3 TODA polygons + fare matrix", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
-    { "id": "WU-08", "title": "M1W4 Architecture sign-off", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
-    { "id": "WU-09", "title": "M2W5 Auth, roles, onboarding", "status": "In Progress", "subtasks_done": "3/8", "tests": "0" },
-    { "id": "WU-10", "title": "M2W6 Maps and geofencing", "status": "Code Review/Test", "subtasks_done": "0/6", "tests": "13 pass (PR #3)" },
-    { "id": "WU-11", "title": "M2W7 Fare matrix + ride request", "status": "In Progress", "subtasks_done": "4/6", "tests": "32 pass / 0 fail" },
-    { "id": "WU-12", "title": "M2W8 Driver assignment + tracking", "status": "Backlog", "subtasks_done": "0/6", "tests": "0" },
-    { "id": "WU-13", "title": "M2W8 Trip completion/payments/safety", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
-    { "id": "WU-14", "title": "M2W6-8 Admin dashboard", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
-    { "id": "WU-15", "title": "M3W9 Reliability testing", "status": "Backlog", "subtasks_done": "0/4", "tests": "0" },
-    { "id": "WU-16", "title": "M3W10-11 ISO 25010 + survey", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
-    { "id": "WU-17", "title": "M3W12 Field testing + presentation", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" }
+    { "id": "WU-03", "title": "Geofence RPC + tiebreak (PR #3)", "status": "Done", "subtasks_done": "13/13", "tests": "20 pass / 0 fail" },
+    { "id": "WU-04", "title": "rides -> trips rename (PR #4)", "status": "Done", "subtasks_done": "6/8", "tests": "0" },
+    { "id": "WU-05", "title": "Governing-doc correction", "status": "Done", "subtasks_done": "5/5", "tests": "0" },
+    { "id": "WU-06", "title": "Remaining stale mode declarations", "status": "Backlog", "subtasks_done": "0/3", "tests": "0" },
+    { "id": "WU-07", "title": "M1W1 Figma Mock UI", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-08", "title": "M1W2 DB/Architecture planning", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
+    { "id": "WU-09", "title": "M1W3 TODA polygons + fare matrix", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
+    { "id": "WU-10", "title": "M1W4 Architecture sign-off", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-11", "title": "M2W5 Auth, roles, onboarding", "status": "In Progress", "subtasks_done": "3/8", "tests": "0" },
+    { "id": "WU-12", "title": "M2W6 Maps and geofencing", "status": "In Progress", "subtasks_done": "1/6", "tests": "20 pass / 0 fail" },
+    { "id": "WU-13", "title": "M2W7 Fare matrix + ride request", "status": "In Progress", "subtasks_done": "4/6", "tests": "32 pass / 0 fail" },
+    { "id": "WU-14", "title": "M2W8 Driver assignment + tracking", "status": "Backlog", "subtasks_done": "0/6", "tests": "0" },
+    { "id": "WU-15", "title": "M2W8 Trip completion/payments/safety", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-16", "title": "M2W6-8 Admin dashboard", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-17", "title": "M3W9 Reliability testing", "status": "Backlog", "subtasks_done": "0/4", "tests": "0" },
+    { "id": "WU-18", "title": "M3W10-11 ISO 25010 + survey", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-19", "title": "M3W12 Field testing + presentation", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" }
+  ],
+
+  "status_counts": { "Done": 6, "In Progress": 5, "Code Review/Test": 0, "Sprint Planning": 0, "Backlog": 9, "total": 20 },
+
+  "resolved_since_last_audit": [
+    {
+      "was": "HIGH — CLAUDE.md still declared 'Current Build Mode — Mock UI First' and listed 'creating Supabase migrations' under Forbidden work while 9 migrations were merged.",
+      "now": "Resolved in 577c5a9, mirrored into AGENTS.md in c426626. Repo-wide grep confirms no file declares Mock UI First as a mode."
+    },
+    {
+      "was": "MEDIUM — two PRs open, not one.",
+      "now": "Resolved. All four PRs merged; zero open."
+    }
   ],
 
   "assumed_vs_actual_flags": [
     {
       "severity": "high",
-      "flag": "CLAUDE.md still declares 'Current Build Mode — Mock UI First' and lists 'creating Supabase migrations' under Forbidden work — but 9 migrations are merged to main.",
-      "evidence": "CLAUDE.md lines 76-86 vs supabase/migrations/ on main @ bb00285.",
-      "why_it_matters": "Any future Claude Code or Codex session reads CLAUDE.md as authoritative and would be told the work already merged is forbidden. This is a live contradiction in the governing document, not a cosmetic one. Not fixed inline because CLAUDE.md rule 13 requires surgical changes scoped to the current task; flagged here instead."
+      "flag": "All seeded data is placeholder and cannot be defended to a panel.",
+      "evidence": "supabase/seed.sql — both TODA polygons are invented axis-aligned rectangles; fare figures (P25/P15 base, P8/P5 per km) are invented.",
+      "why_it_matters": "The fare and geofence LOGIC is real, merged and covered by 52 assertions; the NUMBERS are not. Every geofence result and every fare in a demo would be computed from fiction. ROADMAP Month 1 Week 3 covers replacing them."
     },
     {
       "severity": "high",
-      "flag": "All seeded data is placeholder and cannot be defended to a panel.",
-      "evidence": "supabase/seed.sql — both TODA polygons are invented axis-aligned rectangles; fare figures (P25/P15 base, P8/P5 per km) are invented.",
-      "why_it_matters": "The fare and geofence LOGIC is real and tested; the NUMBERS are not. ROADMAP Month 1 Week 3 covers replacing them."
+      "flag": "No Supabase project exists; the auth schema used by tests is a local shim.",
+      "evidence": "supabase/tests/00_bootstrap_local.sql, explicitly marked 'NOT A MIGRATION, NOT DEPLOYED'.",
+      "why_it_matters": "The 10 migrations have never been applied to a real Supabase instance. auth.users and auth.uid() are emulated locally, so all RLS policies are structurally present but unproven against real Supabase Auth. The first real deployment will be the first genuine test of them."
     },
     {
       "severity": "medium",
-      "flag": "Two PRs are open, not one.",
-      "evidence": "PR #3 (geofence) and PR #4 (rename) both OPEN.",
-      "why_it_matters": "If the intent was a single 'Code Review / Test' card, the board now shows two. PR #4 is documentation-only and cheap to merge."
-    },
-    {
-      "severity": "medium",
-      "flag": "ride_type remains the column/enum name while the table is now trips.",
+      "flag": "ride_type remains the column and enum name while the table is now trips.",
       "evidence": "supabase/migrations/20260728090300_fare_matrix.sql and 20260728090500_trips.sql, merged.",
-      "why_it_matters": "Renaming it requires a new migration against merged schema, so it was deliberately excluded from PR #4. Left as a known, documented inconsistency."
+      "why_it_matters": "Renaming requires a new migration against merged schema, so it was deliberately excluded from PR #4. A known, documented inconsistency rather than an oversight."
     },
     {
       "severity": "medium",
       "flag": "Zero GitHub issues exist, so the rubric's 'Sprint Planning' status is unreachable.",
       "evidence": "`gh issue list --state all` returns empty.",
-      "why_it_matters": "No unit can be classified Sprint Planning. Everything not backed by a branch or PR falls to Backlog. If issue-based planning is wanted, issues need creating first."
+      "why_it_matters": "No unit can ever be classified Sprint Planning. Everything not backed by a branch or PR falls to Backlog. If issue-driven planning is wanted, issues must be created first."
     },
     {
       "severity": "medium",
-      "flag": "No Supabase project exists; the auth schema used by tests is a local shim.",
-      "evidence": "supabase/tests/00_bootstrap_local.sql, explicitly marked 'NOT A MIGRATION, NOT DEPLOYED'.",
-      "why_it_matters": "Migrations have never been applied to a real Supabase instance. auth.users/auth.uid() behaviour is emulated locally, so RLS policies are structurally present but not yet proven against real Supabase Auth."
+      "flag": "Nearest terminal is not nearest available driver.",
+      "evidence": "supabase/migrations/20260728090900_geofence_rpc.sql, NOTE block.",
+      "why_it_matters": "toda_zone_covering() answers which jurisdiction a pickup falls in, not who should drive. The dispatch RPC (WU-14) must still consider live driver availability, and needs an explicit decision on whether it may override this routing when the winning TODA has nobody online."
+    },
+    {
+      "severity": "low",
+      "flag": "Three files outside the governing docs still assert the repo is pre-implementation.",
+      "evidence": "README.md line 9, docs/ui/UI_MOCKUP_BRIEF.md line 7, docs/figma/FIGMA_MOCK_UI_PLAN.md line 8. Tracked as WU-06.",
+      "why_it_matters": "Lower stakes than the CLAUDE.md/AGENTS.md case since no agent treats these as governing, but README is the first thing a human reader sees."
     },
     {
       "severity": "low",
       "flag": "No user story identifiers (US-01..US-05) exist anywhere in the repo.",
-      "evidence": "grep for 'US-0', 'user story' across all .md files returns no matches.",
+      "evidence": "grep for 'US-0' and 'user story' across all .md files returns no matches.",
       "why_it_matters": "Every 'story' field is null by evidence, not by omission."
     },
     {
       "severity": "low",
       "flag": "flutter_test remains impossible.",
       "evidence": "No pubspec.yaml, no test/ or integration_test/ directory, E:\\Dev\\flutter is empty.",
-      "why_it_matters": "All test evidence in this audit is pgTAP. Fare logic is trusted server-side per CLAUDE.md, so this is correct placement rather than missing coverage."
+      "why_it_matters": "All test evidence in this audit is pgTAP. Fare and geofence logic are trusted server-side per CLAUDE.md, so this is correct placement rather than missing coverage."
     },
     {
       "severity": "low",
-      "flag": "Merged feature branches were not deleted.",
-      "evidence": "feat/db-schema and feat/fare-calculation still exist locally and on origin despite PRs #1 and #2 being MERGED.",
-      "why_it_matters": "Cosmetic. They will accumulate; safe to delete since their commits are on main."
+      "flag": "All four merged feature branches still exist locally and on origin.",
+      "evidence": "feat/db-schema, feat/fare-calculation, feat/geofence-rpc, chore/rename-rides-to-trips.",
+      "why_it_matters": "Cosmetic. Their commits are all on main, so deletion is safe."
     },
     {
       "severity": "low",
-      "flag": "This audit file was committed directly to main rather than through a PR.",
+      "flag": "This audit file is committed directly to main rather than through a PR.",
       "evidence": "project_status.json on main.",
-      "why_it_matters": "Deliberate: a status snapshot placed in an open PR would describe a state that is not yet real. It is a generated report, not code. Reversible if you would rather it go through review."
+      "why_it_matters": "Deliberate: a status snapshot placed in an open PR would describe a state that is not yet real. It is a generated report, not code. Reversible if it should go through review."
     }
   ]
 }
