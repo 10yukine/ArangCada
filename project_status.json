@@ -1,333 +1,495 @@
 {
   "audit_meta": {
     "generated_at": "2026-07-28",
+    "supersedes": "previous audit dated 2026-07-28 (pre-merge, documentation-only repo state)",
     "repo_path": "E:\\ArangCadaApp",
-    "repo_remote": "https://github.com/KumaYuki1/ArangCadaApp.git (private)",
-    "method": "Derived from `git log --oneline --all`, `git branch -a --sort=-committerdate`, `git status`, `git diff --stat`, `gh pr list --state all`, `gh issue list --state all`, `gh repo view`, filesystem search for supabase/migrations, test/, integration_test/, pubspec.yaml, and attempted `flutter`/`pg_prove` invocation. No values were inferred beyond what these commands returned.",
-    "caveat": "This is a documentation-only repository at time of audit. There is no Flutter project (no pubspec.yaml), no supabase/ directory, no test/ or integration_test/ directory, and no CI config. Every 'unit of work' below is therefore a planning/doc artifact, not shipped code, except where noted."
+    "repo_remote": "https://github.com/KumaYuki1/ArangCadaApp (private)",
+    "audited_ref": "main @ bb00285",
+    "method": "Derived from `git log --oneline main`, `git branch -a --sort=-committerdate`, `git status`, `gh pr list --state all`, `gh issue list --state all`, directory listings of supabase/migrations/ and supabase/tests/, `grep 'select plan('` for assertion counts, and an actual execution of scripts/run_db_tests.sh against PostgreSQL 16 + PostGIS 3.4.2 + pgTAP 1.3.2. No status was inferred without one of these as backing.",
+    "what_changed_since_last_audit": "The repo is no longer documentation-only. PR #1 and #2 are merged; main now carries 9 SQL migrations, a seed file, a reproducible test runner, and 32 passing pgTAP assertions. Two PRs are open."
   },
+
   "git_evidence": {
-    "commits_all_branches": [
-      {
-        "sha": "50112e0",
-        "message": "Initial commit: project docs, agent rules, and repo scaffolding",
-        "note": "root commit, only commit in the repository"
-      }
+    "main_commits": [
+      { "sha": "bb00285", "message": "refactor(fare): rates from fare_matrix, integer centavos, extracted rounding helper [REFACTOR]" },
+      { "sha": "6bbc57f", "message": "feat(fare): implement compute_fare to satisfy the suite [GREEN]" },
+      { "sha": "3187389", "message": "test(fare): failing pgTAP suite for compute_fare [RED]" },
+      { "sha": "2eef1c7", "message": "feat(db): core schema for profiles, toda_zones, fare_matrix, driver_documents, trips" },
+      { "sha": "e30ad76", "message": "docs: sync stack details (PostGIS, Cloudflare Pages, geolocator, Hive)" },
+      { "sha": "50112e0", "message": "Initial commit: project docs, agent rules, and repo scaffolding" }
     ],
     "branches": [
-      { "name": "main", "local": true, "remote_tracking": "origin/main", "committer_date_rank": 1 }
+      { "name": "main", "pushed": true, "role": "trunk" },
+      { "name": "chore/rename-rides-to-trips", "pushed": true, "role": "open PR #4" },
+      { "name": "feat/geofence-rpc", "pushed": true, "role": "open PR #3" },
+      { "name": "feat/fare-calculation", "pushed": true, "role": "merged via PR #2, branch not deleted" },
+      { "name": "feat/db-schema", "pushed": true, "role": "merged via PR #1, branch not deleted" }
     ],
-    "other_branches": [],
-    "working_tree_status": "dirty",
-    "uncommitted_changes": {
-      "note": "12 tracked doc files modified in the working tree, not committed, not on a branch of their own",
-      "files": [
-        "AGENTS.md", "CLAUDE.md", "PROMPTS.md", "README.md", "ROADMAP.md",
-        "SECURITY.md", "TOOLS.md", "docs/ARCHITECTURE.md",
-        "docs/CLAUDE_CODE_CODEX_HANDOFF.md", "docs/CODEX_SETUP.md",
-        "docs/TECH_STACK_DECISIONS.md", "docs/ui/UI_MOCKUP_BRIEF.md"
-      ],
-      "diffstat": "12 files changed, 63 insertions(+), 26 deletions(-)",
-      "does_not_fit_status_rubric": "Not a branch, not a PR, not an issue-linked change — cannot be classified as Done/Code Review/In Progress/Sprint Planning/Backlog under the given rubric. Flagged separately below."
-    }
+    "working_tree_status": "clean",
+    "note_on_history": "PRs #1 and #2 were merged with --rebase rather than --squash, deliberately, so the RED -> GREEN -> REFACTOR sequence survives as three distinct commits on main rather than collapsing into one."
   },
+
   "github_evidence": {
-    "gh_auth_status": "authenticated as KumaYuki1",
-    "pull_requests_all_states": [],
-    "issues_all_states": [],
-    "pr_count": 0,
+    "pull_requests": [
+      { "number": 1, "state": "MERGED", "head": "feat/db-schema", "base": "main", "title": "feat(db): core schema — profiles, toda_zones, fare_matrix, driver_documents, trips" },
+      { "number": 2, "state": "MERGED", "head": "feat/fare-calculation", "base": "main", "title": "feat(fare): compute_fare via TDD — red, green, refactor" },
+      { "number": 3, "state": "OPEN", "head": "feat/geofence-rpc", "base": "main", "title": "feat(geo): PostGIS TODA geofence containment RPC (on-border inclusive)" },
+      { "number": 4, "state": "OPEN", "head": "chore/rename-rides-to-trips", "base": "main", "title": "chore(docs): rename rides -> trips table identifiers" }
+    ],
+    "issues": [],
     "issue_count": 0
   },
+
   "code_and_test_evidence": {
-    "supabase_migrations_dir_exists": false,
+    "migrations_on_main": [
+      "20260728090000_extensions.sql",
+      "20260728090100_profiles.sql",
+      "20260728090200_toda_zones.sql",
+      "20260728090300_fare_matrix.sql",
+      "20260728090400_driver_documents.sql",
+      "20260728090500_trips.sql",
+      "20260728090600_compute_fare.sql",
+      "20260728090700_fare_matrix_centavos.sql",
+      "20260728090800_compute_fare_from_matrix.sql"
+    ],
+    "migration_count_on_main": 9,
+    "test_files_on_main": [
+      { "file": "supabase/tests/00_bootstrap_local.sql", "is_test": false, "note": "local auth shim, not a test file" },
+      { "file": "supabase/tests/10_compute_fare_test.sql", "is_test": true, "planned_assertions": 20 },
+      { "file": "supabase/tests/20_fare_helpers_test.sql", "is_test": true, "planned_assertions": 12 }
+    ],
+    "pgtap_run_on_main": {
+      "command": "bash scripts/run_db_tests.sh",
+      "engine": "PostgreSQL 16.14 + PostGIS 3.4.2 + pgTAP 1.3.2 (WSL Ubuntu 24.04, no Docker)",
+      "files": 2,
+      "tests": 32,
+      "passing": 32,
+      "failing": 0,
+      "result": "PASS"
+    },
+    "pgtap_run_on_pr3_branch": {
+      "files": 3,
+      "tests": 45,
+      "passing": 45,
+      "failing": 0,
+      "result": "PASS",
+      "note": "adds supabase/tests/30_geofence_test.sql with 13 assertions"
+    },
+    "pubspec_yaml_exists": false,
     "test_dir_exists": false,
     "integration_test_dir_exists": false,
-    "pubspec_yaml_exists": false,
-    "flutter_binary_resolvable": false,
-    "pg_prove_binary_resolvable": false,
-    "flutter_test_run": "not executed — no Flutter project present (no pubspec.yaml) to run it against",
-    "pgtap_run": "not executed — no supabase/migrations or pgTAP suite present",
-    "test_evidence_summary": { "files": [], "passing": 0, "failing": 0 }
+    "apps_dir_exists": false,
+    "flutter_test_run": "still not executable — no Flutter project exists (no pubspec.yaml) and E:\\Dev\\flutter is empty. Fare logic is trusted server-side per CLAUDE.md, so pgTAP is its correct home; this is not treated as a coverage gap."
   },
+
   "units_of_work": [
     {
       "id": "WU-00",
-      "title": "Repository scaffolding: agent rules and project docs committed and pushed",
-      "evidence": ["commit 50112e0", "branch main", "remote origin/main (verified via git ls-remote, matches local SHA)"],
+      "title": "Repository scaffolding: agent rules, project docs, GitHub remote",
+      "evidence": ["commit 50112e0", "commit e30ad76", "branch main", "remote origin"],
       "status": "Done",
-      "status_rationale": "Merged to main (it IS main, root commit) and pushed to origin. No test suite exists for markdown docs, so the 'passing test' clause of the Done definition is not literally satisfiable here; marking Done on the basis of merge/push evidence only — flagged as a rubric edge case, not a guess.",
+      "status_rationale": "Merged to main and pushed. No automated test exists for markdown docs, so the rubric's 'has a passing test' clause is not literally satisfiable; marked Done on merge evidence alone. Flagged as a rubric edge case rather than asserted as tested.",
       "subtasks": [
-        { "text": "CLAUDE.md copied and re-pointed to E:\\ArangCadaApp", "done": true },
-        { "text": "AGENTS.md copied", "done": true },
-        { "text": "SAFETY.md copied and re-pointed", "done": true },
-        { "text": "SECURITY.md, ROADMAP.md, TOOLS.md, PROMPTS.md copied", "done": true },
-        { "text": "docs/ tree copied", "done": true },
-        { "text": ".gitignore created", "done": true },
-        { "text": "README.md created", "done": true },
-        { "text": "git remote added, pushed to GitHub (private repo)", "done": true }
+        { "text": "Agent rule files (CLAUDE.md, AGENTS.md, SAFETY.md) present and path-corrected", "done": true },
+        { "text": "docs/ tree present", "done": true },
+        { "text": ".gitignore and README present", "done": true },
+        { "text": "Private GitHub repo created and pushed", "done": true },
+        { "text": ".gitattributes forcing LF for .sh/.sql (WSL/Postgres reject CRLF)", "done": true }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-01",
-      "title": "Uncommitted documentation edits (stack/architecture detail additions)",
-      "evidence": ["working tree diff, 12 files, not committed, no branch"],
-      "status": "unknown",
-      "status_rationale": "Does not match any status definition in the rubric: it's not merged (no test to check anyway), not an open PR, not a dedicated branch, not an issue, and not merely a TODO note — it's live uncommitted edits on main. Cannot be classified without guessing intent.",
-      "subtasks": [],
+      "title": "Core database schema and seed (PR #1)",
+      "evidence": ["PR #1 MERGED", "commit 2eef1c7", "supabase/migrations/20260728090000..090500", "supabase/seed.sql", "scripts/run_db_tests.sh"],
+      "status": "Done",
+      "status_rationale": "Merged to main. Exercised on every test run: the runner applies all migrations plus seed from scratch before pgTAP executes, so a schema regression fails the suite. No dedicated schema-assertion file exists, so coverage is indirect.",
+      "subtasks": [
+        { "text": "profiles table with role/status enums", "done": true },
+        { "text": "toda_zones with geometry(Polygon,4326) + GiST index", "done": true },
+        { "text": "fare_matrix with one-active-bracket-per-ride-type constraint", "done": true },
+        { "text": "driver_documents with review state", "done": true },
+        { "text": "trips with full status machine enum, idempotency_key, updated_at", "done": true },
+        { "text": "RLS enabled on all five tables", "done": true },
+        { "text": "is_admin() security-definer helper to avoid recursive RLS on profiles", "done": true },
+        { "text": "Partial unique index enforcing one active trip per commuter", "done": true },
+        { "text": "Seed 1-2 TODA zones", "done": true },
+        { "text": "Seed values replaced with real LGU ordinance / digitized boundaries", "done": false }
+      ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+      "test_evidence": { "files": [], "passing": 0, "failing": 0, "note": "indirectly exercised by both suites; no dedicated schema test file" }
     },
     {
       "id": "WU-02",
-      "title": "Month 1 Week 1 — Figma Mock UI and UX",
-      "evidence": ["ROADMAP.md lines 41-47"],
-      "status": "Backlog",
-      "status_rationale": "Named only in ROADMAP.md as an unchecked task list; no branch, PR, issue, or commit in this repo references it. (Actual Figma work, if any, lives in the separate local planning workspace E:\\ArangCada, which is out of scope for this repo's git history.)",
+      "title": "Fare computation built test-first: red, green, refactor (PR #2)",
+      "evidence": ["PR #2 MERGED", "commit 3187389 [RED]", "commit 6bbc57f [GREEN]", "commit bb00285 [REFACTOR]", "supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql", "supabase/migrations/20260728090600/090700/090800"],
+      "status": "Done",
+      "status_rationale": "Merged to main with 32 passing assertions. The full TDD cycle is observable in git history: the RED commit's failure output and the GREEN commit's pass output were both recorded from actual runs.",
       "subtasks": [
-        { "text": "Build Figma pages: Cover, Foundations, Commuter App, Driver App, Admin Console, Evaluation, Survey, Prototype Flows, Review Notes", "done": false },
-        { "text": "Cover all four objectives in the mockup", "done": false },
-        { "text": "Define design tokens: color roles, type scale, status chips, map states", "done": false },
-        { "text": "Wire clickable prototype flows", "done": false },
-        { "text": "Run docs/review/MOCK_UI_REVIEW_CHECKLIST.md against the finished prototype", "done": false }
+        { "text": "Failing suite written and committed before implementation (observed: Failed 20/20, Result: FAIL)", "done": true },
+        { "text": "compute_fare() implemented to pass (observed: Tests=20, Result: PASS)", "done": true },
+        { "text": "Rate constants externalized into fare_matrix", "done": true },
+        { "text": "Money converted to integer centavos", "done": true },
+        { "text": "Rounding rule extracted into fare_km_increments()", "done": true },
+        { "text": "Original 20 assertions kept byte-identical across refactor (verified via git diff)", "done": true },
+        { "text": "Bracket-boundary cases pinned (1000/1001/2000/2001 m)", "done": true },
+        { "text": "Special vs pooling both covered", "done": true },
+        { "text": "Haversine distance helper feeding compute_fare", "done": false }
       ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+      "test_evidence": {
+        "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"],
+        "passing": 32,
+        "failing": 0
+      }
     },
     {
       "id": "WU-03",
-      "title": "Month 1 Week 2 — Database and Architecture Planning",
-      "evidence": ["ROADMAP.md lines 49-54"],
-      "status": "Backlog",
-      "status_rationale": "Unchecked TODO list in ROADMAP.md; no branch/PR/issue evidence in this repo.",
+      "title": "PostGIS TODA geofence containment RPC (PR #3)",
+      "evidence": ["PR #3 OPEN", "branch feat/geofence-rpc", "commit a9b3b57", "supabase/migrations/20260728090900_geofence_rpc.sql", "supabase/tests/30_geofence_test.sql"],
+      "status": "Code Review/Test",
+      "status_rationale": "Open PR against main. Tests are green on the branch (13 assertions), so this is awaiting review rather than blocked on failures. Rebased onto main after PR #2 merged, so the PR diff is a single commit.",
       "subtasks": [
-        { "text": "Draft core tables on paper/SQL draft", "done": false },
-        { "text": "Draft ride status machine and RLS policy shape", "done": false },
-        { "text": "Write docs/ARCHITECTURE.md sign-off", "done": false },
-        { "text": "Confirm MapLibre + MapTiler + openrouteservice covers MVP needs", "done": false }
+        { "text": "toda_zone_covering(lon,lat) RPC", "done": true },
+        { "text": "is_point_in_toda_zone(zone,lon,lat) helper", "done": true },
+        { "text": "On-border edge test (point exactly on polygon edge)", "done": true },
+        { "text": "On-vertex edge test", "done": true },
+        { "text": "Assertions pinning ST_Covers vs ST_Contains semantics", "done": true },
+        { "text": "Inactive-zone and null-coordinate handling", "done": true },
+        { "text": "Reviewed and merged", "done": false },
+        { "text": "Tie-break rule decided for points on a shared edge matching two zones", "done": false }
       ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+      "test_evidence": {
+        "files": ["supabase/tests/30_geofence_test.sql"],
+        "passing": 13,
+        "failing": 0,
+        "note": "13 on-branch; 45 total when run with the two merged suites"
+      }
     },
     {
       "id": "WU-04",
-      "title": "Month 1 Week 3 — TODA Polygons and Fare Matrix",
-      "evidence": ["ROADMAP.md lines 56-61"],
-      "status": "Backlog",
-      "status_rationale": "Unchecked TODO list; no branch/PR/issue evidence.",
+      "title": "Rename rides -> trips table identifiers across docs (PR #4)",
+      "evidence": ["PR #4 OPEN", "branch chore/rename-rides-to-trips", "CLAUDE.md", "ROADMAP.md", "SECURITY.md", "docs/ARCHITECTURE.md", "docs/CONCURRENCY_AND_STATE.md"],
+      "status": "Code Review/Test",
+      "status_rationale": "Open PR against main. Documentation only, no SQL touched, so there is no test to run and no runtime surface to verify.",
       "subtasks": [
-        { "text": "Collect and digitize Calamba TODA terminal boundaries", "done": false },
-        { "text": "Draft LGU approved distance fare matrix as seed data", "done": false },
-        { "text": "Plan Point-in-Polygon geofencing helper", "done": false },
-        { "text": "Plan Haversine distance helper", "done": false }
+        { "text": "rides -> trips in CLAUDE.md core-table list", "done": true },
+        { "text": "ride_locations -> trip_locations", "done": true },
+        { "text": "ride_events -> trip_events", "done": true },
+        { "text": "SECURITY.md RLS policy examples updated", "done": true },
+        { "text": "Prose and UI labels deliberately left as 'rides'", "done": true },
+        { "text": "Reviewed and merged", "done": false },
+        { "text": "ride_type column renamed (would require a new migration; out of scope)", "done": false },
+        { "text": "ride_id params in proposed RPC signatures settled", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-05",
-      "title": "Month 1 Week 4 — Architecture Sign-Off and Implementation Backlog",
-      "evidence": ["ROADMAP.md lines 63-70"],
+      "title": "Month 1 Wk1 — Figma Mock UI and UX",
+      "evidence": ["ROADMAP.md lines 41-47"],
       "status": "Backlog",
-      "status_rationale": "Unchecked TODO list; no branch/PR/issue evidence.",
+      "status_rationale": "Named only in ROADMAP.md as unchecked tasks. No branch, PR, issue, or commit in this repo. Any actual Figma work lives in the separate local planning workspace, outside this repo's history.",
       "subtasks": [
-        { "text": "Finalize Flutter/Supabase component boundaries (no implementation folders yet)", "done": false },
-        { "text": "Define provider-neutral map/routing interfaces", "done": false },
-        { "text": "Finalize RLS test matrix, ride status transitions, RPC/Edge Function contracts", "done": false },
-        { "text": "Convert approved Figma flows into prioritized Month 2 backlog", "done": false },
-        { "text": "Confirm physical Android test devices and sanitized test accounts available", "done": false }
+        { "text": "Build Figma pages (Cover, Foundations, Commuter, Driver, Admin, Evaluation, Survey, Flows, Review)", "done": false },
+        { "text": "Cover all four paper objectives in the mockup", "done": false },
+        { "text": "Define design tokens", "done": false },
+        { "text": "Wire clickable prototype flows", "done": false },
+        { "text": "Run docs/review/MOCK_UI_REVIEW_CHECKLIST.md", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-06",
-      "title": "Month 2 Week 5 — Auth, Roles, and Driver Onboarding",
-      "evidence": ["ROADMAP.md lines 80-87"],
-      "status": "Backlog",
-      "status_rationale": "No apps/, no supabase/migrations, no Flutter project in repo — purely a planned task list.",
+      "title": "Month 1 Wk2 — Database and Architecture Planning",
+      "evidence": ["ROADMAP.md lines 49-54", "supabase/migrations/ (exceeds the 'draft' bar)"],
+      "status": "In Progress",
+      "status_rationale": "Partially satisfied by merged work rather than by a dedicated branch: the core tables and RLS shape were not merely drafted, they were implemented and merged. The remaining sign-off items have no evidence.",
       "subtasks": [
-        { "text": "Enable Supabase Auth (email/password)", "done": false },
-        { "text": "Create profiles table + RLS", "done": false },
-        { "text": "Build login/signup/logout/role-redirect screens", "done": false },
-        { "text": "Create toda_zones, driver_profiles, vehicles tables + driver doc upload", "done": false },
-        { "text": "Build admin driver review list (pending/approved/rejected/suspended)", "done": false }
+        { "text": "Draft core tables (delivered as merged migrations, exceeding 'draft')", "done": true },
+        { "text": "Draft ride status machine and RLS policy shape per table", "done": true },
+        { "text": "Write docs/ARCHITECTURE.md sign-off confirming Supabase Free covers every layer", "done": false },
+        { "text": "Confirm MapLibre + MapTiler + openrouteservice covers map/geofence/route-preview needs", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-07",
-      "title": "Month 2 Week 6 — Maps and Geofencing",
-      "evidence": ["ROADMAP.md lines 89-96"],
-      "status": "Backlog",
-      "status_rationale": "No code in repo implementing this; TODO list only.",
+      "title": "Month 1 Wk3 — TODA Polygons and Fare Matrix",
+      "evidence": ["ROADMAP.md lines 56-61", "supabase/seed.sql", "PR #3 (point-in-polygon)"],
+      "status": "In Progress",
+      "status_rationale": "The mechanisms exist but the real-world data does not. Seeded polygons and fare figures are explicitly labelled placeholders in seed.sql.",
       "subtasks": [
-        { "text": "Add MapLibre + MapTiler tiles", "done": false },
-        { "text": "Request location permissions (commuter/driver)", "done": false },
-        { "text": "Render TODA geofence polygons", "done": false },
-        { "text": "Add Point-in-Polygon helper", "done": false },
-        { "text": "Add openrouteservice route preview", "done": false },
-        { "text": "Add location heartbeat table for online drivers", "done": false }
+        { "text": "Collect and digitize real Calamba TODA terminal boundaries", "done": false },
+        { "text": "Draft LGU fare matrix as seed data (structure done; figures are placeholders)", "done": true },
+        { "text": "Plan the Point-in-Polygon geofencing helper (implemented server-side in PR #3, not yet merged)", "done": true },
+        { "text": "Plan the Haversine distance helper for fare computation", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-08",
-      "title": "Month 2 Week 7 — Fare Matrix and Ride Request",
-      "evidence": ["ROADMAP.md lines 98-104"],
+      "title": "Month 1 Wk4 — Architecture Sign-Off and Implementation Backlog",
+      "evidence": ["ROADMAP.md lines 63-70"],
       "status": "Backlog",
-      "status_rationale": "TODO list only, no supabase/migrations present.",
+      "status_rationale": "Unchecked TODO list; no branch, PR or issue evidence.",
       "subtasks": [
-        { "text": "Create fare_matrix table + seed data", "done": false },
-        { "text": "Implement Haversine helper + fare preview", "done": false },
-        { "text": "Create rides table + RLS", "done": false },
-        { "text": "Build commuter booking confirmation screen w/ boundary check", "done": false }
+        { "text": "Finalize Flutter/Supabase component boundaries", "done": false },
+        { "text": "Define provider-neutral map and routing interfaces", "done": false },
+        { "text": "Finalize RLS test matrix, status transitions, trusted RPC contracts", "done": false },
+        { "text": "Convert approved Figma flows into a prioritized Month 2 backlog", "done": false },
+        { "text": "Confirm physical Android test devices and sanitized test accounts", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-09",
-      "title": "Month 2 Week 8 — Driver Assignment and Live Tracking",
-      "evidence": ["ROADMAP.md lines 106-113"],
-      "status": "Backlog",
-      "status_rationale": "TODO list only.",
+      "title": "Month 2 Wk5 — Auth, Roles, and Driver Onboarding",
+      "evidence": ["ROADMAP.md lines 80-87", "supabase/migrations/20260728090100_profiles.sql", "supabase/migrations/20260728090400_driver_documents.sql"],
+      "status": "In Progress",
+      "status_rationale": "Database half is merged; every client-side and Supabase-project item is untouched. No Supabase project exists — the auth schema used in tests is a local shim, explicitly not a migration.",
       "subtasks": [
-        { "text": "Create driver_availability table", "done": false },
-        { "text": "Create trusted dispatch RPC/Edge Function", "done": false },
-        { "text": "Driver Realtime accept/decline flow", "done": false },
-        { "text": "Create ride_locations table + subscriptions", "done": false },
-        { "text": "Implement full ride status machine", "done": false },
-        { "text": "Test two-driver simultaneous accept / rider-cancel-during-accept", "done": false }
+        { "text": "Enable Supabase Auth email/password on a real project", "done": false },
+        { "text": "Create profiles table linked to auth users with commuter/driver/admin roles", "done": true },
+        { "text": "RLS policies for profile self read/update", "done": true },
+        { "text": "Build login, sign up, logout, role-based redirect screens", "done": false },
+        { "text": "Create toda_zones table", "done": true },
+        { "text": "Create driver_profiles and vehicles tables", "done": false },
+        { "text": "Driver registration form + private Storage bucket with ownership policies", "done": false },
+        { "text": "Admin driver review list with pending/approved/rejected/suspended states (enum exists, no UI)", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-10",
-      "title": "Month 2 Week 8 (parallel) — Trip Completion, Payments, Safety",
-      "evidence": ["ROADMAP.md lines 115-121"],
-      "status": "Backlog",
-      "status_rationale": "TODO list only.",
+      "title": "Month 2 Wk6 — Maps and Geofencing",
+      "evidence": ["ROADMAP.md lines 89-96", "PR #3 (server-side containment only)"],
+      "status": "Code Review/Test",
+      "status_rationale": "The only part with any implementation is server-side boundary containment, which sits in open PR #3. Every client-side item (MapLibre, permissions, rendering, routing, heartbeat) has no evidence at all.",
       "subtasks": [
-        { "text": "Final fare computation + immutable trip ledger row", "done": false },
-        { "text": "Ride summary screen + rating field", "done": false },
-        { "text": "Create payments table (cash/gcash/qr_transfer + proof upload)", "done": false },
-        { "text": "Create emergency_reports table + SOS button", "done": false },
-        { "text": "Create complaints table", "done": false }
+        { "text": "Add MapLibre to the Flutter app with MapTiler tiles", "done": false },
+        { "text": "Request foreground/background location permissions", "done": false },
+        { "text": "Render TODA geofence polygons on the map", "done": false },
+        { "text": "Point-in-Polygon boundary validation (server-side, in open PR #3)", "done": false },
+        { "text": "openrouteservice route preview", "done": false },
+        { "text": "Location heartbeat table for online drivers", "done": false }
       ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+      "test_evidence": {
+        "files": ["supabase/tests/30_geofence_test.sql"],
+        "passing": 13,
+        "failing": 0,
+        "note": "on PR #3 branch, not on main"
+      }
     },
     {
       "id": "WU-11",
-      "title": "Month 2 Weeks 6-8 (parallel) — Admin Dashboard",
-      "evidence": ["ROADMAP.md lines 123-129"],
-      "status": "Backlog",
-      "status_rationale": "TODO list only, no apps/admin_web present.",
+      "title": "Month 2 Wk7 — Fare Matrix and Ride Request",
+      "evidence": ["ROADMAP.md lines 98-104", "commits 2eef1c7 / 3187389 / 6bbc57f / bb00285"],
+      "status": "In Progress",
+      "status_rationale": "Substantially delivered on the database side and merged, but the client booking screen and the Haversine distance source are absent, so the week is not complete.",
       "subtasks": [
-        { "text": "Admin login + dashboard shell", "done": false },
-        { "text": "Driver management (approve/reject/suspend/view docs)", "done": false },
-        { "text": "TODA zone viewer and fare matrix viewer", "done": false },
-        { "text": "Emergency reports and complaints views", "done": false },
-        { "text": "admin_audit_logs for sensitive actions", "done": false }
+        { "text": "Create fare_matrix table with LGU fare parameters as seed data", "done": true },
+        { "text": "Implement Haversine distance helper", "done": false },
+        { "text": "Fare preview / computation for Special ride", "done": true },
+        { "text": "Create trips table with status, pickup, dropoff, ride type, fare estimate, timestamps, idempotency_key, updated_at", "done": true },
+        { "text": "RLS policies for riders and assigned drivers", "done": true },
+        { "text": "Commuter booking confirmation screen with out-of-boundary warning", "done": false }
       ],
       "story": null,
-      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+      "test_evidence": {
+        "files": ["supabase/tests/10_compute_fare_test.sql", "supabase/tests/20_fare_helpers_test.sql"],
+        "passing": 32,
+        "failing": 0
+      }
     },
     {
       "id": "WU-12",
-      "title": "Month 3 Week 9 — Reliability and Edge Case Testing",
-      "evidence": ["ROADMAP.md lines 139-144"],
+      "title": "Month 2 Wk8 — Driver Assignment and Live Tracking",
+      "evidence": ["ROADMAP.md lines 106-113"],
       "status": "Backlog",
-      "status_rationale": "TODO list only; depends on Month 2 work that has not started.",
+      "status_rationale": "No branch, PR, or code. The trips status enum exists to support it, but no dispatch logic has been written.",
       "subtasks": [
-        { "text": "Test denied permissions, weak data, offline driver, cancel races, backgrounding", "done": false },
-        { "text": "RLS/security review pass", "done": false },
-        { "text": "Confirm live location access scoping; remove sensitive logs", "done": false },
-        { "text": "Bug-fix pass (no new features)", "done": false }
+        { "text": "Create driver_availability table", "done": false },
+        { "text": "Trusted dispatch RPC/Edge Function for atomic driver assignment", "done": false },
+        { "text": "Realtime accept/decline with timeout", "done": false },
+        { "text": "Create trip_locations table and subscriptions", "done": false },
+        { "text": "Implement ride status machine end to end", "done": false },
+        { "text": "Test two-driver simultaneous accept and rider-cancel-during-accept", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-13",
-      "title": "Month 3 Weeks 10-11 — ISO/IEC 25010 Evaluation and TODA Survey",
-      "evidence": ["ROADMAP.md lines 146-152"],
+      "title": "Month 2 Wk8 (parallel) — Trip Completion, Payments, Safety",
+      "evidence": ["ROADMAP.md lines 115-121"],
       "status": "Backlog",
-      "status_rationale": "TODO list only.",
+      "status_rationale": "No branch, PR, or code.",
       "subtasks": [
-        { "text": "Prepare ISO/IEC 25010 questionnaire and test scenarios", "done": false },
-        { "text": "Prepare manual test script + screenshots/recordings", "done": false },
-        { "text": "Prepare manual-pila baseline comparison notes", "done": false },
-        { "text": "Run TODA driver Likert survey", "done": false },
-        { "text": "Summarize survey results", "done": false }
+        { "text": "Final fare computation + immutable trip ledger row", "done": false },
+        { "text": "Ride summary screen for commuter and driver", "done": false },
+        { "text": "Create payments table (cash/gcash/qr_transfer) with private proof upload", "done": false },
+        { "text": "Create emergency_reports table + SOS press-and-hold", "done": false },
+        { "text": "Create complaints table", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     },
     {
       "id": "WU-14",
-      "title": "Month 3 Week 12 — Field-Style Testing, Bug Fixing, Presentation",
+      "title": "Month 2 Wk6-8 (parallel) — Admin Dashboard",
+      "evidence": ["ROADMAP.md lines 123-129"],
+      "status": "Backlog",
+      "status_rationale": "No apps/admin_web directory, no branch, no PR.",
+      "subtasks": [
+        { "text": "Admin login and dashboard shell with summary cards", "done": false },
+        { "text": "Driver management: approve, reject, suspend, view documents", "done": false },
+        { "text": "TODA zone viewer and fare matrix viewer", "done": false },
+        { "text": "Emergency reports and complaints views", "done": false },
+        { "text": "admin_audit_logs for sensitive admin actions", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-15",
+      "title": "Month 3 Wk9 — Reliability and Edge Case Testing",
+      "evidence": ["ROADMAP.md lines 139-144"],
+      "status": "Backlog",
+      "status_rationale": "Depends on Month 2 client work that has not started.",
+      "subtasks": [
+        { "text": "Test denied permissions, weak data, offline driver, cancel races, backgrounding", "done": false },
+        { "text": "Review all RLS policies; confirm no service-role key in client code", "done": false },
+        { "text": "Confirm live location access limited to trip participants and admins", "done": false },
+        { "text": "Bug-fix pass, no new features", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-16",
+      "title": "Month 3 Wk10-11 — ISO/IEC 25010 Evaluation and TODA Survey",
+      "evidence": ["ROADMAP.md lines 146-152"],
+      "status": "Backlog",
+      "status_rationale": "No evidence of any kind in the repo.",
+      "subtasks": [
+        { "text": "ISO/IEC 25010 questionnaire mapping and test scenarios", "done": false },
+        { "text": "Manual test script, screenshots, recordings", "done": false },
+        { "text": "Comparison notes against manual pila baseline", "done": false },
+        { "text": "Run TODA driver Likert survey", "done": false },
+        { "text": "Summarize survey results (weighted mean, interpretation scale)", "done": false }
+      ],
+      "story": null,
+      "test_evidence": { "files": [], "passing": 0, "failing": 0 }
+    },
+    {
+      "id": "WU-17",
+      "title": "Month 3 Wk12 — Field Testing, Bug Fixing, Presentation",
       "evidence": ["ROADMAP.md lines 154-161"],
       "status": "Backlog",
-      "status_rationale": "TODO list only.",
+      "status_rationale": "No evidence of any kind in the repo.",
       "subtasks": [
-        { "text": "Test on physical Android devices + admin on laptop browser", "done": false },
-        { "text": "Run full demo route; validate fare + geofence vs sample polygons", "done": false },
-        { "text": "Bug-fix-only code freeze", "done": false },
-        { "text": "Prepare architecture diagram, ERD, screenshots, panel demo script", "done": false },
-        { "text": "Prepare limitation notes", "done": false },
-        { "text": "Confirm test accounts/demo data; backup demo video", "done": false }
+        { "text": "Test on physical Android devices and admin on laptop browser", "done": false },
+        { "text": "Full demo route validating fare and geofence against TODA polygons", "done": false },
+        { "text": "Code freeze except critical fixes", "done": false },
+        { "text": "Architecture diagram, ERD, per-role screenshots, panel demo script", "done": false },
+        { "text": "Limitation notes and backup demo video", "done": false }
       ],
       "story": null,
       "test_evidence": { "files": [], "passing": 0, "failing": 0 }
     }
   ],
+
   "summary_table": [
-    { "id": "WU-00", "title": "Repository scaffolding (docs, agent rules, GitHub push)", "status": "Done" },
-    { "id": "WU-01", "title": "Uncommitted doc edits (stack detail additions)", "status": "unknown" },
-    { "id": "WU-02", "title": "Month 1 Wk1 — Figma Mock UI/UX", "status": "Backlog" },
-    { "id": "WU-03", "title": "Month 1 Wk2 — DB/Architecture Planning", "status": "Backlog" },
-    { "id": "WU-04", "title": "Month 1 Wk3 — TODA Polygons/Fare Matrix", "status": "Backlog" },
-    { "id": "WU-05", "title": "Month 1 Wk4 — Architecture Sign-Off", "status": "Backlog" },
-    { "id": "WU-06", "title": "Month 2 Wk5 — Auth/Roles/Driver Onboarding", "status": "Backlog" },
-    { "id": "WU-07", "title": "Month 2 Wk6 — Maps/Geofencing", "status": "Backlog" },
-    { "id": "WU-08", "title": "Month 2 Wk7 — Fare Matrix/Ride Request", "status": "Backlog" },
-    { "id": "WU-09", "title": "Month 2 Wk8 — Driver Assignment/Live Tracking", "status": "Backlog" },
-    { "id": "WU-10", "title": "Month 2 Wk8 — Trip Completion/Payments/Safety", "status": "Backlog" },
-    { "id": "WU-11", "title": "Month 2 Wk6-8 — Admin Dashboard", "status": "Backlog" },
-    { "id": "WU-12", "title": "Month 3 Wk9 — Reliability/Edge Case Testing", "status": "Backlog" },
-    { "id": "WU-13", "title": "Month 3 Wk10-11 — ISO 25010/Survey", "status": "Backlog" },
-    { "id": "WU-14", "title": "Month 3 Wk12 — Field Testing/Presentation", "status": "Backlog" }
+    { "id": "WU-00", "title": "Repo scaffolding", "status": "Done", "subtasks_done": "5/5", "tests": "0" },
+    { "id": "WU-01", "title": "Core DB schema + seed (PR #1)", "status": "Done", "subtasks_done": "9/10", "tests": "indirect" },
+    { "id": "WU-02", "title": "Fare computation TDD (PR #2)", "status": "Done", "subtasks_done": "8/9", "tests": "32 pass / 0 fail" },
+    { "id": "WU-03", "title": "PostGIS geofence RPC (PR #3)", "status": "Code Review/Test", "subtasks_done": "6/8", "tests": "13 pass / 0 fail" },
+    { "id": "WU-04", "title": "rides -> trips rename (PR #4)", "status": "Code Review/Test", "subtasks_done": "5/8", "tests": "0" },
+    { "id": "WU-05", "title": "M1W1 Figma Mock UI", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-06", "title": "M1W2 DB/Architecture planning", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
+    { "id": "WU-07", "title": "M1W3 TODA polygons + fare matrix", "status": "In Progress", "subtasks_done": "2/4", "tests": "0" },
+    { "id": "WU-08", "title": "M1W4 Architecture sign-off", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-09", "title": "M2W5 Auth, roles, onboarding", "status": "In Progress", "subtasks_done": "3/8", "tests": "0" },
+    { "id": "WU-10", "title": "M2W6 Maps and geofencing", "status": "Code Review/Test", "subtasks_done": "0/6", "tests": "13 pass (PR #3)" },
+    { "id": "WU-11", "title": "M2W7 Fare matrix + ride request", "status": "In Progress", "subtasks_done": "4/6", "tests": "32 pass / 0 fail" },
+    { "id": "WU-12", "title": "M2W8 Driver assignment + tracking", "status": "Backlog", "subtasks_done": "0/6", "tests": "0" },
+    { "id": "WU-13", "title": "M2W8 Trip completion/payments/safety", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-14", "title": "M2W6-8 Admin dashboard", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-15", "title": "M3W9 Reliability testing", "status": "Backlog", "subtasks_done": "0/4", "tests": "0" },
+    { "id": "WU-16", "title": "M3W10-11 ISO 25010 + survey", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" },
+    { "id": "WU-17", "title": "M3W12 Field testing + presentation", "status": "Backlog", "subtasks_done": "0/5", "tests": "0" }
   ],
+
   "assumed_vs_actual_flags": [
     {
-      "flag": "No code has been written yet — this repo is 100% documentation/planning as of the audit commit.",
-      "evidence": "Single commit (50112e0), no supabase/, apps/, test/, or integration_test/ directories, no pubspec.yaml."
+      "severity": "high",
+      "flag": "CLAUDE.md still declares 'Current Build Mode — Mock UI First' and lists 'creating Supabase migrations' under Forbidden work — but 9 migrations are merged to main.",
+      "evidence": "CLAUDE.md lines 76-86 vs supabase/migrations/ on main @ bb00285.",
+      "why_it_matters": "Any future Claude Code or Codex session reads CLAUDE.md as authoritative and would be told the work already merged is forbidden. This is a live contradiction in the governing document, not a cosmetic one. Not fixed inline because CLAUDE.md rule 13 requires surgical changes scoped to the current task; flagged here instead."
     },
     {
-      "flag": "Zero GitHub PRs and zero GitHub issues exist for this repo.",
-      "evidence": "`gh pr list --state all` and `gh issue list --state all` both returned empty against KumaYuki1/ArangCadaApp (gh auth confirmed active, not an auth failure)."
+      "severity": "high",
+      "flag": "All seeded data is placeholder and cannot be defended to a panel.",
+      "evidence": "supabase/seed.sql — both TODA polygons are invented axis-aligned rectangles; fare figures (P25/P15 base, P8/P5 per km) are invented.",
+      "why_it_matters": "The fare and geofence LOGIC is real and tested; the NUMBERS are not. ROADMAP Month 1 Week 3 covers replacing them."
     },
     {
-      "flag": "No branches other than main exist, local or remote.",
-      "evidence": "`git branch -a --sort=-committerdate` returned only main and remotes/origin/main."
+      "severity": "medium",
+      "flag": "Two PRs are open, not one.",
+      "evidence": "PR #3 (geofence) and PR #4 (rename) both OPEN.",
+      "why_it_matters": "If the intent was a single 'Code Review / Test' card, the board now shows two. PR #4 is documentation-only and cheap to merge."
     },
     {
-      "flag": "flutter test and pgTAP could not be run — no test infrastructure exists to run.",
-      "evidence": "No pubspec.yaml, no supabase/migrations, `flutter` and `pg_prove` are not installed/resolvable on PATH."
+      "severity": "medium",
+      "flag": "ride_type remains the column/enum name while the table is now trips.",
+      "evidence": "supabase/migrations/20260728090300_fare_matrix.sql and 20260728090500_trips.sql, merged.",
+      "why_it_matters": "Renaming it requires a new migration against merged schema, so it was deliberately excluded from PR #4. Left as a known, documented inconsistency."
     },
     {
-      "flag": "Working tree has uncommitted changes to 12 doc files that don't fit the requested status rubric.",
-      "evidence": "`git status` / `git diff --stat` show modifications to AGENTS.md, CLAUDE.md, and 10 others, not committed, no branch."
+      "severity": "medium",
+      "flag": "Zero GitHub issues exist, so the rubric's 'Sprint Planning' status is unreachable.",
+      "evidence": "`gh issue list --state all` returns empty.",
+      "why_it_matters": "No unit can be classified Sprint Planning. Everything not backed by a branch or PR falls to Backlog. If issue-based planning is wanted, issues need creating first."
     },
     {
-      "flag": "No US-01..US-05 user story identifiers exist anywhere in the repo.",
-      "evidence": "grep for 'US-0', 'user story', 'US[0-9]' across ROADMAP.md and docs/**/*.md returned no matches — all 'story' fields set to null, not guessed."
+      "severity": "medium",
+      "flag": "No Supabase project exists; the auth schema used by tests is a local shim.",
+      "evidence": "supabase/tests/00_bootstrap_local.sql, explicitly marked 'NOT A MIGRATION, NOT DEPLOYED'.",
+      "why_it_matters": "Migrations have never been applied to a real Supabase instance. auth.users/auth.uid() behaviour is emulated locally, so RLS policies are structurally present but not yet proven against real Supabase Auth."
+    },
+    {
+      "severity": "low",
+      "flag": "No user story identifiers (US-01..US-05) exist anywhere in the repo.",
+      "evidence": "grep for 'US-0', 'user story' across all .md files returns no matches.",
+      "why_it_matters": "Every 'story' field is null by evidence, not by omission."
+    },
+    {
+      "severity": "low",
+      "flag": "flutter_test remains impossible.",
+      "evidence": "No pubspec.yaml, no test/ or integration_test/ directory, E:\\Dev\\flutter is empty.",
+      "why_it_matters": "All test evidence in this audit is pgTAP. Fare logic is trusted server-side per CLAUDE.md, so this is correct placement rather than missing coverage."
+    },
+    {
+      "severity": "low",
+      "flag": "Merged feature branches were not deleted.",
+      "evidence": "feat/db-schema and feat/fare-calculation still exist locally and on origin despite PRs #1 and #2 being MERGED.",
+      "why_it_matters": "Cosmetic. They will accumulate; safe to delete since their commits are on main."
+    },
+    {
+      "severity": "low",
+      "flag": "This audit file was committed directly to main rather than through a PR.",
+      "evidence": "project_status.json on main.",
+      "why_it_matters": "Deliberate: a status snapshot placed in an open PR would describe a state that is not yet real. It is a generated report, not code. Reversible if you would rather it go through review."
     }
   ]
 }
