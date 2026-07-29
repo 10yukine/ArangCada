@@ -5,6 +5,15 @@
 # Runs against a local PostgreSQL 16 + PostGIS + pgTAP install (WSL Ubuntu).
 # No Docker and no Supabase CLI required.
 #
+# To run without a sudo password prompt, give your OS user a Postgres role
+# once:
+#
+#   sudo -u postgres psql -c "create role $(whoami) superuser login;"
+#
+# Superuser is needed because the script creates databases and installs the
+# postgis and pgtap extensions. This is a throwaway local test database; do
+# not grant a role like this on a shared or hosted instance.
+#
 #   Usage:  bash scripts/run_db_tests.sh [dbname]
 #
 # The database is dropped and recreated on every run, so the result is a clean
@@ -14,11 +23,26 @@ set -euo pipefail
 
 DB="${1:-arangcada_test}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PSQL=(sudo -u postgres psql -v ON_ERROR_STOP=1 -q)
+# Connect directly when the invoking user has a Postgres role with the rights
+# this script needs; that path involves no sudo and so no password prompt. Fall
+# back to sudo -u postgres where that role does not exist, so the script keeps
+# working on a fresh machine.
+#
+# -w on the probe matters: without it psql prompts for a password and the script
+# hangs instead of falling through to the sudo path.
+if psql -w -d postgres -tAc 'select 1' >/dev/null 2>&1; then
+  PSQL=(psql -v ON_ERROR_STOP=1 -q)
+  PG_PROVE=(pg_prove)
+  echo "==> Connecting as $(whoami)"
+else
+  PSQL=(sudo -u postgres psql -v ON_ERROR_STOP=1 -q)
+  PG_PROVE=(sudo -u postgres pg_prove)
+  echo "==> Connecting as postgres via sudo"
+fi
 
 echo "==> Rebuilding database: $DB"
-"${PSQL[@]}" -c "drop database if exists $DB;"
-"${PSQL[@]}" -c "create database $DB;"
+"${PSQL[@]}" -d postgres -c "drop database if exists $DB;"
+"${PSQL[@]}" -d postgres -c "create database $DB;"
 "${PSQL[@]}" -d "$DB" -c "create extension if not exists postgis; create extension if not exists pgtap;"
 
 echo "==> Applying local auth shim"
@@ -40,4 +64,4 @@ if [ ${#tests[@]} -eq 0 ]; then
   echo "    (no *_test.sql files found)"
   exit 0
 fi
-sudo -u postgres pg_prove --failures -d "$DB" "${tests[@]}"
+"${PG_PROVE[@]}" --failures -d "$DB" "${tests[@]}"
