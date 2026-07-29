@@ -1,14 +1,16 @@
 -- ArangCada demo seed data (development and internal testing only).
 --
--- ⚠ PLACEHOLDER VALUES — NOT OFFICIAL LGU DATA.
--- Both the TODA boundary polygons and the fare brackets below are invented
--- stand-ins so the dispatch and fare logic can be exercised end to end. They
--- MUST be replaced with the digitized Calamba TODA boundaries and the actual
--- LGU-approved fare ordinance figures before any evaluation or panel demo.
--- Tracked in ROADMAP.md, Month 1 Week 3.
+-- ⚠ THE TODA BOUNDARY POLYGONS BELOW ARE PLACEHOLDERS — NOT OFFICIAL LGU DATA.
+-- They are invented stand-ins so the dispatch logic can be exercised end to end,
+-- and they MUST be replaced with the digitized Calamba TODA boundaries before any
+-- evaluation or panel demo. Tracked in ROADMAP.md, Month 1 Week 3.
+--
+-- The FARE data below is no longer a placeholder: it is transcribed from the
+-- posted BPTFO "Minimum Fare Matrix" (Calamba City Ordinance No. 743, Series of
+-- 2022). See docs/LGU_FARE_MATRIX.md for the full transcription and provenance.
 
 -- ---------------------------------------------------------------------------
--- TODA zones
+-- TODA zones  (⚠ placeholder geometry)
 -- ---------------------------------------------------------------------------
 -- Deliberately simple axis-aligned rectangles: exact, known vertices make
 -- boundary behaviour testable (see supabase/tests for the on-border case).
@@ -37,13 +39,60 @@ values
   );
 
 -- ---------------------------------------------------------------------------
--- Fare matrix
+-- Fare matrix — Calamba City Ordinance No. 743, s. 2022
 -- ---------------------------------------------------------------------------
--- Base fare covers the first base_distance_m metres; every *started* kilometre
--- beyond that adds per_km. Amounts are in centavos: 2500 = PHP 25.00.
--- Pooling is cheaper than special per the capstone scope.
+-- Base fare covers the first 2 000 metres; every *started* kilometre beyond that
+-- adds one full per-km increment. Amounts are centavos: 6000 = PHP 60.00.
+--
+-- Ride type mapping (see docs/LGU_FARE_MATRIX.md):
+--   'pooling' = "Regular na Byahe"  — PHP 15.00 + PHP 2.00/km, PER PASSENGER, max 4
+--   'special' = "Espesyal na Byahe" — PHP 60.00 + PHP 8.00/km, PER TRIP, 1-3 passengers
+--
+-- discount_per_km_centavos is the statutory 20% applied to the per-km increment.
+-- It is used only past the 20 km end of the printed table; inside it, the
+-- transcribed fare_discount_brackets rows govern.
 
-insert into public.fare_matrix (ride_type, base_fare_centavos, base_distance_m, per_km_centavos)
+insert into public.fare_matrix (
+  ride_type, base_fare_centavos, base_distance_m, per_km_centavos,
+  discount_per_km_centavos, min_passengers, max_passengers,
+  is_per_passenger, ordinance_ref, printed_max_km
+)
 values
-  ('special', 2500, 1000, 800),
-  ('pooling', 1500, 1000, 500);
+  ('special', 6000, 2000, 800, 640, 1, 3, false, 'City Ordinance No. 743, s. 2022', 20),
+  ('pooling', 1500, 2000, 200, 160, 1, 4, true,  'City Ordinance No. 743, s. 2022', 20);
+
+-- ---------------------------------------------------------------------------
+-- Senior Citizen / PWD / student column — transcribed verbatim
+-- ---------------------------------------------------------------------------
+-- These are the printed amounts, not a computed 20%. Two regular-fare rows do
+-- not follow any consistent rounding rule (4 km prints P15.50 where 20% yields
+-- P15.20; 16 km prints P34.00 where 20% yields P34.40). The tarpaulin is what
+-- the LGU enforces, so the tarpaulin is what the database stores.
+--
+-- km = the printed row. Row 2 is the "First 2km" row.
+
+insert into public.fare_discount_brackets (fare_matrix_id, km, fare_centavos)
+select fm.id, v.km, v.fare_centavos
+  from public.fare_matrix fm
+  join (values
+          -- Regular na Byahe — Senior Citizen, P.W.D., at Estudyante
+          ( 2,  1200), ( 3,  1350), ( 4,  1550), ( 5,  1700), ( 6,  1850),
+          ( 7,  2000), ( 8,  2200), ( 9,  2300), (10,  2500), (11,  2650),
+          (12,  2800), (13,  3000), (14,  3150), (15,  3300), (16,  3400),
+          (17,  3600), (18,  3750), (19,  3900), (20,  4100)
+       ) as v (km, fare_centavos) on true
+ where fm.ride_type = 'pooling'
+   and fm.is_active;
+
+insert into public.fare_discount_brackets (fare_matrix_id, km, fare_centavos)
+select fm.id, v.km, v.fare_centavos
+  from public.fare_matrix fm
+  join (values
+          -- Espesyal na Byahe — Senior Citizen, P.W.D., at Estudyante
+          ( 2,  4800), ( 3,  5400), ( 4,  6100), ( 5,  6700), ( 6,  7400),
+          ( 7,  8000), ( 8,  8600), ( 9,  9300), (10,  9900), (11, 10600),
+          (12, 11200), (13, 11800), (14, 12500), (15, 13100), (16, 13800),
+          (17, 14400), (18, 15000), (19, 15700), (20, 16300)
+       ) as v (km, fare_centavos) on true
+ where fm.ride_type = 'special'
+   and fm.is_active;

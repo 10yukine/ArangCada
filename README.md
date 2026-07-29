@@ -16,7 +16,7 @@ The system digitizes the manual tricycle *pila* process through mobile booking, 
 - **Maps/routing:** MapLibre + MapTiler Free + OpenStreetMap, openrouteservice
 - **Location:** geolocator (Android fused location provider)
 - **Local cache:** Hive (read-only, session/profile/fare-matrix/trip-history)
-- **Dispatch logic:** Point-in-polygon TODA geofencing via PostGIS spatial containment queries, Haversine distance, LGU fare matrix
+- **Dispatch logic:** Point-in-polygon TODA geofencing via PostGIS spatial containment queries, Haversine distance, LGU fare matrix (Calamba City Ordinance No. 743, s. 2022 — see [docs/LGU_FARE_MATRIX.md](docs/LGU_FARE_MATRIX.md))
 
 See [docs/TECH_STACK_DECISIONS.md](docs/TECH_STACK_DECISIONS.md) for rationale.
 

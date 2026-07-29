@@ -46,6 +46,7 @@ Every sensitive table must have RLS enabled.
 - [ ] `vehicles`
 - [ ] `toda_zones`
 - [ ] `fare_matrix`
+- [ ] `fare_discount_brackets`
 - [ ] `driver_availability`
 - [ ] `trips`
 - [ ] `trip_locations`
