@@ -1,22 +1,71 @@
+# ---------------------------------------------------------------------------
 # Secrets — never commit
+# ---------------------------------------------------------------------------
 .env
 *.env
 .env.*
 supabase/.temp/
+supabase/.branches/
 
-# Flutter / Dart (flutter create adds more later)
+# Signing keys and platform credentials.
+# apps/mobile/android/.gitignore already covers the Flutter module; these are
+# repo-wide so a future module (apps/admin_web, packages/*) cannot slip one in.
+*.jks
+*.keystore
+key.properties
+local.properties
+*.p8
+*.p12
+*.pem
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# Map/routing provider keys. SECURITY.md allows development-tier MapTiler and
+# openrouteservice keys in the client, but never committed to Git.
+**/maptiler_key*
+**/ors_key*
+**/*api_key*
+**/*.secret
+
+# ---------------------------------------------------------------------------
+# Local agent tooling — machine config, not project state
+# ---------------------------------------------------------------------------
+.claude/
+.agents/
+skills-lock.json
+
+# ---------------------------------------------------------------------------
+# Large binaries kept locally rather than in Git history
+# ---------------------------------------------------------------------------
+# docs/legacy/ holds superseded document revisions (currently a 5 MB PDF of
+# SRS v1.1). Binaries never leave Git history once committed, so archive them
+# outside the repo. Commit deliberately, or use Git LFS, if one must ship.
+docs/legacy/
+
+# ---------------------------------------------------------------------------
+# Flutter / Dart
+# ---------------------------------------------------------------------------
 build/
 .dart_tool/
 .pub-cache/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
+*.symbols
+app.*.map.json
 
+# ---------------------------------------------------------------------------
 # IDE
+# ---------------------------------------------------------------------------
 .idea/
 *.iml
 .vscode/settings.json
 
-# OS
+# ---------------------------------------------------------------------------
+# Logs and OS noise
+# ---------------------------------------------------------------------------
+*.log
 Thumbs.db
 Desktop.ini
 .DS_Store
