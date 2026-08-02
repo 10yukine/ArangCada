@@ -1,6 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+import 'config/app_config.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Fails fast, naming only the missing variable -- never a value -- if
+  // env.json (see env.json.example) was not supplied via
+  // --dart-define-from-file. This is scaffolding: it makes the app boot
+  // against a real Supabase project, but no screen depends on auth state
+  // yet. Supabase.initialize touches CLAUDE.md's Council Review Rule (auth);
+  // review is outstanding, tracked in .pipeline/CURRENT_STATE.md.
+  AppConfig.assertConfigured();
+
+  try {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      // supabase_flutter 2.16 renamed this parameter to publishableKey
+      // (Supabase's newer key-naming; the value is still what the dashboard
+      // may label 'anon' / 'anon public' on older projects). anonKey is
+      // deprecated and slated for removal, so this app never uses it.
+      publishableKey: AppConfig.supabaseAnonKey,
+    );
+  } catch (_) {
+    // Deliberately not interpolating the caught error: a URL-format failure
+    // can echo the value that was rejected, and SUPABASE_ANON_KEY must never
+    // reach a log line (SECURITY.md).
+    throw StateError(
+      'Supabase failed to initialize. Check that env.json has a valid '
+      'SUPABASE_URL and SUPABASE_ANON_KEY for your project.',
+    );
+  }
+
   runApp(const MyApp());
 }
 

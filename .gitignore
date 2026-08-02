@@ -4,6 +4,7 @@
 .env
 *.env
 .env.*
+env.json
 supabase/.temp/
 supabase/.branches/
 
