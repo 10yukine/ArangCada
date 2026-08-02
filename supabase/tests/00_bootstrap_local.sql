@@ -38,3 +38,29 @@ begin
   end if;
 end
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Table privileges.
+--
+-- Supabase pre-grants anon/authenticated/service_role on the public schema, and
+-- leans on RLS as the only real gate. A plain PostgreSQL instance grants
+-- nothing, and that difference silently invalidates RLS tests: without these
+-- grants `set role authenticated; select from profiles` fails with "permission
+-- denied" rather than returning zero rows. An assertion written against that
+-- would pass identically with RLS switched off, proving nothing.
+--
+-- ALTER DEFAULT PRIVILEGES rather than GRANT ON ALL TABLES because this shim is
+-- applied *before* the migrations, so there are no tables to grant on yet. The
+-- migrations run as the same role in the same script, so the defaults apply to
+-- every table they create.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+
+alter default privileges in schema public
+  grant all on tables to anon, authenticated, service_role;
+
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated, service_role;
+
+alter default privileges in schema public
+  grant all on functions to anon, authenticated, service_role;
