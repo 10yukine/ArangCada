@@ -285,8 +285,7 @@ class _DiscountCard extends StatelessWidget {
                 ArangButton(
                   label: 'View fare matrix',
                   expand: false,
-                  onPressed: () =>
-                      context.push('/profile/discount-eligibility'),
+                  onPressed: () => context.push('/fare-matrix'),
                 ),
               ],
             ),
@@ -397,16 +396,10 @@ class _CurrentSelection extends StatelessWidget {
                 iconBackground: AppColors.clayFill,
                 iconForeground: AppColors.clayText,
                 showDivider: false,
-                onTap: onEdit,
+                onTap: onContinue,
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        ArangButton(
-          label: 'Compare ride options',
-          icon: Icons.local_taxi_outlined,
-          onPressed: onContinue,
         ),
       ],
     );

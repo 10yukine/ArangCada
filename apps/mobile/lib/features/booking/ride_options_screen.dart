@@ -7,6 +7,8 @@ import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/widgets/map/route_preview_map.dart';
+import '../../core/widgets/arang_ui.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_calculator.dart';
@@ -116,69 +118,11 @@ class RideOptionsScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Fare class',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Column(
-                  children: [
-                    for (var row = 0; row < 2; row++) ...[
-                      Row(
-                        children: [
-                          for (var column = 0; column < 2; column++) ...[
-                            if (column > 0)
-                              const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: ChoiceChip(
-                                  label: Center(
-                                    child: Text(
-                                      UserFareClass
-                                          .values[row * 2 + column]
-                                          .label,
-                                    ),
-                                  ),
-                                  selected:
-                                      state.userFareClass ==
-                                      UserFareClass.values[row * 2 + column],
-                                  side: BorderSide(
-                                    color:
-                                        state.userFareClass ==
-                                            UserFareClass.values[row * 2 +
-                                                column]
-                                        ? AppColors.coral
-                                        : AppColors.borderStrong,
-                                  ),
-                                  onSelected: (_) => state.setUserFareClass(
-                                    UserFareClass.values[row * 2 + column],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (row == 0) const SizedBox(height: AppSpacing.xs),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'One class applies to everyone in this booking. Mixed '
-                  'discount classes are not supported in the demo.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'Eligibility verification may be required.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                // Fare class is NOT chosen here. A concession is claimed
+                // against an ID, not picked from a menu at booking time, so
+                // the applied class comes from the commuter's verified
+                // eligibility on their profile.
+                _AppliedFareClass(fareClass: state.userFareClass),
                 const SizedBox(height: AppSpacing.lg),
                 _FareOptionCard(
                   title: 'Pooling',
@@ -386,6 +330,54 @@ class _FareDetail extends StatelessWidget {
             ),
           ),
           Text(value, style: Theme.of(context).textTheme.labelLarge),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows which fare class the booking is being priced at, and where that comes
+/// from. Read-only by design: see the comment at its call site.
+class _AppliedFareClass extends StatelessWidget {
+  const _AppliedFareClass({required this.fareClass});
+
+  final UserFareClass fareClass;
+
+  @override
+  Widget build(BuildContext context) {
+    final discounted = fareClass != UserFareClass.regular;
+    return ArangCard(
+      child: Row(
+        children: [
+          ArangRowIcon(
+            discounted ? Icons.verified_outlined : Icons.person_outline,
+            background: discounted
+                ? AppColors.greenFill
+                : AppColors.neutralFill,
+            foreground: discounted ? AppColors.green : AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Fare class: ${fareClass.label}', style: AppTypography.label),
+                const SizedBox(height: 2),
+                Text(
+                  discounted
+                      ? 'Applied from your verified discount eligibility.'
+                      : 'Verify a Student, Senior Citizen or PWD ID on your '
+                            'profile to get discounted fares.',
+                  style: AppTypography.caption.copyWith(height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          if (!discounted)
+            TextButton(
+              onPressed: () => context.push('/profile/discount-eligibility'),
+              child: const Text('Verify'),
+            ),
         ],
       ),
     );

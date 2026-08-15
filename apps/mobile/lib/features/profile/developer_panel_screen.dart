@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/section_card.dart';
+import '../../data/mock/local_chat_repository.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
@@ -170,6 +171,22 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
+                      SwitchListTile.adaptive(
+                        title: const Text('Load sample content'),
+                        subtitle: const Text(
+                          'Fills chats and the wallet ledger with example '
+                          'records for a walkthrough. Off by default so a '
+                          'fresh install shows nothing that did not happen.',
+                        ),
+                        value: state.sampleContentEnabled,
+                        onChanged: (value) {
+                          state.setSampleContent(value);
+                          final chat = ref.read(chatRepositoryProvider);
+                          if (chat is LocalChatRepository) {
+                            chat.setSampleContent(value);
+                          }
+                        },
+                      ),
                       SwitchListTile.adaptive(
                         title: const Text('Force no drivers available'),
                         value: state.forceNoDriversAvailable,

@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
-import '../../core/widgets/painted_calamba_map.dart';
+import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
@@ -96,13 +96,21 @@ class _SearchingForDriverScreenState
           final noDrivers = state.forceNoDriversAvailable;
           return Stack(
             children: [
-              const Positioned.fill(
-                child: PaintedCalambaMap(
-                  height: double.infinity,
+              Positioned.fill(
+                // Live tiles, same as every other map surface. No routing
+                // request here: nothing is routed while we are still looking
+                // for a driver, so asking ORS would be a wasted call.
+                child: LiveMapView(
+                  center: state.pickup.coordinate,
                   borderRadius: BorderRadius.zero,
-                  showNearbyDrivers: true,
-                  showRoute: false,
-                  showDestination: false,
+                  interactive: false,
+                  markers: [
+                    MapMarker(
+                      coordinate: state.pickup.coordinate,
+                      color: AppColors.primary,
+                      radius: 9,
+                    ),
+                  ],
                 ),
               ),
               Positioned(

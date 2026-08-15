@@ -13,11 +13,13 @@ import '../features/booking/searching_for_driver_screen.dart';
 import '../features/chat/chat_list_screen.dart';
 import '../features/chat/chat_thread_screen.dart';
 import '../features/driver/driver_screens.dart';
+import '../features/fare/fare_matrix_screen.dart';
 import '../features/driver/driver_earnings_screen.dart';
 import '../features/home/commuter_home_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/profile/about_screen.dart';
 import '../features/profile/developer_panel_screen.dart';
+import '../features/profile/discount_eligibility_screen.dart';
 import '../features/profile/profile_detail_screens.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/rating/rating_screen.dart';
@@ -143,6 +145,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state,
           ChatThreadScreen(threadId: state.pathParameters['threadId']!),
         ),
+      ),
+      GoRoute(
+        path: '/fare-matrix',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const FareMatrixScreen()),
       ),
       GoRoute(
         path: '/notifications',
