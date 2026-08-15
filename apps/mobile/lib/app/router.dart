@@ -209,6 +209,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         _screenPage(state, const DestinationSearchScreen()),
                   ),
                   GoRoute(
+                    path: 'choose-pickup',
+                    pageBuilder: (context, state) => _screenPage(
+                      state,
+                      const DestinationSearchScreen(pickingPickup: true),
+                    ),
+                  ),
+                  GoRoute(
                     path: 'pin-on-map',
                     pageBuilder: (context, state) =>
                         _screenPage(state, const PinOnMapScreen()),
