@@ -6,11 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
+import '../../core/widgets/arang_ui.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/painted_calamba_map.dart';
 import '../../core/widgets/section_card.dart';
-import '../../core/widgets/status_badge.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -103,78 +104,81 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Driver dashboard')),
       body: SafeArea(
+        bottom: false,
         child: ListenableBuilder(
           listenable: state,
           builder: (context, _) => ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             children: [
-              Text(
-                'Magandang araw, ${state.currentUser?.displayName ?? 'Driver'}',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SectionCard(
-                child: Column(
-                  children: [
-                    const ListTile(
-                      leading: CircleAvatar(
-                        radius: 21,
-                        backgroundColor: AppColors.clayFill,
-                        child: Icon(
-                          Icons.electric_rickshaw,
-                          color: AppColors.primary,
+              // Prototype driver header: who you are, which body number and
+              // TODA you drive under, and notices from the TODA desk.
+              Row(
+                children: [
+                  ArangAvatar(
+                    name: state.currentUser?.displayName ?? 'Driver',
+                    background: AppColors.primary,
+                    foreground: Colors.white,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hello, ${(state.currentUser?.displayName ?? 'Driver').split(' ').first}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
                         ),
-                      ),
-                      title: Text('Tricycle 024'),
-                      subtitle: Text('Calamba TODA · 4.9 rating'),
+                        const Text(
+                          'Body no. 024 - Calamba TODA',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Divider(height: 1),
-                    const ListTile(
-                      leading: AppRowIcon(Icons.verified_user_outlined),
-                      title: Text('Verification status'),
-                      trailing: StatusBadge(
-                        'Approved',
-                        variant: StatusBadgeVariant.green,
+                  ),
+                  ArangIconButton(
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'TODA notices',
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No new notices from the TODA desk.'),
                       ),
                     ),
-                    SwitchListTile(
-                      title: Text(
-                        state.driverTrip.isOnline ? 'Online' : 'Offline',
-                      ),
-                      subtitle: Text(
-                        state.driverTrip.isOnline
-                            ? 'Ready for Calamba TODA demo requests'
-                            : 'Go online to receive a request',
-                      ),
-                      value: state.driverTrip.isOnline,
-                      onChanged:
-                          state.driverTrip.status ==
-                                  DriverTripStatus.available ||
-                              state.driverTrip.status ==
-                                  DriverTripStatus.offline ||
-                              state.driverTrip.status ==
-                                  DriverTripStatus.declined
-                          ? (online) {
-                              if (online) {
-                                if (state.driverTrip.status ==
-                                    DriverTripStatus.declined) {
-                                  state.driverTrip.goOffline();
-                                }
-                                state.driverTrip.goOnline();
-                                _scheduleRequest();
-                              } else {
-                                _requestRun?.cancel();
-                                state.driverTrip.goOffline();
-                              }
-                              state.driverChanged();
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 14),
+              _AvailabilityCard(
+                online: state.driverTrip.isOnline,
+                canToggle:
+                    state.driverTrip.status == DriverTripStatus.available ||
+                    state.driverTrip.status == DriverTripStatus.offline ||
+                    state.driverTrip.status == DriverTripStatus.declined,
+                onToggle: () {
+                  if (state.driverTrip.isOnline) {
+                    _requestRun?.cancel();
+                    state.driverTrip.goOffline();
+                  } else {
+                    if (state.driverTrip.status == DriverTripStatus.declined) {
+                      state.driverTrip.goOffline();
+                    }
+                    state.driverTrip.goOnline();
+                    _scheduleRequest();
+                  }
+                  state.driverChanged();
+                },
+              ),
+              const SizedBox(height: 14),
+              _EarningsCard(onView: () => context.push('/driver/earnings')),
               const SizedBox(height: AppSpacing.md),
               if (state.driverTrip.status == DriverTripStatus.available)
                 const SectionCard(
@@ -429,6 +433,128 @@ class DriverProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Online/offline state, following the prototype: a status dot, a plain
+/// sentence about what that means, and a chip to flip it.
+class _AvailabilityCard extends StatelessWidget {
+  const _AvailabilityCard({
+    required this.online,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  final bool online;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return ArangCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              // Status is never colour alone -- the sentence beside it says
+              // the same thing in words.
+              color: online ? AppColors.green : AppColors.textMuted,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  online ? "You're online" : "You're offline",
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  online
+                      ? 'Receiving requests from the Calamba Crossing terminal queue.'
+                      : 'Go online to join the terminal queue.',
+                  style: AppTypography.caption.copyWith(height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          ArangChip(
+            label: online ? 'Go offline' : 'Go online',
+            selected: false,
+            onTap: canToggle ? onToggle : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Today's earnings, in the prototype's clay panel.
+class _EarningsCard extends StatelessWidget {
+  const _EarningsCard({required this.onView});
+
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: const BoxDecoration(
+        color: AppColors.clayFill,
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Today's earnings",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.clayText,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Cash collected plus digital awaiting settlement.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: AppColors.clayText,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ArangButton(
+                  label: 'View earnings',
+                  expand: false,
+                  onPressed: onView,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(
+            Icons.payments_outlined,
+            size: 32,
+            color: AppColors.primary,
+          ),
+        ],
       ),
     );
   }

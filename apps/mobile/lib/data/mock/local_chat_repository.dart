@@ -214,6 +214,15 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
   }
 
   @override
+  Future<void> markUnread(String threadId) async {
+    final index = _indexOf(threadId);
+    if (index < 0) return;
+    if (_threads[index].unreadCount > 0) return;
+    _threads[index] = _threads[index].copyWith(unreadCount: 1);
+    _emit();
+  }
+
+  @override
   void dispose() {
     for (final t in _pendingAcks) {
       t.cancel();

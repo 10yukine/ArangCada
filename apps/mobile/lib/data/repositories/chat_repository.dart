@@ -32,4 +32,7 @@ abstract class ChatRepository implements Listenable {
   });
 
   Future<void> markRead(String threadId);
+
+  /// Restores an unread marker so a commuter can flag a thread to revisit.
+  Future<void> markUnread(String threadId);
 }

@@ -10,6 +10,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
+import '../../domain/geo/service_area.dart';
 import '../../demo/demo_data.dart';
 
 /// Commuter home, following the approved prototype's composition: greeting
@@ -60,7 +61,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       // A fix must become the actual booking origin. Labelling it while
       // leaving DemoState.pickup untouched would price the ride from a
       // different point than the one shown.
-      if (!fix.isCoarse) {
+      if (!fix.isCoarse && ServiceArea.contains(fix.coordinate)) {
         ref.read(demoStateProvider).setPickup(
               DemoPlace(
                 id: 'gps',
@@ -118,7 +119,6 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                     pickupName: _pickupLabel(state.pickup.name),
                     destinationName: state.destination!.name,
                     onEdit: () => context.push('/home/search'),
-                    onContinue: () => context.push('/home/ride-options'),
                   )
                 else
                   _PlanYourRide(
@@ -187,6 +187,9 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   /// so instead of implying precision the device did not provide.
   String _pickupLabel(String configuredName) {
     if (_fix == null) return configuredName;
+    if (!ServiceArea.contains(_fix!.coordinate)) {
+      return '$configuredName · you are outside ${ServiceArea.name}';
+    }
     return _fix!.isCoarse
         ? '$configuredName · approximate location only'
         : configuredName;
@@ -362,13 +365,11 @@ class _CurrentSelection extends StatelessWidget {
     required this.pickupName,
     required this.destinationName,
     required this.onEdit,
-    required this.onContinue,
   });
 
   final String pickupName;
   final String destinationName;
   final VoidCallback onEdit;
-  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +397,7 @@ class _CurrentSelection extends StatelessWidget {
                 iconBackground: AppColors.clayFill,
                 iconForeground: AppColors.clayText,
                 showDivider: false,
-                onTap: onContinue,
+                onTap: onEdit,
               ),
             ],
           ),
