@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/relative_time.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/slidable.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
 
@@ -191,21 +192,11 @@ class _ThreadRow extends ConsumerWidget {
     final unread = thread.unreadCount > 0;
     final last = thread.lastMessage;
 
-    return Dismissible(
-      key: ValueKey('chat-${thread.id}'),
-      direction: DismissDirection.endToStart,
-      // Swiping never deletes a conversation. It reveals the options card and
-      // snaps back, which is what the prototype does.
-      confirmDismiss: (_) async {
-        _showOptions(context, ref, thread);
-        return false;
-      },
-      background: Container(
-        color: AppColors.clayFill,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 22),
-        child: const Icon(Icons.more_horiz, color: AppColors.clayText),
-      ),
+    // Swiping reveals a dots button that stays open; tapping it opens the
+    // options card. Swiping does NOT jump straight to the popup, and it never
+    // deletes a conversation.
+    return Slidable(
+      onOpenOptions: () => _showOptions(context, ref, thread),
       child: Material(
         color: AppColors.surface,
         child: InkWell(

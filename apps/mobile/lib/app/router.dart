@@ -293,6 +293,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/driver/trips',
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const TripsScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/driver/earnings',
                 pageBuilder: (context, state) =>
                     _screenPage(state, const DriverEarningsScreen()),
