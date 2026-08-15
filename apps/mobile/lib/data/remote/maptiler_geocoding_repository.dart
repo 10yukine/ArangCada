@@ -34,9 +34,12 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
     longitude: 121.1653,
   );
 
-  /// Roughly Laguna province, so a search for "SM" prefers SM City Calamba
-  /// over an SM in Manila or abroad.
-  static const String _bbox = '120.90,13.95,121.60,14.50';
+  /// Calamba and its immediate neighbours (Los Banos, Cabuyao, Sto Tomas).
+  ///
+  /// MapTiler treats bbox as a hard filter and proximity only as a soft bias,
+  /// so this has to be tight. An earlier, wider box spanning Laguna let
+  /// Dasmarinas in Cavite (120.94 E) dominate a search for "Robinsons".
+  static const String _bbox = '121.00,14.10,121.35,14.35';
 
   final Map<String, List<GeocodedPlace>> _cache = {};
   int _requestSeq = 0;
