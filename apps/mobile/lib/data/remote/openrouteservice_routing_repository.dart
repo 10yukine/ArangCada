@@ -39,7 +39,14 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
   /// Below this, an endpoint change is GPS jitter, not a new route.
   static const double _significantMoveMeters = 40;
 
-  final Map<String, RouteResult> _cache = {};
+  /// Cached against the *requested* endpoints, not the returned geometry.
+  /// ORS snaps geometry to the road network, so comparing a new request to a
+  /// snapped endpoint can read a sub-40m move as a material change.
+  final Map<String, _CachedRoute> _cache = {};
+
+  /// Bounds the session cache. Without this the map grows for the whole app
+  /// session and every miss scans more dead entries.
+  static const int _maxCacheEntries = 40;
   Future<RouteResult>? _inFlight;
   String? _inFlightKey;
 
@@ -57,24 +64,28 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
 
   RouteResult? _reusable(GeoCoordinate from, GeoCoordinate to) {
     final now = DateTime.now();
+    _cache.removeWhere(
+      (_, entry) => now.difference(entry.result.retrievedAt) >= _cacheTtl,
+    );
+
     final exact = _cache[_key(from, to)];
-    if (exact != null && now.difference(exact.retrievedAt) < _cacheTtl) {
-      return exact;
-    }
-    // Endpoints that barely moved reuse the neighbouring cached route rather
-    // than spending a request.
-    for (final entry in _cache.entries) {
-      final cached = entry.value;
-      if (now.difference(cached.retrievedAt) >= _cacheTtl) continue;
-      if (cached.geometry.length < 2) continue;
-      final start = cached.geometry.first;
-      final end = cached.geometry.last;
-      if (haversineDistanceMeters(start, from) < _significantMoveMeters &&
-          haversineDistanceMeters(end, to) < _significantMoveMeters) {
-        return cached;
+    if (exact != null) return exact.result;
+
+    for (final entry in _cache.values) {
+      if (haversineDistanceMeters(entry.from, from) < _significantMoveMeters &&
+          haversineDistanceMeters(entry.to, to) < _significantMoveMeters) {
+        return entry.result;
       }
     }
     return null;
+  }
+
+  void _store(String key, GeoCoordinate from, GeoCoordinate to,
+      RouteResult result) {
+    if (_cache.length >= _maxCacheEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[key] = _CachedRoute(from: from, to: to, result: result);
   }
 
   bool get _suspended {
@@ -102,7 +113,7 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
     _inFlightKey = key;
     final future = _request(from, to)
         .then((result) {
-          _cache[key] = result;
+          _store(key, from, to, result);
           return result;
         })
         .catchError((Object error) {
@@ -187,9 +198,11 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
               as List<dynamic>;
       final geometry = <GeoCoordinate>[
         for (final point in coords)
+          // GeoJSON numbers decode as int when integral; `as double` would
+          // throw and silently degrade a valid route to a straight line.
           GeoCoordinate(
-            longitude: (point as List<dynamic>)[0] as double,
-            latitude: point[1] as double,
+            longitude: ((point as List<dynamic>)[0] as num).toDouble(),
+            latitude: (point[1] as num).toDouble(),
           ),
       ];
 
@@ -224,4 +237,16 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
   }
 
   void dispose() => _client.close();
+}
+
+class _CachedRoute {
+  const _CachedRoute({
+    required this.from,
+    required this.to,
+    required this.result,
+  });
+
+  final GeoCoordinate from;
+  final GeoCoordinate to;
+  final RouteResult result;
 }

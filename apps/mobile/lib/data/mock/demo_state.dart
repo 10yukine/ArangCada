@@ -67,6 +67,14 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sets the booking origin. The fare engine reads [pickup], so a screen
+  /// that merely *labels* a GPS fix without calling this would price the ride
+  /// from a different point than the one shown to the commuter.
+  void setPickup(DemoPlace place) {
+    pickup = place;
+    notifyListeners();
+  }
+
   void setDestination(DemoPlace place) {
     destination = place;
     notifyListeners();

@@ -37,10 +37,15 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
   RouteResult? _route;
   bool _loading = true;
 
+  /// Guards against an older lookup overwriting a newer one.
+  int _loadToken = 0;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -53,13 +58,16 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
   }
 
   Future<void> _load() async {
+    final token = ++_loadToken;
+    final from = widget.from;
+    final to = widget.to;
     setState(() => _loading = true);
     // The repository never throws: it degrades to a straight line and marks
     // the result isFallback, so there is no error branch to render here.
     final route = await ref
         .read(routingRepositoryProvider)
-        .route(from: widget.from, to: widget.to);
-    if (!mounted) return;
+        .route(from: from, to: to);
+    if (!mounted || token != _loadToken) return;
     setState(() {
       _route = route;
       _loading = false;

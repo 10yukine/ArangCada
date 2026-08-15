@@ -10,6 +10,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
+import '../../demo/demo_data.dart';
 
 /// Commuter home, following the approved prototype's composition: greeting
 /// row, destination field, discount card, Plan Your Ride, then a compact
@@ -33,8 +34,17 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // After the first frame -- never a plugin call from build().
-    WidgetsBinding.instance.addPostFrameCallback((_) => _locate(silent: true));
+    // Never a plugin call from build(), and never an unprompted permission
+    // dialog: only auto-locate when the user has already granted permission.
+    // Otherwise the "Use current location" control is what asks.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final granted = await ref
+          .read(locationRepositoryProvider)
+          .hasPermission();
+      if (!mounted || !granted) return;
+      await _locate(silent: true);
+    });
   }
 
   Future<void> _locate({bool silent = false}) async {
@@ -44,8 +54,24 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       if (!silent) _locationError = null;
     });
     try {
-      final fix = await ref.read(locationRepositoryProvider).currentLocation();
+      final repository = ref.read(locationRepositoryProvider);
+      final fix = await repository.currentLocation();
       if (!mounted) return;
+      // A fix must become the actual booking origin. Labelling it while
+      // leaving DemoState.pickup untouched would price the ride from a
+      // different point than the one shown.
+      if (!fix.isCoarse) {
+        ref.read(demoStateProvider).setPickup(
+              DemoPlace(
+                id: 'gps',
+                name: 'Current location',
+                address:
+                    '${fix.coordinate.latitude.toStringAsFixed(5)}, '
+                    '${fix.coordinate.longitude.toStringAsFixed(5)}',
+                coordinate: fix.coordinate,
+              ),
+            );
+      }
       setState(() {
         _fix = fix;
         _locationError = null;
@@ -157,13 +183,13 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
     );
   }
 
-  /// Never claims a stored place is the device's position unless there is a
-  /// real fix, and flags a coarse fix rather than implying precision.
+  /// A coarse fix is never promoted to the booking pickup, so the label says
+  /// so instead of implying precision the device did not provide.
   String _pickupLabel(String configuredName) {
     if (_fix == null) return configuredName;
     return _fix!.isCoarse
-        ? '$configuredName · approximate location'
-        : '$configuredName · current location';
+        ? '$configuredName · approximate location only'
+        : configuredName;
   }
 }
 

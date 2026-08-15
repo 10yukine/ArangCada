@@ -28,6 +28,28 @@ class GeolocatorLocationRepository implements LocationRepository {
 
   @override
   Future<LocationFix> currentLocation() async {
+    // Every plugin call is inside the try. isLocationServiceEnabled,
+    // checkPermission and requestPermission can all throw a PlatformException,
+    // and callers only catch LocationFailure -- an escape here becomes an
+    // uncaught async error at startup.
+    try {
+      return await _resolve();
+    } on LocationFailure {
+      rethrow;
+    } on TimeoutException {
+      throw const LocationFailure(
+        LocationFailureReason.timeout,
+        'Could not get a location fix in time.',
+      );
+    } catch (_) {
+      throw const LocationFailure(
+        LocationFailureReason.unavailable,
+        'Location is unavailable right now.',
+      );
+    }
+  }
+
+  Future<LocationFix> _resolve() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const LocationFailure(
         LocationFailureReason.serviceDisabled,
@@ -54,7 +76,7 @@ class GeolocatorLocationRepository implements LocationRepository {
       );
     }
 
-    try {
+    {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           // `medium` is enough to place a pickup pin and costs less battery
@@ -70,16 +92,6 @@ class GeolocatorLocationRepository implements LocationRepository {
         ),
         accuracyMeters: position.accuracy,
         timestamp: position.timestamp,
-      );
-    } on TimeoutException {
-      throw const LocationFailure(
-        LocationFailureReason.timeout,
-        'Could not get a location fix in time.',
-      );
-    } catch (_) {
-      throw const LocationFailure(
-        LocationFailureReason.unavailable,
-        'Location is unavailable right now.',
       );
     }
   }

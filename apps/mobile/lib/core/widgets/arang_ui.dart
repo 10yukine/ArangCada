@@ -466,10 +466,15 @@ class ArangIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
+    // The 42dp circle is the prototype's visual size; the tap target is
+    // padded out to the 48dp minimum without changing how it looks.
+    final button = Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip ?? '',
+        excludeFromSemantics: true,
+        child: Material(
           color: AppColors.surface,
           shape: const CircleBorder(
             side: BorderSide(color: AppColors.border),
@@ -483,6 +488,19 @@ class ArangIconButton extends StatelessWidget {
               child: Icon(icon, size: 20, color: AppColors.textRow),
             ),
           ),
+        ),
+      ),
+    );
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: AppSizes.minTapTarget,
+            minHeight: AppSizes.minTapTarget,
+          ),
+          child: Center(child: button),
         ),
         if (showDot)
           Positioned(
