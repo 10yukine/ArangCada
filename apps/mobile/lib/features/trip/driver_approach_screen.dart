@@ -58,13 +58,15 @@ class DriverApproachScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '4–7 min',
+                            state.forceEtaFallback ? '6–9 min' : '4–7 min',
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(color: AppColors.primary),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
+                      if (state.forceEtaFallback)
+                        const Text('ETA fallback · route estimate unavailable'),
                       Text('Pickup: ${booking.pickupName}'),
                     ],
                   ),

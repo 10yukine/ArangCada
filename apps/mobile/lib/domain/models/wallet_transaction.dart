@@ -1,4 +1,4 @@
-enum WalletTransactionKind { topUp, ridePayment }
+enum WalletTransactionKind { topUp, ridePayment, refund }
 
 class WalletTransaction {
   const WalletTransaction({

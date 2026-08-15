@@ -66,7 +66,9 @@ class DigitalReceiptScreen extends ConsumerWidget {
                       ),
                       _ReceiptRow(
                         label: 'Payment',
-                        value: booking.paymentMethod.label,
+                        value: state.paymentFallbackToCash
+                            ? 'Cash · switched after demo payment failure'
+                            : booking.paymentMethod.label,
                       ),
                       const Divider(height: AppSpacing.lg),
                       _ReceiptRow(
@@ -95,6 +97,13 @@ class DigitalReceiptScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton(
+                  onPressed: () => context.push('/rating'),
+                  child: Text(
+                    state.tripRating == null ? 'Rate This Ride' : 'View Rating',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                OutlinedButton(
                   onPressed: () => context.go('/home'),
                   child: const Text('Back to Home'),
                 ),

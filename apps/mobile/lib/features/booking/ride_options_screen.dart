@@ -112,21 +112,47 @@ class RideOptionsScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
+                Column(
                   children: [
-                    for (final fareClass in UserFareClass.values)
-                      ChoiceChip(
-                        label: Text(fareClass.label),
-                        selected: state.userFareClass == fareClass,
-                        side: BorderSide(
-                          color: state.userFareClass == fareClass
-                              ? AppColors.coral
-                              : AppColors.borderStrong,
-                        ),
-                        onSelected: (_) => state.setUserFareClass(fareClass),
+                    for (var row = 0; row < 2; row++) ...[
+                      Row(
+                        children: [
+                          for (var column = 0; column < 2; column++) ...[
+                            if (column > 0)
+                              const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ChoiceChip(
+                                  label: Center(
+                                    child: Text(
+                                      UserFareClass
+                                          .values[row * 2 + column]
+                                          .label,
+                                    ),
+                                  ),
+                                  selected:
+                                      state.userFareClass ==
+                                      UserFareClass.values[row * 2 + column],
+                                  side: BorderSide(
+                                    color:
+                                        state.userFareClass ==
+                                            UserFareClass.values[row * 2 +
+                                                column]
+                                        ? AppColors.coral
+                                        : AppColors.borderStrong,
+                                  ),
+                                  onSelected: (_) => state.setUserFareClass(
+                                    UserFareClass.values[row * 2 + column],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
+                      if (row == 0) const SizedBox(height: AppSpacing.xs),
+                    ],
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),

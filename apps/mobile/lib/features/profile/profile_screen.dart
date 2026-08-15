@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 
@@ -14,7 +15,7 @@ class ProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
+        title: const Text('Log out?'),
         content: const Text('You can sign back in with either demo account.'),
         actions: [
           TextButton(
@@ -23,7 +24,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sign out'),
+            child: const Text('Log Out'),
           ),
         ],
       ),
@@ -63,11 +64,65 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           Text(
                             state.currentUser?.email ?? '',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SectionCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _ProfileRow(
+                      icon: Icons.badge_outlined,
+                      label: 'Personal Information',
+                      route: '/profile/personal-information',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.bookmark_border,
+                      label: 'Saved Places',
+                      route: '/profile/saved-places',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.discount_outlined,
+                      label: 'Discount Eligibility',
+                      route: '/profile/discount-eligibility',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.shield_outlined,
+                      label: 'Safety',
+                      route: '/profile/safety',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.notifications_outlined,
+                      label: 'Notifications',
+                      route: '/notifications',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.settings_outlined,
+                      label: 'App Settings',
+                      route: '/profile/app-settings',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.info_outline,
+                      label: 'About ArangCada',
+                      route: '/profile/about',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.developer_mode,
+                      label: 'Demo Tools',
+                      route: '/profile/demo-tools',
                     ),
                   ],
                 ),
@@ -80,12 +135,34 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 onPressed: () => _logout(context, ref),
                 icon: const Icon(Icons.logout),
-                label: const Text('Sign out'),
+                label: const Text('Logout'),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ProfileRow extends StatelessWidget {
+  const _ProfileRow({
+    required this.icon,
+    required this.label,
+    required this.route,
+  });
+
+  final IconData icon;
+  final String label;
+  final String route;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: AppRowIcon(icon),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(route),
     );
   }
 }

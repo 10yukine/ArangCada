@@ -13,7 +13,12 @@ import '../features/booking/searching_for_driver_screen.dart';
 import '../features/driver/driver_screens.dart';
 import '../features/driver/driver_earnings_screen.dart';
 import '../features/home/commuter_home_screen.dart';
+import '../features/notifications/notifications_screen.dart';
+import '../features/profile/about_screen.dart';
+import '../features/profile/developer_panel_screen.dart';
+import '../features/profile/profile_detail_screens.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/rating/rating_screen.dart';
 import '../features/receipt/digital_receipt_screen.dart';
 import '../features/search/destination_search_screen.dart';
 import '../features/splash/splash_screen.dart';
@@ -117,6 +122,51 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/receipt',
         pageBuilder: (context, state) =>
             _screenPage(state, const DigitalReceiptScreen()),
+      ),
+      GoRoute(
+        path: '/rating',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const RatingScreen()),
+      ),
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const NotificationsScreen()),
+      ),
+      GoRoute(
+        path: '/profile/personal-information',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const PersonalInformationScreen()),
+      ),
+      GoRoute(
+        path: '/profile/saved-places',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const SavedPlacesScreen()),
+      ),
+      GoRoute(
+        path: '/profile/discount-eligibility',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DiscountEligibilityScreen()),
+      ),
+      GoRoute(
+        path: '/profile/safety',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const SafetySettingsScreen()),
+      ),
+      GoRoute(
+        path: '/profile/app-settings',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const AppSettingsScreen()),
+      ),
+      GoRoute(
+        path: '/profile/about',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const AboutArangCadaScreen()),
+      ),
+      GoRoute(
+        path: '/profile/demo-tools',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DeveloperPanelScreen()),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

@@ -41,32 +41,58 @@ class ActiveTripScreen extends ConsumerWidget {
     WidgetRef ref,
     DemoBooking booking,
   ) async {
-    try {
-      await ref.read(paymentRepositoryProvider).completeRidePayment(booking);
-    } on InsufficientBalanceException {
-      if (!context.mounted) return;
-      await showDialog<void>(
+    final state = ref.read(demoStateProvider);
+    if (state.forcePaymentFailure &&
+        booking.paymentMethod == PaymentMethod.digital) {
+      final switchToCash = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Digital payment failed'),
+          title: const Text('Demo payment failed'),
           content: const Text(
-            'The demo balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
+            'The payment provider declined this simulated charge. No funds moved.',
           ),
           actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Retry'),
+            ),
             FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Switch to Cash'),
             ),
           ],
         ),
       );
-      return;
+      if (switchToCash != true || !context.mounted) return;
+      state.setPaymentFallbackToCash(true);
+    } else {
+      try {
+        await ref.read(paymentRepositoryProvider).completeRidePayment(booking);
+      } on InsufficientBalanceException {
+        if (!context.mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Digital payment failed'),
+            content: const Text(
+              'The demo balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
     }
     booking
       ..completeTrip()
       ..receiptReference = 'DEMO-RIDE-20260815-024';
-    ref.read(demoStateProvider).bookingChanged();
-    if (context.mounted) context.go('/receipt');
+    state.bookingChanged();
+    if (context.mounted) context.go('/rating');
   }
 
   Future<void> _handleBack(BuildContext context) async {
@@ -129,14 +155,20 @@ class ActiveTripScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              '12–16 min',
+                              state.forceEtaFallback
+                                  ? '15–20 min'
+                                  : '12–16 min',
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(color: AppColors.primary),
                             ),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        const Text('Predicted ETA range · demo estimate'),
+                        Text(
+                          state.forceEtaFallback
+                              ? 'ETA fallback · route estimate unavailable'
+                              : 'Predicted ETA range · demo estimate',
+                        ),
                         const Divider(height: AppSpacing.lg),
                         Text(
                           '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · ${booking.paymentMethod.label}',
