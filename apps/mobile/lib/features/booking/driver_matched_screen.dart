@@ -15,6 +15,10 @@ class DriverMatchedScreen extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      sheetAnimationStyle: const AnimationStyle(
+        duration: AppMotion.sheet,
+        reverseDuration: AppMotion.sheet,
+      ),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -69,7 +73,7 @@ class DriverMatchedScreen extends ConsumerWidget {
                 const Icon(
                   Icons.check_circle,
                   size: 60,
-                  color: AppColors.success,
+                  color: AppColors.green,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -83,7 +87,7 @@ class DriverMatchedScreen extends ConsumerWidget {
                     children: [
                       const CircleAvatar(
                         radius: 34,
-                        backgroundColor: AppColors.primaryContainer,
+                        backgroundColor: AppColors.clayFill,
                         child: Icon(
                           Icons.person,
                           size: 38,

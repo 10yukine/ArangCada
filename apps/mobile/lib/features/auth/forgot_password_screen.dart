@@ -23,7 +23,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                   const Icon(
                     Icons.mark_email_unread_outlined,
                     size: 40,
-                    color: AppColors.info,
+                    color: AppColors.coral,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(

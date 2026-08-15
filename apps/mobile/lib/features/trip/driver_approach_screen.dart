@@ -38,7 +38,7 @@ class DriverApproachScreen extends ConsumerWidget {
                       Row(
                         children: [
                           const CircleAvatar(
-                            backgroundColor: AppColors.primaryContainer,
+                            backgroundColor: AppColors.clayFill,
                             child: Icon(
                               Icons.electric_rickshaw,
                               color: AppColors.primary,

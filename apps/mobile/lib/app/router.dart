@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +23,30 @@ import '../features/trip/driver_approach_screen.dart';
 import '../features/wallet/wallet_screen.dart';
 import 'shells/commuter_shell.dart';
 import 'shells/driver_shell.dart';
+import 'theme/app_dimensions.dart';
+
+CustomTransitionPage<void> _screenPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: AppMotion.screen,
+    reverseTransitionDuration: AppMotion.screen,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final eased = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+      return FadeTransition(
+        opacity: eased,
+        child: AnimatedBuilder(
+          animation: eased,
+          child: child,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(0, 4 * (1 - eased.value)),
+            child: child,
+          ),
+        ),
+      );
+    },
+  );
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final demoState = ref.watch(demoStateProvider);
@@ -50,36 +75,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', redirect: (context, state) => '/splash'),
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const SplashScreen()),
       ),
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const LoginScreen()),
+      ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: '/booking/review',
-        builder: (context, state) => const BookingReviewScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const BookingReviewScreen()),
       ),
       GoRoute(
         path: '/booking/searching',
-        builder: (context, state) => const SearchingForDriverScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const SearchingForDriverScreen()),
       ),
       GoRoute(
         path: '/booking/driver-matched',
-        builder: (context, state) => const DriverMatchedScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DriverMatchedScreen()),
       ),
       GoRoute(
         path: '/trip/approach',
-        builder: (context, state) => const DriverApproachScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DriverApproachScreen()),
       ),
       GoRoute(
         path: '/trip/active',
-        builder: (context, state) => const ActiveTripScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const ActiveTripScreen()),
       ),
       GoRoute(
         path: '/receipt',
-        builder: (context, state) => const DigitalReceiptScreen(),
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DigitalReceiptScreen()),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -90,16 +127,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/home',
-                builder: (context, state) => const CommuterHomeScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const CommuterHomeScreen()),
                 routes: [
                   GoRoute(
                     path: 'search',
-                    builder: (context, state) =>
-                        const DestinationSearchScreen(),
+                    pageBuilder: (context, state) =>
+                        _screenPage(state, const DestinationSearchScreen()),
                   ),
                   GoRoute(
                     path: 'ride-options',
-                    builder: (context, state) => const RideOptionsScreen(),
+                    pageBuilder: (context, state) =>
+                        _screenPage(state, const RideOptionsScreen()),
                   ),
                 ],
               ),
@@ -109,7 +148,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/trips',
-                builder: (context, state) => const TripsScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const TripsScreen()),
               ),
             ],
           ),
@@ -117,7 +157,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/wallet',
-                builder: (context, state) => const WalletScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const WalletScreen()),
               ),
             ],
           ),
@@ -125,7 +166,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (context, state) => const ProfileScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const ProfileScreen()),
               ),
             ],
           ),
@@ -140,7 +182,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/driver',
-                builder: (context, state) => const DriverHomeScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const DriverHomeScreen()),
               ),
             ],
           ),
@@ -148,7 +191,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/driver/earnings',
-                builder: (context, state) => const DriverEarningsScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const DriverEarningsScreen()),
               ),
             ],
           ),
@@ -156,7 +200,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/driver/profile',
-                builder: (context, state) => const DriverProfileScreen(),
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const DriverProfileScreen()),
               ),
             ],
           ),

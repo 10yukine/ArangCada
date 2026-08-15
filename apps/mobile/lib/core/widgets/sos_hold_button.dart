@@ -64,10 +64,10 @@ class _SosHoldButtonState extends State<SosHoldButton>
             constraints: const BoxConstraints(minHeight: 64),
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: AppColors.danger.withValues(alpha: 0.08),
-              border: Border.all(color: AppColors.danger),
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.dangerBorder),
               borderRadius: const BorderRadius.all(
-                Radius.circular(AppRadii.md),
+                Radius.circular(AppRadii.pill),
               ),
             ),
             child: Column(
@@ -92,7 +92,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
                   value: _controller.value,
                   minHeight: 5,
                   color: AppColors.danger,
-                  backgroundColor: AppColors.outline,
+                  backgroundColor: AppColors.dangerFill,
                 ),
               ],
             ),

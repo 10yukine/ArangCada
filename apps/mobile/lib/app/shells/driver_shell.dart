@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/floating_tab_bar.dart';
+
 class DriverShell extends StatelessWidget {
   const DriverShell({required this.navigationShell, super.key});
 
@@ -10,28 +12,29 @@ class DriverShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: FloatingTabBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
+        onSelected: (index) {
           navigationShell.goBranch(
             index,
             initialLocation: index == navigationShell.currentIndex,
           );
         },
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+          FloatingTabDestination(
+            icon: Icons.dashboard_outlined,
+            selectedIcon: Icons.dashboard,
             label: 'Home',
+            showNotification: true,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments),
+          FloatingTabDestination(
+            icon: Icons.payments_outlined,
+            selectedIcon: Icons.payments,
             label: 'Earnings',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.badge_outlined),
-            selectedIcon: Icon(Icons.badge),
+          FloatingTabDestination(
+            icon: Icons.badge_outlined,
+            selectedIcon: Icons.badge,
             label: 'Profile',
           ),
         ],

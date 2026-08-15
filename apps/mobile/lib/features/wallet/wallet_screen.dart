@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/wallet_transaction.dart';
@@ -68,20 +69,10 @@ class WalletScreen extends ConsumerWidget {
                 for (final transaction in wallet.transactions) ...[
                   SectionCard(
                     child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            transaction.kind == WalletTransactionKind.topUp
-                            ? AppColors.primaryContainer
-                            : AppColors.background,
-                        child: Icon(
-                          transaction.kind == WalletTransactionKind.topUp
-                              ? Icons.add_card
-                              : Icons.electric_rickshaw_outlined,
-                          color: transaction.kind == WalletTransactionKind.topUp
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                        ),
+                      leading: AppRowIcon(
+                        transaction.kind == WalletTransactionKind.topUp
+                            ? Icons.add_card
+                            : Icons.electric_rickshaw_outlined,
                       ),
                       title: Text(transaction.title),
                       subtitle: Text(
@@ -94,8 +85,8 @@ class WalletScreen extends ConsumerWidget {
                         '${formatCentavos(transaction.amountCentavos)}',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: transaction.amountCentavos > 0
-                              ? AppColors.success
-                              : AppColors.textPrimary,
+                              ? AppColors.green
+                              : AppColors.ink,
                         ),
                       ),
                     ),

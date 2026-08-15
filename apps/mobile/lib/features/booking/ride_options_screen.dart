@@ -69,7 +69,7 @@ class RideOptionsScreen extends ConsumerWidget {
                       ),
                       _RouteRow(
                         icon: Icons.location_on,
-                        color: AppColors.secondary,
+                        color: AppColors.coral,
                         title: destination.name,
                         subtitle: 'Destination',
                       ),
@@ -97,6 +97,11 @@ class RideOptionsScreen extends ConsumerWidget {
                       ChoiceChip(
                         label: Text('$count'),
                         selected: state.passengerCount == count,
+                        side: BorderSide(
+                          color: state.passengerCount == count
+                              ? AppColors.coral
+                              : AppColors.borderStrong,
+                        ),
                         onSelected: (_) => state.setPassengerCount(count),
                       ),
                   ],
@@ -115,6 +120,11 @@ class RideOptionsScreen extends ConsumerWidget {
                       ChoiceChip(
                         label: Text(fareClass.label),
                         selected: state.userFareClass == fareClass,
+                        side: BorderSide(
+                          color: state.userFareClass == fareClass
+                              ? AppColors.coral
+                              : AppColors.borderStrong,
+                        ),
                         onSelected: (_) => state.setUserFareClass(fareClass),
                       ),
                   ],
@@ -123,9 +133,9 @@ class RideOptionsScreen extends ConsumerWidget {
                 Text(
                   'One class applies to everyone in this booking. Mixed '
                   'discount classes are not supported in the demo.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
@@ -185,9 +195,9 @@ class RideOptionsScreen extends ConsumerWidget {
                 Text(
                   'Preview from City Ordinance No. 743, s. 2022. Final fare '
                   'will be confirmed by trusted server logic in production.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -258,7 +268,7 @@ class _FareOptionCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primaryContainer,
+                backgroundColor: AppColors.clayFill,
                 child: Icon(icon, color: AppColors.primary),
               ),
               const SizedBox(width: AppSpacing.sm),

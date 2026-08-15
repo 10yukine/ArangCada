@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/status_badge.dart';
 
 class DriverEarningsScreen extends StatelessWidget {
   const DriverEarningsScreen({super.key});
@@ -52,13 +53,15 @@ class DriverEarningsScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             const SectionCard(
               child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.sync_alt, color: AppColors.info),
+                leading: AppRowIcon(Icons.sync_alt),
                 title: Text('Mock settlement status'),
                 subtitle: Text(
                   'Digital earnings marked for simulated settlement · Demo only - no funds moved.',
                 ),
-                trailing: Chip(label: Text('Pending')),
+                trailing: StatusBadge(
+                  'Pending',
+                  variant: StatusBadgeVariant.amber,
+                ),
               ),
             ),
           ],
