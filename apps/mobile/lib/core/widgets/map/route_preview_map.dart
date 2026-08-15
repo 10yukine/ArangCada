@@ -22,12 +22,18 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
     required this.from,
     required this.to,
     this.height = 190,
+    this.borderRadius,
+    this.showCaption = true,
     super.key,
   });
 
   final GeoCoordinate from;
   final GeoCoordinate to;
   final double height;
+  final BorderRadius? borderRadius;
+
+  /// Off when the map fills a screen and the caption lives in a sheet below.
+  final bool showCaption;
 
   @override
   ConsumerState<RoutePreviewMap> createState() => _RoutePreviewMapState();
@@ -82,31 +88,37 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
       longitude: (widget.from.longitude + widget.to.longitude) / 2,
     );
 
+    final map = LiveMapView(
+      center: midpoint,
+      height: widget.height,
+      borderRadius: widget.borderRadius,
+      zoom: 14,
+      route: route?.geometry ?? const [],
+      routeIsFallback: route?.isFallback ?? false,
+      interactive: false,
+      markers: [
+        MapMarker(coordinate: widget.from, color: AppColors.green, radius: 7),
+        MapMarker(coordinate: widget.to, color: AppColors.primary, radius: 7),
+      ],
+    );
+
+    // Filling a parent: the map is the whole widget. Wrapping it in a
+    // shrink-wrapping Column would give an infinite-height child no room and
+    // render nothing.
+    if (!widget.showCaption) return map;
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LiveMapView(
-          center: midpoint,
-          height: widget.height,
-          zoom: 14,
-          route: route?.geometry ?? const [],
-          routeIsFallback: route?.isFallback ?? false,
-          interactive: false,
-          markers: [
-            MapMarker(
-              coordinate: widget.from,
-              color: AppColors.green,
-              radius: 7,
-            ),
-            MapMarker(
-              coordinate: widget.to,
-              color: AppColors.primary,
-              radius: 7,
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(_caption(route), style: AppTypography.caption.copyWith(fontSize: 11)),
+        map,
+        if (widget.showCaption) ...[
+          const SizedBox(height: 6),
+          Text(
+            _caption(route),
+            style: AppTypography.caption.copyWith(fontSize: 11),
+          ),
+        ],
       ],
     );
   }

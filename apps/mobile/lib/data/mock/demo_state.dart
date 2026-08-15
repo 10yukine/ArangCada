@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../demo/demo_data.dart';
+import '../../domain/fare/fare_matrix.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
 import '../../domain/models/wallet_transaction.dart';
@@ -19,6 +20,9 @@ class DemoState extends ChangeNotifier {
   DemoPlace pickup = DemoData.calambaCrossing;
   DemoPlace? destination;
   int passengerCount = 1;
+
+  /// Which ride the commuter has selected on the ride-options sheet.
+  RideType selectedRideType = RideType.special;
   UserFareClass userFareClass = UserFareClass.regular;
   DemoBooking? activeBooking;
   bool demoSafetyAlertRecorded = false;
@@ -82,6 +86,14 @@ class DemoState extends ChangeNotifier {
 
   void setDestination(DemoPlace place) {
     destination = place;
+    notifyListeners();
+  }
+
+  void setSelectedRideType(RideType value) {
+    if (selectedRideType == value) return;
+    selectedRideType = value;
+    // Special seats at most 3, so a party of 4 cannot carry over silently.
+    if (value == RideType.special && passengerCount > 3) passengerCount = 3;
     notifyListeners();
   }
 

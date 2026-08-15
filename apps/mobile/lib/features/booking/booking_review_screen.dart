@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../domain/fare/fare_matrix.dart';
@@ -40,6 +41,30 @@ class BookingReviewScreen extends ConsumerWidget {
       ..beginSearching();
     ref.read(demoStateProvider).bookingChanged();
     if (context.mounted) context.go('/booking/searching');
+  }
+
+  Future<void> _cancel(BuildContext context) async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard this booking?'),
+        content: const Text(
+          'Your pickup, destination and ride choice will be kept, but nothing '
+          'is booked.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep reviewing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && context.mounted) context.go('/home');
   }
 
   @override
@@ -173,11 +198,19 @@ class BookingReviewScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                FilledButton(
+                ArangButton(
+                  label: 'Confirm Booking',
                   onPressed: booking.isFareLocked
                       ? null
                       : () => _confirm(context, ref, booking),
-                  child: const Text('Confirm Booking'),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                // Backing out of a review must be possible without the system
+                // back gesture being the only way.
+                ArangButton(
+                  label: 'Cancel',
+                  variant: ArangButtonVariant.ghost,
+                  onPressed: () => _cancel(context),
                 ),
               ],
             ),
