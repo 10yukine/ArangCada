@@ -118,7 +118,23 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                 onPassengerCount: state.setPassengerCount,
                 active: active,
                 onReview: (rejection == null && active != null)
-                    ? () => context.push('/booking/review')
+                    ? () {
+                        // The review screen renders DemoState.activeBooking.
+                        // Pushing the route without creating the draft first
+                        // lands on an empty screen.
+                        state.setActiveBooking(
+                          DemoBooking.draft(
+                            pickupName: state.pickup.name,
+                            destinationName: destination.name,
+                            rideType: selected,
+                            passengerCount: state.passengerCount,
+                            userFareClass: state.userFareClass,
+                            paymentMethod: PaymentMethod.cash,
+                            fareQuote: active,
+                          ),
+                        );
+                        context.push('/booking/review');
+                      }
                     : null,
               ),
             ],
@@ -247,7 +263,8 @@ class _RideSheet extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                     _RideOption(
                       title: 'Pooling',
-                      subtitle: 'Shared trip · '
+                      subtitle:
+                          'Shared trip · '
                           '${formatCentavos(pooling.unitFareCentavos)} each',
                       icon: Icons.groups_outlined,
                       selected: selected == RideType.pooling,

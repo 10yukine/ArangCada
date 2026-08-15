@@ -23,7 +23,10 @@ import '../../demo/demo_data.dart';
 /// both slow and wasteful. Saved and popular places are local accelerators,
 /// not a substitute for search.
 class DestinationSearchScreen extends ConsumerStatefulWidget {
-  const DestinationSearchScreen({super.key});
+  const DestinationSearchScreen({this.pickingPickup = false, super.key});
+
+  /// When true the screen sets the PICKUP instead of the destination.
+  final bool pickingPickup;
 
   @override
   ConsumerState<DestinationSearchScreen> createState() =>
@@ -65,9 +68,7 @@ class _DestinationSearchScreenState
 
   Future<void> _search(String query) async {
     try {
-      final places = await ref
-          .read(geocodingRepositoryProvider)
-          .search(query);
+      final places = await ref.read(geocodingRepositoryProvider).search(query);
       if (!mounted) return;
       setState(() {
         _results = places;
@@ -84,16 +85,19 @@ class _DestinationSearchScreenState
   }
 
   void _choose(String name, String address, GeoCoordinate coordinate) {
-    ref
-        .read(demoStateProvider)
-        .setDestination(
-          DemoPlace(
-            id: 'geo-${coordinate.latitude},${coordinate.longitude}',
-            name: name,
-            address: address,
-            coordinate: coordinate,
-          ),
-        );
+    final place = DemoPlace(
+      id: 'geo-${coordinate.latitude},${coordinate.longitude}',
+      name: name,
+      address: address,
+      coordinate: coordinate,
+    );
+    final state = ref.read(demoStateProvider);
+    if (widget.pickingPickup) {
+      state.setPickup(place);
+      context.pop();
+      return;
+    }
+    state.setDestination(place);
     context.go('/home/ride-options');
   }
 
@@ -122,7 +126,8 @@ class _DestinationSearchScreenState
         DemoPlace(
           id: 'gps',
           name: place?.name ?? 'Current location',
-          address: place?.context ??
+          address:
+              place?.context ??
               '${fix.coordinate.latitude.toStringAsFixed(5)}, '
                   '${fix.coordinate.longitude.toStringAsFixed(5)}',
           coordinate: fix.coordinate,
@@ -146,9 +151,14 @@ class _DestinationSearchScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     final hasQuery = _controller.text.trim().length >= 3;
+    final canChoosePickup = state.currentUser?.canChoosePickup ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose destination')),
+      appBar: AppBar(
+        title: Text(
+          widget.pickingPickup ? 'Choose pickup' : 'Choose destination',
+        ),
+      ),
       body: SafeArea(
         top: false,
         child: Column(
@@ -162,11 +172,16 @@ class _DestinationSearchScreenState
                     ArangRow(
                       icon: Icons.my_location,
                       title: state.pickup.name,
-                      subtitle: 'Pickup',
+                      subtitle: canChoosePickup && !widget.pickingPickup
+                          ? 'Pickup · tap to change'
+                          : 'Pickup',
                       iconBackground: AppColors.greenFill,
                       iconForeground: AppColors.green,
-                      showChevron: false,
+                      showChevron: canChoosePickup && !widget.pickingPickup,
                       showDivider: true,
+                      onTap: canChoosePickup && !widget.pickingPickup
+                          ? () => context.push('/home/choose-pickup')
+                          : null,
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -201,7 +216,11 @@ class _DestinationSearchScreenState
                 children: [
                   Expanded(
                     child: ArangButton(
-                      label: _locating ? 'Locating…' : 'Pickup: current',
+                      label: _locating
+                          ? 'Locating…'
+                          : (widget.pickingPickup
+                                ? 'Use current location'
+                                : 'Pickup: current'),
                       icon: Icons.gps_fixed,
                       variant: ArangButtonVariant.ghost,
                       onPressed: _locating ? null : _useCurrentLocation,
@@ -226,15 +245,11 @@ class _DestinationSearchScreenState
                       searching: _searching,
                       error: _error,
                       results: _results,
-                      onSelect: (p) =>
-                          _choose(p.name, p.context, p.coordinate),
+                      onSelect: (p) => _choose(p.name, p.context, p.coordinate),
                     )
                   : _Accelerators(
-                      onSelect: (place) => _choose(
-                        place.name,
-                        place.address,
-                        place.coordinate,
-                      ),
+                      onSelect: (place) =>
+                          _choose(place.name, place.address, place.coordinate),
                     ),
             ),
           ],
@@ -359,11 +374,7 @@ class _ResultSkeleton extends StatelessWidget {
 }
 
 class _Message extends StatelessWidget {
-  const _Message({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
+  const _Message({required this.icon, required this.title, required this.body});
 
   final IconData icon;
   final String title;
@@ -381,7 +392,11 @@ class _Message extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(title, style: AppTypography.h2),
             const SizedBox(height: 4),
-            Text(body, textAlign: TextAlign.center, style: AppTypography.caption),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption,
+            ),
           ],
         ),
       ),
