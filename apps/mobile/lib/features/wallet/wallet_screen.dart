@@ -5,6 +5,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/app_row_icon.dart';
+import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/wallet_transaction.dart';
@@ -12,6 +13,53 @@ import 'wallet_sheets.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
+
+  void _showTransactions(
+    BuildContext context,
+    List<WalletTransaction> transactions,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Transactions',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (transactions.isEmpty)
+                const EmptyStateCard(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'No wallet transactions',
+                  message: 'Demo top-ups and ride payments will appear here.',
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: transactions.length,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemBuilder: (context, index) =>
+                        _TransactionTile(transactions[index]),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,10 +100,27 @@ class WalletScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      FilledButton.icon(
-                        onPressed: () => showTopUpSheet(context, ref),
-                        icon: const Icon(Icons.add_card),
-                        label: const Text('Top Up'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () => showTopUpSheet(context, ref),
+                              icon: const Icon(Icons.add_card),
+                              label: const Text('Top Up'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showTransactions(
+                                context,
+                                wallet.transactions,
+                              ),
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              label: const Text('Transactions'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -66,36 +131,54 @@ class WalletScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                for (final transaction in wallet.transactions) ...[
-                  SectionCard(
-                    child: ListTile(
-                      leading: AppRowIcon(
-                        transaction.kind == WalletTransactionKind.topUp
-                            ? Icons.add_card
-                            : Icons.electric_rickshaw_outlined,
-                      ),
-                      title: Text(transaction.title),
-                      subtitle: Text(
-                        '${transaction.status} · ${transaction.id}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: Text(
-                        '${transaction.amountCentavos > 0 ? '+' : ''}'
-                        '${formatCentavos(transaction.amountCentavos)}',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: transaction.amountCentavos > 0
-                              ? AppColors.green
-                              : AppColors.ink,
-                        ),
-                      ),
-                    ),
+                if (wallet.transactions.isEmpty)
+                  EmptyStateCard(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No wallet transactions',
+                    message: 'Demo top-ups and ride payments will appear here.',
+                    actionLabel: 'Top Up',
+                    onAction: () => showTopUpSheet(context, ref),
                   ),
+                for (final transaction in wallet.transactions) ...[
+                  SectionCard(child: _TransactionTile(transaction)),
                   const SizedBox(height: AppSpacing.xs),
                 ],
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionTile extends StatelessWidget {
+  const _TransactionTile(this.transaction);
+
+  final WalletTransaction transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (transaction.kind) {
+      WalletTransactionKind.topUp => Icons.add_card,
+      WalletTransactionKind.ridePayment => Icons.electric_rickshaw_outlined,
+      WalletTransactionKind.refund => Icons.replay,
+    };
+    return ListTile(
+      leading: AppRowIcon(icon),
+      title: Text(transaction.title),
+      subtitle: Text(
+        '${transaction.status} · ${transaction.id}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Text(
+        '${transaction.amountCentavos > 0 ? '+' : ''}'
+        '${formatCentavos(transaction.amountCentavos)}',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: transaction.amountCentavos > 0
+              ? AppColors.green
+              : AppColors.ink,
         ),
       ),
     );

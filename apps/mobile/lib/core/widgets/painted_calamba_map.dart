@@ -10,11 +10,19 @@ class PaintedCalambaMap extends StatefulWidget {
   const PaintedCalambaMap({
     this.animateDriver = false,
     this.height = 300,
+    this.showNearbyDrivers = false,
+    this.showRoute = true,
+    this.showDestination = true,
+    this.borderRadius = const BorderRadius.all(Radius.circular(AppRadii.lg)),
     super.key,
   });
 
   final bool animateDriver;
   final double height;
+  final bool showNearbyDrivers;
+  final bool showRoute;
+  final bool showDestination;
+  final BorderRadius borderRadius;
 
   @override
   State<PaintedCalambaMap> createState() => _PaintedCalambaMapState();
@@ -69,7 +77,7 @@ class _PaintedCalambaMapState extends State<PaintedCalambaMap>
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(AppRadii.lg)),
+      borderRadius: widget.borderRadius,
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
@@ -81,6 +89,9 @@ class _PaintedCalambaMapState extends State<PaintedCalambaMap>
                   ? _driverProgress.value
                   : 0.65,
               pulseProgress: _pulseProgress.value,
+              showNearbyDrivers: widget.showNearbyDrivers,
+              showRoute: widget.showRoute,
+              showDestination: widget.showDestination,
             ),
           ),
         ),
@@ -93,10 +104,16 @@ class _CalambaMapPainter extends CustomPainter {
   const _CalambaMapPainter({
     required this.driverProgress,
     required this.pulseProgress,
+    required this.showNearbyDrivers,
+    required this.showRoute,
+    required this.showDestination,
   });
 
   final double driverProgress;
   final double pulseProgress;
+  final bool showNearbyDrivers;
+  final bool showRoute;
+  final bool showDestination;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -150,19 +167,21 @@ class _CalambaMapPainter extends CustomPainter {
       );
     canvas.drawPath(route, roadEdgePaint);
     canvas.drawPath(route, roadPaint);
-    canvas.drawPath(
-      route,
-      Paint()
-        ..color = AppColors.primary
-        ..strokeWidth = 4
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
+    if (showRoute) {
+      canvas.drawPath(
+        route,
+        Paint()
+          ..color = AppColors.primary
+          ..strokeWidth = 4
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
 
     final pickup = Offset(size.width * 0.18, size.height * 0.65);
     final destination = Offset(size.width * 0.79, size.height * 0.36);
     _drawCurrentLocation(canvas, pickup);
-    _drawPin(canvas, destination);
+    if (showDestination) _drawPin(canvas, destination);
 
     final eased = 0.12 + (driverProgress * 0.5);
     final driver = Offset(
@@ -178,10 +197,33 @@ class _CalambaMapPainter extends CustomPainter {
     icon.paint(canvas, driver - Offset(icon.width / 2, icon.height / 2));
     _drawVehicleTag(canvas, driver, 'TRI 024');
 
+    if (showNearbyDrivers) {
+      _drawDriverMarker(
+        canvas,
+        Offset(size.width * 0.23, size.height * 0.29),
+        'TRI 013',
+      );
+      _drawDriverMarker(
+        canvas,
+        Offset(size.width * 0.69, size.height * 0.22),
+        'TRI 017',
+      );
+      _drawDriverMarker(
+        canvas,
+        Offset(size.width * 0.75, size.height * 0.69),
+        'TRI 041',
+      );
+      _drawDriverMarker(
+        canvas,
+        Offset(size.width * 0.39, size.height * 0.77),
+        'TRI 052',
+      );
+    }
+
     _drawPillLabel(
       canvas,
       Offset(size.width * 0.09, size.height * 0.08),
-      'Calamba Poblacion TODA',
+      'Calamba Poblacion TODA (illustrative boundary)',
       background: AppColors.amberFill,
       foreground: AppColors.amberText,
       style: const TextStyle(fontSize: 12, color: AppColors.amberText),
@@ -235,6 +277,17 @@ class _CalambaMapPainter extends CustomPainter {
     );
     canvas.drawCircle(point, 11, Paint()..color = AppColors.surface);
     canvas.drawCircle(point, 9, Paint()..color = AppColors.primary);
+  }
+
+  void _drawDriverMarker(Canvas canvas, Offset marker, String tag) {
+    canvas.drawCircle(marker, 15, Paint()..color = AppColors.surface);
+    canvas.drawCircle(marker, 13, Paint()..color = AppColors.primary);
+    final icon = TextPainter(
+      text: const TextSpan(text: '🛖', style: TextStyle(fontSize: 16)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    icon.paint(canvas, marker - Offset(icon.width / 2, icon.height / 2));
+    _drawVehicleTag(canvas, marker, tag);
   }
 
   void _drawVehicleTag(Canvas canvas, Offset marker, String text) {
@@ -303,5 +356,8 @@ class _CalambaMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _CalambaMapPainter oldDelegate) =>
       oldDelegate.driverProgress != driverProgress ||
-      oldDelegate.pulseProgress != pulseProgress;
+      oldDelegate.pulseProgress != pulseProgress ||
+      oldDelegate.showNearbyDrivers != showNearbyDrivers ||
+      oldDelegate.showRoute != showRoute ||
+      oldDelegate.showDestination != showDestination;
 }

@@ -109,6 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(height: AppSpacing.lg),
                           _LabeledTextField(
                             label: 'Email Address',
+                            hintText: 'Enter your email',
                             controller: _emailController,
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
@@ -118,6 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(height: AppSpacing.md),
                           _LabeledTextField(
                             label: 'Password',
+                            hintText: 'Enter your password',
                             controller: _passwordController,
                             icon: Icons.lock_outline,
                             obscureText: _obscurePassword,
@@ -221,6 +223,7 @@ class _LabeledTextField extends StatefulWidget {
     required this.label,
     required this.controller,
     required this.icon,
+    required this.hintText,
     this.keyboardType,
     this.autofillHints,
     this.textInputAction,
@@ -232,6 +235,7 @@ class _LabeledTextField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData icon;
+  final String hintText;
   final TextInputType? keyboardType;
   final Iterable<String>? autofillHints;
   final TextInputAction? textInputAction;
@@ -279,6 +283,7 @@ class _LabeledTextFieldState extends State<_LabeledTextField> {
           onSubmitted: widget.onSubmitted,
           style: const TextStyle(fontSize: 15),
           decoration: InputDecoration(
+            hintText: widget.hintText,
             fillColor: _focusNode.hasFocus
                 ? AppColors.surface
                 : AppColors.inputFill,

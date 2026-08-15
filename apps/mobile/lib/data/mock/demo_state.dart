@@ -22,22 +22,38 @@ class DemoState extends ChangeNotifier {
   UserFareClass userFareClass = UserFareClass.regular;
   DemoBooking? activeBooking;
   bool demoSafetyAlertRecorded = false;
+  bool forceNoDriversAvailable = false;
+  bool forcePaymentFailure = false;
+  bool forceEtaFallback = false;
+  bool paymentFallbackToCash = false;
+  int? tripRating;
+  String? tripRatingComment;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
-  final List<WalletTransaction> _walletTransactions = [
+  final List<WalletTransaction> _walletTransactions = _seedTransactions();
+
+  static List<WalletTransaction> _seedTransactions() => [
     WalletTransaction(
-      id: 'DEMO-TOPUP-20260812-001',
-      title: 'Demo balance top-up',
+      id: 'DEMO-TOPUP-20260815-001',
+      title: 'Top Up',
       amountCentavos: 50000,
-      occurredAt: DateTime.utc(2026, 8, 12, 9, 30),
+      occurredAt: DateTime.utc(2026, 8, 15, 9, 30),
       kind: WalletTransactionKind.topUp,
-      status: 'Simulated',
+      status: 'Completed',
     ),
     WalletTransaction(
-      id: 'DEMO-RIDE-20260813-024',
-      title: 'Ride to SM City Calamba',
-      amountCentavos: -15000,
-      occurredAt: DateTime.utc(2026, 8, 13, 17, 10),
+      id: 'DEMO-RIDE-20260815-024',
+      title: 'Ride Payment',
+      amountCentavos: -7600,
+      occurredAt: DateTime.utc(2026, 8, 15, 8, 10),
       kind: WalletTransactionKind.ridePayment,
+      status: 'Completed',
+    ),
+    WalletTransaction(
+      id: 'DEMO-REFUND-20260815-001',
+      title: 'Refund',
+      amountCentavos: 1200,
+      occurredAt: DateTime.utc(2026, 8, 14, 16, 45),
+      kind: WalletTransactionKind.refund,
       status: 'Completed',
     ),
   ];
@@ -70,6 +86,9 @@ class DemoState extends ChangeNotifier {
 
   void setActiveBooking(DemoBooking booking) {
     activeBooking = booking;
+    tripRating = null;
+    tripRatingComment = null;
+    paymentFallbackToCash = false;
     notifyListeners();
   }
 
@@ -81,6 +100,40 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setForceNoDriversAvailable(bool value) {
+    forceNoDriversAvailable = value;
+    notifyListeners();
+  }
+
+  void setForcePaymentFailure(bool value) {
+    forcePaymentFailure = value;
+    notifyListeners();
+  }
+
+  void setForceEtaFallback(bool value) {
+    forceEtaFallback = value;
+    notifyListeners();
+  }
+
+  void setPaymentFallbackToCash(bool value) {
+    paymentFallbackToCash = value;
+    notifyListeners();
+  }
+
+  void submitTripRating(int stars, String? comment) {
+    if (activeBooking?.status != BookingStatus.completed) {
+      throw StateError('A completed trip is required before rating.');
+    }
+    if (tripRating != null) {
+      throw StateError('This demo trip has already been rated.');
+    }
+    if (stars < 1 || stars > 5) throw ArgumentError.value(stars);
+    tripRating = stars;
+    final trimmed = comment?.trim();
+    tripRatingComment = trimmed == null || trimmed.isEmpty ? null : trimmed;
+    notifyListeners();
+  }
+
   WalletTransaction addWalletTopUp(int amountCentavos) {
     walletBalanceCentavos += amountCentavos;
     final transaction = WalletTransaction(
@@ -89,7 +142,7 @@ class DemoState extends ChangeNotifier {
       amountCentavos: amountCentavos,
       occurredAt: DateTime.now().toUtc(),
       kind: WalletTransactionKind.topUp,
-      status: 'Simulated',
+      status: 'Completed',
     );
     _walletTransactions.insert(0, transaction);
     notifyListeners();
@@ -131,6 +184,15 @@ class DemoState extends ChangeNotifier {
     userFareClass = UserFareClass.regular;
     activeBooking = null;
     demoSafetyAlertRecorded = false;
+    forceNoDriversAvailable = false;
+    forcePaymentFailure = false;
+    forceEtaFallback = false;
+    paymentFallbackToCash = false;
+    tripRating = null;
+    tripRatingComment = null;
+    _walletTransactions
+      ..clear()
+      ..addAll(_seedTransactions());
     driverTrip.reset();
     notifyListeners();
   }

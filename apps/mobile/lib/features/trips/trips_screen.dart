@@ -23,12 +23,14 @@ class TripsScreen extends ConsumerWidget {
           builder: (context, _) {
             final booking = state.activeBooking;
             if (booking == null || booking.status == BookingStatus.cancelled) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.all(AppSpacing.md),
                 child: EmptyStateCard(
                   icon: Icons.route_outlined,
                   title: 'No demo trips yet',
                   message: 'Completed and active demo rides will appear here.',
+                  actionLabel: 'Book a Ride',
+                  onAction: () => context.go('/home'),
                 ),
               );
             }
