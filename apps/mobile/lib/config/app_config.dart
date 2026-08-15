@@ -23,15 +23,20 @@ class AppConfig {
   static const String mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
   static const String orsApiKey = String.fromEnvironment('ORS_API_KEY');
 
-  /// Whether every production integration value is available.
-  ///
-  /// The offline demo deliberately does not require these values. A later
-  /// production entrypoint can continue to call [assertConfigured].
+  /// Per-service readiness. Each live integration degrades on its own rather
+  /// than the whole app refusing to start, so a missing MapTiler key costs the
+  /// map but not authentication.
+  static bool get isSupabaseConfigured =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  static bool get isMapTilerConfigured => mapTilerKey.isNotEmpty;
+
+  static bool get isOrsConfigured => orsApiKey.isNotEmpty;
+
+  /// True when every integration has a value. Never logs which one is absent
+  /// at runtime beyond its name, and never a value.
   static bool get isFullyConfigured =>
-      supabaseUrl.isNotEmpty &&
-      supabaseAnonKey.isNotEmpty &&
-      mapTilerKey.isNotEmpty &&
-      orsApiKey.isNotEmpty;
+      isSupabaseConfigured && isMapTilerConfigured && isOrsConfigured;
 
   /// Throws with a message naming the missing variable -- never its value --
   /// if any required config is absent. Call once at startup, before any

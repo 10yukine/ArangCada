@@ -1,0 +1,86 @@
+import 'dart:async';
+
+import 'package:geolocator/geolocator.dart';
+
+import '../../core/geo/haversine.dart';
+import '../repositories/location_repository.dart';
+
+/// Device GPS via geolocator.
+///
+/// Only while-in-use precision is requested. Background location is not asked
+/// for, because showing a commuter's pickup point does not need it, and asking
+/// for more than a feature needs is a privacy problem, not a convenience.
+///
+/// `permission_handler` is deliberately NOT used: geolocator performs its own
+/// permission requests, and permission_handler v14 fails to compile against
+/// the installed Android SDK.
+class GeolocatorLocationRepository implements LocationRepository {
+  const GeolocatorLocationRepository();
+
+  static const Duration _timeout = Duration(seconds: 12);
+
+  @override
+  Future<bool> hasPermission() async {
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+  }
+
+  @override
+  Future<LocationFix> currentLocation() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw const LocationFailure(
+        LocationFailureReason.serviceDisabled,
+        'Location services are turned off on this device.',
+      );
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw const LocationFailure(
+        LocationFailureReason.permissionDeniedForever,
+        'Location permission is blocked. Enable it in system settings, or '
+        'choose your pickup manually.',
+      );
+    }
+    if (permission == LocationPermission.denied) {
+      throw const LocationFailure(
+        LocationFailureReason.permissionDenied,
+        'Location permission was declined.',
+      );
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          // `medium` is enough to place a pickup pin and costs less battery
+          // than `best`. Anything finer is not needed for this feature.
+          accuracy: LocationAccuracy.medium,
+          timeLimit: _timeout,
+        ),
+      );
+      return LocationFix(
+        coordinate: GeoCoordinate(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        ),
+        accuracyMeters: position.accuracy,
+        timestamp: position.timestamp,
+      );
+    } on TimeoutException {
+      throw const LocationFailure(
+        LocationFailureReason.timeout,
+        'Could not get a location fix in time.',
+      );
+    } catch (_) {
+      throw const LocationFailure(
+        LocationFailureReason.unavailable,
+        'Location is unavailable right now.',
+      );
+    }
+  }
+}
