@@ -33,7 +33,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                 const Icon(
                   Icons.check_circle,
                   size: 64,
-                  color: AppColors.success,
+                  color: AppColors.green,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -83,7 +83,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: const BoxDecoration(
-                    color: AppColors.primaryContainer,
+                    color: AppColors.clayFill,
                     borderRadius: BorderRadius.all(
                       Radius.circular(AppRadii.md),
                     ),

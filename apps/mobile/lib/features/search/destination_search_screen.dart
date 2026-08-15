@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_data.dart';
 
@@ -49,7 +50,7 @@ class _DestinationSearchScreenState
                 onChanged: (value) => setState(() => _query = value),
                 decoration: const InputDecoration(
                   hintText: 'Search Calamba demo places',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, size: 18),
                 ),
               ),
             ),
@@ -95,13 +96,7 @@ class _DestinationSearchScreenState
                         final place = matches[index];
                         return ListTile(
                           minTileHeight: 64,
-                          leading: const CircleAvatar(
-                            backgroundColor: AppColors.primaryContainer,
-                            child: Icon(
-                              Icons.place_outlined,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                          leading: const AppRowIcon(Icons.place_outlined),
                           title: Text(place.name),
                           subtitle: Text(
                             place.address,

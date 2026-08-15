@@ -48,8 +48,8 @@ class ProfileScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: AppColors.primaryContainer,
+                      radius: 21,
+                      backgroundColor: AppColors.clayFill,
                       child: Icon(Icons.person, color: AppColors.primary),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -74,6 +74,10 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.dangerDark,
+                  side: const BorderSide(color: AppColors.dangerBorder),
+                ),
                 onPressed: () => _logout(context, ref),
                 icon: const Icon(Icons.logout),
                 label: const Text('Sign out'),

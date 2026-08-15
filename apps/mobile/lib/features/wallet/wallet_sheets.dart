@@ -16,6 +16,10 @@ Future<void> showTopUpSheet(BuildContext context, WidgetRef ref) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    sheetAnimationStyle: const AnimationStyle(
+      duration: AppMotion.sheet,
+      reverseDuration: AppMotion.sheet,
+    ),
     showDragHandle: true,
     builder: (context) => const _TopUpSheet(),
   );
@@ -27,6 +31,10 @@ Future<InsufficientBalanceAction?> showInsufficientBalanceSheet(
 ) {
   return showModalBottomSheet<InsufficientBalanceAction>(
     context: context,
+    sheetAnimationStyle: const AnimationStyle(
+      duration: AppMotion.sheet,
+      reverseDuration: AppMotion.sheet,
+    ),
     showDragHandle: true,
     builder: (context) => SafeArea(
       child: Padding(
@@ -120,7 +128,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: AppColors.success),
+        icon: const Icon(Icons.check_circle, color: AppColors.green),
         title: const Text('Top-up complete'),
         content: Text(
           '${formatCentavos(amount)} was added to the demo balance.\n\n'
@@ -170,6 +178,13 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
                     selected:
                         _customController.text.isEmpty &&
                         _selectedCentavos == amount,
+                    side: BorderSide(
+                      color:
+                          _customController.text.isEmpty &&
+                              _selectedCentavos == amount
+                          ? AppColors.coral
+                          : AppColors.borderStrong,
+                    ),
                     onSelected: _processing
                         ? null
                         : (_) => setState(() {
@@ -196,7 +211,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
             if (_processing)
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 700),
+                duration: AppMotion.screen,
                 onEnd: _completeTopUp,
                 builder: (context, value, _) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

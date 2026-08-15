@@ -59,7 +59,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 'Offline demo',
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
               ),
             ],
           ),

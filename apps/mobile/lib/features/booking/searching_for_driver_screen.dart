@@ -89,7 +89,7 @@ class _SearchingForDriverScreenState
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.primaryContainer,
+                          color: AppColors.clayFill,
                           width: 22,
                         ),
                       ),

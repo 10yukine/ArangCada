@@ -7,8 +7,10 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/painted_calamba_map.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/status_badge.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
@@ -101,9 +103,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 child: Column(
                   children: [
                     const ListTile(
-                      contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryContainer,
+                        radius: 21,
+                        backgroundColor: AppColors.clayFill,
                         child: Icon(
                           Icons.electric_rickshaw,
                           color: AppColors.primary,
@@ -114,16 +116,14 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     ),
                     const Divider(height: 1),
                     const ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        Icons.verified_user_outlined,
-                        color: AppColors.success,
-                      ),
+                      leading: AppRowIcon(Icons.verified_user_outlined),
                       title: Text('Verification status'),
-                      trailing: Chip(label: Text('Approved')),
+                      trailing: StatusBadge(
+                        'Approved',
+                        variant: StatusBadgeVariant.green,
+                      ),
                     ),
                     SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
                       title: Text(
                         state.driverTrip.isOnline ? 'Online' : 'Offline',
                       ),
@@ -199,11 +199,14 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     children: [
                       const Icon(
                         Icons.check_circle,
-                        color: AppColors.success,
+                        color: AppColors.green,
                         size: 42,
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      const Text('Demo trip completed'),
+                      Text(
+                        'Demo trip completed',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       FilledButton(
                         onPressed: () => context.go('/driver/earnings'),
@@ -246,7 +249,7 @@ class _IncomingRequestCard extends StatelessWidget {
                 ),
               ),
               CircleAvatar(
-                backgroundColor: AppColors.secondary,
+                backgroundColor: AppColors.coral,
                 child: Text('$secondsRemaining'),
               ),
             ],
@@ -264,6 +267,10 @@ class _IncomingRequestCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.dangerDark,
+                    side: const BorderSide(color: AppColors.dangerBorder),
+                  ),
                   onPressed: onDecline,
                   child: const Text('Decline'),
                 ),
@@ -367,14 +374,17 @@ class DriverProfileScreen extends ConsumerWidget {
             children: [
               SectionCard(
                 child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.badge_outlined),
+                  leading: const AppRowIcon(Icons.badge_outlined),
                   title: Text(state.currentUser?.displayName ?? 'Demo driver'),
                   subtitle: Text(state.currentUser?.email ?? ''),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.dangerDark,
+                  side: const BorderSide(color: AppColors.dangerBorder),
+                ),
                 onPressed: () async {
                   await ref.read(authRepositoryProvider).signOut();
                   if (context.mounted) context.go('/login');

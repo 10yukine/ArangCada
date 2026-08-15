@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 
@@ -27,7 +28,7 @@ class CommuterHomeScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: const BoxDecoration(
-                    color: AppColors.primaryContainer,
+                    color: AppColors.clayFill,
                     borderRadius: BorderRadius.all(
                       Radius.circular(AppRadii.lg),
                     ),
@@ -55,21 +56,13 @@ class CommuterHomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          Icons.radio_button_checked,
-                          color: AppColors.primary,
-                        ),
+                        leading: const AppRowIcon(Icons.radio_button_checked),
                         title: Text(state.pickup.name),
                         subtitle: const Text('Pickup'),
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          Icons.location_on_outlined,
-                          color: AppColors.secondary,
-                        ),
+                        leading: const AppRowIcon(Icons.location_on_outlined),
                         title: Text(
                           state.destination?.name ?? 'Choose destination',
                         ),

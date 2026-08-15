@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/floating_tab_bar.dart';
+
 class CommuterShell extends StatelessWidget {
   const CommuterShell({required this.navigationShell, super.key});
 
@@ -10,33 +12,34 @@ class CommuterShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: FloatingTabBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
+        onSelected: (index) {
           navigationShell.goBranch(
             index,
             initialLocation: index == navigationShell.currentIndex,
           );
         },
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+          FloatingTabDestination(
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home,
             label: 'Home',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.route_outlined),
-            selectedIcon: Icon(Icons.route),
+          FloatingTabDestination(
+            icon: Icons.route_outlined,
+            selectedIcon: Icons.route,
             label: 'Trips',
+            showNotification: true,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
+          FloatingTabDestination(
+            icon: Icons.account_balance_wallet_outlined,
+            selectedIcon: Icons.account_balance_wallet,
             label: 'Wallet',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+          FloatingTabDestination(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
             label: 'Profile',
           ),
         ],

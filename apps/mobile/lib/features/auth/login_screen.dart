@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arangcada_mark.dart';
+import '../../core/widgets/section_card.dart';
 import '../../data/mock/mock_auth_repository.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -22,6 +24,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   String? _errorMessage;
   bool _submitting = false;
+  bool _obscurePassword = true;
+  String? _selectedDemoEmail;
 
   @override
   void dispose() {
@@ -33,7 +37,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _prefill(DemoAccount account) {
     _emailController.text = account.user.email;
     _passwordController.text = account.password;
-    setState(() => _errorMessage = null);
+    setState(() {
+      _errorMessage = null;
+      _selectedDemoEmail = account.user.email;
+    });
   }
 
   Future<void> _submit() async {
@@ -64,7 +71,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.xl),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.lg,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: AutofillGroup(
@@ -72,59 +82,88 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Center(child: ArangCadaMark(compact: true)),
-                    const SizedBox(height: AppSpacing.xxl),
-                    Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Sign in to the offline commuter and driver demo.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: AppSpacing.sm),
+                    const Center(
+                      child: SizedBox(
+                        width: 280,
+                        child: Text(
+                          'Tricycle rides across Calamba City, anchored to '
+                          'your local TODA.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
+                    SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Welcome back',
+                            style: AppTypography.displaySm,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          _LabeledTextField(
+                            label: 'Email Address',
+                            controller: _emailController,
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _LabeledTextField(
+                            label: 'Password',
+                            controller: _passwordController,
+                            icon: Icons.lock_outline,
+                            obscureText: _obscurePassword,
+                            autofillHints: const [AutofillHints.password],
+                            onSubmitted: (_) => _submit(),
+                            suffixIcon: IconButton(
+                              tooltip: _obscurePassword
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                              style: IconButton.styleFrom(
+                                fixedSize: const Size.square(42),
+                                iconSize: 19,
+                                backgroundColor: Colors.transparent,
+                                side: BorderSide.none,
+                              ),
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                            ),
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              _errorMessage!,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.danger),
+                            ),
+                          ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => context.push('/forgot-password'),
+                              child: const Text('Forgot password?'),
+                            ),
+                          ),
+                          FilledButton(
+                            onPressed: _submitting ? null : _submit,
+                            child: Text(_submitting ? 'Logging in…' : 'Log In'),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      autofillHints: const [AutofillHints.password],
-                      onSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _errorMessage!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ],
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => context.push('/forgot-password'),
-                        child: const Text('Forgot password?'),
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: Text(_submitting ? 'Signing in…' : 'Sign in'),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     Text(
@@ -137,7 +176,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       runSpacing: AppSpacing.xs,
                       children: [
                         for (final account in MockAuthRepository.accounts)
-                          ActionChip(
+                          ChoiceChip(
+                            selected: _selectedDemoEmail == account.user.email,
+                            side: BorderSide(
+                              color: _selectedDemoEmail == account.user.email
+                                  ? AppColors.coral
+                                  : AppColors.borderStrong,
+                            ),
                             avatar: Icon(
                               account.user.role == DemoRole.commuter
                                   ? Icons.person_outline
@@ -149,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ? 'Commuter'
                                   : 'Driver',
                             ),
-                            onPressed: () => _prefill(account),
+                            onSelected: (_) => _prefill(account),
                           ),
                       ],
                     ),
@@ -157,7 +202,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'Password for both accounts: demo1234',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ],
@@ -167,6 +212,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LabeledTextField extends StatefulWidget {
+  const _LabeledTextField({
+    required this.label,
+    required this.controller,
+    required this.icon,
+    this.keyboardType,
+    this.autofillHints,
+    this.textInputAction,
+    this.obscureText = false,
+    this.onSubmitted,
+    this.suffixIcon,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
+  final bool obscureText;
+  final ValueChanged<String>? onSubmitted;
+  final Widget? suffixIcon;
+
+  @override
+  State<_LabeledTextField> createState() => _LabeledTextFieldState();
+}
+
+class _LabeledTextFieldState extends State<_LabeledTextField> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _focusNode
+      ..removeListener(_onFocusChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(widget.label, style: AppTypography.label),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          keyboardType: widget.keyboardType,
+          autofillHints: widget.autofillHints,
+          textInputAction: widget.textInputAction,
+          obscureText: widget.obscureText,
+          onSubmitted: widget.onSubmitted,
+          style: const TextStyle(fontSize: 15),
+          decoration: InputDecoration(
+            fillColor: _focusNode.hasFocus
+                ? AppColors.surface
+                : AppColors.inputFill,
+            prefixIcon: Icon(widget.icon, size: 18),
+            suffixIcon: widget.suffixIcon,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -46,8 +46,8 @@ class TripsScreen extends ConsumerWidget {
                                 ? Icons.check_circle
                                 : Icons.directions_run,
                             color: booking.status == BookingStatus.completed
-                                ? AppColors.success
-                                : AppColors.info,
+                                ? AppColors.green
+                                : AppColors.coral,
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           Expanded(
