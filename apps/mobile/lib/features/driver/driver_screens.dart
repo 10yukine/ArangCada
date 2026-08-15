@@ -9,8 +9,8 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/format/money_format.dart';
-import '../../core/widgets/app_row_icon.dart';
-import '../../core/widgets/painted_calamba_map.dart';
+import '../../core/widgets/map/live_map_view.dart';
+import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
@@ -179,6 +179,23 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               ),
               const SizedBox(height: 14),
               _EarningsCard(onView: () => context.push('/driver/earnings')),
+              const SizedBox(height: 14),
+              // A driver navigating needs the real road network, not a
+              // stylised placeholder.
+              LiveMapView(
+                center: state.pickup.coordinate,
+                height: 190,
+                zoom: 14.5,
+                showUserLocation: true,
+                interactive: false,
+                markers: [
+                  MapMarker(
+                    coordinate: state.pickup.coordinate,
+                    color: AppColors.primary,
+                    radius: 8,
+                  ),
+                ],
+              ),
               const SizedBox(height: AppSpacing.md),
               if (state.driverTrip.status == DriverTripStatus.available)
                 const SectionCard(
@@ -328,17 +345,22 @@ class _IncomingRequestCard extends StatelessWidget {
   }
 }
 
-class _PickupModeCard extends StatelessWidget {
+class _PickupModeCard extends ConsumerWidget {
   const _PickupModeCard({required this.arrived, required this.onAction});
 
   final bool arrived;
   final VoidCallback onAction;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(demoStateProvider);
     return Column(
       children: [
-        const PaintedCalambaMap(height: 230),
+        RoutePreviewMap(
+          from: state.pickup.coordinate,
+          to: state.destination?.coordinate ?? state.pickup.coordinate,
+          height: 230,
+        ),
         const SizedBox(height: AppSpacing.md),
         SectionCard(
           child: Column(
@@ -363,16 +385,21 @@ class _PickupModeCard extends StatelessWidget {
   }
 }
 
-class _DriverTripModeCard extends StatelessWidget {
+class _DriverTripModeCard extends ConsumerWidget {
   const _DriverTripModeCard({required this.onComplete});
 
   final VoidCallback onComplete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(demoStateProvider);
     return Column(
       children: [
-        const PaintedCalambaMap(height: 230),
+        RoutePreviewMap(
+          from: state.pickup.coordinate,
+          to: state.destination?.coordinate ?? state.pickup.coordinate,
+          height: 230,
+        ),
         const SizedBox(height: AppSpacing.md),
         SectionCard(
           child: Column(
@@ -402,44 +429,129 @@ class DriverProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Driver profile')),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: state,
-          builder: (context, _) => ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              SectionCard(
-                child: ListTile(
-                  leading: const AppRowIcon(Icons.badge_outlined),
-                  title: Text(state.currentUser?.displayName ?? 'Demo driver'),
-                  subtitle: Text(state.currentUser?.email ?? ''),
+
+    return ListenableBuilder(
+      listenable: state,
+      builder: (context, _) {
+        final name = state.currentUser?.displayName ?? 'Driver';
+        return Scaffold(
+          appBar: AppBar(title: const Text('Profile')),
+          body: SafeArea(
+            top: false,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      ArangAvatar(
+                        name: name,
+                        size: 58,
+                        background: AppColors.primary,
+                        foreground: Colors.white,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Body no. 024 - Calamba TODA',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const ArangBadge(
+                              'Verified',
+                              tone: ArangBadgeTone.green,
+                            ),
+                          ],
+                        ),
+                      ),
+                      ArangIconButton(
+                        icon: Icons.edit_outlined,
+                        tooltip: 'Edit profile',
+                        onPressed: () =>
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Driver details are managed by the TODA desk.',
+                                ),
+                              ),
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.dangerDark,
-                  side: const BorderSide(color: AppColors.dangerBorder),
+                const Divider(height: 1, color: AppColors.dividerLight),
+                ArangRow(
+                  icon: Icons.description_outlined,
+                  title: 'Franchise & documents',
+                  trailing: const ArangBadge(
+                    'Verified',
+                    tone: ArangBadgeTone.green,
+                  ),
+                  onTap: () => _notice(context, 'Franchise documents'),
                 ),
-                onPressed: () async {
-                  await ref.read(authRepositoryProvider).signOut();
-                  if (context.mounted) context.go('/login');
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Sign out'),
-              ),
-            ],
+                ArangRow(
+                  icon: Icons.groups_outlined,
+                  title: 'TODA membership',
+                  onTap: () => _notice(context, 'TODA membership'),
+                ),
+                ArangRow(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Payout method',
+                  onTap: () => _notice(context, 'Payout method'),
+                ),
+                ArangRow(
+                  icon: Icons.help_outline,
+                  title: 'Support',
+                  onTap: () => _notice(context, 'Support'),
+                ),
+                ArangRow(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  onTap: () => _notice(context, 'Settings'),
+                ),
+                ArangRow(
+                  icon: Icons.logout,
+                  title: 'Sign out',
+                  iconBackground: AppColors.dangerFill,
+                  iconForeground: AppColors.danger,
+                  showChevron: false,
+                  showDivider: false,
+                  onTap: () async {
+                    await ref.read(authRepositoryProvider).signOut();
+                    if (context.mounted) context.go('/login');
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  void _notice(BuildContext context, String what) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$what is managed by the TODA desk.')),
     );
   }
 }
 
-/// Online/offline state, following the prototype: a status dot, a plain
-/// sentence about what that means, and a chip to flip it.
 class _AvailabilityCard extends StatelessWidget {
   const _AvailabilityCard({
     required this.online,

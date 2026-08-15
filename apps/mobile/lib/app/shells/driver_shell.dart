@@ -45,6 +45,11 @@ class DriverShell extends ConsumerWidget {
                 showNotification: hasUnread,
               ),
               const FloatingTabDestination(
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long,
+                label: 'Trips',
+              ),
+              const FloatingTabDestination(
                 icon: Icons.payments_outlined,
                 selectedIcon: Icons.payments,
                 label: 'Earnings',
