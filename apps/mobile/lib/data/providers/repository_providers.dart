@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../mock/demo_state.dart';
+import '../mock/local_chat_repository.dart';
 import '../mock/mock_auth_repository.dart';
 import '../mock/mock_fare_repository.dart';
 import '../mock/mock_payment_repository.dart';
 import '../mock/mock_safety_repository.dart';
 import '../mock/mock_wallet_repository.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/chat_repository.dart';
 import '../repositories/fare_repository.dart';
 import '../repositories/payment_repository.dart';
 import '../repositories/safety_repository.dart';
@@ -36,4 +38,18 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
 
 final safetyRepositoryProvider = Provider<SafetyRepository>((ref) {
   return MockSafetyRepository(ref.watch(demoStateProvider));
+});
+
+/// Chat transport. Local-only today; a Supabase Realtime implementation
+/// replaces this binding without touching any screen.
+final chatRepositoryProvider = Provider<ChatRepository>((ref) {
+  final repository = LocalChatRepository();
+  ref.onDispose(repository.dispose);
+  return repository;
+});
+
+/// Unread badge source for the Chat tab.
+final chatUnreadCountProvider = Provider<int>((ref) {
+  final repository = ref.watch(chatRepositoryProvider);
+  return repository.totalUnread;
 });

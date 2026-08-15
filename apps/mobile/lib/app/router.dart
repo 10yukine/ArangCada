@@ -10,6 +10,8 @@ import '../features/booking/ride_options_screen.dart';
 import '../features/booking/booking_review_screen.dart';
 import '../features/booking/driver_matched_screen.dart';
 import '../features/booking/searching_for_driver_screen.dart';
+import '../features/chat/chat_list_screen.dart';
+import '../features/chat/chat_thread_screen.dart';
 import '../features/driver/driver_screens.dart';
 import '../features/driver/driver_earnings_screen.dart';
 import '../features/home/commuter_home_screen.dart';
@@ -68,10 +70,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final roleHome = user.role == DemoRole.commuter ? '/home' : '/driver';
       if (isAuthPath || path == '/') return roleHome;
-      if (user.role == DemoRole.commuter && path.startsWith('/driver')) {
+      if (user.role == DemoRole.commuter &&
+          path.startsWith('/driver')) {
         return '/home';
       }
-      if (user.role == DemoRole.driver && !path.startsWith('/driver')) {
+      // A chat thread is opened full-screen by both roles, so it is not
+      // owned by either role's tab tree.
+      final isSharedPath = path.startsWith('/chat/');
+      if (user.role == DemoRole.driver &&
+          !path.startsWith('/driver') &&
+          !isSharedPath) {
         return '/driver';
       }
       return null;
@@ -127,6 +135,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/rating',
         pageBuilder: (context, state) =>
             _screenPage(state, const RatingScreen()),
+      ),
+      GoRoute(
+        path: '/chat/:threadId',
+        pageBuilder: (context, state) => _screenPage(
+          state,
+          ChatThreadScreen(threadId: state.pathParameters['threadId']!),
+        ),
       ),
       GoRoute(
         path: '/notifications',
@@ -197,6 +212,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/chat',
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const ChatListScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/trips',
                 pageBuilder: (context, state) =>
                     _screenPage(state, const TripsScreen()),
@@ -234,6 +258,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/driver',
                 pageBuilder: (context, state) =>
                     _screenPage(state, const DriverHomeScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/driver/chat',
+                pageBuilder: (context, state) =>
+                    _screenPage(state, const ChatListScreen()),
               ),
             ],
           ),
