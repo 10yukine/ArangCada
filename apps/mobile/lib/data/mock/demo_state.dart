@@ -15,7 +15,7 @@ class DemoState extends ChangeNotifier {
 
   DemoUser? _currentUser;
 
-  int walletBalanceCentavos = 35000;
+  int walletBalanceCentavos = 0;
   DemoPlace pickup = DemoData.calambaCrossing;
   DemoPlace? destination;
   int passengerCount = 1;
@@ -29,7 +29,12 @@ class DemoState extends ChangeNotifier {
   int? tripRating;
   String? tripRatingComment;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
-  final List<WalletTransaction> _walletTransactions = _seedTransactions();
+  /// Sample content is OFF by default. Pre-populated chats and a pre-filled
+  /// ledger read as things that actually happened, which is misleading on a
+  /// first run. Demo Tools turns them on for a walkthrough.
+  bool sampleContentEnabled = false;
+
+  final List<WalletTransaction> _walletTransactions = [];
 
   static List<WalletTransaction> _seedTransactions() => [
     WalletTransaction(
@@ -101,6 +106,21 @@ class DemoState extends ChangeNotifier {
   }
 
   void bookingChanged() => notifyListeners();
+
+  /// Loads or clears the sample ledger. Balance follows suit so a cleared
+  /// wallet does not show money with no transactions explaining it.
+  void setSampleContent(bool enabled) {
+    if (sampleContentEnabled == enabled) return;
+    sampleContentEnabled = enabled;
+    _walletTransactions.clear();
+    if (enabled) {
+      _walletTransactions.addAll(_seedTransactions());
+      walletBalanceCentavos = 35000;
+    } else {
+      walletBalanceCentavos = 0;
+    }
+    notifyListeners();
+  }
 
   void setWalletBalanceForDemo(int amountCentavos) {
     if (amountCentavos < 0) throw ArgumentError.value(amountCentavos);

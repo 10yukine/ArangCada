@@ -91,6 +91,12 @@ class ProfileScreen extends ConsumerWidget {
                     const Divider(),
                     _ProfileRow(
                       icon: Icons.discount_outlined,
+                      label: 'Fare matrix',
+                      route: '/fare-matrix',
+                    ),
+                    const Divider(),
+                    _ProfileRow(
+                      icon: Icons.verified_user_outlined,
                       label: 'Discount Eligibility',
                       route: '/profile/discount-eligibility',
                     ),

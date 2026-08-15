@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../core/widgets/painted_calamba_map.dart';
+import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
@@ -140,10 +140,13 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                PaintedCalambaMap(
-                  animateDriver: true,
-                  driverAnimationDuration:
-                      _arrivalRun?.duration ?? const Duration(seconds: 7),
+                // RoutePreviewMap serves the already-cached route for this
+                // pickup/destination pair, so showing the approach costs no
+                // additional ORS request.
+                RoutePreviewMap(
+                  from: state.pickup.coordinate,
+                  to: state.destination!.coordinate,
+                  height: 210,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SectionCard(

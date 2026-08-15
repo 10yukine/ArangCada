@@ -62,34 +62,6 @@ class SavedPlacesScreen extends StatelessWidget {
   }
 }
 
-class DiscountEligibilityScreen extends StatelessWidget {
-  const DiscountEligibilityScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const _DetailScaffold(
-      title: 'Discount Eligibility',
-      children: [
-        SectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose your fare class when comparing ride options.',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                'Student, Senior Citizen, and PWD selections use the published discounted fare rows. Eligibility verification may be required in production.',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class SafetySettingsScreen extends StatelessWidget {
   const SafetySettingsScreen({super.key});
 

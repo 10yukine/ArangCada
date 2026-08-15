@@ -32,7 +32,7 @@ void main() {
   );
 
   test('wallet top-up increases balance', () async {
-    final state = DemoState();
+    final state = DemoState()..setWalletBalanceForDemo(35000);
     final wallet = MockWalletRepository(state);
 
     await wallet.topUp(10000);
@@ -41,7 +41,7 @@ void main() {
   });
 
   test('digital ride payment decreases balance at completion', () async {
-    final state = DemoState();
+    final state = DemoState()..setWalletBalanceForDemo(35000);
     final payment = MockPaymentRepository(state);
 
     await payment.completeRidePayment(digitalBooking(6000));
