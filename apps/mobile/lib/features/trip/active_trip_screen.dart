@@ -214,7 +214,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                         Text(
                           state.forceEtaFallback
                               ? 'ETA fallback · route estimate unavailable'
-                              : 'Predicted ETA range · demo estimate',
+                              : 'Predicted arrival range',
                         ),
                         const Divider(height: AppSpacing.lg),
                         Text(

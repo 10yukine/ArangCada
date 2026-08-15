@@ -5,250 +5,461 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
-import '../../core/widgets/app_row_icon.dart';
-import '../../core/widgets/painted_calamba_map.dart';
+import '../../core/geo/haversine.dart';
+import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/repositories/location_repository.dart';
 
-class CommuterHomeScreen extends ConsumerWidget {
+/// Commuter home, following the approved prototype's composition: greeting
+/// row, destination field, discount card, Plan Your Ride, then a compact
+/// "Drivers Nearby You" map.
+///
+/// Deliberately NOT a full-screen map. The prototype puts a small map card at
+/// the foot of a scrolling page, which is what a commuter needs before a
+/// destination exists.
+class CommuterHomeScreen extends ConsumerStatefulWidget {
   const CommuterHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommuterHomeScreen> createState() => _CommuterHomeScreenState();
+}
+
+class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
+  LocationFix? _fix;
+  LocationFailure? _locationError;
+  bool _locating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame -- never a plugin call from build().
+    WidgetsBinding.instance.addPostFrameCallback((_) => _locate(silent: true));
+  }
+
+  Future<void> _locate({bool silent = false}) async {
+    if (_locating) return;
+    setState(() {
+      _locating = true;
+      if (!silent) _locationError = null;
+    });
+    try {
+      final fix = await ref.read(locationRepositoryProvider).currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _fix = fix;
+        _locationError = null;
+      });
+    } on LocationFailure catch (failure) {
+      if (!mounted) return;
+      setState(() => _locationError = failure);
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
+
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        final firstName = (state.currentUser?.displayName ?? 'there')
+            .split(' ')
+            .first;
+        final centre = _fix?.coordinate ?? state.pickup.coordinate;
+
         return Scaffold(
-          body: Stack(
-            // The only non-positioned child is the header, so a loose Stack
-            // would shrink to the header's height, leaving Positioned.fill to
-            // paint a sliver of map behind the sheet and stranding the
-            // bottom-docked sheet near the top of the screen.
-            fit: StackFit.expand,
+          body: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              children: [
+                _GreetingRow(name: firstName),
+                const SizedBox(height: 14),
+                ArangField(
+                  icon: Icons.search,
+                  text:
+                      state.destination?.name ?? 'Where would you like to go?',
+                  muted: state.destination == null,
+                  onTap: () => context.push('/home/search'),
+                ),
+                const SizedBox(height: 14),
+                const _DiscountCard(),
+                if (state.destination != null)
+                  _CurrentSelection(
+                    pickupName: _pickupLabel(state.pickup.name),
+                    destinationName: state.destination!.name,
+                    onEdit: () => context.push('/home/search'),
+                    onContinue: () => context.push('/home/ride-options'),
+                  )
+                else
+                  _PlanYourRide(
+                    pickupName: _pickupLabel(state.pickup.name),
+                    onTap: () => context.push('/home/search'),
+                  ),
+                if (_locationError != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _LocationNotice(
+                    failure: _locationError!,
+                    busy: _locating,
+                    onRetry: _locate,
+                    onManual: () => context.push('/home/search'),
+                  ),
+                ],
+                ArangSectionHead(
+                  'Drivers Nearby You',
+                  color: AppColors.textMuted,
+                  trailing: Text(
+                    _fix != null ? 'Near you' : 'Calamba',
+                    style: AppTypography.caption,
+                  ),
+                ),
+                LiveMapView(
+                  center: centre,
+                  height: 168,
+                  zoom: 14.2,
+                  showUserLocation: _fix != null,
+                  interactive: false,
+                  markers: [
+                    MapMarker(
+                      coordinate: centre,
+                      color: AppColors.primary,
+                      radius: 8,
+                    ),
+                    // Dispatch is not connected, so these are fixed
+                    // demonstration positions. They are never presented as
+                    // live driver telemetry.
+                    for (final offset in _nearbyDriverOffsets)
+                      MapMarker(
+                        coordinate: GeoCoordinate(
+                          latitude: centre.latitude + offset.$1,
+                          longitude: centre.longitude + offset.$2,
+                        ),
+                        color: AppColors.clayText,
+                        radius: 5.5,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Tricycle positions are illustrative until TODA dispatch is '
+                  'connected.',
+                  style: AppTypography.caption.copyWith(fontSize: 11),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Never claims a stored place is the device's position unless there is a
+  /// real fix, and flags a coarse fix rather than implying precision.
+  String _pickupLabel(String configuredName) {
+    if (_fix == null) return configuredName;
+    return _fix!.isCoarse
+        ? '$configuredName · approximate location'
+        : '$configuredName · current location';
+  }
+}
+
+/// Deterministic offsets so markers do not jump on every rebuild.
+const _nearbyDriverOffsets = <(double, double)>[
+  (0.0031, -0.0024),
+  (-0.0018, 0.0035),
+  (0.0042, 0.0019),
+  (-0.0036, -0.0031),
+];
+
+class _GreetingRow extends StatelessWidget {
+  const _GreetingRow({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ArangAvatar(name: name),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Positioned.fill(
-                child: PaintedCalambaMap(
-                  height: double.infinity,
-                  borderRadius: BorderRadius.zero,
-                  showNearbyDrivers: true,
-                  showRoute: false,
-                  showDestination: false,
+              Text(
+                'Hello, $name',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
                 ),
               ),
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface.withValues(alpha: 0.94),
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(AppRadii.lg),
-                            ),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'Welcome back',
-                                style: AppTypography.caption,
-                              ),
-                              Text(
-                                state.currentUser?.displayName ?? 'Commuter',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.displaySm,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          IconButton(
-                            tooltip: 'Notifications',
-                            onPressed: () => context.push('/notifications'),
-                            icon: const Icon(Icons.notifications_outlined),
-                          ),
-                          const Positioned(
-                            right: 2,
-                            top: 2,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: AppColors.danger,
-                                shape: BoxShape.circle,
-                                border: Border.fromBorderSide(
-                                  BorderSide(
-                                    color: AppColors.surface,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                              child: SizedBox.square(dimension: 10),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              const Text(
+                'Ready for your next ride?',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        ArangIconButton(
+          icon: Icons.notifications_outlined,
+          tooltip: 'Notifications',
+          showDot: true,
+          onPressed: () => context.push('/notifications'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiscountCard extends StatelessWidget {
+  const _DiscountCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: const BoxDecoration(
+        color: AppColors.clayFill,
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Student, Senior & PWD fares',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.clayText,
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
+                const SizedBox(height: 2),
+                // The published matrix prints its own discounted amounts, and
+                // two rows are NOT a flat 20% of the full fare. Never state a
+                // blanket percentage here.
+                const Text(
+                  'Discounted rates follow the LGU fare matrix.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: AppColors.clayText,
                   ),
+                ),
+                const SizedBox(height: 10),
+                ArangButton(
+                  label: 'View fare matrix',
+                  expand: false,
+                  onPressed: () =>
+                      context.push('/profile/discount-eligibility'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(
+            Icons.local_offer_outlined,
+            size: 34,
+            color: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanYourRide extends StatelessWidget {
+  const _PlanYourRide({required this.pickupName, required this.onTap});
+
+  final String pickupName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ArangSectionHead('Plan Your Ride'),
+        ArangCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              ArangRow(
+                icon: Icons.my_location,
+                title: pickupName,
+                subtitle: 'Pickup Location',
+                iconBackground: AppColors.greenFill,
+                iconForeground: AppColors.green,
+                showChevron: false,
+                onTap: onTap,
+              ),
+              ArangRow(
+                icon: Icons.place_outlined,
+                title: 'Where are you going?',
+                subtitle: 'Drop Location',
+                iconBackground: AppColors.clayFill,
+                iconForeground: AppColors.clayText,
+                showDivider: false,
+                onTap: onTap,
+                trailing: Container(
+                  width: 32,
+                  height: 32,
                   decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(AppRadii.sheet),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x1F1F1E1D),
-                        blurRadius: 10,
-                        offset: Offset(0, -2),
-                      ),
-                    ],
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
                   ),
-                  child: SafeArea(
-                    top: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Align(
-                          child: SizedBox(
-                            width: 36,
-                            height: 4,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: AppColors.disabledFill,
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        const Text(
-                          'Where are you going?',
-                          style: AppTypography.displaySm,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        const Row(
-                          children: [
-                            Icon(Icons.circle, size: 9, color: AppColors.green),
-                            SizedBox(width: AppSpacing.xs),
-                            Text(
-                              '6 drivers nearby',
-                              style: AppTypography.caption,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(
-                          children: [
-                            const AppRowIcon(Icons.radio_button_checked),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Pickup',
-                                    style: AppTypography.caption,
-                                  ),
-                                  Text(
-                                    state.pickup.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTypography.label,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        InkWell(
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(AppRadii.input),
-                          ),
-                          onTap: () => context.push('/home/search'),
-                          child: Container(
-                            padding: const EdgeInsets.all(AppSpacing.sm),
-                            decoration: BoxDecoration(
-                              color: AppColors.inputFill,
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(AppRadii.input),
-                              ),
-                              border: Border.all(color: AppColors.borderStrong),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on_outlined,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    state.destination?.name ??
-                                        'Choose destination',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const Icon(Icons.chevron_right),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        FilledButton.icon(
-                          onPressed: state.destination == null
-                              ? () => context.push('/home/search')
-                              : () => context.push('/home/ride-options'),
-                          icon: Icon(
-                            state.destination == null
-                                ? Icons.search
-                                : Icons.directions_car_outlined,
-                          ),
-                          label: Text(
-                            state.destination == null
-                                ? 'Find a destination'
-                                : 'Compare ride options',
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: const Icon(
+                    Icons.arrow_forward,
+                    size: 17,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+}
+
+class _CurrentSelection extends StatelessWidget {
+  const _CurrentSelection({
+    required this.pickupName,
+    required this.destinationName,
+    required this.onEdit,
+    required this.onContinue,
+  });
+
+  final String pickupName;
+  final String destinationName;
+  final VoidCallback onEdit;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ArangSectionHead('Plan Your Ride'),
+        ArangCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              ArangRow(
+                icon: Icons.my_location,
+                title: pickupName,
+                subtitle: 'Pickup Location',
+                iconBackground: AppColors.greenFill,
+                iconForeground: AppColors.green,
+                showChevron: false,
+                onTap: onEdit,
+              ),
+              ArangRow(
+                icon: Icons.place_outlined,
+                title: destinationName,
+                subtitle: 'Drop Location',
+                iconBackground: AppColors.clayFill,
+                iconForeground: AppColors.clayText,
+                showDivider: false,
+                onTap: onEdit,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ArangButton(
+          label: 'Compare ride options',
+          icon: Icons.local_taxi_outlined,
+          onPressed: onContinue,
+        ),
+      ],
+    );
+  }
+}
+
+class _LocationNotice extends StatelessWidget {
+  const _LocationNotice({
+    required this.failure,
+    required this.busy,
+    required this.onRetry,
+    required this.onManual,
+  });
+
+  final LocationFailure failure;
+  final bool busy;
+  final VoidCallback onRetry;
+  final VoidCallback onManual;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocked =
+        failure.reason == LocationFailureReason.permissionDeniedForever;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: const BoxDecoration(
+        color: AppColors.amberFill,
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.location_off_outlined,
+                size: 18,
+                color: AppColors.amberText,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Location unavailable',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.amberText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            failure.message,
+            style: AppTypography.caption.copyWith(color: AppColors.amberText),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: ArangButton(
+                  label: 'Choose pickup',
+                  variant: ArangButtonVariant.ghost,
+                  onPressed: onManual,
+                ),
+              ),
+              if (!blocked) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: ArangButton(
+                    label: busy ? 'Trying…' : 'Try again',
+                    variant: ArangButtonVariant.ghost,
+                    onPressed: busy ? null : onRetry,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
