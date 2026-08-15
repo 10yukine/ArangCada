@@ -97,22 +97,40 @@ class _DestinationSearchScreenState
     context.go('/home/ride-options');
   }
 
+  /// Sets the PICKUP from GPS. This is a destination picker, so using the
+  /// device position as the *destination* would be nonsensical -- it would
+  /// book a ride to where the commuter already is.
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
+    // Both repositories are captured before the first await, so nothing
+    // touches `ref` after the widget may have been disposed.
+    final locationRepository = ref.read(locationRepositoryProvider);
+    final geocodingRepository = ref.read(geocodingRepositoryProvider);
+    final demoState = ref.read(demoStateProvider);
     try {
-      final fix = await ref.read(locationRepositoryProvider).currentLocation();
-      final place = await ref
-          .read(geocodingRepositoryProvider)
-          .reverse(fix.coordinate);
+      final fix = await locationRepository.currentLocation();
       if (!mounted) return;
-      // Reverse geocoding is a nicety; a coordinate label is an acceptable
-      // fallback and must never block selection.
-      _choose(
-        place?.name ?? 'Pinned location',
-        place?.context ??
-            '${fix.coordinate.latitude.toStringAsFixed(5)}, '
-                '${fix.coordinate.longitude.toStringAsFixed(5)}',
-        fix.coordinate,
+
+      // Reverse geocoding is a label nicety and must not hold the user for the
+      // full network timeout; a coordinate label is an acceptable answer.
+      final place = await geocodingRepository
+          .reverse(fix.coordinate)
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+      if (!mounted) return;
+
+      demoState.setPickup(
+        DemoPlace(
+          id: 'gps',
+          name: place?.name ?? 'Current location',
+          address: place?.context ??
+              '${fix.coordinate.latitude.toStringAsFixed(5)}, '
+                  '${fix.coordinate.longitude.toStringAsFixed(5)}',
+          coordinate: fix.coordinate,
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pickup set to your current location.')),
       );
     } on LocationFailure catch (failure) {
       if (!mounted) return;
@@ -183,7 +201,7 @@ class _DestinationSearchScreenState
                 children: [
                   Expanded(
                     child: ArangButton(
-                      label: _locating ? 'Locating…' : 'Current location',
+                      label: _locating ? 'Locating…' : 'Pickup: current',
                       icon: Icons.gps_fixed,
                       variant: ArangButtonVariant.ghost,
                       onPressed: _locating ? null : _useCurrentLocation,
