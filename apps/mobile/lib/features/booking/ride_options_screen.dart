@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../core/geo/haversine.dart';
+import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_calculator.dart';
@@ -54,6 +55,14 @@ class RideOptionsScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
+                // One ORS request per endpoint pair, issued after the first
+                // frame by RoutePreviewMap. Road distance is informational --
+                // the fare below is Haversine-based.
+                RoutePreviewMap(
+                  from: state.pickup.coordinate,
+                  to: state.destination!.coordinate,
+                ),
+                const SizedBox(height: AppSpacing.md),
                 SectionCard(
                   child: Column(
                     children: [

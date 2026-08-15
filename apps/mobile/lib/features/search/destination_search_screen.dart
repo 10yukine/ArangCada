@@ -183,7 +183,7 @@ class _DestinationSearchScreenState
                 children: [
                   Expanded(
                     child: ArangButton(
-                      label: _locating ? 'Locating…' : 'Use current location',
+                      label: _locating ? 'Locating…' : 'Current location',
                       icon: Icons.gps_fixed,
                       variant: ArangButtonVariant.ghost,
                       onPressed: _locating ? null : _useCurrentLocation,
