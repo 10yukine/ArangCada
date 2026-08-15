@@ -191,7 +191,18 @@ class _CalambaMapPainter extends CustomPainter {
     canvas.drawCircle(driver, 15, Paint()..color = AppColors.surface);
     canvas.drawCircle(driver, 13, Paint()..color = AppColors.primary);
     final icon = TextPainter(
-      text: const TextSpan(text: '🛺', style: TextStyle(fontSize: 16)),
+      text: TextSpan(
+        // MaterialIcons is bundled by uses-material-design, so this glyph
+        // renders identically on every device. Emoji do not: OEM fonts
+        // substituted a hut for the tricycle here.
+        text: String.fromCharCode(Icons.local_taxi_rounded.codePoint),
+        style: TextStyle(
+          fontSize: 15,
+          fontFamily: Icons.local_taxi_rounded.fontFamily,
+          package: Icons.local_taxi_rounded.fontPackage,
+          color: AppColors.surface,
+        ),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     icon.paint(canvas, driver - Offset(icon.width / 2, icon.height / 2));
@@ -222,7 +233,7 @@ class _CalambaMapPainter extends CustomPainter {
 
     _drawPillLabel(
       canvas,
-      Offset(size.width * 0.09, size.height * 0.08),
+      Offset(size.width * 0.09, size.height * 0.205),
       'Calamba Poblacion TODA (illustrative boundary)',
       background: AppColors.amberFill,
       foreground: AppColors.amberText,
@@ -283,7 +294,18 @@ class _CalambaMapPainter extends CustomPainter {
     canvas.drawCircle(marker, 15, Paint()..color = AppColors.surface);
     canvas.drawCircle(marker, 13, Paint()..color = AppColors.primary);
     final icon = TextPainter(
-      text: const TextSpan(text: '🛖', style: TextStyle(fontSize: 16)),
+      text: TextSpan(
+        // MaterialIcons is bundled by uses-material-design, so this glyph
+        // renders identically on every device. Emoji do not: OEM fonts
+        // substituted a hut for the tricycle here.
+        text: String.fromCharCode(Icons.local_taxi_rounded.codePoint),
+        style: TextStyle(
+          fontSize: 15,
+          fontFamily: Icons.local_taxi_rounded.fontFamily,
+          package: Icons.local_taxi_rounded.fontPackage,
+          color: AppColors.surface,
+        ),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     icon.paint(canvas, marker - Offset(icon.width / 2, icon.height / 2));
