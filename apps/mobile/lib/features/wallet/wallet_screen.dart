@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/widgets/arang_ui.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/empty_state_card.dart';
@@ -78,11 +79,23 @@ class WalletScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Demo digital balance',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Digital balance',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ),
+                          // Status chip rather than a "Demo" label in the
+                          // field name: the screen reads like a product, and
+                          // the sandbox nature is still stated, once.
+                          const ArangBadge(
+                            'SANDBOX',
+                            tone: ArangBadgeTone.amber,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(

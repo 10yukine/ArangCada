@@ -56,7 +56,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               const CircularProgressIndicator(strokeWidth: 2),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Offline demo',
+                'Ride smarter around Calamba',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),

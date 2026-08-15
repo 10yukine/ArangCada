@@ -23,6 +23,7 @@ import '../features/profile/profile_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/receipt/digital_receipt_screen.dart';
 import '../features/search/destination_search_screen.dart';
+import '../features/search/pin_on_map_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/trips/trips_screen.dart';
 import '../features/trip/active_trip_screen.dart';
@@ -199,6 +200,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'search',
                     pageBuilder: (context, state) =>
                         _screenPage(state, const DestinationSearchScreen()),
+                  ),
+                  GoRoute(
+                    path: 'pin-on-map',
+                    pageBuilder: (context, state) =>
+                        _screenPage(state, const PinOnMapScreen()),
                   ),
                   GoRoute(
                     path: 'ride-options',

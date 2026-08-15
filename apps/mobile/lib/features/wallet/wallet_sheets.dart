@@ -8,7 +8,9 @@ import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
 
-const demoFundsDisclosure = 'Demo only - no funds moved.';
+/// Shown on every payment surface. Truthful without shouting: the balance
+/// is real-looking but no provider is connected and no money moves.
+const demoFundsDisclosure = 'Sandbox payment · no funds moved.';
 
 enum InsufficientBalanceAction { topUp, useCash }
 

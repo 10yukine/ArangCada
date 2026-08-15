@@ -56,7 +56,8 @@ class DriverEarningsScreen extends StatelessWidget {
                 leading: AppRowIcon(Icons.sync_alt),
                 title: Text('Mock settlement status'),
                 subtitle: Text(
-                  'Digital earnings marked for simulated settlement · Demo only - no funds moved.',
+                  'Digital earnings settle through the payment provider once connected. '
+                  'Sandbox only - no funds moved.',
                 ),
                 trailing: StatusBadge(
                   'Pending',

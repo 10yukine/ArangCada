@@ -167,7 +167,7 @@ class _SearchingForDriverScreenState
                         Text(
                           noDrivers
                               ? 'The Demo Tools override is active. Turn it off to continue the defence flow.'
-                              : 'Checking approved drivers in the Calamba TODA demo jurisdiction.',
+                              : 'Checking approved drivers in your TODA service area.',
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppSpacing.lg),

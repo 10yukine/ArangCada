@@ -251,6 +251,13 @@ class _LiveMapViewState extends State<LiveMapView> {
             onMapCreated: (controller) => _controller = controller,
             onStyleLoadedCallback: _onStyleLoaded,
             myLocationEnabled: widget.showUserLocation,
+            // Forces MapLibre onto a TextureView on Android. Flutter composites
+            // platform views through an ImageReader texture (TLHC); MapLibre's
+            // default SurfaceView cannot be captured by it, which renders a
+            // blank map with "BufferQueue has no connected producer" in logcat.
+            // The plugin ties textureMode to (translucent || hybrid), so
+            // requesting translucency is the reliable lever.
+            translucentTextureSurface: true,
             compassEnabled: false,
             logoEnabled: false,
             // The library's own attribution button is hidden because this
