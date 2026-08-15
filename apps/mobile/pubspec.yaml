@@ -37,6 +37,9 @@ dependencies:
   supabase_flutter: ^2.16.0
   maplibre_gl: ^0.26.2
   geolocator: ^14.0.3
+  # Promoted from a transitive dependency of supabase_flutter so the direct
+  # use in data/remote/ is declared. Same resolved version -- no new download.
+  http: ^1.5.0
   # permission_handler removed: v14 android needs Manifest.permission.ACCESS_LOCAL_NETWORK
   # (API 37), which does not resolve on this SDK install. No Dart code used it,
   # and geolocator requests its own location permissions. See android/build.gradle.kts.
