@@ -12,6 +12,7 @@ import '../../core/widgets/painted_calamba_map.dart';
 import '../../core/widgets/section_card.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Timer? _countdownTimer;
+  DemoSimulationRun? _requestRun;
   int _secondsRemaining = 20;
 
   @override
@@ -31,7 +33,26 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     if (ref.read(demoStateProvider).driverTrip.status ==
         DriverTripStatus.incoming) {
       _startCountdown();
+    } else if (ref.read(demoStateProvider).driverTrip.status ==
+        DriverTripStatus.available) {
+      _scheduleRequest();
     }
+  }
+
+  void _scheduleRequest() {
+    _requestRun?.cancel();
+    final state = ref.read(demoStateProvider);
+    if (state.driverTrip.status != DriverTripStatus.available) return;
+    _requestRun = ref
+        .read(demoSimulationServiceProvider)
+        .scheduleDriverRequest(
+          state: state,
+          onRequestReceived: () {
+            if (!mounted) return;
+            _startCountdown();
+            setState(() {});
+          },
+        );
   }
 
   void _startCountdown() {
@@ -53,15 +74,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     });
   }
 
-  void _showRequest() {
-    final state = ref.read(demoStateProvider);
-    state.driverTrip.receiveRequest();
-    state.driverChanged();
-    _startCountdown();
-    setState(() {});
-  }
-
   void _acceptRequest() {
+    _requestRun?.cancel();
     _countdownTimer?.cancel();
     final state = ref.read(demoStateProvider);
     state.driverTrip.acceptRequest();
@@ -70,6 +84,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   }
 
   void _declineRequest() {
+    _requestRun?.cancel();
     _countdownTimer?.cancel();
     final state = ref.read(demoStateProvider);
     state.driverTrip.declineRequest();
@@ -80,6 +95,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _requestRun?.cancel();
     super.dispose();
   }
 
@@ -147,7 +163,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                   state.driverTrip.goOffline();
                                 }
                                 state.driverTrip.goOnline();
+                                _scheduleRequest();
                               } else {
+                                _requestRun?.cancel();
                                 state.driverTrip.goOffline();
                               }
                               state.driverChanged();
@@ -159,10 +177,26 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               if (state.driverTrip.status == DriverTripStatus.available)
-                FilledButton.icon(
-                  onPressed: _showRequest,
-                  icon: const Icon(Icons.notifications_active_outlined),
-                  label: const Text('Show Demo Incoming Request'),
+                const SectionCard(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                      SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'You are online',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Waiting for ride requests in the Calamba TODA area.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               if (state.driverTrip.status == DriverTripStatus.incoming)
                 _IncomingRequestCard(

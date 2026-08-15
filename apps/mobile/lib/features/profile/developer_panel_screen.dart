@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
 
 class DeveloperPanelScreen extends ConsumerStatefulWidget {
@@ -67,19 +68,38 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
     context.go('/login');
   }
 
-  void _completeCurrentTrip() {
-    final state = ref.read(demoStateProvider);
-    final booking = state.activeBooking;
-    if (booking == null || booking.status != BookingStatus.inProgress) return;
-    booking
-      ..completeTrip()
-      ..receiptReference = 'DEMO-DEV-COMPLETE-001';
-    state.bookingChanged();
+  void _showForceResult(bool advanced, String successMessage) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Current demo trip completed. No funds moved.'),
+      SnackBar(
+        content: Text(
+          advanced ? successMessage : 'That transition is not available now.',
+        ),
       ),
     );
+  }
+
+  void _forceDriverMatch() {
+    final state = ref.read(demoStateProvider);
+    final advanced = ref
+        .read(demoSimulationServiceProvider)
+        .forceDriverMatch(state);
+    _showForceResult(advanced, 'A driver was matched to the current ride.');
+  }
+
+  void _forceDriverArrival() {
+    final state = ref.read(demoStateProvider);
+    final advanced = ref
+        .read(demoSimulationServiceProvider)
+        .forceDriverArrival(state);
+    _showForceResult(advanced, 'The driver was moved to the pickup point.');
+  }
+
+  void _forceTripCompletion() {
+    final state = ref.read(demoStateProvider);
+    final advanced = ref
+        .read(demoSimulationServiceProvider)
+        .forceTripCompletion(state);
+    _showForceResult(advanced, 'Current demo trip completed. No funds moved.');
   }
 
   @override
@@ -91,8 +111,12 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
         child: ListenableBuilder(
           listenable: state,
           builder: (context, _) {
-            final canComplete =
-                state.activeBooking?.status == BookingStatus.inProgress;
+            final bookingStatus = state.activeBooking?.status;
+            final canMatch = bookingStatus == BookingStatus.searching;
+            final canArrive =
+                bookingStatus == BookingStatus.matched ||
+                bookingStatus == BookingStatus.approaching;
+            final canComplete = bookingStatus == BookingStatus.inProgress;
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
@@ -167,18 +191,33 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                FilledButton.icon(
-                  onPressed: canComplete ? _completeCurrentTrip : null,
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Complete Current Trip'),
+                Text(
+                  'Manual advancement',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  canComplete
-                      ? 'Completes the active trip without moving funds.'
-                      : 'Available only while a trip is in progress.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
+                SectionCard(
+                  child: Column(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: canMatch ? _forceDriverMatch : null,
+                        icon: const Icon(Icons.person_search_outlined),
+                        label: const Text('Force driver match'),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      OutlinedButton.icon(
+                        onPressed: canArrive ? _forceDriverArrival : null,
+                        icon: const Icon(Icons.pin_drop_outlined),
+                        label: const Text('Force driver arrival'),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      OutlinedButton.icon(
+                        onPressed: canComplete ? _forceTripCompletion : null,
+                        icon: const Icon(Icons.flag_outlined),
+                        label: const Text('Force trip completion'),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 OutlinedButton.icon(

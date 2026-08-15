@@ -9,6 +9,7 @@ import '../../app/theme/app_typography.dart';
 class PaintedCalambaMap extends StatefulWidget {
   const PaintedCalambaMap({
     this.animateDriver = false,
+    this.driverAnimationDuration = const Duration(seconds: 7),
     this.height = 300,
     this.showNearbyDrivers = false,
     this.showRoute = true,
@@ -18,6 +19,7 @@ class PaintedCalambaMap extends StatefulWidget {
   });
 
   final bool animateDriver;
+  final Duration driverAnimationDuration;
   final double height;
   final bool showNearbyDrivers;
   final bool showRoute;
@@ -40,7 +42,7 @@ class _PaintedCalambaMapState extends State<PaintedCalambaMap>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 7),
+      duration: widget.driverAnimationDuration,
     );
     _driverProgress = CurvedAnimation(
       parent: _controller,
@@ -60,6 +62,9 @@ class _PaintedCalambaMapState extends State<PaintedCalambaMap>
   @override
   void didUpdateWidget(covariant PaintedCalambaMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverAnimationDuration != widget.driverAnimationDuration) {
+      _controller.duration = widget.driverAnimationDuration;
+    }
     if (!oldWidget.animateDriver && widget.animateDriver) {
       _controller.forward(from: 0);
     } else if (oldWidget.animateDriver && !widget.animateDriver) {
