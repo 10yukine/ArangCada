@@ -10,14 +10,61 @@ import '../../core/widgets/section_card.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
+import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
 
-class ActiveTripScreen extends ConsumerWidget {
+class ActiveTripScreen extends ConsumerStatefulWidget {
   const ActiveTripScreen({super.key});
 
-  Future<void> _recordSos(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<ActiveTripScreen> createState() => _ActiveTripScreenState();
+}
+
+class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
+  DemoSimulationRun? _completionRun;
+  bool _completionStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleCompletion();
+  }
+
+  void _scheduleCompletion() {
+    _completionRun?.cancel();
+    final state = ref.read(demoStateProvider);
+    if (state.activeBooking?.status != BookingStatus.inProgress) return;
+    _completionRun = ref
+        .read(demoSimulationServiceProvider)
+        .scheduleTripCompletion(
+          state: state,
+          onCompletionDue: _onCompletionDue,
+        );
+  }
+
+  void _onCompletionDue() {
+    if (!mounted || _completionStarted) return;
+    final booking = ref.read(demoStateProvider).activeBooking;
+    if (booking?.status != BookingStatus.inProgress) return;
+    _completionStarted = true;
+    _completeTrip(booking!);
+  }
+
+  void _retryAutomaticCompletion() {
+    if (!mounted) return;
+    _completionStarted = false;
+    _scheduleCompletion();
+  }
+
+  @override
+  void dispose() {
+    _completionRun?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _recordSos() async {
     await ref.read(safetyRepositoryProvider).recordDemoAlert();
-    if (!context.mounted) return;
+    if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -36,11 +83,7 @@ class ActiveTripScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _completeTrip(
-    BuildContext context,
-    WidgetRef ref,
-    DemoBooking booking,
-  ) async {
+  Future<void> _completeTrip(DemoBooking booking) async {
     final state = ref.read(demoStateProvider);
     if (state.forcePaymentFailure &&
         booking.paymentMethod == PaymentMethod.digital) {
@@ -63,13 +106,16 @@ class ActiveTripScreen extends ConsumerWidget {
           ],
         ),
       );
-      if (switchToCash != true || !context.mounted) return;
+      if (switchToCash != true || !mounted) {
+        _retryAutomaticCompletion();
+        return;
+      }
       state.setPaymentFallbackToCash(true);
     } else {
       try {
         await ref.read(paymentRepositoryProvider).completeRidePayment(booking);
       } on InsufficientBalanceException {
-        if (!context.mounted) return;
+        if (!mounted) return;
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
@@ -85,6 +131,7 @@ class ActiveTripScreen extends ConsumerWidget {
             ],
           ),
         );
+        _retryAutomaticCompletion();
         return;
       }
     }
@@ -92,7 +139,7 @@ class ActiveTripScreen extends ConsumerWidget {
       ..completeTrip()
       ..receiptReference = 'DEMO-RIDE-20260815-024';
     state.bookingChanged();
-    if (context.mounted) context.go('/rating');
+    if (mounted) context.go('/rating');
   }
 
   Future<void> _handleBack(BuildContext context) async {
@@ -119,7 +166,7 @@ class ActiveTripScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return PopScope(
       canPop: false,
@@ -174,17 +221,18 @@ class ActiveTripScreen extends ConsumerWidget {
                           '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · ${booking.paymentMethod.label}',
                         ),
                         const Text('Fare locked at confirmation'),
+                        const SizedBox(height: AppSpacing.sm),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: AppSpacing.xs),
+                        const Text(
+                          'Trip progress updates automatically. Your receipt will appear when the ride ends.',
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  SosHoldButton(onCompleted: () => _recordSos(context, ref)),
+                  SosHoldButton(onCompleted: _recordSos),
                   const SizedBox(height: AppSpacing.lg),
-                  FilledButton.icon(
-                    onPressed: () => _completeTrip(context, ref, booking),
-                    icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Simulate Trip Completion'),
-                  ),
                 ],
               );
             },

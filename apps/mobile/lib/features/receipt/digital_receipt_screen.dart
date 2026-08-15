@@ -27,87 +27,100 @@ class DigitalReceiptScreen extends ConsumerWidget {
             if (booking == null || booking.status != BookingStatus.completed) {
               return const Center(child: Text('No completed trip receipt.'));
             }
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  size: 64,
-                  color: AppColors.green,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Trip completed',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                SectionCard(
+            return LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - (AppSpacing.md * 2),
+                  ),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _ReceiptRow(
-                        label: 'Reference',
-                        value: booking.receiptReference ?? 'DEMO-RIDE-024',
+                      const Icon(
+                        Icons.check_circle,
+                        size: 64,
+                        color: AppColors.green,
                       ),
-                      _ReceiptRow(
-                        label: 'Route',
-                        value:
-                            '${booking.pickupName} → ${booking.destinationName}',
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Trip completed',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      _ReceiptRow(
-                        label: 'Ride',
-                        value: booking.rideType == RideType.pooling
-                            ? 'Pooling'
-                            : 'Special',
-                      ),
-                      _ReceiptRow(
-                        label: 'Fare class',
-                        value: booking.userFareClass.label,
-                      ),
-                      _ReceiptRow(
-                        label: 'Payment',
-                        value: state.paymentFallbackToCash
-                            ? 'Cash · switched after demo payment failure'
-                            : booking.paymentMethod.label,
-                      ),
-                      const Divider(height: AppSpacing.lg),
-                      _ReceiptRow(
-                        label: 'Total fare',
-                        value: formatCentavos(
-                          booking.fareQuote.partyTotalCentavos,
+                      const SizedBox(height: AppSpacing.lg),
+                      SectionCard(
+                        child: Column(
+                          children: [
+                            _ReceiptRow(
+                              label: 'Reference',
+                              value:
+                                  booking.receiptReference ?? 'DEMO-RIDE-024',
+                            ),
+                            _ReceiptRow(
+                              label: 'Route',
+                              value:
+                                  '${booking.pickupName} → ${booking.destinationName}',
+                            ),
+                            _ReceiptRow(
+                              label: 'Ride',
+                              value: booking.rideType == RideType.pooling
+                                  ? 'Pooling'
+                                  : 'Special',
+                            ),
+                            _ReceiptRow(
+                              label: 'Fare class',
+                              value: booking.userFareClass.label,
+                            ),
+                            _ReceiptRow(
+                              label: 'Payment',
+                              value: state.paymentFallbackToCash
+                                  ? 'Cash · switched after demo payment failure'
+                                  : booking.paymentMethod.label,
+                            ),
+                            const Divider(height: AppSpacing.lg),
+                            _ReceiptRow(
+                              label: 'Total fare',
+                              value: formatCentavos(
+                                booking.fareQuote.partyTotalCentavos,
+                              ),
+                              emphasize: true,
+                            ),
+                          ],
                         ),
-                        emphasize: true,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: const BoxDecoration(
+                          color: AppColors.clayFill,
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(AppRadii.md),
+                          ),
+                        ),
+                        child: const Text(
+                          demoFundsDisclosure,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      FilledButton(
+                        onPressed: () => context.push('/rating'),
+                        child: Text(
+                          state.tripRating == null
+                              ? 'Rate This Ride'
+                              : 'View Rating',
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      OutlinedButton(
+                        onPressed: () => context.go('/home'),
+                        child: const Text('Back to Home'),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: const BoxDecoration(
-                    color: AppColors.clayFill,
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(AppRadii.md),
-                    ),
-                  ),
-                  child: const Text(
-                    demoFundsDisclosure,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton(
-                  onPressed: () => context.push('/rating'),
-                  child: Text(
-                    state.tripRating == null ? 'Rate This Ride' : 'View Rating',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                OutlinedButton(
-                  onPressed: () => context.go('/home'),
-                  child: const Text('Back to Home'),
-                ),
-              ],
+              ),
             );
           },
         ),
