@@ -5,6 +5,7 @@
 *.env
 .env.*
 env.json
+secrets/
 supabase/.temp/
 supabase/.branches/
 
