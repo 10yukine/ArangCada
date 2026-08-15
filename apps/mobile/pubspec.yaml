@@ -37,7 +37,9 @@ dependencies:
   supabase_flutter: ^2.16.0
   maplibre_gl: ^0.26.2
   geolocator: ^14.0.3
-  permission_handler: ^13.0.0
+  # permission_handler removed: v14 android needs Manifest.permission.ACCESS_LOCAL_NETWORK
+  # (API 37), which does not resolve on this SDK install. No Dart code used it,
+  # and geolocator requests its own location permissions. See android/build.gradle.kts.
   flutter_riverpod: ^3.4.2
   go_router: ^17.3.0
   image_picker: ^1.2.3
