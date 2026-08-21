@@ -187,7 +187,7 @@ class _DestinationSearchScreenState
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                       child: TextField(
                         controller: _controller,
-                        autofocus: true,
+                        autofocus: false,
                         textInputAction: TextInputAction.search,
                         onChanged: _onChanged,
                         decoration: InputDecoration(
@@ -216,11 +216,7 @@ class _DestinationSearchScreenState
                 children: [
                   Expanded(
                     child: ArangButton(
-                      label: _locating
-                          ? 'Locating…'
-                          : (widget.pickingPickup
-                                ? 'Use current location'
-                                : 'Pickup: current'),
+                      label: _locating ? 'Locating…' : 'Use current location',
                       icon: Icons.gps_fixed,
                       variant: ArangButtonVariant.ghost,
                       onPressed: _locating ? null : _useCurrentLocation,

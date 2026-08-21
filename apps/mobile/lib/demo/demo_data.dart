@@ -15,6 +15,16 @@ class DemoPlace {
 }
 
 abstract final class DemoData {
+  /// Mirrors the placeholder CAL-POB-01 seed geometry. It is intentionally
+  /// rectangular and must never be presented as official LGU data.
+  static const calambaPoblacionPrototypeBoundary = <GeoCoordinate>[
+    GeoCoordinate(latitude: 14.200, longitude: 121.150),
+    GeoCoordinate(latitude: 14.200, longitude: 121.180),
+    GeoCoordinate(latitude: 14.230, longitude: 121.180),
+    GeoCoordinate(latitude: 14.230, longitude: 121.150),
+    GeoCoordinate(latitude: 14.200, longitude: 121.150),
+  ];
+
   static const calambaCrossing = DemoPlace(
     id: 'calamba-crossing',
     name: 'Calamba Crossing Terminal',

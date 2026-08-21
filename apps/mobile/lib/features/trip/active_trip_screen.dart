@@ -9,7 +9,6 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/map/route_preview_map.dart';
-import '../../core/widgets/section_card.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
@@ -199,96 +198,231 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
         if (!didPop) _handleBack(context);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Trip in progress')),
-        body: SafeArea(
-          child: ListenableBuilder(
-            listenable: state,
-            builder: (context, _) {
-              final booking = state.activeBooking;
-              if (booking == null ||
-                  booking.status != BookingStatus.inProgress) {
-                return const Center(child: Text('No active trip.'));
-              }
-              return ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  RoutePreviewMap(
+        body: ListenableBuilder(
+          listenable: state,
+          builder: (context, _) {
+            final booking = state.activeBooking;
+            if (booking == null || booking.status != BookingStatus.inProgress) {
+              return const Center(child: Text('No active trip.'));
+            }
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: RoutePreviewMap(
                     from: state.pickup.coordinate,
                     to: state.destination!.coordinate,
-                    height: 230,
+                    height: double.infinity,
+                    borderRadius: BorderRadius.zero,
+                    showCaption: false,
+                    interactive: true,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  SectionCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Heading to ${booking.destinationName}',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                            Text(
-                              state.forceEtaFallback
-                                  ? '15–20 min'
-                                  : '12–16 min',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: AppColors.primary),
-                            ),
-                          ],
+                ),
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + 8,
+                  left: 14,
+                  child: ArangIconButton(
+                    icon: Icons.arrow_back,
+                    tooltip: 'Back',
+                    onPressed: () => _handleBack(context),
+                  ),
+                ),
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + 13,
+                  left: 70,
+                  child: const _TripStatusPill(),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _ActiveTripSheet(
+                    booking: booking,
+                    eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
+                    etaFallback: state.forceEtaFallback,
+                    awaitingConfirmation: _awaitingConfirmation,
+                    secondsLeft: _secondsLeft,
+                    onConfirmArrival: _confirmArrival,
+                    onMessage: () => context.push('/chat/thread-active'),
+                    onCall: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Calling is unavailable in this academic prototype. '
+                          'No call was placed.',
                         ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          state.forceEtaFallback
-                              ? 'ETA fallback · route estimate unavailable'
-                              : 'Predicted arrival range',
-                        ),
-                        const Divider(height: AppSpacing.lg),
-                        Text(
-                          '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · ${booking.paymentMethod.label}',
-                        ),
-                        const Text('Fare locked at confirmation'),
-                        const SizedBox(height: AppSpacing.sm),
-                        if (_awaitingConfirmation) ...[
-                          const _ArrivedBanner(),
-                        ] else ...[
-                          const LinearProgressIndicator(),
-                          const SizedBox(height: AppSpacing.xs),
-                          const Text('On the way to your destination.'),
-                        ],
-                      ],
+                      ),
+                    ),
+                    onSos: _recordSos,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TripStatusPill extends StatelessWidget {
+  const _TripStatusPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.94),
+        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.pill)),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Text('In progress', style: AppTypography.caption),
+    );
+  }
+}
+
+class _ActiveTripSheet extends StatelessWidget {
+  const _ActiveTripSheet({
+    required this.booking,
+    required this.eta,
+    required this.etaFallback,
+    required this.awaitingConfirmation,
+    required this.secondsLeft,
+    required this.onConfirmArrival,
+    required this.onMessage,
+    required this.onCall,
+    required this.onSos,
+  });
+
+  final DemoBooking booking;
+  final String eta;
+  final bool etaFallback;
+  final bool awaitingConfirmation;
+  final int secondsLeft;
+  final VoidCallback onConfirmArrival;
+  final VoidCallback onMessage;
+  final VoidCallback onCall;
+  final Future<void> Function() onSos;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.54,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadii.sheet),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x141F1E1D),
+            blurRadius: 10,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Center(
+                child: SizedBox(
+                  width: 36,
+                  child: Divider(thickness: 4, color: AppColors.disabledFill),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'To ${booking.destinationName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (_awaitingConfirmation) ...[
-                    ArangButton(
-                      label: "I've arrived — finish ride",
-                      icon: Icons.flag_outlined,
-                      onPressed: _confirmArrival,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Finishing automatically in ${_secondsLeft}s if you '
-                      'do not confirm.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.caption,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  ArangButton(
-                    label: 'Message Driver',
-                    icon: Icons.chat_outlined,
-                    variant: ArangButtonVariant.ghost,
-                    onPressed: () => context.push('/chat/thread-active'),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    eta,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(color: AppColors.primary),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  SosHoldButton(onCompleted: _recordSos),
-                  const SizedBox(height: AppSpacing.lg),
                 ],
-              );
-            },
+              ),
+              const SizedBox(height: 2),
+              Text(
+                etaFallback
+                    ? 'Route estimate unavailable · fallback ETA'
+                    : 'Marco Dela Cruz · Body no. 024',
+                style: AppTypography.caption,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
+                '${booking.paymentMethod.label} · fare locked',
+                style: AppTypography.bodySm,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (awaitingConfirmation) ...[
+                const _ArrivedBanner(),
+                const SizedBox(height: AppSpacing.sm),
+                ArangButton(
+                  label: "I've arrived — finish ride",
+                  icon: Icons.flag_outlined,
+                  onPressed: onConfirmArrival,
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: Text(
+                    'Finishing automatically in ${secondsLeft}s',
+                    style: AppTypography.caption,
+                  ),
+                ),
+              ] else ...[
+                const LinearProgressIndicator(minHeight: 3),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'On the way to your destination.',
+                  style: AppTypography.caption,
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Chat',
+                      icon: Icons.chat_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: onMessage,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Call',
+                      icon: Icons.call_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: onCall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SosHoldButton(onCompleted: onSos),
+              const SizedBox(height: 4),
+              const Center(
+                child: Text(
+                  '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 9, color: AppColors.textMuted),
+                ),
+              ),
+            ],
           ),
         ),
       ),

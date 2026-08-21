@@ -78,12 +78,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.lg,
-            ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.xl,
+          ),
+          child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: AutofillGroup(
@@ -112,16 +114,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
                     SectionCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Welcome back',
-                            style: AppTypography.displaySm,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
                           _LabeledTextField(
                             label: 'Email Address',
                             hintText: 'Enter your email',

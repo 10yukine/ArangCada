@@ -62,7 +62,9 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       // leaving DemoState.pickup untouched would price the ride from a
       // different point than the one shown.
       if (!fix.isCoarse && ServiceArea.contains(fix.coordinate)) {
-        ref.read(demoStateProvider).setPickup(
+        ref
+            .read(demoStateProvider)
+            .setPickup(
               DemoPlace(
                 id: 'gps',
                 name: 'Current location',
@@ -146,7 +148,10 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                   center: centre,
                   height: 168,
                   zoom: 14.2,
-                  showUserLocation: _fix != null,
+                  // The one-shot fix is already drawn below. Enabling
+                  // MapLibre's native puck here starts a retained 1-second
+                  // location stream even after the user leaves this tab.
+                  showUserLocation: false,
                   interactive: false,
                   markers: [
                     MapMarker(
@@ -285,10 +290,13 @@ class _DiscountCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                ArangButton(
-                  label: 'View fare matrix',
-                  expand: false,
-                  onPressed: () => context.push('/fare-matrix'),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ArangButton(
+                    label: 'View fare matrix',
+                    expand: false,
+                    onPressed: () => context.push('/fare-matrix'),
+                  ),
                 ),
               ],
             ),

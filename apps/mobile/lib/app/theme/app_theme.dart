@@ -36,10 +36,11 @@ abstract final class AppTheme {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadii.pill),
     );
-    const buttonText = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
+    const buttonText = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
 
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Fredoka',
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.screenBackground,
       textTheme: textTheme,
@@ -196,7 +197,7 @@ abstract final class AppTheme {
         ),
       ),
       listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         textColor: AppColors.textRow,
         iconColor: AppColors.textMuted,
         titleTextStyle: TextStyle(fontSize: 14, color: AppColors.textRow),

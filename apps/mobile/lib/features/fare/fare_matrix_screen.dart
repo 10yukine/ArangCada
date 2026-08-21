@@ -133,9 +133,15 @@ class _FareTable extends StatelessWidget {
   final int pastTwentyFull;
   final int pastTwentyDiscounted;
 
+  /// Display-only cutoff. The underlying [FareMatrix] is untouched and still
+  /// carries every printed row up to [FareMatrix.printedMaxKm]; this just
+  /// keeps the on-screen table short. Do not use this to change fare values.
+  static const int _displayMaxKm = 10;
+
   @override
   Widget build(BuildContext context) {
-    final kilometres = full.keys.toList()..sort();
+    final kilometres = full.keys.where((km) => km <= _displayMaxKm).toList()
+      ..sort();
 
     return ArangCard(
       padding: EdgeInsets.zero,
@@ -193,6 +199,19 @@ class _FareTable extends StatelessWidget {
               discountedCentavos: discounted[km]!,
               highlight: km == 2,
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              AppSpacing.sm,
+              AppSpacing.sm,
+              0,
+            ),
+            child: Text(
+              'Showing the first $_displayMaxKm km. The published matrix '
+              'continues, unchanged, through ${FareMatrix.printedMaxKm} km.',
+              style: AppTypography.caption,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.sm),
             child: Text(

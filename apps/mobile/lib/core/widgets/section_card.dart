@@ -4,7 +4,7 @@ class SectionCard extends StatelessWidget {
   const SectionCard({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
   });
 
   final Widget child;

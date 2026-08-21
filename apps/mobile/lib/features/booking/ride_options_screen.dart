@@ -8,12 +8,14 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../domain/geo/service_area.dart';
 import '../../domain/models/booking.dart';
+import '../../demo/demo_data.dart';
 
 /// Ride selection, following the approved prototype's `confirm` screen:
 /// map on top, a sheet holding the pickup/drop card, ride options, and a
@@ -89,6 +91,12 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                         height: double.infinity,
                         borderRadius: BorderRadius.zero,
                         showCaption: false,
+                        boundaries: const [
+                          MapBoundary(
+                            points: DemoData.calambaPoblacionPrototypeBoundary,
+                          ),
+                        ],
+                        boundaryLabel: 'Prototype boundary · evaluation only',
                       ),
                     ),
                     Positioned(
