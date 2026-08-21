@@ -8,6 +8,7 @@ import '../../core/format/relative_time.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
+import '../../domain/models/demo_user.dart';
 
 const _quickReplies = ['Where po kayo?', 'Salamat po!'];
 
@@ -56,9 +57,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (body.trim().isEmpty) return;
     _controller.clear();
     try {
+      final role = ref.read(demoStateProvider).currentUser?.role;
       await ref
           .read(chatRepositoryProvider)
-          .sendMessage(threadId: widget.threadId, body: body);
+          .sendMessage(
+            threadId: widget.threadId,
+            body: body,
+            author: role == DemoRole.driver
+                ? ChatMessageAuthor.driver
+                : ChatMessageAuthor.commuter,
+          );
       _scrollToEnd();
     } on StateError catch (error) {
       if (!mounted) return;
@@ -83,13 +91,22 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           );
         }
 
+        final viewerIsDriver =
+            ref.read(demoStateProvider).currentUser?.role == DemoRole.driver;
+        final counterparty = viewerIsDriver
+            ? thread.commuterName
+            : thread.driverName;
+        final ownAuthor = viewerIsDriver
+            ? ChatMessageAuthor.driver
+            : ChatMessageAuthor.commuter;
+
         return Scaffold(
           appBar: AppBar(
             titleSpacing: 0,
             title: Row(
               children: [
                 ArangAvatar(
-                  name: thread.driverName,
+                  name: counterparty,
                   size: 34,
                   background: AppColors.primary,
                   foreground: Colors.white,
@@ -104,7 +121,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              thread.driverName,
+                              counterparty,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -114,7 +131,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                               ),
                             ),
                           ),
-                          if (thread.driverVerified) ...[
+                          if (!viewerIsDriver && thread.driverVerified) ...[
                             const SizedBox(width: 4),
                             const Icon(
                               Icons.verified,
@@ -125,7 +142,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         ],
                       ),
                       Text(
-                        'Body no. ${thread.bodyNumber} · ${thread.todaName}',
+                        viewerIsDriver
+                            ? 'Commuter · Current ride'
+                            : 'Body no. ${thread.bodyNumber} · ${thread.todaName}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.caption,
@@ -137,9 +156,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             ),
             actions: [
               IconButton(
-                tooltip: 'Call driver',
+                tooltip: 'Call $counterparty',
                 icon: const Icon(Icons.call_outlined),
-                onPressed: () => _showCallSheet(context, thread),
+                onPressed: () => _showCallSheet(context, counterparty),
               ),
               PopupMenuButton<String>(
                 tooltip: 'More options',
@@ -159,6 +178,19 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           ),
           body: Column(
             children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                color: AppColors.amberFill,
+                child: const Text(
+                  'SANDBOX · Messages stay on this device',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption,
+                ),
+              ),
               Expanded(
                 child: ListView.builder(
                   controller: _scroll,
@@ -166,6 +198,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   itemCount: thread.messages.length,
                   itemBuilder: (context, i) => _Bubble(
                     message: thread.messages[i],
+                    ownAuthor: ownAuthor,
                     onRetry: () => repository.retryMessage(
                       threadId: thread.id,
                       messageId: thread.messages[i].id,
@@ -176,10 +209,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               if (thread.isReadOnly)
                 _ClosedConversationNotice()
               else
-                _Composer(
-                  controller: _controller,
-                  onSend: _send,
-                ),
+                _Composer(controller: _controller, onSend: _send),
             ],
           ),
         );
@@ -187,7 +217,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     );
   }
 
-  void _showCallSheet(BuildContext context, ChatThread thread) {
+  void _showCallSheet(BuildContext context, String counterparty) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -202,11 +232,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Call ${thread.driverName}', style: AppTypography.displaySm),
+            Text('Call $counterparty', style: AppTypography.displaySm),
             const SizedBox(height: AppSpacing.xs),
             const Text(
-              'Driver phone numbers are issued by the TODA once dispatch is '
-              'connected. No number is dialled from this build.',
+              'Phone contact becomes available once dispatch is connected. '
+              'No number is dialled from this build.',
               style: AppTypography.caption,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -290,9 +320,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message, required this.onRetry});
+  const _Bubble({
+    required this.message,
+    required this.ownAuthor,
+    required this.onRetry,
+  });
 
   final ChatMessage message;
+  final ChatMessageAuthor ownAuthor;
   final VoidCallback onRetry;
 
   @override
@@ -310,7 +345,7 @@ class _Bubble extends StatelessWidget {
       );
     }
 
-    final mine = message.author == ChatMessageAuthor.commuter;
+    final mine = message.author == ownAuthor;
     final failed = message.status == ChatMessageStatus.failed;
 
     return Padding(
@@ -384,10 +419,9 @@ class _Bubble extends StatelessWidget {
                     ),
                   )
                 else
-                  const Icon(
-                    Icons.check,
-                    size: 12,
-                    color: AppColors.textMuted,
+                  Text(
+                    '· Saved locally',
+                    style: AppTypography.caption.copyWith(fontSize: 11),
                   ),
               ],
             ],

@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../domain/models/demo_user.dart';
 
 class PersonalInformationScreen extends ConsumerWidget {
   const PersonalInformationScreen({super.key});
@@ -24,13 +25,16 @@ class PersonalInformationScreen extends ConsumerWidget {
               const Divider(height: AppSpacing.lg),
               _InfoRow(label: 'Email', value: user?.email ?? '—'),
               const Divider(height: AppSpacing.lg),
-              const _InfoRow(label: 'Account type', value: 'Demo commuter'),
+              _InfoRow(
+                label: 'Account type',
+                value: user?.role == DemoRole.driver ? 'Driver' : 'Commuter',
+              ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'This prototype uses fictional demo account data only.',
+          'Profile details are provided by the signed-in account.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -53,7 +57,9 @@ class SavedPlacesScreen extends StatelessWidget {
           actionLabel: 'Add a Saved Place',
           onAction: () => ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Saved places are not persisted in this demo.'),
+              content: Text(
+                'Saved places are stored locally in this prototype.',
+              ),
             ),
           ),
         ),
@@ -80,7 +86,7 @@ class SafetySettingsScreen extends StatelessWidget {
               ),
               SizedBox(height: AppSpacing.xs),
               Text(
-                'Press and hold the SOS control to record a demo safety alert for ArangCada administrators.',
+                'Press and hold the SOS control to record a safety alert locally for ArangCada administrators.',
               ),
               SizedBox(height: AppSpacing.md),
               Text(
@@ -102,9 +108,9 @@ class AppSettingsScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset demo data?'),
+        title: const Text('Clear local app data?'),
         content: const Text(
-          'This restores the seeded balance, transactions, trip, rating, and developer overrides. You will be signed out.',
+          'This clears local balance, transactions, trip, rating, and testing overrides. You will be signed out.',
         ),
         actions: [
           TextButton(
@@ -113,14 +119,16 @@ class AppSettingsScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reset Demo Data'),
+            child: const Text('Clear Local Data'),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
+    await ref.read(authRepositoryProvider).signOut();
+    ref.read(chatRepositoryProvider).clearSession();
     ref.read(demoStateProvider).reset();
-    context.go('/login');
+    if (context.mounted) context.go('/login');
   }
 
   @override
@@ -132,9 +140,9 @@ class AppSettingsScreen extends ConsumerWidget {
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.restart_alt, color: AppColors.danger),
-            title: const Text('Reset Demo Data'),
+            title: const Text('Clear Local Data'),
             subtitle: const Text(
-              'Restore the offline demo to its initial state.',
+              'Clear locally simulated trip and wallet data.',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _reset(context, ref),

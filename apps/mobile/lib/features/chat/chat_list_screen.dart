@@ -10,6 +10,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/slidable.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
+import '../../domain/models/demo_user.dart';
 
 enum _ChatFilter { all, unread }
 
@@ -26,6 +27,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     final repository = ref.watch(chatRepositoryProvider);
+    final viewerIsDriver =
+        ref.watch(demoStateProvider).currentUser?.role == DemoRole.driver;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Chats')),
@@ -73,8 +76,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     : ListView.builder(
                         padding: EdgeInsets.zero,
                         itemCount: threads.length,
-                        itemBuilder: (context, i) =>
-                            _ThreadRow(thread: threads[i]),
+                        itemBuilder: (context, i) => _ThreadRow(
+                          thread: threads[i],
+                          viewerIsDriver: viewerIsDriver,
+                        ),
                       ),
               ),
             ],
@@ -86,9 +91,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 }
 
 class _ThreadRow extends ConsumerWidget {
-  const _ThreadRow({required this.thread});
+  const _ThreadRow({required this.thread, required this.viewerIsDriver});
 
   final ChatThread thread;
+  final bool viewerIsDriver;
 
   /// Prototype behaviour: swiping a row or holding it reveals the same
   /// options card, with a separate Cancel card beneath it.
@@ -112,7 +118,9 @@ class _ThreadRow extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          thread.driverName,
+                          viewerIsDriver
+                              ? thread.commuterName
+                              : thread.driverName,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.ink,
@@ -148,7 +156,7 @@ class _ThreadRow extends ConsumerWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Notifications muted for ${thread.driverName}.',
+                            'Notifications muted for ${viewerIsDriver ? thread.commuterName : thread.driverName}.',
                           ),
                         ),
                       );
@@ -191,6 +199,9 @@ class _ThreadRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final unread = thread.unreadCount > 0;
     final last = thread.lastMessage;
+    final counterparty = viewerIsDriver
+        ? thread.commuterName
+        : thread.driverName;
 
     // Swiping reveals a dots button that stays open; tapping it opens the
     // options card. Swiping does NOT jump straight to the popup, and it never
@@ -214,7 +225,7 @@ class _ThreadRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ArangAvatar(
-                  name: thread.driverName,
+                  name: counterparty,
                   background: thread.isActiveTrip
                       ? AppColors.primary
                       : AppColors.clayFill,
@@ -231,7 +242,7 @@ class _ThreadRow extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              thread.driverName,
+                              counterparty,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

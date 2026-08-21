@@ -72,6 +72,7 @@ class ChatMessage {
 class ChatThread {
   const ChatThread({
     required this.id,
+    required this.commuterName,
     required this.driverName,
     required this.bodyNumber,
     required this.todaName,
@@ -83,6 +84,7 @@ class ChatThread {
   });
 
   final String id;
+  final String commuterName;
   final String driverName;
   final String bodyNumber;
   final String todaName;
@@ -113,6 +115,7 @@ class ChatThread {
   }) {
     return ChatThread(
       id: id,
+      commuterName: commuterName,
       driverName: driverName,
       bodyNumber: bodyNumber,
       todaName: todaName,
@@ -126,6 +129,7 @@ class ChatThread {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'commuterName': commuterName,
     'driverName': driverName,
     'bodyNumber': bodyNumber,
     'todaName': todaName,
@@ -138,6 +142,7 @@ class ChatThread {
 
   factory ChatThread.fromJson(Map<String, dynamic> json) => ChatThread(
     id: json['id'] as String,
+    commuterName: json['commuterName'] as String? ?? 'Commuter',
     driverName: json['driverName'] as String,
     bodyNumber: json['bodyNumber'] as String,
     todaName: json['todaName'] as String,

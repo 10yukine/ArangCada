@@ -109,7 +109,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                           maxLength: 240,
                           decoration: const InputDecoration(
                             labelText: 'Comment (optional)',
-                            hintText: 'Tell us about your demo ride',
+                            hintText: 'Tell us about your ride',
                             alignLabelWithHint: true,
                           ),
                         ),

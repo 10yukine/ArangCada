@@ -102,3 +102,131 @@ class _SosHoldButtonState extends State<SosHoldButton>
     );
   }
 }
+
+Future<void> showSafetyReportFlow({
+  required BuildContext context,
+  required bool driver,
+  required Future<void> Function() onSubmit,
+}) async {
+  final reasons = driver
+      ? const [
+          'Passenger threat or harassment',
+          'Refusing to pay fare',
+          'Damaging tricycle or property',
+          'Unsafe passenger behavior',
+          'Other emergency',
+        ]
+      : const [
+          'Unsafe driving',
+          'Wrong route',
+          'Harassment or threat',
+          'Other emergency',
+        ];
+  String? selectedReason;
+  final submitted = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (context, setSheetState) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.danger,
+              size: 38,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              driver ? 'Report passenger issue?' : 'Send emergency report?',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Choose what happened. This internal build records the report '
+              'locally and does not contact emergency services.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final reason in reasons) ...[
+              Semantics(
+                selected: selectedReason == reason,
+                button: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  onTap: () => setSheetState(() => selectedReason = reason),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minHeight: AppSizes.minTapTarget,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedReason == reason
+                          ? AppColors.dangerFill
+                          : AppColors.surface,
+                      border: Border.all(
+                        color: selectedReason == reason
+                            ? AppColors.danger
+                            : AppColors.border,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(reason, textAlign: TextAlign.center),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            const SizedBox(height: AppSpacing.xs),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              onPressed: selectedReason == null
+                  ? null
+                  : () => Navigator.pop(sheetContext, true),
+              child: const Text('Record safety report'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext, false),
+              child: Text(
+                driver ? 'Cancel — back to trip' : 'Cancel — I’m safe',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  if (submitted != true || !context.mounted) return;
+  await onSubmit();
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      icon: const Icon(Icons.shield_outlined, color: AppColors.green),
+      title: const Text('Safety report recorded'),
+      content: const Text(
+        'The report was saved locally for prototype review. '
+        'No emergency service or administrator was contacted.',
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Back to trip'),
+        ),
+      ],
+    ),
+  );
+}

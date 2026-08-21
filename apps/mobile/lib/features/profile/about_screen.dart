@@ -65,7 +65,7 @@ class _AboutArangCadaScreenState extends State<AboutArangCadaScreen> {
                   Text('No endorsement by HeiGIT is implied.'),
                   SizedBox(height: AppSpacing.md),
                   Text(
-                    'The offline demo map is illustrative, not to scale, and uses no OpenStreetMap data.',
+                    'Map and routing availability depends on the configured development API keys.',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
@@ -86,7 +86,7 @@ class _AboutArangCadaScreenState extends State<AboutArangCadaScreen> {
               child: const Padding(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 child: Text(
-                  'Version 0.1.0-demo',
+                  'Version 1.0.0 · Academic prototype',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption,
                 ),

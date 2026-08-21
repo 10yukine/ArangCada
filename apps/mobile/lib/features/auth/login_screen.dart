@@ -26,6 +26,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   bool _obscurePassword = true;
   String? _selectedDemoEmail;
+  int _brandTapCount = 0;
+  bool _showTestAccounts = false;
 
   @override
   void dispose() {
@@ -41,6 +43,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
       _selectedDemoEmail = account.user.email;
     });
+  }
+
+  void _onBrandTap() {
+    _brandTapCount++;
+    if (_brandTapCount < 5) return;
+    _brandTapCount = 0;
+    setState(() => _showTestAccounts = true);
   }
 
   Future<void> _submit() async {
@@ -81,7 +90,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: ArangCadaMark(compact: true)),
+                    Center(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _onBrandTap,
+                        child: const ArangCadaMark(compact: true),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     const Center(
                       child: SizedBox(
@@ -164,49 +179,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onPressed: _submitting ? null : _submit,
                             child: Text(_submitting ? 'Logging in…' : 'Log In'),
                           ),
+                          const SizedBox(height: AppSpacing.xs),
+                          TextButton(
+                            onPressed: () => context.push('/signup'),
+                            child: const Text('Create commuter account'),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      'Prefill a demo account',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        for (final account in MockAuthRepository.accounts)
-                          ChoiceChip(
-                            selected: _selectedDemoEmail == account.user.email,
-                            side: BorderSide(
-                              color: _selectedDemoEmail == account.user.email
-                                  ? AppColors.coral
-                                  : AppColors.borderStrong,
-                            ),
-                            avatar: Icon(
-                              account.user.role == DemoRole.commuter
-                                  ? Icons.person_outline
-                                  : Icons.electric_rickshaw_outlined,
-                              size: 18,
-                            ),
-                            label: Text(
-                              account.user.role == DemoRole.commuter
-                                  ? 'Commuter'
-                                  : 'Driver',
-                            ),
-                            onSelected: (_) => _prefill(account),
+                    if (_showTestAccounts) ...[
+                      const SizedBox(height: AppSpacing.xl),
+                      Row(
+                        children: [
+                          Text(
+                            'Test accounts',
+                            style: Theme.of(context).textTheme.labelLarge,
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Password for both accounts: demo1234',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
+                          const SizedBox(width: AppSpacing.xs),
+                          const Chip(label: Text('SANDBOX')),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          for (final account in MockAuthRepository.accounts)
+                            ChoiceChip(
+                              selected:
+                                  _selectedDemoEmail == account.user.email,
+                              side: BorderSide(
+                                color: _selectedDemoEmail == account.user.email
+                                    ? AppColors.coral
+                                    : AppColors.borderStrong,
+                              ),
+                              avatar: Icon(
+                                account.user.role == DemoRole.commuter
+                                    ? Icons.person_outline
+                                    : Icons.electric_rickshaw_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                account.user.role == DemoRole.commuter
+                                    ? 'Commuter'
+                                    : 'Driver',
+                              ),
+                              onSelected: (_) => _prefill(account),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Password: demo1234',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

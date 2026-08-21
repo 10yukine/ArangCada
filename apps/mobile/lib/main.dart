@@ -18,7 +18,7 @@ Future<void> main() async {
   await Hive.initFlutter();
   await Hive.openBox<String>('arangcada_demo');
 
-  if (AppConfig.isFullyConfigured) {
+  if (AppConfig.isSupabaseConfigured) {
     try {
       await Supabase.initialize(
         url: AppConfig.supabaseUrl,
@@ -26,9 +26,9 @@ Future<void> main() async {
       );
     } catch (_) {
       // Never interpolate an SDK error: rejected configuration can be echoed
-      // by exception messages. The offline demo remains available.
+      // by exception messages. Hidden local test accounts remain available.
       debugPrint(
-        'Supabase initialization unavailable; continuing in demo mode.',
+        'Supabase initialization unavailable; remote sign-in is disabled.',
       );
     }
   }

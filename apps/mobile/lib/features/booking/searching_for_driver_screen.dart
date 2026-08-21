@@ -39,6 +39,15 @@ class _SearchingForDriverScreenState
 
   void _onMatched() {
     if (!mounted) return;
+    final state = ref.read(demoStateProvider);
+    ref
+        .read(chatRepositoryProvider)
+        .ensureActiveTripThread(
+          commuterName: state.currentUser?.displayName ?? 'Commuter',
+          driverName: 'Marco Dela Cruz',
+          bodyNumber: '024',
+          todaName: 'Calamba TODA',
+        );
     final callback = widget.onMatched;
     if (callback != null) {
       callback();
@@ -62,7 +71,7 @@ class _SearchingForDriverScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel ride request?'),
-        content: const Text('ArangCada will stop searching for a demo driver.'),
+        content: const Text('ArangCada will stop searching for a driver.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -174,7 +183,7 @@ class _SearchingForDriverScreenState
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           noDrivers
-                              ? 'The Demo Tools override is active. Turn it off to continue the defence flow.'
+                              ? 'A testing override is active. Turn it off to continue.'
                               : 'Checking approved drivers in your TODA service area.',
                           textAlign: TextAlign.center,
                         ),

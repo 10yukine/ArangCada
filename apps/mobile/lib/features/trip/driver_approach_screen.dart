@@ -53,6 +53,10 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
   }
 
   void _showContactSheet(String mode) {
+    if (mode == 'Message') {
+      context.push('/chat/thread-active');
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -66,8 +70,8 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                mode == 'Message' ? Icons.chat_outlined : Icons.call_outlined,
+              const Icon(
+                Icons.call_outlined,
                 size: 40,
                 color: AppColors.primary,
               ),
@@ -77,10 +81,8 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                mode == 'Message'
-                    ? 'Demo chat preview only. No message was sent.'
-                    : 'Demo call preview only. No call was placed.',
+              const Text(
+                'Calling is unavailable in this academic prototype. No call was placed.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.md),

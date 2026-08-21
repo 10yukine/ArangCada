@@ -1,16 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_config.dart';
 import '../mock/demo_state.dart';
 import '../remote/geolocator_location_repository.dart';
 import '../remote/maptiler_geocoding_repository.dart';
 import '../remote/openrouteservice_routing_repository.dart';
 import '../mock/local_chat_repository.dart';
-import '../mock/mock_auth_repository.dart';
 import '../mock/mock_fare_repository.dart';
 import '../mock/mock_payment_repository.dart';
 import '../mock/mock_safety_repository.dart';
 import '../mock/mock_wallet_repository.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/hybrid_auth_repository.dart';
+import '../remote/supabase_auth_repository.dart';
 import '../repositories/chat_repository.dart';
 import '../repositories/geocoding_repository.dart';
 import '../repositories/location_repository.dart';
@@ -20,14 +23,33 @@ import '../repositories/payment_repository.dart';
 import '../repositories/safety_repository.dart';
 import '../repositories/wallet_repository.dart';
 
+SupabaseClient? _supabaseClient() {
+  if (!AppConfig.isSupabaseConfigured) return null;
+  try {
+    return Supabase.instance.client;
+  } catch (_) {
+    return null;
+  }
+}
+
 final demoStateProvider = Provider<DemoState>((ref) {
-  final state = DemoState();
+  final remoteUser = _supabaseClient()?.auth.currentUser;
+  final state = DemoState(
+    initialUser: remoteUser == null
+        ? null
+        : SupabaseAuthRepository.fromSupabaseUser(remoteUser),
+  );
   ref.onDispose(state.dispose);
   return state;
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return MockAuthRepository(ref.watch(demoStateProvider));
+  final state = ref.watch(demoStateProvider);
+  final client = _supabaseClient();
+  return HybridAuthRepository(
+    state: state,
+    live: client == null ? null : SupabaseAuthRepository(client, state),
+  );
 });
 
 final fareRepositoryProvider = Provider<FareRepository>((ref) {

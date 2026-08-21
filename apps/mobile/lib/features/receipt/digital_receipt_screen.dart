@@ -54,8 +54,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                           children: [
                             _ReceiptRow(
                               label: 'Reference',
-                              value:
-                                  booking.receiptReference ?? 'DEMO-RIDE-024',
+                              value: booking.receiptReference ?? 'SBX-RIDE-024',
                             ),
                             _ReceiptRow(
                               label: 'Route',
@@ -75,7 +74,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                             _ReceiptRow(
                               label: 'Payment',
                               value: state.paymentFallbackToCash
-                                  ? 'Cash · switched after demo payment failure'
+                                  ? 'Cash · switched after sandbox payment failure'
                                   : booking.paymentMethod.label,
                             ),
                             const Divider(height: AppSpacing.lg),

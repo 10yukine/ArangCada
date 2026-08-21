@@ -56,4 +56,23 @@ class MockAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     _state.setCurrentUser(null);
   }
+
+  @override
+  Future<RegistrationResult> signUp({
+    required String displayName,
+    required String mobileNumber,
+    required String email,
+    required String password,
+  }) {
+    throw const DemoAuthException(
+      'Account creation requires configured Supabase Auth.',
+    );
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) {
+    throw const DemoAuthException(
+      'Password recovery requires configured Supabase Auth.',
+    );
+  }
 }
