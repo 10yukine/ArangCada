@@ -100,23 +100,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   }
 
   Future<void> _recordSos() async {
-    await ref.read(safetyRepositoryProvider).recordDemoAlert();
-    if (!mounted) return;
-    await showDialog<void>(
+    await showSafetyReportFlow(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.shield_outlined, color: AppColors.danger),
-        title: const Text('Safety alert recorded'),
-        content: const Text(
-          'Demo safety alert recorded for ArangCada administrators. No emergency service was contacted.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Understood'),
-          ),
-        ],
-      ),
+      driver: false,
+      onSubmit: () => ref.read(safetyRepositoryProvider).recordDemoAlert(),
     );
   }
 
@@ -127,7 +114,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       final switchToCash = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Demo payment failed'),
+          title: const Text('Sandbox payment failed'),
           content: const Text(
             'The payment provider declined this simulated charge. No funds moved.',
           ),
@@ -158,7 +145,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
           builder: (context) => AlertDialog(
             title: const Text('Digital payment failed'),
             content: const Text(
-              'The demo balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
+              'The sandbox balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
             ),
             actions: [
               FilledButton(
@@ -174,8 +161,9 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     }
     booking
       ..completeTrip()
-      ..receiptReference = 'DEMO-RIDE-20260815-024';
+      ..receiptReference = 'SBX-RIDE-20260815-024';
     state.bookingChanged();
+    ref.read(chatRepositoryProvider).closeActiveTripThread();
     if (mounted) context.go('/rating');
   }
 
@@ -185,7 +173,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Leave active trip screen?'),
         content: const Text(
-          'The demo trip will stay active and can be resumed from Trips.',
+          'The trip will stay active and can be resumed from Trips.',
         ),
         actions: [
           TextButton(
@@ -268,9 +256,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                         ] else ...[
                           const LinearProgressIndicator(),
                           const SizedBox(height: AppSpacing.xs),
-                          const Text(
-                            'On the way to your destination.',
-                          ),
+                          const Text('On the way to your destination.'),
                         ],
                       ],
                     ),
@@ -291,6 +277,13 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
+                  ArangButton(
+                    label: 'Message Driver',
+                    icon: Icons.chat_outlined,
+                    variant: ArangButtonVariant.ghost,
+                    onPressed: () => context.push('/chat/thread-active'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   SosHoldButton(onCompleted: _recordSos),
                   const SizedBox(height: AppSpacing.lg),
                 ],

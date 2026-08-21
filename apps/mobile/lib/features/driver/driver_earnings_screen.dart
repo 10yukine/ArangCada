@@ -54,7 +54,7 @@ class DriverEarningsScreen extends StatelessWidget {
             const SectionCard(
               child: ListTile(
                 leading: AppRowIcon(Icons.sync_alt),
-                title: Text('Mock settlement status'),
+                title: Text('Settlement status'),
                 subtitle: Text(
                   'Digital earnings settle through the payment provider once connected. '
                   'Sandbox only - no funds moved.',

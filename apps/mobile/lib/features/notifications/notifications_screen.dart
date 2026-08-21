@@ -32,7 +32,7 @@ const _mockNotifications = [
     isUnread: true,
   ),
   DemoAppNotification(
-    title: 'Demo receipt ready',
+    title: 'Receipt ready',
     message: 'Your completed ride receipt is available in Trips.',
     timeLabel: 'Yesterday',
     icon: Icons.receipt_long_outlined,

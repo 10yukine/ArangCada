@@ -16,7 +16,7 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You can sign back in with either demo account.'),
+        content: const Text('You can sign back in with your account.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -31,6 +31,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     if (confirmed != true || !context.mounted) return;
     await ref.read(authRepositoryProvider).signOut();
+    ref.read(chatRepositoryProvider).clearSession();
     if (context.mounted) context.go('/login');
   }
 
@@ -59,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            state.currentUser?.displayName ?? 'Demo commuter',
+                            state.currentUser?.displayName ?? 'Commuter',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           Text(
@@ -123,12 +124,6 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.info_outline,
                       label: 'About ArangCada',
                       route: '/profile/about',
-                    ),
-                    const Divider(),
-                    _ProfileRow(
-                      icon: Icons.developer_mode,
-                      label: 'Demo Tools',
-                      route: '/profile/demo-tools',
                     ),
                   ],
                 ),

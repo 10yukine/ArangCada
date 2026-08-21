@@ -8,6 +8,8 @@ import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
+import '../../domain/models/demo_user.dart';
+import '../../domain/state/driver_trip_state_machine.dart';
 
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
@@ -15,20 +17,72 @@ class TripsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final isDriver = state.currentUser?.role == DemoRole.driver;
     return Scaffold(
       appBar: AppBar(title: const Text('Trips')),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,
           builder: (context, _) {
+            if (isDriver) {
+              final status = state.driverTrip.status;
+              final hasRide =
+                  status == DriverTripStatus.accepted ||
+                  status == DriverTripStatus.arrivedAtPickup ||
+                  status == DriverTripStatus.inProgress ||
+                  status == DriverTripStatus.completed;
+              if (!hasRide) {
+                return Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: EmptyStateCard(
+                    icon: Icons.route_outlined,
+                    title: 'No driver trips yet',
+                    message: 'Accepted and completed rides will appear here.',
+                    actionLabel: 'Go Online',
+                    onAction: () => context.go('/driver'),
+                  ),
+                );
+              }
+              return ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          status == DriverTripStatus.completed
+                              ? 'Completed driver trip'
+                              : 'Current driver trip',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        const Text(
+                          'Joshua Ramos · Calamba Crossing to SM Calamba',
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        FilledButton(
+                          onPressed: () => context.go('/driver'),
+                          child: Text(
+                            status == DriverTripStatus.completed
+                                ? 'View Summary'
+                                : 'Resume',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
             final booking = state.activeBooking;
             if (booking == null || booking.status == BookingStatus.cancelled) {
               return Padding(
                 padding: EdgeInsets.all(AppSpacing.md),
                 child: EmptyStateCard(
                   icon: Icons.route_outlined,
-                  title: 'No demo trips yet',
-                  message: 'Completed and active demo rides will appear here.',
+                  title: 'No trips yet',
+                  message: 'Completed and active rides will appear here.',
                   actionLabel: 'Book a Ride',
                   onAction: () => context.go('/home'),
                 ),
@@ -55,8 +109,8 @@ class TripsScreen extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               booking.status == BookingStatus.completed
-                                  ? 'Completed demo trip'
-                                  : 'Active demo booking',
+                                  ? 'Completed trip'
+                                  : 'Active booking',
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ),

@@ -65,8 +65,10 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    await ref.read(authRepositoryProvider).signOut();
+    ref.read(chatRepositoryProvider).clearSession();
     ref.read(demoStateProvider).reset();
-    context.go('/login');
+    if (mounted) context.go('/login');
   }
 
   void _showForceResult(bool advanced, String successMessage) {

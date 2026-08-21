@@ -133,9 +133,9 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
         icon: const Icon(Icons.check_circle, color: AppColors.green),
         title: const Text('Top-up complete'),
         content: Text(
-          '${formatCentavos(amount)} was added to the demo balance.\n\n'
+          '${formatCentavos(amount)} was added to the sandbox balance.\n\n'
           '$demoFundsDisclosure\n'
-          'Reference: DEMO-TOPUP-20260815-001',
+          'Reference: SBX-TOPUP-20260815-001',
         ),
         actions: [
           FilledButton(
@@ -164,7 +164,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Top up demo balance',
+              'Top up sandbox balance',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -220,7 +220,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
                   children: [
                     LinearProgressIndicator(value: value),
                     const SizedBox(height: AppSpacing.xs),
-                    const Text('Simulating top-up processing…'),
+                    const Text('Processing sandbox top-up…'),
                   ],
                 ),
               )
@@ -229,7 +229,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
                 onPressed: _amountCentavos == null
                     ? null
                     : () => setState(() => _processing = true),
-                child: const Text('Simulate Top Up'),
+                child: const Text('Add to Balance'),
               ),
           ],
         ),

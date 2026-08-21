@@ -43,7 +43,8 @@ class WalletScreen extends ConsumerWidget {
                 const EmptyStateCard(
                   icon: Icons.receipt_long_outlined,
                   title: 'No wallet transactions',
-                  message: 'Demo top-ups and ride payments will appear here.',
+                  message:
+                      'Sandbox top-ups and ride payments will appear here.',
                 )
               else
                 Flexible(
@@ -148,7 +149,8 @@ class WalletScreen extends ConsumerWidget {
                   EmptyStateCard(
                     icon: Icons.receipt_long_outlined,
                     title: 'No wallet transactions',
-                    message: 'Demo top-ups and ride payments will appear here.',
+                    message:
+                        'Sandbox top-ups and ride payments will appear here.',
                     actionLabel: 'Top Up',
                     onAction: () => showTopUpSheet(context, ref),
                   ),

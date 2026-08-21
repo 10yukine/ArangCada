@@ -6,6 +6,7 @@ import '../data/providers/repository_providers.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/login_screen.dart';
+import '../features/auth/sign_up_screen.dart';
 import '../features/booking/ride_options_screen.dart';
 import '../features/booking/booking_review_screen.dart';
 import '../features/booking/driver_matched_screen.dart';
@@ -68,13 +69,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (path == '/splash') return null;
 
       final user = demoState.currentUser;
-      final isAuthPath = path == '/login' || path == '/forgot-password';
+      final isAuthPath =
+          path == '/login' || path == '/signup' || path == '/forgot-password';
       if (user == null) return isAuthPath ? null : '/login';
 
       final roleHome = user.role == DemoRole.commuter ? '/home' : '/driver';
       if (isAuthPath || path == '/') return roleHome;
-      if (user.role == DemoRole.commuter &&
-          path.startsWith('/driver')) {
+      if (user.role == DemoRole.commuter && path.startsWith('/driver')) {
         return '/home';
       }
       // A chat thread is opened full-screen by both roles, so it is not
@@ -103,6 +104,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         pageBuilder: (context, state) =>
             _screenPage(state, const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: '/signup',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const SignUpScreen()),
       ),
       GoRoute(
         path: '/booking/review',

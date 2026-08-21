@@ -44,7 +44,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     super.dispose();
   }
 
-  void _showDemoContactSheet(BuildContext context, String mode) {
+  void _showCallSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -58,21 +58,16 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                mode == 'Message' ? Icons.chat_outlined : Icons.call_outlined,
+              const Icon(
+                Icons.call_outlined,
                 size: 40,
                 color: AppColors.primary,
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                '$mode Marco',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('Call Marco', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                mode == 'Message'
-                    ? 'Demo chat preview only. No message was sent.'
-                    : 'Demo call preview only. No call was placed.',
+              const Text(
+                'Calling is unavailable in this academic prototype. No call was placed.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -151,10 +146,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                               children: [
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    onPressed: () => _showDemoContactSheet(
-                                      context,
-                                      'Message',
-                                    ),
+                                    onPressed: () =>
+                                        context.push('/chat/thread-active'),
                                     icon: const Icon(Icons.chat_outlined),
                                     label: const Text('Message'),
                                   ),
@@ -162,8 +155,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                                 const SizedBox(width: AppSpacing.xs),
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    onPressed: () =>
-                                        _showDemoContactSheet(context, 'Call'),
+                                    onPressed: () => _showCallSheet(context),
                                     icon: const Icon(Icons.call_outlined),
                                     label: const Text('Call'),
                                   ),

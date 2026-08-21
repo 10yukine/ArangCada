@@ -28,6 +28,7 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
     return [
       ChatThread(
         id: 'thread-active',
+        commuterName: 'Joshua Ramos',
         driverName: 'Marco Dela Cruz',
         bodyNumber: '024',
         todaName: 'Calamba TODA',
@@ -66,6 +67,7 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
       ),
       ChatThread(
         id: 'thread-past-1',
+        commuterName: 'Joshua Ramos',
         driverName: 'Ben Aquino',
         bodyNumber: '118',
         todaName: 'Brgy. Real TODA',
@@ -81,6 +83,7 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
       ),
       ChatThread(
         id: 'thread-past-2',
+        commuterName: 'Joshua Ramos',
         driverName: 'Rico Santos',
         bodyNumber: '204',
         todaName: 'Calamba TODA',
@@ -128,16 +131,70 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
   }
 
   @override
-  int get totalUnread =>
-      _threads.fold(0, (sum, t) => sum + t.unreadCount);
+  int get totalUnread => _threads.fold(0, (sum, t) => sum + t.unreadCount);
 
-  int _indexOf(String threadId) =>
-      _threads.indexWhere((t) => t.id == threadId);
+  int _indexOf(String threadId) => _threads.indexWhere((t) => t.id == threadId);
+
+  @override
+  ChatThread ensureActiveTripThread({
+    required String commuterName,
+    required String driverName,
+    required String bodyNumber,
+    required String todaName,
+  }) {
+    final existing = threadById('thread-active');
+    if (existing != null && existing.isActiveTrip) return existing;
+    final now = DateTime.now();
+    final thread = ChatThread(
+      id: 'thread-active',
+      commuterName: commuterName,
+      driverName: driverName,
+      bodyNumber: bodyNumber,
+      todaName: todaName,
+      isActiveTrip: true,
+      messages: [
+        ChatMessage(
+          id: 'system-${now.microsecondsSinceEpoch}',
+          threadId: 'thread-active',
+          author: ChatMessageAuthor.system,
+          body: 'Driver assigned',
+          sentAt: now,
+        ),
+      ],
+    );
+    final index = _indexOf('thread-active');
+    if (index < 0) {
+      _threads.insert(0, thread);
+    } else {
+      _threads[index] = thread;
+    }
+    _emit();
+    return thread;
+  }
+
+  @override
+  void closeActiveTripThread() {
+    final index = _indexOf('thread-active');
+    if (index < 0 || !_threads[index].isActiveTrip) return;
+    _threads[index] = _threads[index].copyWith(isActiveTrip: false);
+    _emit();
+  }
+
+  @override
+  void clearSession() {
+    for (final timer in _pendingAcks) {
+      timer.cancel();
+    }
+    _pendingAcks.clear();
+    _threads.clear();
+    _emit();
+  }
 
   @override
   Future<ChatMessage> sendMessage({
     required String threadId,
     required String body,
+    required ChatMessageAuthor author,
   }) async {
     final index = _indexOf(threadId);
     if (index < 0) throw StateError('Unknown chat thread: $threadId');
@@ -152,15 +209,13 @@ class LocalChatRepository extends ChangeNotifier implements ChatRepository {
     final message = ChatMessage(
       id: 'local-${++_messageSeq}-${DateTime.now().microsecondsSinceEpoch}',
       threadId: threadId,
-      author: ChatMessageAuthor.commuter,
+      author: author,
       body: trimmed,
       sentAt: DateTime.now(),
       status: ChatMessageStatus.sending,
     );
 
-    _threads[index] = thread.copyWith(
-      messages: [...thread.messages, message],
-    );
+    _threads[index] = thread.copyWith(messages: [...thread.messages, message]);
     _emit();
 
     // Stands in for a transport acknowledgement. Tracked so it can be

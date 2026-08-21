@@ -18,12 +18,24 @@ abstract class ChatRepository implements Listenable {
 
   int get totalUnread;
 
-  /// Appends a commuter message. Implementations must surface a `sending`
+  ChatThread ensureActiveTripThread({
+    required String commuterName,
+    required String driverName,
+    required String bodyNumber,
+    required String todaName,
+  });
+
+  void closeActiveTripThread();
+
+  void clearSession();
+
+  /// Appends a message for the signed-in role. Implementations surface a `sending`
   /// state before `sent` so the UI never shows an unacknowledged message as
   /// delivered.
   Future<ChatMessage> sendMessage({
     required String threadId,
     required String body,
+    required ChatMessageAuthor author,
   });
 
   Future<void> retryMessage({

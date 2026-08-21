@@ -12,6 +12,8 @@ import '../../domain/state/driver_trip_state_machine.dart';
 /// Separate repository interfaces remain replaceable, while their mock
 /// implementations cannot drift into contradictory sessions or balances.
 class DemoState extends ChangeNotifier {
+  DemoState({DemoUser? initialUser}) : _currentUser = initialUser;
+
   DemoUser? get currentUser => _currentUser;
 
   DemoUser? _currentUser;
@@ -33,6 +35,7 @@ class DemoState extends ChangeNotifier {
   int? tripRating;
   String? tripRatingComment;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
+
   /// Sample content is OFF by default. Pre-populated chats and a pre-filled
   /// ledger read as things that actually happened, which is misleading on a
   /// first run. Demo Tools turns them on for a walkthrough.
@@ -177,8 +180,8 @@ class DemoState extends ChangeNotifier {
   WalletTransaction addWalletTopUp(int amountCentavos) {
     walletBalanceCentavos += amountCentavos;
     final transaction = WalletTransaction(
-      id: 'DEMO-TOPUP-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
-      title: 'Demo balance top-up',
+      id: 'SBX-TOPUP-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
+      title: 'Balance top-up',
       amountCentavos: amountCentavos,
       occurredAt: DateTime.now().toUtc(),
       kind: WalletTransactionKind.topUp,
@@ -191,13 +194,13 @@ class DemoState extends ChangeNotifier {
 
   void debitRidePayment(int amountCentavos, String destinationName) {
     if (amountCentavos > walletBalanceCentavos) {
-      throw StateError('Insufficient demo balance.');
+      throw StateError('Insufficient sandbox balance.');
     }
     walletBalanceCentavos -= amountCentavos;
     _walletTransactions.insert(
       0,
       WalletTransaction(
-        id: 'DEMO-RIDE-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
+        id: 'SBX-RIDE-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
         title: 'Ride to $destinationName',
         amountCentavos: -amountCentavos,
         occurredAt: DateTime.now().toUtc(),
@@ -217,7 +220,7 @@ class DemoState extends ChangeNotifier {
 
   void reset() {
     _currentUser = null;
-    walletBalanceCentavos = 35000;
+    walletBalanceCentavos = 0;
     pickup = DemoData.calambaCrossing;
     destination = null;
     passengerCount = 1;
@@ -230,9 +233,8 @@ class DemoState extends ChangeNotifier {
     paymentFallbackToCash = false;
     tripRating = null;
     tripRatingComment = null;
-    _walletTransactions
-      ..clear()
-      ..addAll(_seedTransactions());
+    sampleContentEnabled = false;
+    _walletTransactions.clear();
     driverTrip.reset();
     notifyListeners();
   }

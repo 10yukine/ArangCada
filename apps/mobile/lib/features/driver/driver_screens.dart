@@ -12,6 +12,7 @@ import '../../core/format/money_format.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -80,6 +81,14 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     _countdownTimer?.cancel();
     final state = ref.read(demoStateProvider);
     state.driverTrip.acceptRequest();
+    ref
+        .read(chatRepositoryProvider)
+        .ensureActiveTripThread(
+          commuterName: 'Joshua Adia',
+          driverName: state.currentUser?.displayName ?? 'Driver',
+          bodyNumber: '024',
+          todaName: 'Calamba TODA',
+        );
     state.driverChanged();
     setState(() {});
   }
@@ -245,6 +254,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   onComplete: () {
                     state.driverTrip.completeTrip();
                     state.driverChanged();
+                    ref.read(chatRepositoryProvider).closeActiveTripThread();
                     context.go('/driver/earnings');
                   },
                 ),
@@ -259,7 +269,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Demo trip completed',
+                        'Trip completed',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: AppSpacing.sm),
@@ -411,6 +421,42 @@ class _DriverTripModeCard extends ConsumerWidget {
               ),
               const Text('Destination: Calamba City Hall · ETA 12–16 min'),
               const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/chat/thread-active'),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('Message'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Calling is unavailable in this academic prototype. '
+                            'No call was placed.',
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.call_outlined),
+                      label: const Text('Call'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SosHoldButton(
+                onCompleted: () => showSafetyReportFlow(
+                  context: context,
+                  driver: true,
+                  onSubmit: () =>
+                      ref.read(safetyRepositoryProvider).recordDemoAlert(),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               FilledButton(
                 onPressed: onComplete,
                 child: const Text('Complete Trip'),
@@ -534,6 +580,7 @@ class DriverProfileScreen extends ConsumerWidget {
                   showDivider: false,
                   onTap: () async {
                     await ref.read(authRepositoryProvider).signOut();
+                    ref.read(chatRepositoryProvider).clearSession();
                     if (context.mounted) context.go('/login');
                   },
                 ),
