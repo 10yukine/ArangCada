@@ -72,7 +72,7 @@ class ArangButton extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: foreground,
             ),
           ),
@@ -96,9 +96,7 @@ class ArangButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           child: Container(
-            constraints: const BoxConstraints(
-              minHeight: AppSizes.buttonHeight,
-            ),
+            constraints: const BoxConstraints(minHeight: AppSizes.buttonHeight),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: 13,
@@ -202,9 +200,7 @@ class ArangCard extends StatelessWidget {
         side: BorderSide(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
-      child: onTap == null
-          ? content
-          : InkWell(onTap: onTap, child: content),
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }
@@ -279,7 +275,7 @@ class ArangRow extends StatelessWidget {
                   ),
                 )
               : null,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               ArangRowIcon(
@@ -437,10 +433,7 @@ class ArangSectionHead extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: AppTypography.h2.copyWith(color: color),
-            ),
+            child: Text(title, style: AppTypography.h2.copyWith(color: color)),
           ),
           ?trailing,
         ],
@@ -476,9 +469,7 @@ class ArangIconButton extends StatelessWidget {
         excludeFromSemantics: true,
         child: Material(
           color: AppColors.surface,
-          shape: const CircleBorder(
-            side: BorderSide(color: AppColors.border),
-          ),
+          shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,

@@ -26,6 +26,58 @@ class MapMarker {
   final Color strokeColor;
 }
 
+/// A visual-only map polygon. Jurisdiction remains a server-side decision.
+class MapBoundary {
+  const MapBoundary({
+    required this.points,
+    this.fillColor = AppColors.primary,
+    this.fillOpacity = 0.08,
+    this.outlineColor = AppColors.primary,
+  });
+
+  final List<GeoCoordinate> points;
+  final Color fillColor;
+  final double fillOpacity;
+  final Color outlineColor;
+}
+
+@visibleForTesting
+bool mapMarkersEquivalent(List<MapMarker> a, List<MapMarker> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (haversineDistanceMeters(a[i].coordinate, b[i].coordinate) > 5 ||
+        a[i].color != b[i].color ||
+        a[i].radius != b[i].radius ||
+        a[i].strokeColor != b[i].strokeColor) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@visibleForTesting
+bool mapRoutesEquivalent(List<GeoCoordinate> a, List<GeoCoordinate> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (haversineDistanceMeters(a[i], b[i]) >= 5) return false;
+  }
+  return true;
+}
+
+@visibleForTesting
+bool mapBoundariesEquivalent(List<MapBoundary> a, List<MapBoundary> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!mapRoutesEquivalent(a[i].points, b[i].points) ||
+        a[i].fillColor != b[i].fillColor ||
+        a[i].fillOpacity != b[i].fillOpacity ||
+        a[i].outlineColor != b[i].outlineColor) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// Real MapLibre surface rendering MapTiler vector tiles.
 ///
 /// Deliberately a `StatefulWidget` that keeps its controller: the map is
@@ -40,6 +92,8 @@ class LiveMapView extends StatefulWidget {
     this.zoom = 14.5,
     this.markers = const [],
     this.route = const [],
+    this.boundaries = const [],
+    this.boundaryLabel,
     this.routeIsFallback = false,
     this.showUserLocation = false,
     this.interactive = true,
@@ -53,6 +107,8 @@ class LiveMapView extends StatefulWidget {
   final double zoom;
   final List<MapMarker> markers;
   final List<GeoCoordinate> route;
+  final List<MapBoundary> boundaries;
+  final String? boundaryLabel;
 
   /// True when [route] is a straight-line stand-in rather than an ORS result.
   /// Suppresses the routing attribution, because nothing was routed.
@@ -74,8 +130,10 @@ class _LiveMapViewState extends State<LiveMapView> {
   bool _styleFailed = false;
 
   final List<Circle> _circles = [];
+  final List<Fill> _fills = [];
   Line? _routeLine;
   Timer? _styleTimeout;
+  Future<void> _syncTail = Future.value();
 
   /// If MapTiler never answers -- dead tile server, captive portal, no data --
   /// stop showing a spinner forever and degrade to the unavailable state so
@@ -101,83 +159,131 @@ class _LiveMapViewState extends State<LiveMapView> {
     _styleTimeout?.cancel();
     if (!mounted) return;
     setState(() => _styleReady = true);
-    await _sync();
+    await _queueSync(
+      markersChanged: true,
+      routeChanged: true,
+      boundariesChanged: true,
+    );
   }
 
   @override
   void didUpdateWidget(covariant LiveMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_styleReady) return;
-    final markersChanged = !_sameMarkers(oldWidget.markers, widget.markers);
-    final routeChanged = !_samePoints(oldWidget.route, widget.route);
+    final markersChanged = !mapMarkersEquivalent(
+      oldWidget.markers,
+      widget.markers,
+    );
+    final routeChanged = !mapRoutesEquivalent(oldWidget.route, widget.route);
+    final boundariesChanged = !mapBoundariesEquivalent(
+      oldWidget.boundaries,
+      widget.boundaries,
+    );
     final centerMoved =
         haversineDistanceMeters(oldWidget.center, widget.center) > 25;
-    if (markersChanged || routeChanged) _sync();
+    if (markersChanged || routeChanged || boundariesChanged) {
+      _queueSync(
+        markersChanged: markersChanged,
+        routeChanged: routeChanged,
+        boundariesChanged: boundariesChanged,
+      );
+    }
     if (centerMoved && widget.route.isEmpty) _recenter();
   }
 
-  static bool _sameMarkers(List<MapMarker> a, List<MapMarker> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (haversineDistanceMeters(a[i].coordinate, b[i].coordinate) > 5) {
-        return false;
-      }
-    }
-    return true;
+  Future<void> _queueSync({
+    required bool markersChanged,
+    required bool routeChanged,
+    required bool boundariesChanged,
+  }) {
+    _syncTail = _syncTail.then(
+      (_) => _sync(
+        markersChanged: markersChanged,
+        routeChanged: routeChanged,
+        boundariesChanged: boundariesChanged,
+      ),
+    );
+    return _syncTail;
   }
 
-  static bool _samePoints(List<GeoCoordinate> a, List<GeoCoordinate> b) {
-    if (a.length != b.length) return false;
-    if (a.isEmpty) return true;
-    return haversineDistanceMeters(a.first, b.first) < 5 &&
-        haversineDistanceMeters(a.last, b.last) < 5;
-  }
-
-  Future<void> _sync() async {
+  Future<void> _sync({
+    required bool markersChanged,
+    required bool routeChanged,
+    required bool boundariesChanged,
+  }) async {
     final controller = _controller;
     if (controller == null || !_styleReady) return;
 
     try {
-      for (final circle in _circles) {
-        await controller.removeCircle(circle);
-      }
-      _circles.clear();
-
-      if (_routeLine != null) {
-        await controller.removeLine(_routeLine!);
-        _routeLine = null;
-      }
-
-      if (widget.route.length >= 2) {
-        _routeLine = await controller.addLine(
-          LineOptions(
-            geometry: [
-              for (final p in widget.route) LatLng(p.latitude, p.longitude),
-            ],
-            lineColor: '#B4552F',
-            lineWidth: 5,
-            lineOpacity: widget.routeIsFallback ? 0.55 : 0.95,
-          ),
-        );
-      }
-
-      for (final marker in widget.markers) {
-        final circle = await controller.addCircle(
-          CircleOptions(
-            geometry: LatLng(
-              marker.coordinate.latitude,
-              marker.coordinate.longitude,
+      if (boundariesChanged) {
+        for (final fill in _fills) {
+          await controller.removeFill(fill);
+        }
+        _fills.clear();
+        for (final boundary in widget.boundaries) {
+          if (boundary.points.length < 4) continue;
+          _fills.add(
+            await controller.addFill(
+              FillOptions(
+                geometry: [
+                  [
+                    for (final point in boundary.points)
+                      LatLng(point.latitude, point.longitude),
+                  ],
+                ],
+                fillColor: _hex(boundary.fillColor),
+                fillOpacity: boundary.fillOpacity,
+                fillOutlineColor: _hex(boundary.outlineColor),
+              ),
             ),
-            circleRadius: marker.radius,
-            circleColor: _hex(marker.color),
-            circleStrokeColor: _hex(marker.strokeColor),
-            circleStrokeWidth: 2.5,
-          ),
-        );
-        _circles.add(circle);
+          );
+        }
       }
 
-      if (widget.route.length >= 2) await _fitRoute();
+      if (routeChanged) {
+        if (_routeLine != null) {
+          await controller.removeLine(_routeLine!);
+          _routeLine = null;
+        }
+
+        if (widget.route.length >= 2) {
+          _routeLine = await controller.addLine(
+            LineOptions(
+              geometry: [
+                for (final p in widget.route) LatLng(p.latitude, p.longitude),
+              ],
+              lineColor: '#B4552F',
+              lineWidth: 5,
+              lineOpacity: widget.routeIsFallback ? 0.55 : 0.95,
+            ),
+          );
+        }
+      }
+
+      if (markersChanged) {
+        for (final circle in _circles) {
+          await controller.removeCircle(circle);
+        }
+        _circles.clear();
+
+        for (final marker in widget.markers) {
+          final circle = await controller.addCircle(
+            CircleOptions(
+              geometry: LatLng(
+                marker.coordinate.latitude,
+                marker.coordinate.longitude,
+              ),
+              circleRadius: marker.radius,
+              circleColor: _hex(marker.color),
+              circleStrokeColor: _hex(marker.strokeColor),
+              circleStrokeWidth: 2.5,
+            ),
+          );
+          _circles.add(circle);
+        }
+      }
+
+      if (routeChanged && widget.route.length >= 2) await _fitRoute();
     } catch (_) {
       // A style that failed to load leaves the controller usable but empty.
       // Never let annotation failures take down the screen.
@@ -242,10 +348,7 @@ class _LiveMapViewState extends State<LiveMapView> {
           MapLibreMap(
             styleString: MapStyle.streetsStyleUrl,
             initialCameraPosition: CameraPosition(
-              target: LatLng(
-                widget.center.latitude,
-                widget.center.longitude,
-              ),
+              target: LatLng(widget.center.latitude, widget.center.longitude),
               zoom: widget.zoom,
             ),
             onMapCreated: (controller) => _controller = controller,
@@ -285,6 +388,25 @@ class _LiveMapViewState extends State<LiveMapView> {
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2.2),
+                ),
+              ),
+            ),
+          if (widget.boundaryLabel != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.94),
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(AppRadii.pill),
+                  ),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  widget.boundaryLabel!,
+                  style: AppTypography.caption.copyWith(fontSize: 10),
                 ),
               ),
             ),

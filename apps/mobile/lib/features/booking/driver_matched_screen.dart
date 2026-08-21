@@ -82,6 +82,35 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     );
   }
 
+  Future<void> _cancelRide() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel ride?'),
+        content: const Text(
+          'Your driver has been matched but has not started heading to you '
+          'yet. Cancel this ride request?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Ride'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel Ride'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _approachRun?.cancel();
+    final state = ref.read(demoStateProvider);
+    state.activeBooking = null;
+    state.bookingChanged();
+    context.go('/home');
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
@@ -170,6 +199,14 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.dangerDark,
+                        ),
+                        onPressed: _cancelRide,
+                        child: const Text('Cancel ride'),
                       ),
                     ],
                   ),

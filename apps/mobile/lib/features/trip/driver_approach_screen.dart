@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,9 +21,13 @@ class DriverApproachScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
+  static const _cancelWindowSeconds = 60;
+
   DemoSimulationRun? _arrivalRun;
   int _secondsRemaining = 0;
   bool _arrived = false;
+  Timer? _cancelWindowTimer;
+  int _cancelSecondsRemaining = _cancelWindowSeconds;
 
   @override
   void initState() {
@@ -44,11 +50,27 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
           );
       _secondsRemaining = _arrivalRun!.totalSeconds;
     }
+    _startCancelWindow();
+  }
+
+  void _startCancelWindow() {
+    _cancelWindowTimer?.cancel();
+    _cancelSecondsRemaining = _cancelWindowSeconds;
+    _cancelWindowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_cancelSecondsRemaining <= 1) {
+        timer.cancel();
+        setState(() => _cancelSecondsRemaining = 0);
+      } else {
+        setState(() => _cancelSecondsRemaining--);
+      }
+    });
   }
 
   @override
   void dispose() {
     _arrivalRun?.cancel();
+    _cancelWindowTimer?.cancel();
     super.dispose();
   }
 
@@ -119,6 +141,7 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
     );
     if (confirmed != true || !mounted) return;
     _arrivalRun?.cancel();
+    _cancelWindowTimer?.cancel();
     final state = ref.read(demoStateProvider);
     state.activeBooking = null;
     state.bookingChanged();
@@ -228,8 +251,16 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.dangerDark,
                   ),
-                  onPressed: _arrived ? null : _cancelRide,
-                  child: const Text('Cancel ride'),
+                  onPressed: (_arrived || _cancelSecondsRemaining <= 0)
+                      ? null
+                      : _cancelRide,
+                  child: Text(
+                    _arrived
+                        ? 'Cancellation window has expired'
+                        : _cancelSecondsRemaining <= 0
+                        ? 'Cancellation window has expired'
+                        : 'Cancel ride · 0:${_cancelSecondsRemaining.toString().padLeft(2, '0')}',
+                  ),
                 ),
               ],
             );

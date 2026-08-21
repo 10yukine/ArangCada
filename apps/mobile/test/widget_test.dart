@@ -8,7 +8,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: ArangCadaApp()));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Log In'), findsOneWidget);
     expect(find.text('Test accounts'), findsNothing);
   });
 }

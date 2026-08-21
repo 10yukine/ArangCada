@@ -94,14 +94,14 @@ class _FloatingTabItem extends StatelessWidget {
             children: [
               SizedBox(
                 width: 30,
-                height: 26,
+                height: 23,
                 child: Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
                     Icon(
                       selected ? destination.selectedIcon : destination.icon,
-                      size: 24,
+                      size: 20,
                       color: color,
                     ),
                     if (destination.showNotification)

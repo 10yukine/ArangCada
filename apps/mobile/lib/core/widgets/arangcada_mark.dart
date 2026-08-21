@@ -11,7 +11,7 @@ class ArangCadaMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final markHeight = compact ? 58.0 : 82.0;
+    final markHeight = compact ? 48.0 : 82.0;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -23,8 +23,11 @@ class ArangCadaMark extends StatelessWidget {
             semanticsLabel: 'ArangCada tricycle mark',
           ),
         ),
-        SizedBox(height: compact ? AppSpacing.xs : AppSpacing.md),
-        Text('ArangCada', style: AppTypography.display),
+        SizedBox(height: compact ? AppSpacing.xxs : AppSpacing.md),
+        Text(
+          'ArangCada',
+          style: compact ? AppTypography.displaySm : AppTypography.display,
+        ),
       ],
     );
   }

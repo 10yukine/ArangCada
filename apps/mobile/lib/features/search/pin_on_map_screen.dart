@@ -28,8 +28,10 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
   GeoCoordinate? _picked;
   String? _label;
   bool _resolving = false;
+  int _resolveToken = 0;
 
   Future<void> _onTap(GeoCoordinate coordinate) async {
+    final token = ++_resolveToken;
     setState(() {
       _picked = coordinate;
       _label = null;
@@ -38,7 +40,7 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
     final place = await ref
         .read(geocodingRepositoryProvider)
         .reverse(coordinate);
-    if (!mounted) return;
+    if (!mounted || token != _resolveToken) return;
     setState(() {
       _label = place?.name;
       _resolving = false;
