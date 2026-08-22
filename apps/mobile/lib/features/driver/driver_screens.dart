@@ -12,6 +12,7 @@ import '../../core/format/money_format.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/sheet_drag_handle.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_data.dart';
@@ -140,7 +141,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   state.driverTrip.completeTrip();
                   state.driverChanged();
                   ref.read(chatRepositoryProvider).closeActiveTripThread();
-                  context.go('/driver/earnings');
+                  // Rating the passenger, not Earnings, is what used to be
+                  // missing here -- see DriverRatingScreen and
+                  // DriverTripStateMachine.finishTrip.
+                  context.go('/driver/rating');
                 },
               );
             }
@@ -248,6 +252,16 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     onAccept: _acceptRequest,
                     onDecline: _declineRequest,
                   ),
+                // `completed` is a brief transitional state -- completing a
+                // trip now pushes straight to /driver/rating -- but a driver
+                // can still land here by backing out of that screen before
+                // finishing, so it keeps a real exit and the same layout
+                // position as `incoming` rather than a cramped afterthought
+                // below the map.
+                if (state.driverTrip.status == DriverTripStatus.completed)
+                  _TripCompletedCard(
+                    onRate: () => context.push('/driver/rating'),
+                  ),
                 const SizedBox(height: AppSpacing.md),
                 // The waiting/request map shows the driver's relevant demo
                 // jurisdiction. It is explicitly labelled because the seeded
@@ -272,32 +286,40 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     ),
                   ],
                 ),
-                if (state.driverTrip.status == DriverTripStatus.completed)
-                  SectionCard(
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: AppColors.green,
-                          size: 42,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Trip completed',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        FilledButton(
-                          onPressed: () => context.go('/driver/earnings'),
-                          child: const Text('View Earnings'),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _TripCompletedCard extends StatelessWidget {
+  const _TripCompletedCard({required this.onRate});
+
+  final VoidCallback onRate;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        children: [
+          const Icon(Icons.check_circle, color: AppColors.green, size: 42),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Trip completed',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          const Text(
+            'Rate your passenger to finish and go back online.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ArangButton(label: 'Rate Passenger', onPressed: onRate),
+        ],
       ),
     );
   }
@@ -398,7 +420,7 @@ class _PickupModeCard extends ConsumerWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: _DriverMapSheet(
-            child: Column(
+            header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ArangBadge(
@@ -406,20 +428,20 @@ class _PickupModeCard extends ConsumerWidget {
                   tone: ArangBadgeTone.green,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Joshua Adia',
-                  style: Theme.of(context).textTheme.titleLarge,
+                const _PassengerRow(
+                  name: 'Joshua Adia',
+                  detail: 'Calamba Crossing Terminal · ₱92.00 · Cash',
                 ),
-                const Text('Calamba Crossing Terminal · ₱92.00 · Cash'),
-                const SizedBox(height: AppSpacing.md),
-                ArangButton(
-                  label: arrived ? 'Start Trip' : 'Arrived at Pickup',
-                  onPressed: onAction,
-                ),
-                const SizedBox(height: 4),
-                const _VisibleMapAttribution(),
               ],
             ),
+            actions: [
+              ArangButton(
+                label: arrived ? 'Start Trip' : 'Arrived at Pickup',
+                onPressed: onAction,
+              ),
+              const SizedBox(height: 4),
+              const _VisibleMapAttribution(),
+            ],
           ),
         ),
       ],
@@ -450,61 +472,61 @@ class _DriverTripModeCard extends ConsumerWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: _DriverMapSheet(
-            child: Column(
+            header: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ArangBadge('On trip', tone: ArangBadgeTone.green),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Joshua Adia',
-                  style: Theme.of(context).textTheme.titleLarge,
+                ArangBadge('On trip', tone: ArangBadgeTone.green),
+                SizedBox(height: AppSpacing.sm),
+                _PassengerRow(
+                  name: 'Joshua Adia',
+                  detail: 'Calamba City Hall · ₱92.00 · Cash',
                 ),
-                const Text('Calamba City Hall · ₱92.00 · Cash'),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ArangButton(
-                        label: 'Message',
-                        icon: Icons.chat_outlined,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: () => context.push('/chat/thread-active'),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: ArangButton(
-                        label: 'Call',
-                        icon: Icons.call_outlined,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: () =>
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Calling is unavailable in this academic '
-                                  'prototype. No call was placed.',
-                                ),
-                              ),
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                SosHoldButton(
-                  onCompleted: () => showSafetyReportFlow(
-                    context: context,
-                    driver: true,
-                    onSubmit: () =>
-                        ref.read(safetyRepositoryProvider).recordDemoAlert(),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                ArangButton(label: 'Complete Trip', onPressed: onComplete),
-                const SizedBox(height: 4),
-                const _VisibleMapAttribution(),
               ],
             ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Message',
+                      icon: Icons.chat_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: () => context.push('/chat/thread-active'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Call',
+                      icon: Icons.call_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: () =>
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Calling is unavailable in this academic '
+                                'prototype. No call was placed.',
+                              ),
+                            ),
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SosHoldButton(
+                onCompleted: () => showSafetyReportFlow(
+                  context: context,
+                  driver: true,
+                  onSubmit: () =>
+                      ref.read(safetyRepositoryProvider).recordDemoAlert(),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              ArangButton(label: 'Complete Trip', onPressed: onComplete),
+              const SizedBox(height: 4),
+              const _VisibleMapAttribution(),
+            ],
           ),
         ),
       ],
@@ -512,10 +534,57 @@ class _DriverTripModeCard extends ConsumerWidget {
   }
 }
 
-class _DriverMapSheet extends StatelessWidget {
-  const _DriverMapSheet({required this.child});
+class _PassengerRow extends StatelessWidget {
+  const _PassengerRow({required this.name, required this.detail});
 
-  final Widget child;
+  final String name;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ArangAvatar(
+          name: name,
+          size: 40,
+          background: AppColors.clayFill,
+          foreground: AppColors.clayText,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: Theme.of(context).textTheme.titleLarge),
+              Text(detail, style: AppTypography.caption),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DriverMapSheet extends StatefulWidget {
+  const _DriverMapSheet({required this.header, required this.actions});
+
+  /// Always visible, whether the sheet is expanded or collapsed: enough to
+  /// know who the passenger is and what is happening without touching the
+  /// handle.
+  final Widget header;
+
+  /// Only shown when expanded -- the action buttons, SOS, and attribution.
+  /// Before this the sheet had no collapse state to speak of; the handle
+  /// existed only as decoration.
+  final List<Widget> actions;
+
+  @override
+  State<_DriverMapSheet> createState() => _DriverMapSheetState();
+}
+
+class _DriverMapSheetState extends State<_DriverMapSheet> {
+  // Starts expanded, matching the sheet's previous always-full appearance.
+  bool _expanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -541,13 +610,15 @@ class _DriverMapSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Center(
-              child: SizedBox(
-                width: 36,
-                child: Divider(thickness: 4, color: AppColors.disabledFill),
-              ),
+            SheetDragHandle(
+              expanded: _expanded,
+              onToggle: () => setState(() => _expanded = !_expanded),
             ),
-            child,
+            widget.header,
+            if (_expanded) ...[
+              const SizedBox(height: AppSpacing.md),
+              ...widget.actions,
+            ],
           ],
         ),
       ),

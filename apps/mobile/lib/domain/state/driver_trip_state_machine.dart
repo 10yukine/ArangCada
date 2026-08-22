@@ -54,6 +54,17 @@ class DriverTripStateMachine {
     next: DriverTripStatus.completed,
   );
 
+  /// Rating the passenger is over; the driver returns to the normal
+  /// waiting-for-requests state, matching the original prototype's
+  /// `finishDriverTrip() -> driverHome` behaviour. Before this existed,
+  /// `completed` was a dead end: `goOffline()`'s allowed set does not include
+  /// it, so a driver who returned to Home after a trip was stuck on the
+  /// completed card with a non-functional online toggle.
+  void finishTrip() => _transition(
+    allowed: const {DriverTripStatus.completed},
+    next: DriverTripStatus.available,
+  );
+
   void reset() => status = DriverTripStatus.offline;
 
   void _transition({

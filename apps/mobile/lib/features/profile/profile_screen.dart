@@ -112,25 +112,32 @@ class ProfileScreen extends ConsumerWidget {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      _ProfileRow(
-                        icon: Icons.bookmark_border,
-                        label: 'Saved Places',
-                        onTap: () => context.push('/profile/saved-places'),
-                      ),
-                      const Divider(height: 1),
+                      // A driver's places and fare-discount status are the
+                      // rider's concerns, not theirs -- they run under a
+                      // fixed TODA fare, not a discount card they carry.
+                      if (!isDriver) ...[
+                        _ProfileRow(
+                          icon: Icons.bookmark_border,
+                          label: 'Saved Places',
+                          onTap: () => context.push('/profile/saved-places'),
+                        ),
+                        const Divider(height: 1),
+                      ],
                       _ProfileRow(
                         icon: Icons.discount_outlined,
                         label: 'Fare matrix',
                         onTap: () => context.push('/fare-matrix'),
                       ),
                       const Divider(height: 1),
-                      _ProfileRow(
-                        icon: Icons.verified_user_outlined,
-                        label: 'Discount Eligibility',
-                        onTap: () =>
-                            context.push('/profile/discount-eligibility'),
-                      ),
-                      const Divider(height: 1),
+                      if (!isDriver) ...[
+                        _ProfileRow(
+                          icon: Icons.verified_user_outlined,
+                          label: 'Discount Eligibility',
+                          onTap: () =>
+                              context.push('/profile/discount-eligibility'),
+                        ),
+                        const Divider(height: 1),
+                      ],
                       _ProfileRow(
                         icon: Icons.support_agent_outlined,
                         label: 'Support',

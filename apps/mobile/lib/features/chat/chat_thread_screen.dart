@@ -10,6 +10,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
 import '../../domain/models/demo_user.dart';
 import '../../core/widgets/arang_dialog.dart';
+import '../../core/widgets/voice_record_button.dart';
 
 const _quickReplies = ['Where po kayo?', 'Salamat po!'];
 
@@ -52,6 +53,15 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         curve: Curves.easeOut,
       );
     });
+  }
+
+  /// No microphone is opened and no audio is captured or stored -- see
+  /// VoiceRecordButton's doc comment. A completed hold sends a plain text
+  /// message describing itself honestly, through the same path as every
+  /// other message, rather than pretending to be a real voice note.
+  Future<void> _sendVoicePlaceholder(Duration duration) async {
+    final seconds = duration.inSeconds.clamp(1, 999);
+    await _send('🎤 Voice message · 0:${seconds.toString().padLeft(2, '0')}');
   }
 
   Future<void> _send(String body) async {
@@ -210,7 +220,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               if (thread.isReadOnly)
                 _ClosedConversationNotice()
               else
-                _Composer(controller: _controller, onSend: _send),
+                _Composer(
+                  controller: _controller,
+                  onSend: _send,
+                  onVoiceRecorded: _sendVoicePlaceholder,
+                ),
             ],
           ),
         );
@@ -455,14 +469,42 @@ class _ClosedConversationNotice extends StatelessWidget {
   }
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.onSend});
+class _Composer extends StatefulWidget {
+  const _Composer({
+    required this.controller,
+    required this.onSend,
+    required this.onVoiceRecorded,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onSend;
+  final ValueChanged<Duration> onVoiceRecorded;
+
+  @override
+  State<_Composer> createState() => _ComposerState();
+}
+
+class _ComposerState extends State<_Composer> {
+  @override
+  void initState() {
+    super.initState();
+    // The trailing button swaps between mic and send as soon as there is
+    // text to send, matching every mainstream chat app's composer.
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasText = widget.controller.text.trim().isNotEmpty;
+
     return SafeArea(
       top: false,
       child: Column(
@@ -480,7 +522,7 @@ class _Composer extends StatelessWidget {
                     child: ArangChip(
                       label: reply,
                       selected: false,
-                      onTap: () => onSend(reply),
+                      onTap: () => widget.onSend(reply),
                     ),
                   ),
               ],
@@ -492,11 +534,11 @@ class _Composer extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: controller,
+                    controller: widget.controller,
                     textInputAction: TextInputAction.send,
                     minLines: 1,
                     maxLines: 4,
-                    onSubmitted: onSend,
+                    onSubmitted: widget.onSend,
                     decoration: const InputDecoration(
                       hintText: 'Message',
                       isDense: true,
@@ -508,27 +550,30 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Semantics(
-                  button: true,
-                  label: 'Send message',
-                  child: Material(
-                    color: AppColors.primary,
-                    shape: const CircleBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => onSend(controller.text),
-                      child: const SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Icon(
-                          Icons.send_rounded,
-                          size: 20,
-                          color: Colors.white,
+                if (hasText)
+                  Semantics(
+                    button: true,
+                    label: 'Send message',
+                    child: Material(
+                      color: AppColors.primary,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => widget.onSend(widget.controller.text),
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Icon(
+                            Icons.send_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  )
+                else
+                  VoiceRecordButton(onRecorded: widget.onVoiceRecorded),
               ],
             ),
           ),

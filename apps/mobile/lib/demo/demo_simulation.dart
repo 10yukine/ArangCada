@@ -273,6 +273,26 @@ class DemoSimulationService {
     return true;
   }
 
+  /// Skips the 2-4s wait and delivers an incoming request immediately.
+  bool forceDriverIncomingRequest(DemoState state) {
+    _cancelStage(DemoSimulationStage.driverRequest);
+    if (state.driverTrip.status != DriverTripStatus.available) return false;
+    state.driverTrip.receiveRequest();
+    state.driverChanged();
+    return true;
+  }
+
+  /// The demo escape hatch: whatever state the driver side is stuck in,
+  /// force it back to offline. Cancels any pending driver-request timer so
+  /// one does not fire into the now-reset state a moment later.
+  bool forceResetDriverSession(DemoState state) {
+    _cancelStage(DemoSimulationStage.driverRequest);
+    if (state.driverTrip.status == DriverTripStatus.offline) return false;
+    state.driverTrip.reset();
+    state.driverChanged();
+    return true;
+  }
+
   void dispose() {
     for (final run in _runs) {
       run.cancel();
