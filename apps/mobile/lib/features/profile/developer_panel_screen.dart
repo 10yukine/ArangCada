@@ -10,6 +10,7 @@ import '../../data/mock/local_chat_repository.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class DeveloperPanelScreen extends ConsumerStatefulWidget {
   const DeveloperPanelScreen({super.key});
@@ -47,8 +48,8 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
   Future<void> _reset() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset demo data?'),
+      builder: (context) => ArangDialog(
+        title: 'Reset demo data?',
         content: const Text(
           'This restores all seeded demo values and signs out the current account.',
         ),

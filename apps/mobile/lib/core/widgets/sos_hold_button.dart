@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import 'arang_dialog.dart';
 
 class SosHoldButton extends StatefulWidget {
   const SosHoldButton({required this.onCompleted, super.key});
@@ -214,9 +215,9 @@ Future<void> showSafetyReportFlow({
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => ArangDialog(
       icon: const Icon(Icons.shield_outlined, color: AppColors.green),
-      title: const Text('Safety report recorded'),
+      title: 'Safety report recorded',
       content: const Text(
         'The report was saved locally for prototype review. '
         'No emergency service or administrator was contacted.',

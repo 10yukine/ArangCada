@@ -8,6 +8,7 @@ import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -63,12 +64,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (result.requiresEmailConfirmation) {
         await showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (context) => ArangDialog(
             icon: const Icon(
               Icons.mark_email_read_outlined,
               color: AppColors.green,
             ),
-            title: const Text('Check your email'),
+            title: 'Check your email',
             content: const Text(
               'Open the confirmation message from Supabase Auth, then return to sign in.',
             ),

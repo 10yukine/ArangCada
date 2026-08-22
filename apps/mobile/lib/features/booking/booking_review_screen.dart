@@ -12,6 +12,7 @@ import '../../data/repositories/payment_repository.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../domain/models/booking.dart';
 import '../wallet/wallet_sheets.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class BookingReviewScreen extends ConsumerWidget {
   const BookingReviewScreen({super.key});
@@ -46,8 +47,8 @@ class BookingReviewScreen extends ConsumerWidget {
   Future<void> _cancel(BuildContext context) async {
     final leave = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Discard this booking?'),
+      builder: (context) => ArangDialog(
+        title: 'Discard this booking?',
         content: const Text(
           'Your pickup, destination and ride choice will be kept, but nothing '
           'is booked.',

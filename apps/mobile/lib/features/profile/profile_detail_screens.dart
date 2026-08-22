@@ -4,43 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
-import '../../domain/models/demo_user.dart';
-
-class PersonalInformationScreen extends ConsumerWidget {
-  const PersonalInformationScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(demoStateProvider).currentUser;
-    return _DetailScaffold(
-      title: 'Personal Information',
-      children: [
-        SectionCard(
-          child: Column(
-            children: [
-              _InfoRow(label: 'Full name', value: user?.displayName ?? '—'),
-              const Divider(height: AppSpacing.lg),
-              _InfoRow(label: 'Email', value: user?.email ?? '—'),
-              const Divider(height: AppSpacing.lg),
-              _InfoRow(
-                label: 'Account type',
-                value: user?.role == DemoRole.driver ? 'Driver' : 'Commuter',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Profile details are provided by the signed-in account.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-}
+import '../../core/widgets/arang_dialog.dart';
 
 class SavedPlacesScreen extends StatelessWidget {
   const SavedPlacesScreen({super.key});
@@ -68,47 +36,14 @@ class SavedPlacesScreen extends StatelessWidget {
   }
 }
 
-class SafetySettingsScreen extends StatelessWidget {
-  const SafetySettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const _DetailScaffold(
-      title: 'Safety',
-      children: [
-        SectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'During an active ride',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: AppSpacing.xs),
-              Text(
-                'Press and hold the SOS control to record a safety alert locally for ArangCada administrators.',
-              ),
-              SizedBox(height: AppSpacing.md),
-              Text(
-                'The prototype does not contact police, 911, or emergency services.',
-                style: TextStyle(color: AppColors.dangerDark),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class AppSettingsScreen extends ConsumerWidget {
   const AppSettingsScreen({super.key});
 
   Future<void> _reset(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear local app data?'),
+      builder: (context) => ArangDialog(
+        title: 'Clear local app data?',
         content: const Text(
           'This clears local balance, transactions, trip, rating, and testing overrides. You will be signed out.',
         ),
@@ -136,6 +71,42 @@ class AppSettingsScreen extends ConsumerWidget {
     return _DetailScaffold(
       title: 'App Settings',
       children: [
+        // Notification *settings* live here. The notification list itself is
+        // reached from the dashboard bell, so the profile has no duplicate
+        // notifications row.
+        Text('Notifications', style: AppTypography.h2),
+        const SizedBox(height: AppSpacing.xs),
+        SectionCard(
+          padding: EdgeInsets.zero,
+          child: const Column(children: [
+            _NotificationToggle(
+              title: 'Ride updates',
+              subtitle: 'Driver assigned, arrival, and trip completion.',
+              initial: true,
+            ),
+            Divider(height: 1, color: AppColors.dividerLight),
+            _NotificationToggle(
+              title: 'Chat messages',
+              subtitle: 'New messages during an active ride.',
+              initial: true,
+            ),
+            Divider(height: 1, color: AppColors.dividerLight),
+            _NotificationToggle(
+              title: 'Announcements',
+              subtitle: 'Fare matrix changes and TODA advisories.',
+              initial: false,
+            ),
+          ]),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Preferences are stored on this device only; the prototype does not '
+          'send push notifications.',
+          style: AppTypography.caption,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Data', style: AppTypography.h2),
+        const SizedBox(height: AppSpacing.xs),
         SectionCard(
           child: ListTile(
             contentPadding: EdgeInsets.zero,
@@ -149,6 +120,43 @@ class AppSettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Device-local notification preference. Deliberately not persisted: the
+/// prototype sends no push notifications, so storing the value would imply
+/// an effect it does not have.
+class _NotificationToggle extends StatefulWidget {
+  const _NotificationToggle({
+    required this.title,
+    required this.subtitle,
+    required this.initial,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool initial;
+
+  @override
+  State<_NotificationToggle> createState() => _NotificationToggleState();
+}
+
+class _NotificationToggleState extends State<_NotificationToggle> {
+  late bool _value = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      value: _value,
+      onChanged: (next) => setState(() => _value = next),
+      title: Text(widget.title),
+      subtitle: Text(widget.subtitle, style: AppTypography.caption),
+      activeThumbColor: AppColors.primary,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xxs,
+      ),
     );
   }
 }
@@ -169,33 +177,6 @@ class _DetailScaffold extends StatelessWidget {
           children: children,
         ),
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 96,
-          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-        ),
-      ],
     );
   }
 }

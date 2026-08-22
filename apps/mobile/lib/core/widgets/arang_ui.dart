@@ -66,8 +66,23 @@ class ArangButton extends StatelessWidget {
           Icon(icon, size: 18, color: foreground),
           const SizedBox(width: AppSpacing.xs),
         ],
-        Flexible(
-          child: Text(
+        // Flexible only earns its place when the row may grow. On a
+        // shrink-wrapped button it just invites a squeezed label.
+        if (expand)
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: foreground,
+              ),
+            ),
+          )
+        else
+          Text(
             label,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
@@ -77,7 +92,6 @@ class ArangButton extends StatelessWidget {
               color: foreground,
             ),
           ),
-        ),
       ],
     );
 
@@ -108,7 +122,13 @@ class ArangButton extends StatelessWidget {
                 horizontal: AppSpacing.md,
                 vertical: 13,
               ),
-              alignment: Alignment.center,
+              // Only centre when the button is meant to span its parent.
+              // `Container.alignment` wraps the child in an Align, and an
+              // Align with no widthFactor expands to the maximum width on
+              // offer -- so setting it unconditionally made every
+              // `expand: false` button silently full width, which is why
+              // inline card actions looked oversized.
+              alignment: expand ? Alignment.center : null,
               child: child,
             ),
           ),
