@@ -11,6 +11,7 @@ import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class DriverApproachScreen extends ConsumerStatefulWidget {
   const DriverApproachScreen({super.key});
@@ -122,8 +123,8 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
   Future<void> _cancelRide() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel ride?'),
+      builder: (context) => ArangDialog(
+        title: 'Cancel ride?',
         content: const Text(
           'Your driver is already heading to the pickup point. Cancel this ride request?',
         ),

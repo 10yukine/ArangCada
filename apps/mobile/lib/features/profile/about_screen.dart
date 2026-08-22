@@ -72,6 +72,30 @@ class _AboutArangCadaScreenState extends State<AboutArangCadaScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
+            // Moved here from the former standalone Safety row: safety is
+            // reference information about how the prototype behaves, which
+            // is what this screen is for.
+            const SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Safety during a ride', style: AppTypography.h2),
+                  SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Press and hold the SOS control on an active ride to record a safety report locally for ArangCada administrators.',
+                  ),
+                  SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'This prototype does not contact police, 911, or any emergency service.',
+                    style: TextStyle(
+                      color: AppColors.dangerDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             const SectionCard(
               child: Text(
                 'ArangCada does not hold or custody customer funds. Any production digital balance would be held and processed by a payment provider.',

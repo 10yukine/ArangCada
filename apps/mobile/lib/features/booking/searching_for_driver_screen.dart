@@ -11,6 +11,7 @@ import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class SearchingForDriverScreen extends ConsumerStatefulWidget {
   const SearchingForDriverScreen({this.onMatched, super.key});
@@ -69,8 +70,8 @@ class _SearchingForDriverScreenState
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel ride request?'),
+      builder: (context) => ArangDialog(
+        title: 'Cancel ride request?',
         content: const Text('ArangCada will stop searching for a driver.'),
         actions: [
           TextButton(

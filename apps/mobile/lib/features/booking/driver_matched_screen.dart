@@ -8,6 +8,7 @@ import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class DriverMatchedScreen extends ConsumerStatefulWidget {
   const DriverMatchedScreen({super.key});
@@ -85,8 +86,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   Future<void> _cancelRide() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel ride?'),
+      builder: (context) => ArangDialog(
+        title: 'Cancel ride?',
         content: const Text(
           'Your driver has been matched but has not started heading to you '
           'yet. Cancel this ride request?',

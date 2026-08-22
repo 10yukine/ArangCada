@@ -9,6 +9,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
 import '../../domain/models/demo_user.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 const _quickReplies = ['Where po kayo?', 'Salamat po!'];
 
@@ -289,8 +290,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report driver'),
+      builder: (context) => ArangDialog(
+        title: 'Report driver',
         content: Text(
           'Submit a safety concern about ${thread.driverName} to ArangCada '
           'administrators for review.',

@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 /// Shown on every payment surface. Truthful without shouting: the balance
 /// is real-looking but no provider is connected and no money moves.
@@ -129,9 +130,9 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ArangDialog(
         icon: const Icon(Icons.check_circle, color: AppColors.green),
-        title: const Text('Top-up complete'),
+        title: 'Top-up complete',
         content: Text(
           '${formatCentavos(amount)} was added to the sandbox balance.\n\n'
           '$demoFundsDisclosure\n'

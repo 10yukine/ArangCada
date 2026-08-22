@@ -15,6 +15,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
+import '../../core/widgets/arang_dialog.dart';
 
 class ActiveTripScreen extends ConsumerStatefulWidget {
   const ActiveTripScreen({super.key});
@@ -112,8 +113,8 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
         booking.paymentMethod == PaymentMethod.digital) {
       final switchToCash = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Sandbox payment failed'),
+        builder: (context) => ArangDialog(
+          title: 'Sandbox payment failed',
           content: const Text(
             'The payment provider declined this simulated charge. No funds moved.',
           ),
@@ -141,8 +142,8 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
         if (!mounted) return;
         await showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Digital payment failed'),
+          builder: (context) => ArangDialog(
+            title: 'Digital payment failed',
             content: const Text(
               'The sandbox balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
             ),
@@ -169,8 +170,8 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   Future<void> _handleBack(BuildContext context) async {
     final leave = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Leave active trip screen?'),
+      builder: (context) => ArangDialog(
+        title: 'Leave active trip screen?',
         content: const Text(
           'The trip will stay active and can be resumed from Trips.',
         ),

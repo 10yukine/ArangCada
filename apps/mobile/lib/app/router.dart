@@ -24,6 +24,7 @@ import '../features/profile/developer_panel_screen.dart';
 import '../features/profile/discount_eligibility_screen.dart';
 import '../features/profile/profile_detail_screens.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/profile/support_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/receipt/digital_receipt_screen.dart';
 import '../features/search/destination_search_screen.dart';
@@ -68,6 +69,21 @@ CustomTransitionPage<void> _screenPage(GoRouterState state, Widget child) {
   );
 }
 
+/// Full-screen destinations both roles push on top of their own tab tree.
+///
+/// These are not owned by either shell, so a driver reaching one must not be
+/// bounced back to the driver dashboard. `/profile` exactly is the commuter
+/// tab and stays commuter-only; `/profile/...` are the shared detail screens
+/// the driver profile links to as well. Getting this wrong silently
+/// redirects the driver home and makes every row on their profile look dead.
+///
+/// Exported so the role-access test exercises this rule rather than a copy.
+bool isSharedFullScreenPath(String path) =>
+    path.startsWith('/chat/') ||
+    path.startsWith('/profile/') ||
+    path == '/fare-matrix' ||
+    path == '/notifications';
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final demoState = ref.watch(demoStateProvider);
   final router = GoRouter(
@@ -87,12 +103,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (user.role == DemoRole.commuter && path.startsWith('/driver')) {
         return '/home';
       }
-      // A chat thread is opened full-screen by both roles, so it is not
-      // owned by either role's tab tree.
-      final isSharedPath = path.startsWith('/chat/');
       if (user.role == DemoRole.driver &&
           !path.startsWith('/driver') &&
-          !isSharedPath) {
+          !isSharedFullScreenPath(path)) {
         return '/driver';
       }
       return null;
@@ -172,11 +185,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _screenPage(state, const NotificationsScreen()),
       ),
       GoRoute(
-        path: '/profile/personal-information',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const PersonalInformationScreen()),
-      ),
-      GoRoute(
         path: '/profile/saved-places',
         pageBuilder: (context, state) =>
             _screenPage(state, const SavedPlacesScreen()),
@@ -187,9 +195,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _screenPage(state, const DiscountEligibilityScreen()),
       ),
       GoRoute(
-        path: '/profile/safety',
+        path: '/profile/support',
         pageBuilder: (context, state) =>
-            _screenPage(state, const SafetySettingsScreen()),
+            _screenPage(state, const SupportScreen()),
       ),
       GoRoute(
         path: '/profile/app-settings',
@@ -327,8 +335,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/driver/profile',
+                // Both roles render the same ProfileScreen; it branches on
+                // role internally so the two cannot drift apart.
                 pageBuilder: (context, state) =>
-                    _screenPage(state, const DriverProfileScreen()),
+                    _screenPage(state, const ProfileScreen()),
               ),
             ],
           ),
