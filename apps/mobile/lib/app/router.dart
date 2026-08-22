@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/widgets/adaptive_screen_frame.dart';
 import '../data/providers/repository_providers.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -41,9 +42,17 @@ CustomTransitionPage<void> _screenPage(GoRouterState state, Widget child) {
     key: state.pageKey,
     transitionDuration: AppMotion.screen,
     reverseTransitionDuration: AppMotion.screen,
-    child: child,
+    child: AdaptiveScreenFrame(child: child),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final eased = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+      // The platform's "remove animations" accessibility setting gets a
+      // plain cross-fade, not the slide -- reduced motion means gentler
+      // feedback, not none.
+      final reduceMotion =
+          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      if (reduceMotion) {
+        return FadeTransition(opacity: eased, child: child);
+      }
       return FadeTransition(
         opacity: eased,
         child: AnimatedBuilder(
