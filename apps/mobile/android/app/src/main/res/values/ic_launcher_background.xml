@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the brand's supplied app-icon reference assets
+         (assets/branding/arangcada_app_icon_organic.svg), not
+         AppColors.primary (#B4552F) used for in-app buttons. The icon
+         background is its own explicit brand decision. -->
+    <color name="ic_launcher_background">#C67139</color>
+</resources>

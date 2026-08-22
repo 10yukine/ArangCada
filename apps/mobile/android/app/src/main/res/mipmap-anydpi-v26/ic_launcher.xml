@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon (API 26+): a solid background color layer plus a
+  transparent-canvas foreground mark kept inside Android's ~66dp safe zone,
+  so circle/squircle/rounded-square launcher masks never clip it. See
+  scripts/generate_android_icons.py (repo root) for how the foreground
+  PNGs were produced and the safe-zone math behind them.
+
+  A <monochrome> entry is included for Android 13+ themed icons. It reuses
+  the same foreground artwork; the system extracts its alpha shape and
+  re-tints it per the user's wallpaper palette, ignoring the source fill
+  color, so no separate silhouette asset is needed.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

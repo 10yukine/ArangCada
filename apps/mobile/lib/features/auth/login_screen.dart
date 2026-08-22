@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arangcada_mark.dart';
+import '../../core/widgets/auth_footer.dart';
+import '../../core/widgets/labeled_text_field.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/mock/mock_auth_repository.dart';
 import '../../data/providers/repository_providers.dart';
@@ -96,7 +97,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: _onBrandTap,
-                        child: const ArangCadaMark(compact: true),
+                        // `badge: true` is the only thing that changes here
+                        // versus every other ArangCadaMark call site: a
+                        // soft circular backdrop and a small drop shadow,
+                        // matching the reference prototype's larger,
+                        // more-present login mark.
+                        child: const ArangCadaMark(badge: true),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -119,9 +125,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _LabeledTextField(
+                          LabeledTextField(
                             label: 'Email Address',
-                            hintText: 'Enter your email',
+                            // Format-illustrative, not a generic
+                            // instruction -- matches the reference
+                            // prototype and shows the expected shape of
+                            // the answer at a glance.
+                            hintText: 'you@example.com',
                             controller: _emailController,
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
@@ -129,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             textInputAction: TextInputAction.next,
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          _LabeledTextField(
+                          LabeledTextField(
                             label: 'Password',
                             hintText: 'Enter your password',
                             controller: _passwordController,
@@ -176,14 +186,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onPressed: _submitting ? null : _submit,
                             child: Text(_submitting ? 'Logging in…' : 'Log In'),
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          TextButton(
-                            onPressed: () => context.push('/signup'),
-                            child: const Text('Create commuter account'),
-                          ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    AuthSwitchLink(
+                      question: 'New Commuter?',
+                      actionLabel: 'Sign Up',
+                      onTap: () => context.push('/signup'),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    const AuthLegalNotice(actionVerb: 'logging in'),
                     if (_showTestAccounts) ...[
                       const SizedBox(height: AppSpacing.xl),
                       Row(
@@ -240,84 +253,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LabeledTextField extends StatefulWidget {
-  const _LabeledTextField({
-    required this.label,
-    required this.controller,
-    required this.icon,
-    required this.hintText,
-    this.keyboardType,
-    this.autofillHints,
-    this.textInputAction,
-    this.obscureText = false,
-    this.onSubmitted,
-    this.suffixIcon,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final IconData icon;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final Iterable<String>? autofillHints;
-  final TextInputAction? textInputAction;
-  final bool obscureText;
-  final ValueChanged<String>? onSubmitted;
-  final Widget? suffixIcon;
-
-  @override
-  State<_LabeledTextField> createState() => _LabeledTextFieldState();
-}
-
-class _LabeledTextFieldState extends State<_LabeledTextField> {
-  final _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_onFocusChanged);
-  }
-
-  void _onFocusChanged() => setState(() {});
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_onFocusChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(widget.label, style: AppTypography.label),
-        const SizedBox(height: AppSpacing.xs),
-        TextField(
-          controller: widget.controller,
-          focusNode: _focusNode,
-          keyboardType: widget.keyboardType,
-          autofillHints: widget.autofillHints,
-          textInputAction: widget.textInputAction,
-          obscureText: widget.obscureText,
-          onSubmitted: widget.onSubmitted,
-          style: const TextStyle(fontSize: 15),
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            fillColor: _focusNode.hasFocus
-                ? AppColors.surface
-                : AppColors.inputFill,
-            prefixIcon: Icon(widget.icon, size: 18),
-            suffixIcon: widget.suffixIcon,
-          ),
-        ),
-      ],
     );
   }
 }
