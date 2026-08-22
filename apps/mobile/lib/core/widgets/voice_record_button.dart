@@ -122,12 +122,20 @@ class _VoiceRecordButtonState extends State<VoiceRecordButton> {
 
     // The recording overlay sits above the mic, anchored to it, so the
     // composer's layout does not jump while held.
+    //
+    // The Stack's own box is only as wide as `mic` (44px), sitting near the
+    // screen's right edge. Centering the bubble on that 44px anchor -- the
+    // previous `alignment: Alignment.center` -- put roughly half its actual
+    // content width past the screen edge, clipping "Slide up to cancel" mid
+    // word. Anchoring its right edge to the mic's right edge instead lets it
+    // grow left into the composer row's real space, which is where the room
+    // actually is.
     return Stack(
       clipBehavior: Clip.none,
-      alignment: Alignment.center,
       children: [
         Positioned(
           bottom: 52,
+          right: 0,
           child: _RecordingBubble(
             elapsed: _elapsed,
             dragUp: _dragUp,
