@@ -25,6 +25,7 @@ import '../features/profile/discount_eligibility_screen.dart';
 import '../features/profile/profile_detail_screens.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/profile/support_screen.dart';
+import '../features/rating/driver_rating_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/receipt/digital_receipt_screen.dart';
 import '../features/search/destination_search_screen.dart';
@@ -166,6 +167,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/rating',
         pageBuilder: (context, state) =>
             _screenPage(state, const RatingScreen()),
+      ),
+      GoRoute(
+        path: '/driver/rating',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DriverRatingScreen()),
       ),
       GoRoute(
         path: '/chat/:threadId',

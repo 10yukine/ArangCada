@@ -11,6 +11,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
 import '../../core/widgets/arang_dialog.dart';
+import '../../domain/state/driver_trip_state_machine.dart';
 
 class DeveloperPanelScreen extends ConsumerStatefulWidget {
   const DeveloperPanelScreen({super.key});
@@ -104,6 +105,22 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
         .read(demoSimulationServiceProvider)
         .forceTripCompletion(state);
     _showForceResult(advanced, 'Current demo trip completed. No funds moved.');
+  }
+
+  void _forceDriverIncomingRequest() {
+    final state = ref.read(demoStateProvider);
+    final advanced = ref
+        .read(demoSimulationServiceProvider)
+        .forceDriverIncomingRequest(state);
+    _showForceResult(advanced, 'An incoming ride request was delivered.');
+  }
+
+  void _forceResetDriverSession() {
+    final state = ref.read(demoStateProvider);
+    final advanced = ref
+        .read(demoSimulationServiceProvider)
+        .forceResetDriverSession(state);
+    _showForceResult(advanced, 'Driver session reset to offline.');
   }
 
   @override
@@ -235,6 +252,43 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                         onPressed: canComplete ? _forceTripCompletion : null,
                         icon: const Icon(Icons.flag_outlined),
                         label: const Text('Force trip completion'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Driver tools',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SectionCard(
+                  child: Column(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed:
+                            state.driverTrip.status ==
+                                DriverTripStatus.available
+                            ? _forceDriverIncomingRequest
+                            : null,
+                        icon: const Icon(Icons.local_taxi_outlined),
+                        label: const Text('Force incoming ride request'),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.dangerDark,
+                          side: const BorderSide(
+                            color: AppColors.dangerBorder,
+                          ),
+                        ),
+                        onPressed:
+                            state.driverTrip.status ==
+                                DriverTripStatus.offline
+                            ? null
+                            : _forceResetDriverSession,
+                        icon: const Icon(Icons.restart_alt),
+                        label: const Text('Reset driver session'),
                       ),
                     ],
                   ),

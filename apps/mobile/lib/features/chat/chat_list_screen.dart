@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/relative_time.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/slidable.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
 import '../../domain/models/demo_user.dart';
@@ -202,11 +203,13 @@ class _ThreadRow extends ConsumerWidget {
         ? thread.commuterName
         : thread.driverName;
 
-    // A persistent three-dot button, not a hidden swipe. The previous
-    // swipe-to-reveal translated the whole row 76px left, which clipped the
-    // counterparty's name against the screen edge and hid the only entry
-    // point to these options behind a gesture nobody is told about.
-    return Material(
+    // Messenger-style: the options button only exists while the row is
+    // swiped open, not sitting there at rest. `Slidable` clips the
+    // translated content to the row's own box so a full swipe cannot push
+    // the avatar past the screen's own left edge.
+    return Slidable(
+      onOpenOptions: () => _showOptions(context, ref, thread),
+      child: Material(
         color: AppColors.surface,
         child: InkWell(
           onTap: () => context.push('/chat/${thread.id}'),
@@ -317,42 +320,8 @@ class _ThreadRow extends ConsumerWidget {
                       ),
                   ],
                 ),
-                const SizedBox(width: AppSpacing.xxs),
-                _ThreadOptionsButton(
-                  label: 'Options for $counterparty',
-                  onTap: () => _showOptions(context, ref, thread),
-                ),
               ],
             ),
-          ),
-        ),
-    );
-  }
-}
-
-/// The row's three-dot affordance. Sized to a real tap target rather than
-/// relying on the icon's own bounds.
-class _ThreadOptionsButton extends StatelessWidget {
-  const _ThreadOptionsButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 22,
-        child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(
-            Icons.more_vert,
-            size: 20,
-            color: AppColors.textMuted,
           ),
         ),
       ),

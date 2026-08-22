@@ -10,6 +10,7 @@ import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
+import '../../core/widgets/sheet_drag_handle.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
@@ -212,25 +213,11 @@ class _RideSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Semantics(
-              button: true,
-              label: expanded ? 'Hide fare breakdown' : 'Show fare breakdown',
-              child: InkWell(
-                onTap: onToggle,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  alignment: Alignment.center,
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.disabledFill,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
+            SheetDragHandle(
+              expanded: expanded,
+              onToggle: onToggle,
+              semanticLabel:
+                  expanded ? 'Hide fare breakdown' : 'Show fare breakdown',
             ),
             Flexible(
               child: SingleChildScrollView(

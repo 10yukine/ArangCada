@@ -39,6 +39,8 @@ class SavedPlacesScreen extends StatelessWidget {
 class AppSettingsScreen extends ConsumerWidget {
   const AppSettingsScreen({super.key});
 
+  static const _demoToolsRoute = '/profile/demo-tools';
+
   Future<void> _reset(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -119,6 +121,45 @@ class AppSettingsScreen extends ConsumerWidget {
             onTap: () => _reset(context, ref),
           ),
         ),
+        // Only the seeded @arangcada.demo accounts see this. It replaces the
+        // old hidden 5-tap on the About screen's version string with a
+        // discoverable path -- that shortcut still works too.
+        if (ref.watch(demoStateProvider).currentUser?.isDemoAccount ??
+            false) ...[
+          const SizedBox(height: AppSpacing.xl),
+          Text('Demo', style: AppTypography.h2),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: const BoxDecoration(
+              color: AppColors.amberFill,
+              borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+            ),
+            child: const Text(
+              'Visible because this is a seeded demo account. Session-only '
+              'controls for a live walkthrough or defence -- never shown on a '
+              'real account.',
+              style: AppTypography.caption,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SectionCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.build_outlined,
+                color: AppColors.primary,
+              ),
+              title: const Text('Demo Tools'),
+              subtitle: const Text(
+                'Force driver match, incoming requests, wallet balance, and '
+                'other forced outcomes for a walkthrough.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(_demoToolsRoute),
+            ),
+          ),
+        ],
       ],
     );
   }

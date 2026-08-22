@@ -34,6 +34,8 @@ class DemoState extends ChangeNotifier {
   bool paymentFallbackToCash = false;
   int? tripRating;
   String? tripRatingComment;
+  int? driverTripRating;
+  String? driverTripRatingComment;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
 
   /// Sample content is OFF by default. Pre-populated chats and a pre-filled
@@ -177,6 +179,34 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Mirrors [submitTripRating] for the driver rating the passenger. A
+  /// separate field because the driver side has no [DemoBooking] -- it runs
+  /// entirely on [DriverTripStateMachine].
+  void submitDriverTripRating(int stars, String? comment) {
+    if (driverTrip.status != DriverTripStatus.completed) {
+      throw StateError('A completed trip is required before rating.');
+    }
+    if (driverTripRating != null) {
+      throw StateError('This demo trip has already been rated.');
+    }
+    if (stars < 1 || stars > 5) throw ArgumentError.value(stars);
+    driverTripRating = stars;
+    final trimmed = comment?.trim();
+    driverTripRatingComment = trimmed == null || trimmed.isEmpty
+        ? null
+        : trimmed;
+    notifyListeners();
+  }
+
+  /// Rating is over; the driver returns to available and this trip's rating
+  /// state clears so the next trip starts fresh.
+  void finishDriverTrip() {
+    driverTrip.finishTrip();
+    driverTripRating = null;
+    driverTripRatingComment = null;
+    notifyListeners();
+  }
+
   WalletTransaction addWalletTopUp(int amountCentavos) {
     walletBalanceCentavos += amountCentavos;
     final transaction = WalletTransaction(
@@ -233,6 +263,8 @@ class DemoState extends ChangeNotifier {
     paymentFallbackToCash = false;
     tripRating = null;
     tripRatingComment = null;
+    driverTripRating = null;
+    driverTripRatingComment = null;
     sampleContentEnabled = false;
     _walletTransactions.clear();
     driverTrip.reset();
