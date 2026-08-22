@@ -78,9 +78,21 @@ flutter:
     - assets/branding/arangcada_icon.svg
 
   fonts:
+    # Fredoka is a variable font (weight axis 300-700). Registering the same
+    # asset under each weight actually used by AppTypography/AppTheme makes
+    # weight selection reliable across the Skia engines this app ships on
+    # (Android APK and Flutter Web/CanvasKit), instead of relying on runtime
+    # variable-instance interpolation alone.
     - family: Fredoka
       fonts:
         - asset: assets/fonts/Fredoka-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Fredoka-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/Fredoka-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/Fredoka-Variable.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

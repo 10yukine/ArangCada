@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import 'press_scale.dart';
 
 /// ArangCada's owned component primitives.
 ///
@@ -84,25 +85,32 @@ class ArangButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: label,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(AppRadii.pill)),
-          side: borderColor == null
-              ? BorderSide.none
-              : BorderSide(color: borderColor),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: AppSizes.buttonHeight),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: 13,
+      child: PressScale(
+        enabled: enabled,
+        child: Material(
+          color: background,
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(
+              Radius.circular(AppRadii.pill),
             ),
-            alignment: Alignment.center,
-            child: child,
+            side: borderColor == null
+                ? BorderSide.none
+                : BorderSide(color: borderColor),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: Container(
+              constraints: const BoxConstraints(
+                minHeight: AppSizes.buttonHeight,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 13,
+              ),
+              alignment: Alignment.center,
+              child: child,
+            ),
           ),
         ),
       ),
@@ -130,43 +138,48 @@ class ArangChip extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       selected: selected,
-      child: Material(
-        color: selected ? AppColors.clayFill : AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(AppRadii.chip)),
-          side: BorderSide(
-            color: selected ? AppColors.coral : AppColors.borderStrong,
+      child: PressScale(
+        enabled: onTap != null,
+        child: Material(
+          color: selected ? AppColors.clayFill : AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(
+              Radius.circular(AppRadii.chip),
+            ),
+            side: BorderSide(
+              color: selected ? AppColors.coral : AppColors.borderStrong,
+            ),
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: 15,
-                    color: selected
-                        ? AppColors.clayText
-                        : AppColors.textSecondary,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 15,
+                      color: selected
+                          ? AppColors.clayText
+                          : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected
+                          ? AppColors.clayText
+                          : AppColors.textSecondary,
+                    ),
                   ),
-                  const SizedBox(width: 6),
                 ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? AppColors.clayText
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
