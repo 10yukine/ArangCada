@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Adaptive icon (API 26+): a solid background color layer plus a
-  transparent-canvas foreground mark kept inside Android's ~66dp safe zone,
-  so circle/squircle/rounded-square launcher masks never clip it. See
-  scripts/generate_android_icons.py (repo root) for how the foreground
-  PNGs were produced and the safe-zone math behind them.
+  transparent-canvas foreground mark. The foreground is the designer's
+  own reference composition (assets/branding/arangcada_app_icon_organic.svg,
+  from the supplied "ArangCada Icon Organic" reference file) rendered at
+  its authored position and scale, not recentered by any safe-zone
+  calculation; an earlier version did that and threw off the mark's
+  intentional optical centering. See scripts/generate_android_icons.py
+  (repo root) for how the foreground PNGs were produced, including a
+  circular-mask check confirming this still survives a circular launcher
+  mask without clipping.
 
   A <monochrome> entry is included for Android 13+ themed icons. It reuses
   the same foreground artwork; the system extracts its alpha shape and

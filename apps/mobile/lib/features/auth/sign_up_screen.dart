@@ -273,21 +273,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      decoration: BoxDecoration(
-                        color: AppColors.amberFill,
-                        borderRadius: BorderRadius.circular(AppRadii.card),
-                      ),
-                      child: const Text(
-                        'TODA driver? Driver accounts are registered by the '
-                        'LGU/TODA office. Ask your TODA officer for your '
-                        'activation code — there is no driver signup in the '
-                        'app.',
-                        style: AppTypography.caption,
-                      ),
-                    ),
                     const SizedBox(height: AppSpacing.md),
                     AuthSwitchLink(
                       question: 'Already have an account?',
