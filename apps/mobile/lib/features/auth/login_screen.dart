@@ -97,11 +97,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: _onBrandTap,
-                        // `badge: true` is the only thing that changes here
-                        // versus every other ArangCadaMark call site: a
-                        // soft circular backdrop and a small drop shadow,
-                        // matching the reference prototype's larger,
-                        // more-present login mark.
+                        // `badge: true` swaps in the rounded-square
+                        // backdrop and the square-framed mark. See
+                        // ArangCadaMark for why both differ from every
+                        // other call site.
                         child: const ArangCadaMark(badge: true),
                       ),
                     ),

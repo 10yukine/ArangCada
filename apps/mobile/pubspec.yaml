@@ -76,6 +76,11 @@ flutter:
 
   assets:
     - assets/branding/arangcada_icon.svg
+    # Square-framed composition of the same mark, used where it sits inside
+    # a square container (the login badge). Listed individually rather than
+    # shipping the whole branding folder, which also holds icon-generation
+    # sources and the 512px Play Store asset that must not bloat the APK.
+    - assets/branding/arangcada_mark_square.svg
 
   fonts:
     # Fredoka is a variable font (weight axis 300-700). Registering the same
