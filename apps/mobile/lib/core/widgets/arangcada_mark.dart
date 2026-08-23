@@ -30,11 +30,11 @@ class ArangCadaMark extends StatelessWidget {
   ///    framing centres to within 2px on both axes.
   final bool badge;
 
-  static const double _badgeSize = 132;
+  static const double _badgeSize = 116;
 
   /// ~22% of the badge, matching the app icon's own corner ratio
   /// (225/1024) so the two read as the same family.
-  static const double _badgeRadius = 29;
+  static const double _badgeRadius = 25;
 
   /// The square asset carries its own internal padding, so it is inset
   /// less than the raw mark would need.
