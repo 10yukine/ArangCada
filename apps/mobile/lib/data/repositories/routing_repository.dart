@@ -25,8 +25,8 @@ class RouteResult {
   /// Road duration. Informational. NOT an input to fare.
   final double durationSeconds;
 
-  /// True when this is a straight-line stand-in because the routing service
-  /// was unavailable. The UI should stay usable and say so quietly.
+  /// True when the routing service supplied no usable road geometry. The UI
+  /// stays usable but must not invent or draw a substitute route.
   final bool isFallback;
 
   final DateTime retrievedAt;

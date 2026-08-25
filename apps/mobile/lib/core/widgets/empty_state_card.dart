@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import 'section_card.dart';
 
+/// Centered on the page background, no bordered box. An empty state is not
+/// a distinct section competing for hierarchy with anything else on the
+/// screen, so it does not need a card to set it apart.
 class EmptyStateCard extends StatelessWidget {
   const EmptyStateCard({
     required this.icon,
@@ -22,7 +24,8 @@ class EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
       child: Column(
         children: [
           Icon(icon, size: 40, color: AppColors.primary),

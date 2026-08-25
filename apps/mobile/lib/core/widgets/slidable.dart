@@ -22,7 +22,7 @@ class Slidable extends StatefulWidget {
   const Slidable({
     required this.child,
     required this.onOpenOptions,
-    this.actionWidth = 64,
+    this.actionWidth = 58,
     super.key,
   });
 
@@ -71,6 +71,7 @@ class _SlidableState extends State<Slidable> {
                 alignment: Alignment.centerRight,
                 child: SizedBox(
                   width: widget.actionWidth,
+                  height: double.infinity,
                   child: Material(
                     color: AppColors.clayFill,
                     child: InkWell(
@@ -82,7 +83,7 @@ class _SlidableState extends State<Slidable> {
                         button: true,
                         label: 'Chat options',
                         child: const Icon(
-                          Icons.more_vert,
+                          Icons.more_horiz,
                           size: 22,
                           color: AppColors.clayText,
                         ),

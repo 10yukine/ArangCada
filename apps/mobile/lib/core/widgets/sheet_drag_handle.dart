@@ -21,12 +21,18 @@ class SheetDragHandle extends StatefulWidget {
     required this.expanded,
     required this.onToggle,
     this.semanticLabel,
+    this.trailing,
+    this.onDragUpdate,
+    this.onDragEnd,
     super.key,
   });
 
   final bool expanded;
   final VoidCallback onToggle;
   final String? semanticLabel;
+  final Widget? trailing;
+  final ValueChanged<double>? onDragUpdate;
+  final ValueChanged<double>? onDragEnd;
 
   @override
   State<SheetDragHandle> createState() => _SheetDragHandleState();
@@ -41,8 +47,18 @@ class _SheetDragHandleState extends State<SheetDragHandle> {
 
   void _onDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    final draggedUp = velocity < -_velocityThreshold || _dragDy < -_distanceThreshold;
-    final draggedDown = velocity > _velocityThreshold || _dragDy > _distanceThreshold;
+    if (widget.onDragEnd != null) {
+      widget.onDragEnd!(velocity);
+      setState(() {
+        _dragDy = 0;
+        _dragging = false;
+      });
+      return;
+    }
+    final draggedUp =
+        velocity < -_velocityThreshold || _dragDy < -_distanceThreshold;
+    final draggedDown =
+        velocity > _velocityThreshold || _dragDy > _distanceThreshold;
     setState(() {
       _dragDy = 0;
       _dragging = false;
@@ -54,40 +70,68 @@ class _SheetDragHandleState extends State<SheetDragHandle> {
     }
   }
 
+  void _onDragCancel() {
+    widget.onDragEnd?.call(0);
+    setState(() {
+      _dragDy = 0;
+      _dragging = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Semantics(
+    final handle = Semantics(
       button: true,
-      label: widget.semanticLabel ??
+      label:
+          widget.semanticLabel ??
           (widget.expanded ? 'Collapse details' : 'Expand details'),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onToggle,
         onVerticalDragStart: (_) => setState(() => _dragging = true),
-        onVerticalDragUpdate: (details) =>
-            setState(() => _dragDy += details.delta.dy),
+        onVerticalDragUpdate: (details) {
+          widget.onDragUpdate?.call(details.delta.dy);
+          if (widget.onDragUpdate == null) {
+            setState(() => _dragDy += details.delta.dy);
+          }
+        },
         onVerticalDragEnd: _onDragEnd,
-        onVerticalDragCancel: () => setState(() {
-          _dragDy = 0;
-          _dragging = false;
-        }),
-        child: Container(
-          // A real tap target, even though the visible bar is thin.
-          constraints: const BoxConstraints(minHeight: 28),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          alignment: Alignment.center,
+        onVerticalDragCancel: _onDragCancel,
+        child: Center(
           child: AnimatedContainer(
             duration: AppMotion.button,
             curve: Curves.easeOut,
             width: _dragging ? 44 : 36,
             height: 4,
             decoration: BoxDecoration(
-              color: _dragging ? AppColors.borderStrong : AppColors.disabledFill,
+              color: _dragging
+                  ? AppColors.borderStrong
+                  : AppColors.disabledFill,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
       ),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      height: widget.trailing == null ? 28 : AppSizes.minTapTarget,
+      child: widget.trailing == null
+          ? handle
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(child: handle),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox.square(
+                    dimension: AppSizes.minTapTarget,
+                    child: widget.trailing,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

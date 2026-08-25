@@ -13,8 +13,8 @@ import 'app_config.dart';
 ///   api.openrouteservice.org          200/401 as expected, TLS verifies
 ///
 /// Do not "migrate" this constant to a heigit.org hostname without re-checking
-/// DNS first; doing so silently disables routing and every request falls back
-/// to a straight line.
+/// DNS first; doing so silently disables routing and leaves every road route
+/// unavailable.
 ///
 /// PLAN: the project's key belongs to HeiGIT's Collaborative plan, granted for
 /// NON-COMMERCIAL academic use. Request discipline is a condition of that

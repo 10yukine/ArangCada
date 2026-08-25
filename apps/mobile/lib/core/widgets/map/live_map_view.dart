@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -39,6 +40,46 @@ class MapBoundary {
   final Color fillColor;
   final double fillOpacity;
   final Color outlineColor;
+}
+
+/// Lets a panel-mounted control restore the current route bounds without
+/// exposing MapLibre or requesting the route again.
+class LiveMapViewController {
+  _LiveMapViewState? _state;
+  final GlobalKey panelKey = GlobalKey();
+
+  double get bottomInset => panelKey.currentContext?.size?.height ?? 0;
+
+  Future<void> fitRoute() => _state?._fitRoute() ?? Future.value();
+}
+
+@visibleForTesting
+({LatLngBounds bounds, double bottomPadding}) mapRouteViewport({
+  required List<GeoCoordinate> route,
+  required List<MapMarker> markers,
+  double bottomInset = 0,
+}) {
+  final coordinates = [
+    ...route,
+    for (final marker in markers) marker.coordinate,
+  ];
+  var minLat = coordinates.first.latitude;
+  var maxLat = minLat;
+  var minLng = coordinates.first.longitude;
+  var maxLng = minLng;
+  for (final coordinate in coordinates) {
+    minLat = math.min(minLat, coordinate.latitude);
+    maxLat = math.max(maxLat, coordinate.latitude);
+    minLng = math.min(minLng, coordinate.longitude);
+    maxLng = math.max(maxLng, coordinate.longitude);
+  }
+  return (
+    bounds: LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    ),
+    bottomPadding: math.max(60, bottomInset + 16),
+  );
 }
 
 @visibleForTesting
@@ -97,7 +138,9 @@ class LiveMapView extends StatefulWidget {
     this.routeIsFallback = false,
     this.showUserLocation = false,
     this.interactive = true,
+    this.compassTopInset = 8,
     this.onMapTap,
+    this.controller,
     this.height,
     this.borderRadius,
     super.key,
@@ -110,13 +153,15 @@ class LiveMapView extends StatefulWidget {
   final List<MapBoundary> boundaries;
   final String? boundaryLabel;
 
-  /// True when [route] is a straight-line stand-in rather than an ORS result.
-  /// Suppresses the routing attribution, because nothing was routed.
+  /// True when no ORS road route is available. Suppresses routing attribution
+  /// because nothing was routed.
   final bool routeIsFallback;
 
   final bool showUserLocation;
   final bool interactive;
+  final double compassTopInset;
   final void Function(GeoCoordinate)? onMapTap;
+  final LiveMapViewController? controller;
   final double? height;
   final BorderRadius? borderRadius;
 
@@ -129,6 +174,7 @@ class _LiveMapViewState extends State<LiveMapView> {
   bool _styleReady = false;
   bool _styleFailed = false;
 
+  final ValueNotifier<double> _bearing = ValueNotifier(0);
   final List<Circle> _circles = [];
   final List<Fill> _fills = [];
   Line? _routeLine;
@@ -144,6 +190,7 @@ class _LiveMapViewState extends State<LiveMapView> {
   @override
   void initState() {
     super.initState();
+    widget.controller?._state = this;
     _styleTimeout = Timer(_styleLoadBudget, () {
       if (mounted && !_styleReady) setState(() => _styleFailed = true);
     });
@@ -152,6 +199,8 @@ class _LiveMapViewState extends State<LiveMapView> {
   @override
   void dispose() {
     _styleTimeout?.cancel();
+    _bearing.dispose();
+    if (widget.controller?._state == this) widget.controller?._state = null;
     super.dispose();
   }
 
@@ -169,6 +218,12 @@ class _LiveMapViewState extends State<LiveMapView> {
   @override
   void didUpdateWidget(covariant LiveMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      if (oldWidget.controller?._state == this) {
+        oldWidget.controller?._state = null;
+      }
+      widget.controller?._state = this;
+    }
     if (!_styleReady) return;
     final markersChanged = !mapMarkersEquivalent(
       oldWidget.markers,
@@ -300,26 +355,18 @@ class _LiveMapViewState extends State<LiveMapView> {
   Future<void> _fitRoute() async {
     final controller = _controller;
     if (controller == null || widget.route.length < 2) return;
-    var minLat = widget.route.first.latitude;
-    var maxLat = minLat;
-    var minLng = widget.route.first.longitude;
-    var maxLng = minLng;
-    for (final p in widget.route) {
-      minLat = p.latitude < minLat ? p.latitude : minLat;
-      maxLat = p.latitude > maxLat ? p.latitude : maxLat;
-      minLng = p.longitude < minLng ? p.longitude : minLng;
-      maxLng = p.longitude > maxLng ? p.longitude : maxLng;
-    }
+    final viewport = mapRouteViewport(
+      route: widget.route,
+      markers: widget.markers,
+      bottomInset: widget.controller?.bottomInset ?? 0,
+    );
     await controller.animateCamera(
       CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
+        viewport.bounds,
         left: 48,
         right: 48,
         top: 60,
-        bottom: 60,
+        bottom: viewport.bottomPadding,
       ),
     );
   }
@@ -329,6 +376,19 @@ class _LiveMapViewState extends State<LiveMapView> {
       CameraUpdate.newLatLng(
         LatLng(widget.center.latitude, widget.center.longitude),
       ),
+    );
+  }
+
+  void _onCameraMove(CameraPosition position) {
+    if (!mounted || !widget.interactive) return;
+    if ((_bearing.value - position.bearing).abs() < 0.01) return;
+    _bearing.value = position.bearing;
+  }
+
+  void _resetNorth() {
+    _controller?.animateCamera(
+      CameraUpdate.bearingTo(0),
+      duration: const Duration(milliseconds: 250),
     );
   }
 
@@ -362,6 +422,8 @@ class _LiveMapViewState extends State<LiveMapView> {
             // requesting translucency is the reliable lever.
             translucentTextureSurface: true,
             compassEnabled: false,
+            trackCameraPosition: widget.interactive,
+            onCameraMove: widget.interactive ? _onCameraMove : null,
             logoEnabled: false,
             // The library's own attribution button is hidden because this
             // widget renders required attribution as persistent text below,
@@ -369,7 +431,7 @@ class _LiveMapViewState extends State<LiveMapView> {
             attributionButtonPosition: AttributionButtonPosition.bottomRight,
             scrollGesturesEnabled: widget.interactive,
             zoomGesturesEnabled: widget.interactive,
-            rotateGesturesEnabled: false,
+            rotateGesturesEnabled: widget.interactive,
             tiltGesturesEnabled: false,
             onMapClick: widget.onMapTap == null
                 ? null
@@ -389,6 +451,16 @@ class _LiveMapViewState extends State<LiveMapView> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2.2),
                 ),
+              ),
+            ),
+          if (widget.interactive)
+            Positioned(
+              top: widget.compassTopInset,
+              left: 8,
+              child: ValueListenableBuilder<double>(
+                valueListenable: _bearing,
+                builder: (context, bearing, _) =>
+                    MapCompass(bearing: bearing, onPressed: _resetNorth),
               ),
             ),
           if (widget.boundaryLabel != null)
@@ -426,6 +498,40 @@ class _LiveMapViewState extends State<LiveMapView> {
     return ClipRRect(
       borderRadius: radius,
       child: SizedBox(height: widget.height, child: content),
+    );
+  }
+}
+
+/// Visible north indicator whose needle follows the current map bearing.
+class MapCompass extends StatelessWidget {
+  const MapCompass({required this.bearing, required this.onPressed, super.key});
+
+  final double bearing;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      elevation: 2,
+      shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+      child: IconButton(
+        tooltip: 'Reset map north',
+        constraints: const BoxConstraints.tightFor(
+          width: AppSizes.minTapTarget,
+          height: AppSizes.minTapTarget,
+        ),
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+        icon: Transform.rotate(
+          angle: -bearing * math.pi / 180,
+          child: const Icon(
+            Icons.navigation_rounded,
+            color: AppColors.danger,
+            size: 24,
+          ),
+        ),
+      ),
     );
   }
 }

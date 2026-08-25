@@ -25,6 +25,8 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
     this.borderRadius,
     this.showCaption = true,
     this.interactive = false,
+    this.compassTopInset = 8,
+    this.controller,
     this.boundaries = const [],
     this.boundaryLabel,
     super.key,
@@ -38,6 +40,8 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
   /// Off when the map fills a screen and the caption lives in a sheet below.
   final bool showCaption;
   final bool interactive;
+  final double compassTopInset;
+  final LiveMapViewController? controller;
   final List<MapBoundary> boundaries;
   final String? boundaryLabel;
 
@@ -74,8 +78,8 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
     final from = widget.from;
     final to = widget.to;
     setState(() => _loading = true);
-    // The repository never throws: it degrades to a straight line and marks
-    // the result isFallback, so there is no error branch to render here.
+    // The repository never throws: unavailable road routes are marked as
+    // fallback, so there is no error branch to render here.
     final route = await ref
         .read(routingRepositoryProvider)
         .route(from: from, to: to);
@@ -95,13 +99,15 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
     );
 
     final map = LiveMapView(
+      controller: widget.controller,
       center: midpoint,
       height: widget.height,
       borderRadius: widget.borderRadius,
       zoom: 14,
-      route: route?.geometry ?? const [],
+      route: route == null || route.isFallback ? const [] : route.geometry,
       routeIsFallback: route?.isFallback ?? false,
       interactive: widget.interactive,
+      compassTopInset: widget.compassTopInset,
       boundaries: widget.boundaries,
       boundaryLabel: widget.boundaryLabel,
       markers: [
@@ -134,10 +140,7 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
   String _caption(RouteResult? route) {
     if (_loading || route == null) return 'Loading route…';
     if (route.isFallback) {
-      // Honest: nothing was routed, so do not imply a road route or claim
-      // openrouteservice produced this line.
-      return 'Route preview unavailable — showing a direct line. '
-          'Fare is unaffected.';
+      return 'Route preview unavailable. Fare is unaffected.';
     }
     final km = (route.distanceMeters / 1000).toStringAsFixed(1);
     final mins = (route.durationSeconds / 60).round();

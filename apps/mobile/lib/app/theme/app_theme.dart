@@ -50,7 +50,20 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: AppTypography.displaySm,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Fredoka',
+          fontSize: 17,
+          fontWeight: FontWeight.w500,
+          color: AppColors.ink,
+        ),
+        shape: Border(bottom: BorderSide(color: AppColors.dividerLight)),
+        // Flush leading: Flutter's auto back button is a bare IconButton, so
+        // it inherits iconButtonTheme below. Tighten its box and the gap to
+        // the title so the arrow sits close, the way every pushed screen in
+        // the reference prototype does -- not a bordered circle with a wide
+        // toolbar gutter around it.
+        leadingWidth: 44,
+        titleSpacing: 8,
       ),
       cardTheme: const CardThemeData(
         color: AppColors.surface,
@@ -186,14 +199,16 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          fixedSize: const Size.square(AppSizes.iconButton),
-          iconSize: 20,
-          foregroundColor: AppColors.ink,
-          backgroundColor: AppColors.surface,
-          side: const BorderSide(color: AppColors.border),
-          shape: const CircleBorder(),
+      // Flat by default -- no fill, border, or forced circle. This is what
+      // Flutter's auto-generated AppBar back button renders with (it is a
+      // bare IconButton with no explicit style), so a bordered-circle
+      // default here was showing up as a boxed back button on every pushed
+      // screen. Buttons that do want a filled circle (map controls, the
+      // profile edit pencil) already build their own via ArangIconButton
+      // and are unaffected.
+      iconButtonTheme: const IconButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStatePropertyAll(AppColors.ink),
         ),
       ),
       listTileTheme: const ListTileThemeData(
