@@ -71,3 +71,8 @@ app.*.map.json
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# ---------------------------------------------------------------------------
+# Local build artifacts (APKs are large and rebuildable; never version them)
+# ---------------------------------------------------------------------------
+dist/
