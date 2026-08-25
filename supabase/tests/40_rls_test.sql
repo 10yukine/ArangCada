@@ -41,17 +41,28 @@ select plan(35);
 -- Fixtures. Synthetic uuids and example.test addresses only -- no real names,
 -- numbers, licence IDs, or coordinates (CLAUDE.md rule 10).
 -- ---------------------------------------------------------------------------
-insert into auth.users (id, email) values
-  ('00000000-0000-0000-0000-0000000000a1', 'rider@example.test'),
-  ('00000000-0000-0000-0000-0000000000b2', 'driver@example.test'),
-  ('00000000-0000-0000-0000-0000000000c3', 'admin@example.test'),
-  ('00000000-0000-0000-0000-0000000000d4', 'stranger@example.test');
+-- Since 20260825120050_handle_new_user.sql, inserting an auth user CREATES
+-- the profiles row automatically, so these fixtures no longer insert profiles
+-- directly -- doing so would collide on the primary key. Metadata must carry
+-- display_name and a valid PH mobile number or the trigger refuses the signup.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000a1', 'rider@example.test',
+     '{"display_name":"Test Rider","mobile_number":"+639170000001"}'::jsonb),
+  ('00000000-0000-0000-0000-0000000000b2', 'driver@example.test',
+     '{"display_name":"Test Driver","mobile_number":"+639170000002"}'::jsonb),
+  ('00000000-0000-0000-0000-0000000000c3', 'admin@example.test',
+     '{"display_name":"Test Admin","mobile_number":"+639170000003"}'::jsonb),
+  ('00000000-0000-0000-0000-0000000000d4', 'stranger@example.test',
+     '{"display_name":"Test Stranger","mobile_number":"+639170000004"}'::jsonb);
 
-insert into public.profiles (id, role, status, display_name) values
-  ('00000000-0000-0000-0000-0000000000a1', 'commuter', 'active', 'Test Rider'),
-  ('00000000-0000-0000-0000-0000000000b2', 'driver',   'active', 'Test Driver'),
-  ('00000000-0000-0000-0000-0000000000c3', 'admin',    'active', 'Test Admin'),
-  ('00000000-0000-0000-0000-0000000000d4', 'commuter', 'active', 'Test Stranger');
+-- Every profile is born a commuter. Promote the two this suite needs. These
+-- run with no impersonation active, so guard_profiles_privileged_columns()
+-- (20260825120100) allows them -- it denies only current_user =
+-- 'authenticated', which is what PostgREST connects as.
+update public.profiles set role = 'driver'
+ where id = '00000000-0000-0000-0000-0000000000b2';
+update public.profiles set role = 'admin'
+ where id = '00000000-0000-0000-0000-0000000000c3';
 
 insert into public.driver_documents (driver_id, document_type, storage_path)
 values ('00000000-0000-0000-0000-0000000000b2', 'drivers_license', 'drivers/b2/license.jpg');
