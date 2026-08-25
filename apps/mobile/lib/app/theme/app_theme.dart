@@ -9,9 +9,9 @@ abstract final class AppTheme {
     const colorScheme = ColorScheme.light(
       primary: AppColors.primary,
       onPrimary: Colors.white,
-      primaryContainer: AppColors.clayFill,
-      onPrimaryContainer: AppColors.clayText,
-      secondary: AppColors.coral,
+      primaryContainer: AppColors.primaryFill,
+      onPrimaryContainer: AppColors.primaryText,
+      secondary: AppColors.sky,
       onSecondary: Colors.white,
       surface: AppColors.surface,
       onSurface: AppColors.ink,
@@ -171,7 +171,7 @@ abstract final class AppTheme {
       ),
       chipTheme: const ChipThemeData(
         backgroundColor: AppColors.surface,
-        selectedColor: AppColors.clayFill,
+        selectedColor: AppColors.primaryFill,
         disabledColor: AppColors.neutralFill,
         side: BorderSide(color: AppColors.borderStrong),
         shape: RoundedRectangleBorder(
@@ -182,10 +182,10 @@ abstract final class AppTheme {
         labelStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         secondaryLabelStyle: TextStyle(
           fontSize: 13,
-          color: AppColors.clayText,
+          color: AppColors.primaryText,
           fontWeight: FontWeight.w600,
         ),
-        checkmarkColor: AppColors.clayText,
+        checkmarkColor: AppColors.primaryText,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surface,

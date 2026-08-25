@@ -62,7 +62,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   const Icon(
                     Icons.mark_email_unread_outlined,
                     size: 40,
-                    color: AppColors.coral,
+                    color: AppColors.sky,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(

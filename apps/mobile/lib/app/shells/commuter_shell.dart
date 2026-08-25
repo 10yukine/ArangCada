@@ -109,7 +109,7 @@ class AdaptiveTabShell extends StatelessWidget {
               selectedIndex: selectedIndex,
               onDestinationSelected: onSelected,
               backgroundColor: AppColors.surface,
-              indicatorColor: AppColors.clayFill,
+              indicatorColor: AppColors.primaryFill,
               selectedIconTheme: const IconThemeData(color: AppColors.primary),
               unselectedIconTheme: const IconThemeData(
                 color: AppColors.textMuted,

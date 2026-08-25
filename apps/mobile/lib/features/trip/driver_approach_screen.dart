@@ -29,12 +29,29 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
   bool _arrived = false;
   Timer? _cancelWindowTimer;
   int _cancelSecondsRemaining = _cancelWindowSeconds;
+  bool _liveListenerAttached = false;
 
   @override
   void initState() {
     super.initState();
     final state = ref.read(demoStateProvider);
-    if (state.activeBooking?.status == BookingStatus.approaching) {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      // Same class of bug as SearchingForDriverScreen: attaching the live
+      // listener only when activeBooking?.status already reads as
+      // `approaching` at this exact instant meant a fast-moving real trip
+      // (already past `approaching` by the time this screen finished
+      // mounting) or a not-yet-synced booking silently skipped listener
+      // attachment altogether, leaving this screen permanently stale no
+      // matter what happened next. Attach unconditionally, then check once
+      // after this frame in case the transition already happened.
+      _arrived = liveRides.activeTrip?['status'] == 'arrived';
+      state.addListener(_handleLiveTripChange);
+      _liveListenerAttached = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleLiveTripChange();
+      });
+    } else if (state.activeBooking?.status == BookingStatus.approaching) {
       _arrivalRun = ref
           .read(demoSimulationServiceProvider)
           .scheduleDriverArrival(
@@ -70,9 +87,32 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
 
   @override
   void dispose() {
+    if (_liveListenerAttached) {
+      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
+    }
     _arrivalRun?.cancel();
     _cancelWindowTimer?.cancel();
     super.dispose();
+  }
+
+  void _handleLiveTripChange() {
+    if (!mounted) return;
+    final state = ref.read(demoStateProvider);
+    if (state.activeBooking?.status == BookingStatus.inProgress) {
+      // Deferred one frame, matching the pattern established after the
+      // driver-feedback "_elements.contains(element)" crash: this callback
+      // can itself now run from a post-frame callback registered in
+      // initState (see above), and navigating immediately from inside a
+      // ChangeNotifier listener callback risks the same class of race.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/trip/active');
+      });
+      return;
+    }
+    final arrived =
+        ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] ==
+        'arrived';
+    if (_arrived != arrived) setState(() => _arrived = arrived);
   }
 
   void _showContactSheet(String mode) {
@@ -144,9 +184,25 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
     _arrivalRun?.cancel();
     _cancelWindowTimer?.cancel();
     final state = ref.read(demoStateProvider);
-    state.activeBooking = null;
-    state.bookingChanged();
-    context.go('/home');
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) {
+      state.activeBooking = null;
+      state.bookingChanged();
+    } else {
+      try {
+        await liveRides.cancelRide();
+      } on Exception {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not cancel the ride. Try again.'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (mounted) context.go('/home');
   }
 
   @override
@@ -170,8 +226,8 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                 // pickup/destination pair, so showing the approach costs no
                 // additional ORS request.
                 RoutePreviewMap(
-                  from: state.pickup.coordinate,
-                  to: state.destination!.coordinate,
+                  from: state.liveDriverLocation ?? state.pickup.coordinate,
+                  to: state.pickup.coordinate,
                   height: 210,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -182,7 +238,7 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                       Row(
                         children: [
                           const CircleAvatar(
-                            backgroundColor: AppColors.clayFill,
+                            backgroundColor: AppColors.primaryFill,
                             child: Icon(
                               Icons.electric_rickshaw,
                               color: AppColors.primary,
@@ -195,11 +251,13 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                               children: [
                                 Text(
                                   _arrived
-                                      ? 'Marco has arrived'
-                                      : 'Marco is on the way',
+                                      ? '${state.liveDriverName ?? 'Marco'} has arrived'
+                                      : '${state.liveDriverName ?? 'Marco'} is on the way',
                                   style: Theme.of(context).textTheme.titleLarge,
                                 ),
-                                const Text('Tricycle 024 · Calamba TODA'),
+                                Text(
+                                  'Tricycle · ${state.liveTodaName ?? 'Calamba TODA'}',
+                                ),
                               ],
                             ),
                           ),
@@ -208,6 +266,8 @@ class _DriverApproachScreenState extends ConsumerState<DriverApproachScreen> {
                                 ? 'Arrived'
                                 : state.forceEtaFallback
                                 ? 'Updating'
+                                : ref.read(liveRideRepositoryProvider) != null
+                                ? 'Live GPS'
                                 : '$_secondsRemaining sec',
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(color: AppColors.primary),

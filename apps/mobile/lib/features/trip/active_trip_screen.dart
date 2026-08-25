@@ -14,6 +14,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/sheet_drag_handle.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/remote/supabase_ride_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
@@ -30,11 +31,19 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   final _mapController = LiveMapViewController();
   DemoSimulationRun? _completionRun;
   bool _completionStarted = false;
+  bool _liveListenerAttached = false;
 
   @override
   void initState() {
     super.initState();
-    _scheduleCompletion();
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) {
+      _scheduleCompletion();
+    } else {
+      ref.read(demoStateProvider).addListener(_handleLiveTripChange);
+      _liveListenerAttached = true;
+      _handleLiveTripChange();
+    }
   }
 
   void _scheduleCompletion() {
@@ -50,7 +59,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   }
 
   /// Reaching the destination does NOT end the ride. The commuter confirms.
-  /// A 30-second countdown auto-confirms so a distracted rider -- or a demo --
+  /// A 60-second countdown auto-confirms so a distracted rider -- or a demo --
   /// never stalls, and confirming early cancels it.
   void _onCompletionDue() {
     if (!mounted || _completionStarted || _awaitingConfirmation) return;
@@ -84,7 +93,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     _completeTrip(booking!);
   }
 
-  static const Duration _confirmWindow = Duration(seconds: 30);
+  static const Duration _confirmWindow = Duration(seconds: 60);
   Timer? _confirmTicker;
   bool _awaitingConfirmation = false;
   int _secondsLeft = 0;
@@ -97,20 +106,77 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
 
   @override
   void dispose() {
+    if (_liveListenerAttached) {
+      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
+    }
     _confirmTicker?.cancel();
     _completionRun?.cancel();
     super.dispose();
   }
 
+  void _handleLiveTripChange() {
+    if (!mounted) return;
+    final state = ref.read(demoStateProvider);
+    if (state.activeBooking?.status == BookingStatus.completed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/rating');
+      });
+      return;
+    }
+    final deadline = state.completionAvailableAt;
+    if (deadline == null || _awaitingConfirmation) return;
+    setState(() {
+      _awaitingConfirmation = true;
+      _secondsLeft = SupabaseRideRepository.completionSecondsRemaining(
+        deadline,
+      );
+    });
+    _confirmTicker?.cancel();
+    _confirmTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = SupabaseRideRepository.completionSecondsRemaining(
+        deadline,
+      );
+      setState(() => _secondsLeft = remaining);
+      if (remaining <= 0) {
+        timer.cancel();
+        _confirmArrival();
+      }
+    });
+  }
+
   Future<void> _recordSos() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
     await showSafetyReportFlow(
       context: context,
       driver: false,
       onSubmit: () => ref.read(safetyRepositoryProvider).recordDemoAlert(),
+      onSubmitReason: liveRides?.createSafetyReport,
+      connected: liveRides != null,
     );
   }
 
   Future<void> _completeTrip(DemoBooking booking) async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      try {
+        await liveRides.completeTrip();
+        if (mounted) context.go('/rating');
+      } on Exception {
+        _completionStarted = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trip completion is not available yet. Try again.'),
+            ),
+          );
+        }
+      }
+      return;
+    }
     final state = ref.read(demoStateProvider);
     if (state.forcePaymentFailure &&
         booking.paymentMethod == PaymentMethod.digital) {
@@ -220,6 +286,14 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                     borderRadius: BorderRadius.zero,
                     showCaption: false,
                     interactive: true,
+                    additionalMarkers: [
+                      if (state.liveDriverLocation != null)
+                        MapMarker(
+                          coordinate: state.liveDriverLocation!,
+                          color: AppColors.primaryText,
+                          radius: 9,
+                        ),
+                    ],
                     compassTopInset:
                         MediaQuery.paddingOf(context).top +
                         AppSizes.minTapTarget +
@@ -249,6 +323,9 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                     etaFallback: state.forceEtaFallback,
                     awaitingConfirmation: _awaitingConfirmation,
                     secondsLeft: _secondsLeft,
+                    canConfirmArrival:
+                        ref.read(liveRideRepositoryProvider) == null ||
+                        _secondsLeft <= 0,
                     onConfirmArrival: _confirmArrival,
                     onMessage: () => context.push('/chat/thread-active'),
                     onCall: () => ScaffoldMessenger.of(context).showSnackBar(
@@ -296,6 +373,7 @@ class _ActiveTripSheet extends StatefulWidget {
     required this.etaFallback,
     required this.awaitingConfirmation,
     required this.secondsLeft,
+    required this.canConfirmArrival,
     required this.onConfirmArrival,
     required this.onMessage,
     required this.onCall,
@@ -309,6 +387,7 @@ class _ActiveTripSheet extends StatefulWidget {
   final bool etaFallback;
   final bool awaitingConfirmation;
   final int secondsLeft;
+  final bool canConfirmArrival;
   final VoidCallback onConfirmArrival;
   final VoidCallback onMessage;
   final VoidCallback onCall;
@@ -482,7 +561,9 @@ class _ActiveTripSheetState extends State<_ActiveTripSheet>
                           ArangButton(
                             label: "I've arrived — finish ride",
                             icon: Icons.flag_outlined,
-                            onPressed: widget.onConfirmArrival,
+                            onPressed: widget.canConfirmArrival
+                                ? widget.onConfirmArrival
+                                : null,
                           ),
                           const SizedBox(height: 4),
                           Center(

@@ -236,7 +236,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   side: BorderSide(
                                     color:
                                         _selectedDemoEmail == account.user.email
-                                        ? AppColors.coral
+                                        ? AppColors.sky
                                         : AppColors.borderStrong,
                                   ),
                                   avatar: Icon(

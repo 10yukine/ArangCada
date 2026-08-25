@@ -88,29 +88,38 @@ class DigitalReceiptScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: const BoxDecoration(
-                          color: AppColors.clayFill,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppRadii.md),
+                      if (booking.paymentMethod == PaymentMethod.digital) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryFill,
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(AppRadii.md),
+                            ),
+                          ),
+                          child: const Text(
+                            demoFundsDisclosure,
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        child: const Text(
-                          demoFundsDisclosure,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                      ],
                       const SizedBox(height: AppSpacing.lg),
-                      FilledButton(
-                        onPressed: () => context.push('/rating'),
-                        child: Text(
-                          state.tripRating == null
-                              ? 'Rate This Ride'
-                              : 'View Rating',
+                      // Once rated, no button here leads back into the
+                      // rating flow at all -- a prior version relabeled it
+                      // "View Rating" instead of removing it, which still
+                      // read as an invitation to rate again.
+                      if (state.tripRating == null)
+                        FilledButton(
+                          onPressed: () => context.push('/rating'),
+                          child: const Text('Rate This Ride'),
+                        )
+                      else
+                        Text(
+                          'You rated this ride ${state.tripRating} out of 5.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
-                      ),
                       const SizedBox(height: AppSpacing.xs),
                       OutlinedButton(
                         onPressed: () => context.go('/home'),

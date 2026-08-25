@@ -13,8 +13,10 @@ import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/section_card.dart';
 import '../../core/widgets/sheet_drag_handle.dart';
+import '../../core/nav/external_navigation.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/remote/supabase_ride_repository.dart';
 import '../../demo/demo_data.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -29,23 +31,61 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   final _mapController = LiveMapViewController();
   Timer? _countdownTimer;
+  Timer? _completionTicker;
   DemoSimulationRun? _requestRun;
-  int _secondsRemaining = 20;
+  int _secondsRemaining = 30;
+  VoidCallback? _removeLiveStateListener;
+  bool _actionPending = false;
 
   @override
   void initState() {
     super.initState();
-    if (ref.read(demoStateProvider).driverTrip.status ==
-        DriverTripStatus.incoming) {
+    final state = ref.read(demoStateProvider);
+    if (ref.read(liveRideRepositoryProvider) != null) {
+      state.addListener(_handleLiveDriverState);
+      _removeLiveStateListener = () {
+        state.removeListener(_handleLiveDriverState);
+      };
+    }
+    if (state.driverTrip.status == DriverTripStatus.incoming) {
       _startCountdown();
-    } else if (ref.read(demoStateProvider).driverTrip.status ==
-        DriverTripStatus.available) {
+    } else if (state.driverTrip.status == DriverTripStatus.available) {
       _scheduleRequest();
     }
   }
 
+  void _handleLiveDriverState() {
+    if (!mounted) return;
+    final state = ref.read(demoStateProvider);
+    if (state.driverTrip.status == DriverTripStatus.incoming &&
+        _countdownTimer == null) {
+      _startCountdown();
+    }
+    if (state.driverTrip.status != DriverTripStatus.incoming) {
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
+    }
+    if (state.driverTrip.status == DriverTripStatus.inProgress &&
+        state.completionAvailableAt != null &&
+        _completionTicker == null) {
+      _completionTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted ||
+            SupabaseRideRepository.completionSecondsRemaining(
+                  state.completionAvailableAt!,
+                ) <=
+                0) {
+          timer.cancel();
+          _completionTicker = null;
+        }
+        if (mounted) setState(() {});
+      });
+    }
+    setState(() {});
+  }
+
   void _scheduleRequest() {
     _requestRun?.cancel();
+    if (ref.read(liveRideRepositoryProvider) != null) return;
     final state = ref.read(demoStateProvider);
     if (state.driverTrip.status != DriverTripStatus.available) return;
     _requestRun = ref
@@ -62,15 +102,26 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
 
   void _startCountdown() {
     _countdownTimer?.cancel();
-    _secondsRemaining = 20;
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    final deadline = liveRides?.activeTrip?['accept_by'] as String?;
+    _secondsRemaining = deadline == null
+        ? 30
+        : DateTime.parse(
+            deadline,
+          ).difference(DateTime.now().toUtc()).inSeconds.clamp(0, 30);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_secondsRemaining <= 1) {
         timer.cancel();
+        _countdownTimer = null;
         final state = ref.read(demoStateProvider);
         if (state.driverTrip.status == DriverTripStatus.incoming) {
-          state.driverTrip.declineRequest();
-          state.driverChanged();
+          if (liveRides == null) {
+            state.driverTrip.declineRequest();
+            state.driverChanged();
+          } else {
+            unawaited(_expireRequest());
+          }
         }
         setState(() => _secondsRemaining = 0);
       } else {
@@ -79,35 +130,145 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     });
   }
 
-  void _acceptRequest() {
-    _requestRun?.cancel();
-    _countdownTimer?.cancel();
-    final state = ref.read(demoStateProvider);
-    state.driverTrip.acceptRequest();
-    ref
-        .read(chatRepositoryProvider)
-        .ensureActiveTripThread(
-          commuterName: 'Joshua Adia',
-          driverName: state.currentUser?.displayName ?? 'Driver',
-          bodyNumber: '024',
-          todaName: 'Calamba TODA',
-        );
-    state.driverChanged();
-    setState(() {});
+  Future<void> _expireRequest() async {
+    try {
+      await ref.read(liveRideRepositoryProvider)?.expireRide();
+    } on Exception {
+      // The server still rejects acceptance after its authoritative deadline.
+    }
   }
 
-  void _declineRequest() {
+  Future<void> _acceptRequest() async {
+    if (_actionPending) return;
+    _actionPending = true;
     _requestRun?.cancel();
     _countdownTimer?.cancel();
+    _countdownTimer = null;
     final state = ref.read(demoStateProvider);
-    state.driverTrip.declineRequest();
-    state.driverChanged();
-    setState(() {});
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides == null) {
+        state.driverTrip.acceptRequest();
+        ref
+            .read(chatRepositoryProvider)
+            .ensureActiveTripThread(
+              commuterName: 'Joshua Adia',
+              driverName: state.currentUser?.displayName ?? 'Driver',
+              bodyNumber: '024',
+              todaName: 'Calamba TODA',
+            );
+        state.driverChanged();
+      } else {
+        await liveRides.acceptRide();
+      }
+      if (mounted) setState(() {});
+    } on Exception {
+      _showLiveActionError('Could not accept this ride. It may have expired.');
+    } finally {
+      _actionPending = false;
+    }
+  }
+
+  Future<void> _declineRequest() async {
+    _requestRun?.cancel();
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    final state = ref.read(demoStateProvider);
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides == null) {
+        state.driverTrip.declineRequest();
+        state.driverChanged();
+      } else {
+        await liveRides.declineRide();
+      }
+      if (mounted) setState(() {});
+    } on Exception {
+      _showLiveActionError('Could not decline this request. Try again.');
+    }
+  }
+
+  void _showLiveActionError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _toggleAvailability() async {
+    if (_actionPending) return;
+    _actionPending = true;
+    final state = ref.read(demoStateProvider);
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides != null) {
+        await liveRides.setDriverOnline(!state.driverTrip.isOnline);
+      } else if (state.driverTrip.isOnline) {
+        _requestRun?.cancel();
+        state.driverTrip.goOffline();
+        state.driverChanged();
+      } else {
+        if (state.driverTrip.status == DriverTripStatus.declined) {
+          state.driverTrip.goOffline();
+        }
+        state.driverTrip.goOnline();
+        _scheduleRequest();
+        state.driverChanged();
+      }
+    } on Exception {
+      _showLiveActionError(
+        'Could not change availability. Check driver approval, required '
+        'feedback, GPS, and connection.',
+      );
+    } finally {
+      _actionPending = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _advancePickup() async {
+    final state = ref.read(demoStateProvider);
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides == null) {
+        if (state.driverTrip.status == DriverTripStatus.accepted) {
+          state.driverTrip.markArrivedAtPickup();
+        } else {
+          state.driverTrip.startTrip();
+        }
+        state.driverChanged();
+      } else if (state.driverTrip.status == DriverTripStatus.accepted) {
+        await liveRides.markArrived();
+      } else {
+        await liveRides.startTrip();
+      }
+    } on Exception {
+      _showLiveActionError('Could not update the trip. Please try again.');
+    }
+  }
+
+  Future<void> _completeTrip() async {
+    final state = ref.read(demoStateProvider);
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides == null) {
+        state.driverTrip.completeTrip();
+        state.driverChanged();
+      } else {
+        await liveRides.completeTrip();
+      }
+      ref.read(chatRepositoryProvider).closeActiveTripThread();
+      if (mounted) context.go('/driver/rating');
+    } on Exception {
+      _showLiveActionError('Could not complete the trip. Please try again.');
+    }
   }
 
   @override
   void dispose() {
+    _removeLiveStateListener?.call();
     _countdownTimer?.cancel();
+    _completionTicker?.cancel();
     _requestRun?.cancel();
     super.dispose();
   }
@@ -127,28 +288,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 mapController: _mapController,
                 arrived:
                     state.driverTrip.status == DriverTripStatus.arrivedAtPickup,
-                onAction: () {
-                  if (state.driverTrip.status == DriverTripStatus.accepted) {
-                    state.driverTrip.markArrivedAtPickup();
-                  } else {
-                    state.driverTrip.startTrip();
-                  }
-                  state.driverChanged();
-                },
+                onAction: _advancePickup,
               );
             }
             if (state.driverTrip.status == DriverTripStatus.inProgress) {
               return _DriverTripModeCard(
                 mapController: _mapController,
-                onComplete: () {
-                  state.driverTrip.completeTrip();
-                  state.driverChanged();
-                  ref.read(chatRepositoryProvider).closeActiveTripThread();
-                  // Rating the passenger, not Earnings, is what used to be
-                  // missing here -- see DriverRatingScreen and
-                  // DriverTripStateMachine.finishTrip.
-                  context.go('/driver/rating');
-                },
+                onComplete: _completeTrip,
               );
             }
             return ListView(
@@ -178,9 +324,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                               color: AppColors.ink,
                             ),
                           ),
-                          const Text(
-                            'Body no. 024 - Calamba TODA',
-                            style: TextStyle(
+                          Text(
+                            'Verified driver - ${state.liveTodaName ?? 'Calamba TODA'}',
+                            style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
                             ),
@@ -206,23 +352,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 _AvailabilityCard(
                   online: state.driverTrip.isOnline,
                   canToggle:
-                      state.driverTrip.status == DriverTripStatus.available ||
-                      state.driverTrip.status == DriverTripStatus.offline ||
-                      state.driverTrip.status == DriverTripStatus.declined,
-                  onToggle: () {
-                    if (state.driverTrip.isOnline) {
-                      _requestRun?.cancel();
-                      state.driverTrip.goOffline();
-                    } else {
-                      if (state.driverTrip.status ==
-                          DriverTripStatus.declined) {
-                        state.driverTrip.goOffline();
-                      }
-                      state.driverTrip.goOnline();
-                      _scheduleRequest();
-                    }
-                    state.driverChanged();
-                  },
+                      !_actionPending &&
+                      !state.driverFeedbackPending &&
+                      (state.driverTrip.status == DriverTripStatus.available ||
+                          state.driverTrip.status == DriverTripStatus.offline ||
+                          state.driverTrip.status == DriverTripStatus.declined),
+                  onToggle: _toggleAvailability,
                 ),
                 const SizedBox(height: 14),
                 _EarningsCard(onView: () => context.push('/driver/earnings')),
@@ -263,14 +398,30 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 // below the map.
                 if (state.driverTrip.status == DriverTripStatus.completed)
                   _TripCompletedCard(
+                    // A driver who rates the passenger and then backs out of
+                    // /driver/rating before tapping its separate "Done"
+                    // button (the only thing that calls finishDriverTrip())
+                    // lands back here with status still `completed` --
+                    // that recovery path is intentional (see the comment
+                    // above this card). What was not intentional: this
+                    // button always read "Rate Passenger" regardless of
+                    // driverTripRating, so a driver who HAD already rated
+                    // was invited straight back into a rating screen that
+                    // could only show them their own already-submitted
+                    // rating, with no way out except the same easy-to-miss
+                    // "Done" button -- a genuine stuck loop. Once rated,
+                    // this offers the one action that actually escapes
+                    // `completed`, instead of re-opening rating.
+                    alreadyRated: state.driverTripRating != null,
                     onRate: () => context.push('/driver/rating'),
+                    onFinish: state.finishDriverTrip,
                   ),
                 const SizedBox(height: AppSpacing.md),
                 // The waiting/request map shows the driver's relevant demo
                 // jurisdiction. It is explicitly labelled because the seeded
                 // polygon is not official LGU geometry.
                 LiveMapView(
-                  center: state.pickup.coordinate,
+                  center: state.liveDriverLocation ?? state.pickup.coordinate,
                   height: 190,
                   zoom: 13.3,
                   showUserLocation: false,
@@ -283,7 +434,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   boundaryLabel: 'Prototype boundary · evaluation only',
                   markers: [
                     MapMarker(
-                      coordinate: state.pickup.coordinate,
+                      coordinate:
+                          state.liveDriverLocation ?? state.pickup.coordinate,
                       color: AppColors.primary,
                       radius: 8,
                     ),
@@ -299,9 +451,15 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
 }
 
 class _TripCompletedCard extends StatelessWidget {
-  const _TripCompletedCard({required this.onRate});
+  const _TripCompletedCard({
+    required this.alreadyRated,
+    required this.onRate,
+    required this.onFinish,
+  });
 
+  final bool alreadyRated;
   final VoidCallback onRate;
+  final VoidCallback onFinish;
 
   @override
   Widget build(BuildContext context) {
@@ -315,20 +473,25 @@ class _TripCompletedCard extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Rate your passenger to finish and go back online.',
+          Text(
+            alreadyRated
+                ? 'Your rating was submitted. Finish to go back online.'
+                : 'Rate your passenger to finish and go back online.',
             textAlign: TextAlign.center,
             style: AppTypography.caption,
           ),
           const SizedBox(height: AppSpacing.sm),
-          ArangButton(label: 'Rate Passenger', onPressed: onRate),
+          ArangButton(
+            label: alreadyRated ? 'Finish' : 'Rate Passenger',
+            onPressed: alreadyRated ? onFinish : onRate,
+          ),
         ],
       ),
     );
   }
 }
 
-class _IncomingRequestCard extends StatelessWidget {
+class _IncomingRequestCard extends ConsumerWidget {
   const _IncomingRequestCard({
     required this.secondsRemaining,
     required this.onAccept,
@@ -340,7 +503,10 @@ class _IncomingRequestCard extends StatelessWidget {
   final VoidCallback onDecline;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(demoStateProvider);
+    final trip = ref.read(liveRideRepositoryProvider)?.activeTrip;
+    final fare = trip?['fare_estimate'] as num?;
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,17 +520,22 @@ class _IncomingRequestCard extends StatelessWidget {
                 ),
               ),
               CircleAvatar(
-                backgroundColor: AppColors.coral,
+                backgroundColor: AppColors.sky,
                 child: Text('$secondsRemaining'),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Text('Joshua Adia · 1 passenger · Special'),
-          const Text('Calamba Crossing Terminal → Calamba City Hall'),
+          Text(
+            '${state.liveCommuterName ?? 'Joshua Adia'} · 1 passenger · Special',
+          ),
+          Text(
+            '${state.pickup.name} → '
+            '${state.destination?.name ?? 'Calamba City Hall'}',
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${formatCentavos(9200)} cash fare',
+            '${formatCentavos(fare == null ? 9200 : (fare * 100).round())} cash fare',
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -414,7 +585,9 @@ class _PickupModeCard extends ConsumerWidget {
         Positioned.fill(
           child: RoutePreviewMap(
             controller: mapController,
-            from: DemoData.mockDriverLocation.coordinate,
+            from:
+                state.liveDriverLocation ??
+                DemoData.mockDriverLocation.coordinate,
             to: state.pickup.coordinate,
             height: double.infinity,
             borderRadius: BorderRadius.zero,
@@ -439,13 +612,25 @@ class _PickupModeCard extends ConsumerWidget {
                   tone: ArangBadgeTone.green,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                const _PassengerRow(
-                  name: 'Joshua Adia',
-                  detail: 'Calamba Crossing Terminal · ₱92.00 · Cash',
+                _PassengerRow(
+                  name: state.liveCommuterName ?? 'Joshua Adia',
+                  detail: '${state.pickup.name} · Cash',
                 ),
               ],
             ),
             actions: [
+              if (!arrived) ...[
+                ArangButton(
+                  label: 'Open in Maps',
+                  icon: Icons.navigation_outlined,
+                  variant: ArangButtonVariant.ghost,
+                  onPressed: () => openExternalNavigation(
+                    state.pickup.coordinate,
+                    label: state.pickup.name,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               ArangButton(
                 label: arrived ? 'Start Trip' : 'Arrived at Pickup',
                 onPressed: onAction,
@@ -476,11 +661,19 @@ class _DriverTripModeCard extends ConsumerWidget {
           child: RoutePreviewMap(
             controller: mapController,
             from: state.pickup.coordinate,
-            to: DemoData.places[1].coordinate,
+            to: state.destination?.coordinate ?? DemoData.places[1].coordinate,
             height: double.infinity,
             borderRadius: BorderRadius.zero,
             showCaption: false,
             interactive: true,
+            additionalMarkers: [
+              if (state.liveDriverLocation != null)
+                MapMarker(
+                  coordinate: state.liveDriverLocation!,
+                  color: AppColors.primaryText,
+                  radius: 9,
+                ),
+            ],
           ),
         ),
         Align(
@@ -488,15 +681,24 @@ class _DriverTripModeCard extends ConsumerWidget {
           child: _DriverMapSheet(
             key: mapController.panelKey,
             onCenterRoute: () => mapController.fitRoute(),
-            header: const Column(
+            header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ArangBadge('On trip', tone: ArangBadgeTone.green),
-                SizedBox(height: AppSpacing.sm),
+                const ArangBadge('On trip', tone: ArangBadgeTone.green),
+                const SizedBox(height: AppSpacing.sm),
                 _PassengerRow(
-                  name: 'Joshua Adia',
-                  detail: 'Calamba City Hall · ₱92.00 · Cash',
+                  name: state.liveCommuterName ?? 'Joshua Adia',
+                  detail:
+                      '${state.destination?.name ?? 'Calamba City Hall'} · Cash',
                 ),
+                if (state.completionAvailableAt != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Destination reached · completion available in '
+                    '${SupabaseRideRepository.completionSecondsRemaining(state.completionAvailableAt!)}s',
+                    style: AppTypography.caption,
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -527,6 +729,19 @@ class _DriverTripModeCard extends ConsumerWidget {
                           ),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Maps',
+                      icon: Icons.navigation_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: () => openExternalNavigation(
+                        state.destination?.coordinate ??
+                            DemoData.places[1].coordinate,
+                        label: state.destination?.name,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -536,6 +751,10 @@ class _DriverTripModeCard extends ConsumerWidget {
                   driver: true,
                   onSubmit: () =>
                       ref.read(safetyRepositoryProvider).recordDemoAlert(),
+                  onSubmitReason: ref
+                      .read(liveRideRepositoryProvider)
+                      ?.createSafetyReport,
+                  connected: ref.read(liveRideRepositoryProvider) != null,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -561,8 +780,8 @@ class _PassengerRow extends StatelessWidget {
         ArangAvatar(
           name: name,
           size: 40,
-          background: AppColors.clayFill,
-          foreground: AppColors.clayText,
+          background: AppColors.primaryFill,
+          foreground: AppColors.primaryText,
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
@@ -804,7 +1023,7 @@ class _EarningsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: const BoxDecoration(
-        color: AppColors.clayFill,
+        color: AppColors.primaryFill,
         borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
       child: Row(
@@ -818,7 +1037,7 @@ class _EarningsCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.clayText,
+                    color: AppColors.primaryText,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -827,7 +1046,7 @@ class _EarningsCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.4,
-                    color: AppColors.clayText,
+                    color: AppColors.primaryText,
                   ),
                 ),
                 const SizedBox(height: 8),

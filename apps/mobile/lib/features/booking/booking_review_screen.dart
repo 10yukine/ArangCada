@@ -22,6 +22,17 @@ class BookingReviewScreen extends ConsumerWidget {
     WidgetRef ref,
     DemoBooking booking,
   ) async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null &&
+        (booking.rideType != RideType.special ||
+            booking.paymentMethod != PaymentMethod.cash)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connected testing currently supports Special + Cash.'),
+        ),
+      );
+      return;
+    }
     try {
       ref.read(paymentRepositoryProvider).ensureCanConfirm(booking);
     } on InsufficientBalanceException catch (exception) {
@@ -37,11 +48,27 @@ class BookingReviewScreen extends ConsumerWidget {
       return;
     }
 
-    booking
-      ..confirm()
-      ..beginSearching();
-    ref.read(demoStateProvider).bookingChanged();
-    if (context.mounted) context.go('/booking/searching');
+    try {
+      if (liveRides == null) {
+        booking
+          ..confirm()
+          ..beginSearching();
+        ref.read(demoStateProvider).bookingChanged();
+      } else {
+        await liveRides.requestRide(booking);
+      }
+      if (context.mounted) context.go('/booking/searching');
+    } on Exception {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Booking could not be sent. Check your location, driver '
+            'availability, and connection.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _cancel(BuildContext context) async {
@@ -143,17 +170,18 @@ class BookingReviewScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       SegmentedButton<PaymentMethod>(
-                        segments: const [
-                          ButtonSegment(
+                        segments: [
+                          const ButtonSegment(
                             value: PaymentMethod.cash,
                             icon: Icon(Icons.payments_outlined),
                             label: Text('Cash'),
                           ),
-                          ButtonSegment(
-                            value: PaymentMethod.digital,
-                            icon: Icon(Icons.account_balance_wallet_outlined),
-                            label: Text('Digital'),
-                          ),
+                          if (ref.read(liveRideRepositoryProvider) == null)
+                            const ButtonSegment(
+                              value: PaymentMethod.digital,
+                              icon: Icon(Icons.account_balance_wallet_outlined),
+                              label: Text('Digital'),
+                            ),
                         ],
                         selected: {booking.paymentMethod},
                         onSelectionChanged: booking.isFareLocked

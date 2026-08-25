@@ -142,13 +142,14 @@ class WalletScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 if (wallet.transactions.isEmpty)
-                  EmptyStateCard(
+                  // No actionLabel here: the Top Up button immediately above
+                  // is already the one clear top-up action on this screen: a
+                  // second Top Up button inside the empty state duplicated it.
+                  const EmptyStateCard(
                     icon: Icons.receipt_long_outlined,
                     title: 'No wallet transactions',
                     message:
                         'Sandbox top-ups and ride payments will appear here.',
-                    actionLabel: 'Top Up',
-                    onAction: () => showTopUpSheet(context, ref),
                   )
                 else ...[
                   const Divider(height: 1),

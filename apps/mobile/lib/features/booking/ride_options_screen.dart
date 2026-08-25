@@ -57,6 +57,8 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
         final rejection = ServiceArea.rejectionReason(
           pickup: state.pickup.coordinate,
           destination: destination.coordinate,
+          allowCabuyaoTestException:
+              state.currentUser?.isInternalTester ?? false,
         );
 
         final fare = ref.read(fareRepositoryProvider);
@@ -120,6 +122,7 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                 distanceMeters: distanceMeters,
                 rejection: rejection,
                 pooling: pooling,
+                poolingEnabled: ref.read(liveRideRepositoryProvider) == null,
                 special: special,
                 selected: selected,
                 passengerCount: state.passengerCount,
@@ -163,6 +166,7 @@ class _RideSheet extends StatelessWidget {
     required this.distanceMeters,
     required this.rejection,
     required this.pooling,
+    required this.poolingEnabled,
     required this.special,
     required this.selected,
     required this.passengerCount,
@@ -179,6 +183,7 @@ class _RideSheet extends StatelessWidget {
   final double distanceMeters;
   final String? rejection;
   final FareQuote pooling;
+  final bool poolingEnabled;
   final FareQuote? special;
   final RideType selected;
   final int passengerCount;
@@ -216,8 +221,9 @@ class _RideSheet extends StatelessWidget {
             SheetDragHandle(
               expanded: expanded,
               onToggle: onToggle,
-              semanticLabel:
-                  expanded ? 'Hide fare breakdown' : 'Show fare breakdown',
+              semanticLabel: expanded
+                  ? 'Hide fare breakdown'
+                  : 'Show fare breakdown',
             ),
             Flexible(
               child: SingleChildScrollView(
@@ -258,12 +264,13 @@ class _RideSheet extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                     _RideOption(
                       title: 'Pooling',
-                      subtitle:
-                          'Shared trip · '
-                          '${formatCentavos(pooling.unitFareCentavos)} each',
+                      subtitle: poolingEnabled
+                          ? 'Shared trip · '
+                                '${formatCentavos(pooling.unitFareCentavos)} each'
+                          : 'Shared trips are not enabled for live testing.',
                       icon: Icons.groups_outlined,
                       selected: selected == RideType.pooling,
-                      enabled: true,
+                      enabled: poolingEnabled,
                       onTap: () => onSelectType(RideType.pooling),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -324,8 +331,8 @@ class _LocationCard extends StatelessWidget {
           ),
           _Line(
             icon: Icons.place_outlined,
-            background: AppColors.clayFill,
-            foreground: AppColors.clayText,
+            background: AppColors.primaryFill,
+            foreground: AppColors.primaryText,
             label: 'Drop Location',
             value: destinationName,
           ),
@@ -453,7 +460,7 @@ class _RideOption extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.button,
         decoration: BoxDecoration(
-          color: selected ? AppColors.clayFill : AppColors.surface,
+          color: selected ? AppColors.primaryFill : AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadii.card),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
@@ -477,7 +484,7 @@ class _RideOption extends StatelessWidget {
                     ArangRowIcon(
                       icon,
                       background: AppColors.surface,
-                      foreground: AppColors.clayText,
+                      foreground: AppColors.primaryText,
                       size: 38,
                     ),
                     const SizedBox(width: AppSpacing.sm),

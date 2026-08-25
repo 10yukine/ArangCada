@@ -185,7 +185,7 @@ class _TopUpSheetState extends ConsumerState<_TopUpSheet> {
                       color:
                           _customController.text.isEmpty &&
                               _selectedCentavos == amount
-                          ? AppColors.coral
+                          ? AppColors.sky
                           : AppColors.borderStrong,
                     ),
                     onSelected: _processing

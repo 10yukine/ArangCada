@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../demo/demo_data.dart';
+import '../../core/geo/haversine.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
@@ -36,6 +37,14 @@ class DemoState extends ChangeNotifier {
   String? tripRatingComment;
   int? driverTripRating;
   String? driverTripRatingComment;
+  String? liveTripId;
+  String? liveDriverName;
+  String? liveCommuterName;
+  String? liveTodaName;
+  GeoCoordinate? liveDriverLocation;
+  DateTime? completionAvailableAt;
+  bool driverFeedbackPending = false;
+  String? pendingFeedbackTripId;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
 
   /// Sample content is OFF by default. Pre-populated chats and a pre-filled
@@ -204,6 +213,14 @@ class DemoState extends ChangeNotifier {
     driverTrip.finishTrip();
     driverTripRating = null;
     driverTripRatingComment = null;
+    liveTripId = null;
+    liveDriverName = null;
+    liveCommuterName = null;
+    liveTodaName = null;
+    liveDriverLocation = null;
+    completionAvailableAt = null;
+    driverFeedbackPending = false;
+    pendingFeedbackTripId = null;
     notifyListeners();
   }
 
@@ -265,6 +282,14 @@ class DemoState extends ChangeNotifier {
     tripRatingComment = null;
     driverTripRating = null;
     driverTripRatingComment = null;
+    liveTripId = null;
+    liveDriverName = null;
+    liveCommuterName = null;
+    liveTodaName = null;
+    liveDriverLocation = null;
+    completionAvailableAt = null;
+    driverFeedbackPending = false;
+    pendingFeedbackTripId = null;
     sampleContentEnabled = false;
     _walletTransactions.clear();
     driverTrip.reset();
