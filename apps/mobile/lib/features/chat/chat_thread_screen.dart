@@ -90,6 +90,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   @override
   Widget build(BuildContext context) {
     final repository = ref.watch(chatRepositoryProvider);
+    final connected = ref.watch(liveRideRepositoryProvider) != null;
 
     return ListenableBuilder(
       listenable: repository,
@@ -196,8 +197,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   vertical: AppSpacing.xs,
                 ),
                 color: AppColors.amberFill,
-                child: const Text(
-                  'SANDBOX · Messages stay on this device',
+                child: Text(
+                  connected
+                      ? 'Private trip chat · retained for 30 days'
+                      : 'SANDBOX · Messages stay on this device',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption,
                 ),
@@ -210,6 +213,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   itemBuilder: (context, i) => _Bubble(
                     message: thread.messages[i],
                     ownAuthor: ownAuthor,
+                    connected: connected,
                     onRetry: () => repository.retryMessage(
                       threadId: thread.id,
                       messageId: thread.messages[i].id,
@@ -224,6 +228,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   controller: _controller,
                   onSend: _send,
                   onVoiceRecorded: _sendVoicePlaceholder,
+                  allowVoicePlaceholder: !connected,
                 ),
             ],
           ),
@@ -266,7 +271,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     );
   }
 
-  void _onMenu(BuildContext context, String value, ChatThread thread) {
+  Future<void> _onMenu(
+    BuildContext context,
+    String value,
+    ChatThread thread,
+  ) async {
     if (value == 'profile') {
       showModalBottomSheet<void>(
         context: context,
@@ -302,7 +311,85 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       return;
     }
 
-    showDialog<void>(
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      var reason = '';
+      var consented = false;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => ArangDialog(
+            title: 'Report this conversation',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Only LGU administrators will receive the reported chat '
+                  'history. TODA administrators cannot view it.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  maxLength: 240,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason for reporting',
+                  ),
+                  onChanged: (value) => setDialogState(() => reason = value),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    'I consent to sharing this conversation with the LGU.',
+                  ),
+                  value: consented,
+                  onChanged: (value) {
+                    setDialogState(() => consented = value == true);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: consented && reason.trim().isNotEmpty
+                    ? () => Navigator.pop(dialogContext, true)
+                    : null,
+                child: const Text('Send report'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      try {
+        await liveRides.reportTripChat(
+          tripId: thread.tripId ?? thread.id,
+          reason: reason,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The LGU received your reported conversation.'),
+            ),
+          );
+        }
+      } on Exception {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not send the report. Try again.'),
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    await showDialog<void>(
       context: context,
       builder: (context) => ArangDialog(
         title: 'Report driver',
@@ -338,11 +425,13 @@ class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.message,
     required this.ownAuthor,
+    required this.connected,
     required this.onRetry,
   });
 
   final ChatMessage message;
   final ChatMessageAuthor ownAuthor;
+  final bool connected;
   final VoidCallback onRetry;
 
   @override
@@ -435,7 +524,7 @@ class _Bubble extends StatelessWidget {
                   )
                 else
                   Text(
-                    '· Saved locally',
+                    connected ? '· Delivered' : '· Saved locally',
                     style: AppTypography.caption.copyWith(fontSize: 11),
                   ),
               ],
@@ -474,11 +563,13 @@ class _Composer extends StatefulWidget {
     required this.controller,
     required this.onSend,
     required this.onVoiceRecorded,
+    required this.allowVoicePlaceholder,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onSend;
   final ValueChanged<Duration> onVoiceRecorded;
+  final bool allowVoicePlaceholder;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -550,23 +641,40 @@ class _ComposerState extends State<_Composer> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                if (hasText)
+                // Empty text and a real connected trip used to render
+                // neither button at all: allowVoicePlaceholder is false on a
+                // real trip (correctly -- VoiceRecordButton is a placeholder
+                // that records nothing, and offering it on a trip that is
+                // actually live would misrepresent what the app can do), but
+                // the `if (hasText) ... else if (allowVoicePlaceholder) ...`
+                // had no third branch, so the composer's trailing slot went
+                // fully blank until the driver or commuter typed something.
+                // A send button that is always visible, just disabled until
+                // there is text, is what every mainstream chat app does when
+                // it has no recording feature to fall back to -- and it does
+                // not claim a capability the app does not have.
+                if (hasText || !widget.allowVoicePlaceholder)
                   Semantics(
                     button: true,
                     label: 'Send message',
+                    enabled: hasText,
                     child: Material(
-                      color: AppColors.primary,
+                      color: hasText ? AppColors.primary : AppColors.dividerLight,
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
-                        onTap: () => widget.onSend(widget.controller.text),
-                        child: const SizedBox(
+                        onTap: hasText
+                            ? () => widget.onSend(widget.controller.text)
+                            : null,
+                        child: SizedBox(
                           width: 44,
                           height: 44,
                           child: Icon(
                             Icons.send_rounded,
                             size: 20,
-                            color: Colors.white,
+                            color: hasText
+                                ? Colors.white
+                                : AppColors.textMuted,
                           ),
                         ),
                       ),

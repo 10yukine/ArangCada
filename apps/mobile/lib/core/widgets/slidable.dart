@@ -73,7 +73,7 @@ class _SlidableState extends State<Slidable> {
                   width: widget.actionWidth,
                   height: double.infinity,
                   child: Material(
-                    color: AppColors.clayFill,
+                    color: AppColors.primaryFill,
                     child: InkWell(
                       onTap: () {
                         close();
@@ -85,7 +85,7 @@ class _SlidableState extends State<Slidable> {
                         child: const Icon(
                           Icons.more_horiz,
                           size: 22,
-                          color: AppColors.clayText,
+                          color: AppColors.primaryText,
                         ),
                       ),
                     ),

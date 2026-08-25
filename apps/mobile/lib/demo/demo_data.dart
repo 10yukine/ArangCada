@@ -62,12 +62,6 @@ abstract final class DemoData {
       coordinate: GeoCoordinate(latitude: 14.2074, longitude: 121.1556),
     ),
     DemoPlace(
-      id: 'uplb-gate',
-      name: 'UPLB Main Gate',
-      address: 'Lopez Avenue, Los Baños',
-      coordinate: GeoCoordinate(latitude: 14.1660, longitude: 121.2421),
-    ),
-    DemoPlace(
       id: 'canlubang-plaza',
       name: 'Canlubang Plaza',
       address: 'Canlubang, Calamba City',

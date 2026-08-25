@@ -124,13 +124,13 @@ class _ChatbotPlaceholder extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: const BoxDecoration(
-                  color: AppColors.clayFill,
+                  color: AppColors.primaryFill,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.smart_toy_outlined,
                   size: 20,
-                  color: AppColors.clayText,
+                  color: AppColors.primaryText,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),

@@ -18,7 +18,7 @@ class StatusBadge extends StatelessWidget {
       StatusBadgeVariant.green => (AppColors.greenFill, AppColors.greenDark),
       StatusBadgeVariant.amber => (AppColors.amberFill, AppColors.amberText),
       StatusBadgeVariant.red => (AppColors.dangerFill, AppColors.dangerDeep),
-      StatusBadgeVariant.clay => (AppColors.clayFill, AppColors.clayText),
+      StatusBadgeVariant.clay => (AppColors.primaryFill, AppColors.primaryText),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),

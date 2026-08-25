@@ -26,28 +26,66 @@ class SearchingForDriverScreen extends ConsumerStatefulWidget {
 class _SearchingForDriverScreenState
     extends ConsumerState<SearchingForDriverScreen> {
   DemoSimulationRun? _matchRun;
+  bool _liveListenerAttached = false;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
     final state = ref.read(demoStateProvider);
-    if (state.activeBooking?.status == BookingStatus.searching) {
+    if (ref.read(liveRideRepositoryProvider) != null) {
+      // Real connected trip: attach the listener unconditionally, not only
+      // when activeBooking?.status happens to read as `searching` at this
+      // exact moment. A real backend's timing is not deterministic -- the
+      // booking may not have synced from the server yet, or a fast driver
+      // may already have accepted before this screen finished mounting.
+      // Either way that status check fails and the old code never attached
+      // a listener at all, so the screen sat on "Finding a driver..."
+      // forever no matter what the driver did next. The point of this
+      // screen is to observe whatever transition happens while it is
+      // showing, so the listener must not depend on catching one specific
+      // status at one specific instant.
+      state.addListener(_handleLiveTripChange);
+      _liveListenerAttached = true;
+      // The transition may already have happened before the listener above
+      // was wired up (the same race, closed). Checked once via a
+      // post-frame callback, not synchronously here -- _handleLiveTripChange
+      // can call context.go() through _onMatched(), and navigating from
+      // inside initState(), before this widget's own build has completed,
+      // is exactly the kind of premature navigation that produced the
+      // driver-side "_elements.contains(element)" framework assertion
+      // elsewhere in this app. Deferring one frame matches the pattern
+      // SplashScreen already uses for the same reason.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleLiveTripChange();
+      });
+    } else if (state.activeBooking?.status == BookingStatus.searching) {
+      // The scripted demo simulation is deterministic, so gating it on the
+      // current status is correct here -- unlike the live case above, there
+      // is no real backend timing to race against.
       _matchRun = ref
           .read(demoSimulationServiceProvider)
           .scheduleDriverMatch(state: state, onMatched: _onMatched);
     }
   }
 
+  void _handleLiveTripChange() {
+    if (!mounted || _navigated) return;
+    final booking = ref.read(demoStateProvider).activeBooking;
+    if (booking?.status == BookingStatus.matched) _onMatched();
+  }
+
   void _onMatched() {
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
     final state = ref.read(demoStateProvider);
     ref
         .read(chatRepositoryProvider)
         .ensureActiveTripThread(
           commuterName: state.currentUser?.displayName ?? 'Commuter',
-          driverName: 'Marco Dela Cruz',
+          driverName: state.liveDriverName ?? 'Marco Dela Cruz',
           bodyNumber: '024',
-          todaName: 'Calamba TODA',
+          todaName: state.liveTodaName ?? 'Calamba TODA',
         );
     final callback = widget.onMatched;
     if (callback != null) {
@@ -59,6 +97,9 @@ class _SearchingForDriverScreenState
 
   @override
   void dispose() {
+    if (_liveListenerAttached) {
+      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
+    }
     _matchRun?.cancel();
     super.dispose();
   }
@@ -86,9 +127,23 @@ class _SearchingForDriverScreenState
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    booking.cancelSearching();
-    ref.read(demoStateProvider).bookingChanged();
-    context.go('/home');
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    try {
+      if (liveRides == null) {
+        booking.cancelSearching();
+        ref.read(demoStateProvider).bookingChanged();
+      } else {
+        await liveRides.cancelRide();
+      }
+      if (context.mounted) context.go('/home');
+    } on Exception {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not cancel the request. Try again.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -269,7 +324,7 @@ class _ScanningIndicatorPainter extends CustomPainter {
       center,
       pulseRadius,
       Paint()
-        ..color = AppColors.coral.withValues(alpha: 1 - progress)
+        ..color = AppColors.sky.withValues(alpha: 1 - progress)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );

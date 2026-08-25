@@ -32,7 +32,17 @@ abstract final class ServiceArea {
   /// Ray-casting point-in-polygon. Mirrors what `ST_Covers` decides on the
   /// server, minus the exact boundary semantics -- which is why the server
   /// remains authoritative.
-  static bool contains(GeoCoordinate point) {
+  static bool contains(
+    GeoCoordinate point, {
+    bool allowCabuyaoTestException = false,
+  }) {
+    if (allowCabuyaoTestException &&
+        point.latitude >= 14.2350 &&
+        point.latitude <= 14.3300 &&
+        point.longitude >= 121.0550 &&
+        point.longitude <= 121.1750) {
+      return true;
+    }
     var inside = false;
     for (var i = 0, j = _boundary.length - 1; i < _boundary.length; j = i++) {
       final a = _boundary[i];
@@ -53,9 +63,16 @@ abstract final class ServiceArea {
   static String? rejectionReason({
     required GeoCoordinate pickup,
     required GeoCoordinate destination,
+    bool allowCabuyaoTestException = false,
   }) {
-    final pickupOk = contains(pickup);
-    final destinationOk = contains(destination);
+    final pickupOk = contains(
+      pickup,
+      allowCabuyaoTestException: allowCabuyaoTestException,
+    );
+    final destinationOk = contains(
+      destination,
+      allowCabuyaoTestException: allowCabuyaoTestException,
+    );
     if (pickupOk && destinationOk) return null;
     if (!pickupOk && !destinationOk) {
       return 'Both your pickup and destination are outside the $name service '

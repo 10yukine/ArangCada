@@ -35,16 +35,20 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Never a plugin call from build(), and never an unprompted permission
-    // dialog: only auto-locate when the user has already granted permission.
-    // Otherwise the "Use current location" control is what asks.
+    // Connected commuters must start from device GPS, so request while-in-use
+    // access immediately. Hidden local demos keep their no-prompt behavior.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final granted = await ref
-          .read(locationRepositoryProvider)
-          .hasPermission();
-      if (!mounted || !granted) return;
-      await _locate(silent: true);
+      final user = ref.read(demoStateProvider).currentUser;
+      if (user == null) return;
+      if (user.isDemoAccount) {
+        final granted = await ref
+            .read(locationRepositoryProvider)
+            .hasPermission();
+        if (!mounted || !granted) return;
+      }
+      if (!mounted) return;
+      await _locate(silent: user.isDemoAccount);
     });
   }
 
@@ -61,7 +65,13 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       // A fix must become the actual booking origin. Labelling it while
       // leaving DemoState.pickup untouched would price the ride from a
       // different point than the one shown.
-      if (!fix.isCoarse && ServiceArea.contains(fix.coordinate)) {
+      final internalTester =
+          ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+      if (!fix.isCoarse &&
+          ServiceArea.contains(
+            fix.coordinate,
+            allowCabuyaoTestException: internalTester,
+          )) {
         ref
             .read(demoStateProvider)
             .setPickup(
@@ -98,6 +108,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
             .split(' ')
             .first;
         final centre = _fix?.coordinate ?? state.pickup.coordinate;
+        final connected = ref.read(liveRideRepositoryProvider) != null;
 
         return Scaffold(
           body: SafeArea(
@@ -159,24 +170,30 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                       color: AppColors.primary,
                       radius: 8,
                     ),
-                    // Dispatch is not connected, so these are fixed
-                    // demonstration positions. They are never presented as
-                    // live driver telemetry.
-                    for (final offset in _nearbyDriverOffsets)
+                    if (connected && state.liveDriverLocation != null)
                       MapMarker(
-                        coordinate: GeoCoordinate(
-                          latitude: centre.latitude + offset.$1,
-                          longitude: centre.longitude + offset.$2,
-                        ),
-                        color: AppColors.clayText,
-                        radius: 5.5,
+                        coordinate: state.liveDriverLocation!,
+                        color: AppColors.primaryText,
+                        radius: 7,
                       ),
+                    if (!connected)
+                      for (final offset in _nearbyDriverOffsets)
+                        MapMarker(
+                          coordinate: GeoCoordinate(
+                            latitude: centre.latitude + offset.$1,
+                            longitude: centre.longitude + offset.$2,
+                          ),
+                          color: AppColors.primaryText,
+                          radius: 5.5,
+                        ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Tricycle positions are illustrative until TODA dispatch is '
-                  'connected.',
+                  connected
+                      ? 'Assigned driver location updates during an active trip.'
+                      : 'Tricycle positions are illustrative until TODA dispatch '
+                            'is connected.',
                   style: AppTypography.caption.copyWith(fontSize: 11),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -192,7 +209,12 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   /// so instead of implying precision the device did not provide.
   String _pickupLabel(String configuredName) {
     if (_fix == null) return configuredName;
-    if (!ServiceArea.contains(_fix!.coordinate)) {
+    final internalTester =
+        ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+    if (!ServiceArea.contains(
+      _fix!.coordinate,
+      allowCabuyaoTestException: internalTester,
+    )) {
       return '$configuredName · you are outside ${ServiceArea.name}';
     }
     return _fix!.isCoarse
@@ -260,7 +282,7 @@ class _DiscountCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: const BoxDecoration(
-        color: AppColors.clayFill,
+        color: AppColors.primaryFill,
         borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
       child: Row(
@@ -274,7 +296,7 @@ class _DiscountCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.clayText,
+                    color: AppColors.primaryText,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -286,7 +308,7 @@ class _DiscountCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.45,
-                    color: AppColors.clayText,
+                    color: AppColors.primaryText,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -342,8 +364,8 @@ class _PlanYourRide extends StatelessWidget {
                 icon: Icons.place_outlined,
                 title: 'Where are you going?',
                 subtitle: 'Drop Location',
-                iconBackground: AppColors.clayFill,
-                iconForeground: AppColors.clayText,
+                iconBackground: AppColors.primaryFill,
+                iconForeground: AppColors.primaryText,
                 showDivider: false,
                 onTap: onTap,
                 trailing: Container(
@@ -402,8 +424,8 @@ class _CurrentSelection extends StatelessWidget {
                 icon: Icons.place_outlined,
                 title: destinationName,
                 subtitle: 'Drop Location',
-                iconBackground: AppColors.clayFill,
-                iconForeground: AppColors.clayText,
+                iconBackground: AppColors.primaryFill,
+                iconForeground: AppColors.primaryText,
                 showDivider: false,
                 onTap: onEdit,
               ),

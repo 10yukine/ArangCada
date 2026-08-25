@@ -272,8 +272,8 @@ class _ProfileHeader extends StatelessWidget {
         ArangAvatar(
           name: name,
           size: 52,
-          background: isDriver ? AppColors.primary : AppColors.clayFill,
-          foreground: isDriver ? Colors.white : AppColors.clayText,
+          background: isDriver ? AppColors.primary : AppColors.primaryFill,
+          foreground: isDriver ? Colors.white : AppColors.primaryText,
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(

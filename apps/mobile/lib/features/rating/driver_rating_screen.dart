@@ -21,8 +21,7 @@ class DriverRatingScreen extends ConsumerStatefulWidget {
   const DriverRatingScreen({super.key});
 
   @override
-  ConsumerState<DriverRatingScreen> createState() =>
-      _DriverRatingScreenState();
+  ConsumerState<DriverRatingScreen> createState() => _DriverRatingScreenState();
 }
 
 class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
@@ -43,8 +42,17 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
     setState(() {});
   }
 
-  void _done() {
+  Future<void> _done() async {
     final state = ref.read(demoStateProvider);
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      await liveRides.refreshFeedbackState();
+      if (!mounted) return;
+      if (state.driverFeedbackPending) {
+        context.go('/driver/app-feedback');
+        return;
+      }
+    }
     // Skipping the rating entirely is allowed -- the trip still has to
     // finish and hand the driver back to available either way.
     if (state.driverTrip.status == DriverTripStatus.completed) {
@@ -92,14 +100,15 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   submitted == null
-                      ? 'How was Joshua Adia?'
+                      ? 'How was ${state.liveCommuterName ?? 'Joshua Adia'}?'
                       : 'Thanks for your feedback',
                   textAlign: TextAlign.center,
                   style: AppTypography.display,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'Calamba Crossing Terminal → Calamba City Hall',
+                Text(
+                  '${state.pickup.name} → '
+                  '${state.destination?.name ?? 'Calamba City Hall'}',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption,
                 ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,18 +22,30 @@ class DriverMatchedScreen extends ConsumerStatefulWidget {
 
 class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   DemoSimulationRun? _approachRun;
+  Timer? _liveTransition;
 
   @override
   void initState() {
     super.initState();
     final state = ref.read(demoStateProvider);
     if (state.activeBooking?.status == BookingStatus.matched) {
-      _approachRun = ref
-          .read(demoSimulationServiceProvider)
-          .scheduleDriverApproachStart(
-            state: state,
-            onApproachStarted: _onApproachStarted,
-          );
+      if (ref.read(liveRideRepositoryProvider) == null) {
+        _approachRun = ref
+            .read(demoSimulationServiceProvider)
+            .scheduleDriverApproachStart(
+              state: state,
+              onApproachStarted: _onApproachStarted,
+            );
+      } else {
+        _liveTransition = Timer(const Duration(milliseconds: 700), () {
+          if (!mounted) return;
+          if (state.activeBooking?.status == BookingStatus.matched) {
+            state.activeBooking!.beginDriverApproach();
+            state.bookingChanged();
+          }
+          _onApproachStarted();
+        });
+      }
     }
   }
 
@@ -42,6 +56,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   @override
   void dispose() {
     _approachRun?.cancel();
+    _liveTransition?.cancel();
     super.dispose();
   }
 
@@ -106,10 +121,27 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     );
     if (confirmed != true || !mounted) return;
     _approachRun?.cancel();
+    _liveTransition?.cancel();
     final state = ref.read(demoStateProvider);
-    state.activeBooking = null;
-    state.bookingChanged();
-    context.go('/home');
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) {
+      state.activeBooking = null;
+      state.bookingChanged();
+    } else {
+      try {
+        await liveRides.cancelRide();
+      } on Exception {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not cancel the ride. Try again.'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (mounted) context.go('/home');
   }
 
   @override
@@ -157,7 +189,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                           children: [
                             const CircleAvatar(
                               radius: 34,
-                              backgroundColor: AppColors.clayFill,
+                              backgroundColor: AppColors.primaryFill,
                               child: Icon(
                                 Icons.person,
                                 size: 38,

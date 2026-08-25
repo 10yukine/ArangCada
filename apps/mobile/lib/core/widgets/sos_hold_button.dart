@@ -142,6 +142,8 @@ Future<void> showSafetyReportFlow({
   required BuildContext context,
   required bool driver,
   required Future<void> Function() onSubmit,
+  Future<void> Function(String reason)? onSubmitReason,
+  bool connected = false,
 }) async {
   final reasons = driver
       ? const [
@@ -187,9 +189,12 @@ Future<void> showSafetyReportFlow({
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Choose what happened. This internal build records the report '
-              'locally and does not contact emergency services.',
+            Text(
+              connected
+                  ? 'Choose what happened. ArangCada LGU/TODA administrators '
+                        'will receive the report; emergency services are not contacted.'
+                  : 'Choose what happened. This internal build records the report '
+                        'locally and does not contact emergency services.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -231,7 +236,9 @@ Future<void> showSafetyReportFlow({
               onPressed: selectedReason == null
                   ? null
                   : () => Navigator.pop(sheetContext, true),
-              child: const Text('Record safety report'),
+              child: Text(
+                connected ? 'Send safety report' : 'Record safety report',
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(sheetContext, false),
@@ -245,16 +252,34 @@ Future<void> showSafetyReportFlow({
     ),
   );
   if (submitted != true || !context.mounted) return;
-  await onSubmit();
+  try {
+    if (onSubmitReason != null) {
+      await onSubmitReason(selectedReason!);
+    } else {
+      await onSubmit();
+    }
+  } on Exception {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Safety report could not be sent. Please try again.'),
+        ),
+      );
+    }
+    return;
+  }
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (context) => ArangDialog(
       icon: const Icon(Icons.shield_outlined, color: AppColors.green),
-      title: 'Safety report recorded',
-      content: const Text(
-        'The report was saved locally for prototype review. '
-        'No emergency service or administrator was contacted.',
+      title: connected ? 'Administrators notified' : 'Safety report recorded',
+      content: Text(
+        connected
+            ? 'ArangCada administrators received your safety report. '
+                  'Police or emergency services were not contacted.'
+            : 'The report was saved locally for prototype review. '
+                  'No emergency service or administrator was contacted.',
       ),
       actions: [
         FilledButton(

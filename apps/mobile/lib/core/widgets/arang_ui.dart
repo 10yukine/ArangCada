@@ -161,13 +161,13 @@ class ArangChip extends StatelessWidget {
       child: PressScale(
         enabled: onTap != null,
         child: Material(
-          color: selected ? AppColors.clayFill : AppColors.surface,
+          color: selected ? AppColors.primaryFill : AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: const BorderRadius.all(
               Radius.circular(AppRadii.chip),
             ),
             side: BorderSide(
-              color: selected ? AppColors.coral : AppColors.borderStrong,
+              color: selected ? AppColors.sky : AppColors.borderStrong,
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -183,7 +183,7 @@ class ArangChip extends StatelessWidget {
                       icon,
                       size: 15,
                       color: selected
-                          ? AppColors.clayText
+                          ? AppColors.primaryText
                           : AppColors.textSecondary,
                     ),
                     const SizedBox(width: 6),
@@ -194,7 +194,7 @@ class ArangChip extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                       color: selected
-                          ? AppColors.clayText
+                          ? AppColors.primaryText
                           : AppColors.textSecondary,
                     ),
                   ),
@@ -361,8 +361,8 @@ class ArangAvatar extends StatelessWidget {
   const ArangAvatar({
     required this.name,
     this.size = AppSizes.avatar,
-    this.background = AppColors.clayFill,
-    this.foreground = AppColors.clayText,
+    this.background = AppColors.primaryFill,
+    this.foreground = AppColors.primaryText,
     super.key,
   });
 
@@ -428,8 +428,8 @@ class ArangBadge extends StatelessWidget {
         background = AppColors.dangerFill;
         foreground = AppColors.dangerDeep;
       case ArangBadgeTone.clay:
-        background = AppColors.clayFill;
-        foreground = AppColors.clayText;
+        background = AppColors.primaryFill;
+        foreground = AppColors.primaryText;
       case ArangBadgeTone.neutral:
         background = AppColors.neutralFill;
         foreground = AppColors.textSecondary;

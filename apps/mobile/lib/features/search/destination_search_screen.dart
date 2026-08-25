@@ -14,6 +14,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../demo/demo_data.dart';
+import '../../domain/geo/service_area.dart';
 
 /// Destination picker following the prototype: pickup/destination card,
 /// "use current location" and "pin on map" accelerators, then results.
@@ -70,8 +71,15 @@ class _DestinationSearchScreenState
     try {
       final places = await ref.read(geocodingRepositoryProvider).search(query);
       if (!mounted) return;
+      final internalTester =
+          ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
       setState(() {
-        _results = places;
+        _results = places.where((place) {
+          return ServiceArea.contains(
+            place.coordinate,
+            allowCabuyaoTestException: internalTester,
+          );
+        }).toList();
         _error = null;
         _searching = false;
       });

@@ -124,7 +124,7 @@ class _CalambaMapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = const Color(0xFFEDE8DC),
+      Paint()..color = const Color(0xFFE4EDF7),
     );
 
     final zone = Path()
@@ -138,25 +138,25 @@ class _CalambaMapPainter extends CustomPainter {
     canvas.drawPath(
       zone,
       Paint()
-        ..color = const Color(0x6BE9A35E)
+        ..color = const Color(0x5B7FC4EE)
         ..style = PaintingStyle.fill,
     );
     _drawDashedPath(
       canvas,
       zone,
       Paint()
-        ..color = const Color(0xFFC06E2E)
+        ..color = const Color(0xFF1262D0)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
 
     final roadPaint = Paint()
-      ..color = const Color(0xFFFBFAF6)
+      ..color = const Color(0xFFFBFDFF)
       ..strokeWidth = 8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
     final roadEdgePaint = Paint()
-      ..color = const Color(0xFFE3DFD5)
+      ..color = const Color(0xFFDBE5F1)
       ..strokeWidth = 10
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -287,7 +287,7 @@ class _CalambaMapPainter extends CustomPainter {
       point,
       ringRadius,
       Paint()
-        ..color = AppColors.coral.withValues(alpha: 1 - pulseProgress)
+        ..color = AppColors.sky.withValues(alpha: 1 - pulseProgress)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );

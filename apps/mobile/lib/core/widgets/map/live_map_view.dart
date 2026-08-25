@@ -307,7 +307,7 @@ class _LiveMapViewState extends State<LiveMapView> {
               geometry: [
                 for (final p in widget.route) LatLng(p.latitude, p.longitude),
               ],
-              lineColor: '#B4552F',
+              lineColor: '#1262D0',
               lineWidth: 5,
               lineOpacity: widget.routeIsFallback ? 0.55 : 0.95,
             ),

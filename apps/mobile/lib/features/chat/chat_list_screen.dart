@@ -233,10 +233,10 @@ class _ThreadRow extends ConsumerWidget {
                   name: counterparty,
                   background: thread.isActiveTrip
                       ? AppColors.primary
-                      : AppColors.clayFill,
+                      : AppColors.primaryFill,
                   foreground: thread.isActiveTrip
                       ? Colors.white
-                      : AppColors.clayText,
+                      : AppColors.primaryText,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(

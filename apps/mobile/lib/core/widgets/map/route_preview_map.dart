@@ -29,6 +29,7 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
     this.controller,
     this.boundaries = const [],
     this.boundaryLabel,
+    this.additionalMarkers = const [],
     super.key,
   });
 
@@ -44,6 +45,7 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
   final LiveMapViewController? controller;
   final List<MapBoundary> boundaries;
   final String? boundaryLabel;
+  final List<MapMarker> additionalMarkers;
 
   @override
   ConsumerState<RoutePreviewMap> createState() => _RoutePreviewMapState();
@@ -113,6 +115,7 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
       markers: [
         MapMarker(coordinate: widget.from, color: AppColors.green, radius: 7),
         MapMarker(coordinate: widget.to, color: AppColors.primary, radius: 7),
+        ...widget.additionalMarkers,
       ],
     );
 

@@ -30,6 +30,78 @@ class TripsScreen extends ConsumerWidget {
         child: ListenableBuilder(
           listenable: state,
           builder: (context, _) {
+            final liveRides = ref.read(liveRideRepositoryProvider);
+            // Illustrative sandbox history for the pre-connection demo only.
+            // Once a real Supabase session is live, actual trip records
+            // always win -- this branch never runs when liveRides != null.
+            if (liveRides == null && state.sampleContentEnabled) {
+              return isDriver
+                  ? const _DriverSampleHistory()
+                  : const _CommuterSampleHistory();
+            }
+            if (liveRides != null) {
+              final trips = liveRides.trips.where((trip) {
+                final status = trip['status'] as String?;
+                return status != 'cancelled_by_rider' &&
+                    status != 'no_driver_available';
+              }).toList();
+              if (trips.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: EmptyStateCard(
+                    icon: Icons.route_outlined,
+                    title: isDriver ? 'No driver trips yet' : 'No trips yet',
+                    message: 'Accepted and completed rides will appear here.',
+                    actionLabel: isDriver ? 'Go Online' : 'Book a Ride',
+                    onAction: () => context.go(isDriver ? '/driver' : '/home'),
+                  ),
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                itemCount: trips.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final trip = trips[index];
+                  final status = trip['status'] as String;
+                  final completed = status == 'completed';
+                  final driverCancelled = status == 'cancelled_by_driver';
+                  final route = isDriver
+                      ? '/driver'
+                      : completed
+                      ? '/receipt'
+                      : driverCancelled
+                      ? '/home'
+                      : _routeFor(
+                          state.activeBooking?.status ??
+                              BookingStatus.searching,
+                        );
+                  return _TripSummary(
+                    icon: completed
+                        ? Icons.check_circle
+                        : driverCancelled
+                        ? Icons.cancel_outlined
+                        : Icons.directions_run,
+                    iconColor: completed
+                        ? AppColors.green
+                        : driverCancelled
+                        ? AppColors.danger
+                        : AppColors.sky,
+                    title: completed
+                        ? 'Completed trip'
+                        : driverCancelled
+                        ? 'Driver-cancelled trip'
+                        : 'Active booking',
+                    subtitle:
+                        '${trip['pickup_label'] ?? 'Pickup'} → '
+                        '${trip['destination_label'] ?? 'Destination'}',
+                    buttonLabel: completed ? 'View Summary' : 'View',
+                    onButtonPressed: () => context.go(route),
+                  );
+                },
+              );
+            }
             if (isDriver) {
               final status = state.driverTrip.status;
               final hasRide =
@@ -58,7 +130,7 @@ class TripsScreen extends ConsumerWidget {
                         : Icons.directions_run,
                     iconColor: status == DriverTripStatus.completed
                         ? AppColors.green
-                        : AppColors.coral,
+                        : AppColors.sky,
                     title: status == DriverTripStatus.completed
                         ? 'Completed driver trip'
                         : 'Current driver trip',
@@ -93,11 +165,12 @@ class TripsScreen extends ConsumerWidget {
                       : Icons.directions_run,
                   iconColor: booking.status == BookingStatus.completed
                       ? AppColors.green
-                      : AppColors.coral,
+                      : AppColors.sky,
                   title: booking.status == BookingStatus.completed
                       ? 'Completed trip'
                       : 'Active booking',
-                  subtitle: '${booking.pickupName} → ${booking.destinationName}',
+                  subtitle:
+                      '${booking.pickupName} → ${booking.destinationName}',
                   buttonLabel: booking.status == BookingStatus.completed
                       ? 'View Receipt'
                       : 'Resume',
@@ -159,6 +232,169 @@ class _TripSummary extends StatelessWidget {
         Text(subtitle),
         const SizedBox(height: AppSpacing.md),
         FilledButton(onPressed: onButtonPressed, child: Text(buttonLabel)),
+      ],
+    );
+  }
+}
+
+class _SampleTrip {
+  const _SampleTrip({
+    required this.route,
+    required this.type,
+    required this.fare,
+    required this.dateLabel,
+    this.commuterName,
+  });
+
+  final String route;
+  final String type; // 'Special' or 'Pooling'
+  final String fare;
+  final String dateLabel;
+  final String? commuterName;
+}
+
+/// Illustrative sandbox history so the commuter Trips screen is not empty
+/// before a real account has any Supabase-backed trips yet. Fixed demo data,
+/// never a live record.
+class _CommuterSampleHistory extends StatefulWidget {
+  const _CommuterSampleHistory();
+
+  @override
+  State<_CommuterSampleHistory> createState() =>
+      _CommuterSampleHistoryState();
+}
+
+class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
+  static const _trips = [
+    _SampleTrip(
+      route: 'Calamba Crossing → SM Calamba',
+      type: 'Special',
+      fare: '₱60.00',
+      dateLabel: 'Jul 3',
+    ),
+    _SampleTrip(
+      route: 'City Hall → Crossing Market',
+      type: 'Pooling',
+      fare: '₱15.00',
+      dateLabel: 'Jun 28',
+    ),
+    _SampleTrip(
+      route: 'SM Calamba → Crossing Market',
+      type: 'Special',
+      fare: '₱60.00',
+      dateLabel: 'Jun 20',
+    ),
+  ];
+
+  String _filter = 'All';
+
+  @override
+  Widget build(BuildContext context) {
+    final trips = _filter == 'All'
+        ? _trips
+        : _trips.where((trip) => trip.type == _filter).toList();
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        Text('Trip history', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Latest completed trip: ${_trips.first.dateLabel}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs,
+          children: [
+            for (final option in const ['All', 'Special', 'Pooling'])
+              ChoiceChip(
+                label: Text(option),
+                selected: _filter == option,
+                onSelected: (_) => setState(() => _filter = option),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        for (final trip in trips) ...[
+          _SampleTripTile(trip: trip),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+/// Illustrative driver-side trip records; same sandbox-only scope as the
+/// commuter sample history above.
+class _DriverSampleHistory extends StatelessWidget {
+  const _DriverSampleHistory();
+
+  static const _trips = [
+    _SampleTrip(
+      route: 'Crossing Market → City Hall',
+      type: 'Special',
+      fare: '₱60.00',
+      dateLabel: 'Jul 3',
+    ),
+    _SampleTrip(
+      route: 'Brgy. Real → Crossing Market',
+      type: 'Special',
+      fare: '₱60.00',
+      dateLabel: 'Jun 29',
+    ),
+    _SampleTrip(
+      route: 'Calamba Crossing → SM Calamba',
+      type: 'Pooling',
+      fare: '₱15.00',
+      dateLabel: 'Jun 20',
+      commuterName: 'Rico C.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        Text('Trip records', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.md),
+        for (final trip in _trips) ...[
+          _SampleTripTile(trip: trip),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _SampleTripTile extends StatelessWidget {
+  const _SampleTripTile({required this.trip});
+
+  final _SampleTrip trip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.sm),
+        Text(trip.route, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          trip.commuterName == null
+              ? '${trip.type} · ${trip.dateLabel}'
+              : 'Commuter: ${trip.commuterName} · ${trip.type}',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          trip.fare,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
+        ),
       ],
     );
   }
