@@ -10,9 +10,14 @@
 
 create schema if not exists auth;
 
+-- raw_user_meta_data carries whatever the client passed to signUp()/
+-- admin.createUser() as user metadata. handle_new_user() reads display_name
+-- and mobile_number out of it to build the profiles row, so the shim needs
+-- the column for that trigger to be testable at all.
 create table if not exists auth.users (
-  id    uuid primary key default gen_random_uuid(),
-  email text unique
+  id                 uuid primary key default gen_random_uuid(),
+  email              text unique,
+  raw_user_meta_data jsonb not null default '{}'::jsonb
 );
 
 -- Supabase reads the caller's user id from a request-scoped JWT claim.
