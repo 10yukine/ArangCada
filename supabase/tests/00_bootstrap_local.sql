@@ -56,6 +56,15 @@ $$;
 -- ---------------------------------------------------------------------------
 grant usage on schema public to anon, authenticated, service_role;
 
+-- Supabase also grants USAGE on schema auth to these roles by default, which
+-- matters the moment any function body (not just an RLS policy expression --
+-- those get their permission check baked in at definition time, which is why
+-- this gap stayed invisible until a trigger called auth.uid() directly) calls
+-- auth.uid() while running as one of them. Found while adding
+-- guard_profiles_privileged_columns() in
+-- 20260825120100_profiles_privileged_column_guard.sql.
+grant usage on schema auth to anon, authenticated, service_role;
+
 alter default privileges in schema public
   grant all on tables to anon, authenticated, service_role;
 
