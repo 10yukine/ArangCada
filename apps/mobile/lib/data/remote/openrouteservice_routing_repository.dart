@@ -22,8 +22,8 @@ import '../repositories/routing_repository.dart';
 ///  * HTTP 429 (per-minute limit) starts a cooldown. No retry loop.
 ///  * HTTP 403 (authorization invalid or daily allowance spent) disables
 ///    further automatic requests for the rest of the session.
-///  * Every failure degrades to a straight-line fallback so booking is never
-///    blocked by the routing service being down.
+///  * Every failure returns an unavailable route without inventing road
+///    geometry, so booking is never blocked by the routing service being down.
 ///
 /// It must never be called from `build()`, from a map pan handler, or on a
 /// timer. And its distance/duration must never reach the fare calculator.
@@ -54,7 +54,8 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
   bool _quotaExhausted = false;
 
   @override
-  String get attribution => 'Routing: openrouteservice · © OpenStreetMap contributors';
+  String get attribution =>
+      'Routing: openrouteservice · © OpenStreetMap contributors';
 
   static String _key(GeoCoordinate from, GeoCoordinate to) {
     String r(double v) => v.toStringAsFixed(4); // ~11 m grid
@@ -80,8 +81,12 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
     return null;
   }
 
-  void _store(String key, GeoCoordinate from, GeoCoordinate to,
-      RouteResult result) {
+  void _store(
+    String key,
+    GeoCoordinate from,
+    GeoCoordinate to,
+    RouteResult result,
+  ) {
     if (_cache.length >= _maxCacheEntries) {
       _cache.remove(_cache.keys.first);
     }
@@ -103,7 +108,7 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
     if (cached != null) return Future.value(cached);
 
     if (OrsConfig.apiKey.isEmpty || _suspended) {
-      return Future.value(_straightLine(from, to));
+      return Future.value(_unavailableRoute());
     }
 
     final key = _key(from, to);
@@ -124,9 +129,11 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
             // Do not keep hammering an endpoint that has refused us.
             _quotaExhausted = true;
           }
-          debugPrint('ORS route unavailable (${error.runtimeType}); '
-              'using straight-line fallback.');
-          return _straightLine(from, to);
+          debugPrint(
+            'ORS route unavailable (${error.runtimeType}); '
+            'no road geometry available.',
+          );
+          return _unavailableRoute();
         })
         .whenComplete(() {
           _inFlight = null;
@@ -174,7 +181,7 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
 
     switch (response.statusCode) {
       case 200:
-        return _parse(response.body, from, to);
+        return _parse(response.body);
       case 401:
         throw const ApiUnauthorizedException();
       case 403:
@@ -186,11 +193,11 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
     }
   }
 
-  RouteResult _parse(String body, GeoCoordinate from, GeoCoordinate to) {
+  RouteResult _parse(String body) {
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
       final features = json['features'] as List<dynamic>;
-      if (features.isEmpty) return _straightLine(from, to);
+      if (features.isEmpty) return _unavailableRoute();
       final feature = features.first as Map<String, dynamic>;
 
       final coords =
@@ -199,12 +206,13 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
       final geometry = <GeoCoordinate>[
         for (final point in coords)
           // GeoJSON numbers decode as int when integral; `as double` would
-          // throw and silently degrade a valid route to a straight line.
+          // throw and silently discard a valid road route.
           GeoCoordinate(
             longitude: ((point as List<dynamic>)[0] as num).toDouble(),
             latitude: (point[1] as num).toDouble(),
           ),
       ];
+      if (geometry.length < 2) return _unavailableRoute();
 
       final summary =
           ((feature['properties'] as Map<String, dynamic>)['summary']
@@ -212,24 +220,22 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
           const {};
 
       return RouteResult(
-        geometry: geometry.isEmpty ? [from, to] : geometry,
+        geometry: geometry,
         distanceMeters: (summary['distance'] as num?)?.toDouble() ?? 0,
         durationSeconds: (summary['duration'] as num?)?.toDouble() ?? 0,
         isFallback: false,
         retrievedAt: DateTime.now(),
       );
     } catch (_) {
-      return _straightLine(from, to);
+      return _unavailableRoute();
     }
   }
 
-  /// Straight-line stand-in so the map still draws something and booking is
-  /// never blocked. Marked [RouteResult.isFallback] so the UI can be honest
-  /// and so no caller mistakes it for a real road route.
-  RouteResult _straightLine(GeoCoordinate from, GeoCoordinate to) {
+  /// Keeps booking available without presenting invented roads as a route.
+  RouteResult _unavailableRoute() {
     return RouteResult(
-      geometry: [from, to],
-      distanceMeters: haversineDistanceMeters(from, to),
+      geometry: const [],
+      distanceMeters: 0,
       durationSeconds: 0,
       isFallback: true,
       retrievedAt: DateTime.now(),

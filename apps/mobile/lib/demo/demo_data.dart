@@ -32,6 +32,15 @@ abstract final class DemoData {
     coordinate: GeoCoordinate(latitude: 14.2116, longitude: 121.1652),
   );
 
+  /// Synthetic driver origin used for device QA while development happens
+  /// outside Calamba. It never replaces a commuter's real GPS fix.
+  static const mockDriverLocation = DemoPlace(
+    id: 'starbucks-olivarez-mock-driver',
+    name: 'Starbucks Olivarez Plaza',
+    address: 'Maharlika Highway, Barangay Milagrosa, Calamba, Laguna',
+    coordinate: GeoCoordinate(latitude: 14.1792854, longitude: 121.1365276),
+  );
+
   static const places = <DemoPlace>[
     calambaCrossing,
     DemoPlace(

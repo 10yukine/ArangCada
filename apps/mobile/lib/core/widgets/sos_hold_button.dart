@@ -52,56 +52,90 @@ class _SosHoldButtonState extends State<SosHoldButton>
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Hold SOS for 3 seconds',
-      child: GestureDetector(
-        onTapDown: (_) => _startHold(),
-        onTapUp: (_) => _cancelHold(),
-        onTapCancel: _cancelHold,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) => Container(
-            constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.dangerBorder),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(AppRadii.pill),
+    return GestureDetector(
+      onTapDown: (_) => _startHold(),
+      onTapUp: (_) => _cancelHold(),
+      onTapCancel: _cancelHold,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => Semantics(
+          button: true,
+          label: 'Hold SOS for 3 seconds',
+          value: '${(_controller.value * 100).round()}% held',
+          child: ExcludeSemantics(
+            child: Container(
+              width: double.infinity,
+              height: AppSizes.buttonHeight,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.dangerBorder),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(AppRadii.pill),
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.sos, color: AppColors.danger),
-                    SizedBox(width: AppSpacing.xs),
-                    Text(
-                      'Hold for 3 seconds',
-                      style: TextStyle(
-                        color: AppColors.danger,
-                        fontWeight: FontWeight.w600,
-                      ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      key: const Key('sos-button-fill'),
+                      widthFactor: _controller.value,
+                      heightFactor: 1,
+                      child: const ColoredBox(color: AppColors.danger),
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                LinearProgressIndicator(
-                  value: _controller.value,
-                  minHeight: 5,
-                  color: AppColors.danger,
-                  backgroundColor: AppColors.dangerFill,
-                ),
-              ],
+                  ),
+                  const _SosLabel(color: AppColors.danger),
+                  ClipRect(
+                    clipper: _SosFillClipper(_controller.value),
+                    child: const _SosLabel(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _SosLabel extends StatelessWidget {
+  const _SosLabel({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sos, size: 18, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            'Hold for 3 seconds',
+            style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SosFillClipper extends CustomClipper<Rect> {
+  const _SosFillClipper(this.progress);
+
+  final double progress;
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * progress, size.height);
+
+  @override
+  bool shouldReclip(_SosFillClipper oldClipper) =>
+      oldClipper.progress != progress;
 }
 
 Future<void> showSafetyReportFlow({

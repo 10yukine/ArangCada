@@ -8,6 +8,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/sheet_drag_handle.dart';
@@ -26,6 +27,7 @@ class ActiveTripScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
+  final _mapController = LiveMapViewController();
   DemoSimulationRun? _completionRun;
   bool _completionStarted = false;
 
@@ -211,12 +213,17 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
               children: [
                 Positioned.fill(
                   child: RoutePreviewMap(
+                    controller: _mapController,
                     from: state.pickup.coordinate,
                     to: state.destination!.coordinate,
                     height: double.infinity,
                     borderRadius: BorderRadius.zero,
                     showCaption: false,
                     interactive: true,
+                    compassTopInset:
+                        MediaQuery.paddingOf(context).top +
+                        AppSizes.minTapTarget +
+                        16,
                   ),
                 ),
                 Positioned(
@@ -236,6 +243,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: _ActiveTripSheet(
+                    key: _mapController.panelKey,
                     booking: booking,
                     eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
                     etaFallback: state.forceEtaFallback,
@@ -252,6 +260,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                       ),
                     ),
                     onSos: _recordSos,
+                    onCenterRoute: () => _mapController.fitRoute(),
                   ),
                 ),
               ],
@@ -291,6 +300,8 @@ class _ActiveTripSheet extends StatefulWidget {
     required this.onMessage,
     required this.onCall,
     required this.onSos,
+    required this.onCenterRoute,
+    super.key,
   });
 
   final DemoBooking booking;
@@ -302,16 +313,50 @@ class _ActiveTripSheet extends StatefulWidget {
   final VoidCallback onMessage;
   final VoidCallback onCall;
   final Future<void> Function() onSos;
+  final VoidCallback onCenterRoute;
 
   @override
   State<_ActiveTripSheet> createState() => _ActiveTripSheetState();
 }
 
-class _ActiveTripSheetState extends State<_ActiveTripSheet> {
+class _ActiveTripSheetState extends State<_ActiveTripSheet>
+    with SingleTickerProviderStateMixin {
   // Starts expanded: this is what the sheet always showed before the handle
   // became functional, so a rider mid-trip sees no behaviour change until
   // they actually touch the handle.
   bool _expanded = true;
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: AppMotion.sheet,
+    value: 1,
+  );
+
+  static const _dragExtent = 260.0;
+
+  void _setExpanded(bool expanded) {
+    setState(() => _expanded = expanded);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      _reveal.value = expanded ? 1 : 0;
+    } else {
+      _reveal.animateTo(
+        expanded ? 1 : 0,
+        duration: AppMotion.sheet,
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _drag(double dy) {
+    _reveal.value = (_reveal.value - dy / _dragExtent).clamp(0.0, 1.0);
+  }
+
+  void _endDrag(double velocity) {
+    final expand =
+        velocity < -250 || (velocity.abs() <= 250 && _reveal.value >= 0.5);
+    _setExpanded(expand);
+  }
 
   @override
   void didUpdateWidget(covariant _ActiveTripSheet oldWidget) {
@@ -321,145 +366,180 @@ class _ActiveTripSheetState extends State<_ActiveTripSheet> {
     // matters.
     if (widget.awaitingConfirmation && !oldWidget.awaitingConfirmation) {
       _expanded = true;
+      _reveal.animateTo(1, curve: Curves.easeOutCubic);
     }
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final booking = widget.booking;
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.54,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadii.sheet),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x141F1E1D),
-            blurRadius: 10,
-            offset: Offset(0, -4),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 20, bottom: AppSpacing.xs),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox.square(
+              dimension: AppSizes.minTapTarget,
+              child: ArangIconButton(
+                icon: Icons.center_focus_strong,
+                tooltip: 'Center route',
+                onPressed: widget.onCenterRoute,
+              ),
+            ),
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SheetDragHandle(
-                expanded: _expanded,
-                onToggle: () => setState(() => _expanded = !_expanded),
+        ),
+        Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.54,
+          ),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppRadii.sheet),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x141F1E1D),
+                blurRadius: 10,
+                offset: Offset(0, -4),
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'To ${booking.destinationName}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    widget.eta,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(color: AppColors.primary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                widget.etaFallback
-                    ? 'Route estimate unavailable · fallback ETA'
-                    : 'Marco Dela Cruz · Body no. 024',
-                style: AppTypography.caption,
-              ),
-              if (!_expanded) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  widget.awaitingConfirmation
-                      ? 'Arrived · tap to finish'
-                      : 'On the way',
-                  style: AppTypography.bodySm,
-                ),
-              ],
-              if (_expanded) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
-                  '${booking.paymentMethod.label} · fare locked',
-                  style: AppTypography.bodySm,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                if (widget.awaitingConfirmation) ...[
-                  const _ArrivedBanner(),
-                  const SizedBox(height: AppSpacing.sm),
-                  ArangButton(
-                    label: "I've arrived — finish ride",
-                    icon: Icons.flag_outlined,
-                    onPressed: widget.onConfirmArrival,
-                  ),
-                  const SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      'Finishing automatically in ${widget.secondsLeft}s',
-                      style: AppTypography.caption,
-                    ),
-                  ),
-                ] else ...[
-                  const LinearProgressIndicator(minHeight: 3),
-                  const SizedBox(height: AppSpacing.xs),
-                  const Text(
-                    'On the way to your destination.',
-                    style: AppTypography.caption,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ArangButton(
-                        label: 'Chat',
-                        icon: Icons.chat_outlined,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: widget.onMessage,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: ArangButton(
-                        label: 'Call',
-                        icon: Icons.call_outlined,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: widget.onCall,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                SosHoldButton(onCompleted: widget.onSos),
-                const SizedBox(height: 4),
-                const Center(
-                  child: Text(
-                    '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 9, color: AppColors.textMuted),
-                  ),
-                ),
-              ] else
-                const SizedBox(height: AppSpacing.xs),
             ],
           ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SheetDragHandle(
+                    expanded: _expanded,
+                    onToggle: () => _setExpanded(!_expanded),
+                    onDragUpdate: _drag,
+                    onDragEnd: _endDrag,
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'To ${booking.destinationName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        widget.eta,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.etaFallback
+                        ? 'Route estimate unavailable · fallback ETA'
+                        : 'Marco Dela Cruz · Body no. 024',
+                    style: AppTypography.caption,
+                  ),
+                  if (!_expanded) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      widget.awaitingConfirmation
+                          ? 'Arrived · tap to finish'
+                          : 'On the way',
+                      style: AppTypography.bodySm,
+                    ),
+                  ],
+                  SizeTransition(
+                    sizeFactor: _reveal,
+                    alignment: Alignment.topCenter,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
+                          '${booking.paymentMethod.label} · fare locked',
+                          style: AppTypography.bodySm,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        if (widget.awaitingConfirmation) ...[
+                          const _ArrivedBanner(),
+                          const SizedBox(height: AppSpacing.sm),
+                          ArangButton(
+                            label: "I've arrived — finish ride",
+                            icon: Icons.flag_outlined,
+                            onPressed: widget.onConfirmArrival,
+                          ),
+                          const SizedBox(height: 4),
+                          Center(
+                            child: Text(
+                              'Finishing automatically in ${widget.secondsLeft}s',
+                              style: AppTypography.caption,
+                            ),
+                          ),
+                        ] else ...[
+                          const LinearProgressIndicator(minHeight: 3),
+                          const SizedBox(height: AppSpacing.xs),
+                          const Text(
+                            'On the way to your destination.',
+                            style: AppTypography.caption,
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ArangButton(
+                                label: 'Chat',
+                                icon: Icons.chat_outlined,
+                                variant: ArangButtonVariant.ghost,
+                                onPressed: widget.onMessage,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: ArangButton(
+                                label: 'Call',
+                                icon: Icons.call_outlined,
+                                variant: ArangButtonVariant.ghost,
+                                onPressed: widget.onCall,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        SosHoldButton(onCompleted: widget.onSos),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  const Center(
+                    child: Text(
+                      '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 9, color: AppColors.textMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -31,6 +31,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _obscureRepeat = true;
   String? _error;
 
+  static const _padTop = AppSpacing.lg;
+  static const _padBottom = AppSpacing.md;
+
   @override
   void dispose() {
     _name.dispose();
@@ -109,12 +112,49 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.md,
-            AppSpacing.xl,
-            AppSpacing.xl,
+        // The back button is chrome, not content: it is pinned to the top-left
+        // of the screen and deliberately kept outside the centred column, so
+        // vertically centring the form does not drag navigation down with it.
+        child: Stack(
+          children: [
+            Positioned.fill(child: _form(context)),
+            Positioned(
+              top: AppSpacing.xs,
+              left: AppSpacing.sm,
+              child: IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: AppColors.ink,
+                  side: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _form(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          _padTop,
+          AppSpacing.xl,
+          _padBottom,
+        ),
+        // A bare Center does nothing inside a scroll view: the view sizes
+        // itself to its child, so there is no spare height to centre within.
+        // Forcing the child to at least fill the viewport (minus the padding
+        // the view already added) is what creates that slack.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight - _padTop - _padBottom,
           ),
           child: Center(
             child: ConstrainedBox(
@@ -122,17 +162,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               child: AutofillGroup(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back),
-                        tooltip: 'Back',
-                      ),
-                    ),
-                    // Centered header, matching the reference prototype --
-                    // this was a left-aligned AppBar title before.
                     Text(
                       'Create Account',
                       textAlign: TextAlign.center,
@@ -153,7 +184,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.md),
                     SectionCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -273,13 +304,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.xs),
                     AuthSwitchLink(
                       question: 'Already have an account?',
                       actionLabel: 'Log In',
                       onTap: () => context.go('/login'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xxs),
                     const AuthLegalNotice(actionVerb: 'creating an account'),
                   ],
                 ),

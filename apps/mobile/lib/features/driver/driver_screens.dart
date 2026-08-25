@@ -27,6 +27,7 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
+  final _mapController = LiveMapViewController();
   Timer? _countdownTimer;
   DemoSimulationRun? _requestRun;
   int _secondsRemaining = 20;
@@ -123,6 +124,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             if (state.driverTrip.status == DriverTripStatus.accepted ||
                 state.driverTrip.status == DriverTripStatus.arrivedAtPickup) {
               return _PickupModeCard(
+                mapController: _mapController,
                 arrived:
                     state.driverTrip.status == DriverTripStatus.arrivedAtPickup,
                 onAction: () {
@@ -137,6 +139,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             }
             if (state.driverTrip.status == DriverTripStatus.inProgress) {
               return _DriverTripModeCard(
+                mapController: _mapController,
                 onComplete: () {
                   state.driverTrip.completeTrip();
                   state.driverChanged();
@@ -393,8 +396,13 @@ class _IncomingRequestCard extends StatelessWidget {
 }
 
 class _PickupModeCard extends ConsumerWidget {
-  const _PickupModeCard({required this.arrived, required this.onAction});
+  const _PickupModeCard({
+    required this.mapController,
+    required this.arrived,
+    required this.onAction,
+  });
 
+  final LiveMapViewController mapController;
   final bool arrived;
   final VoidCallback onAction;
 
@@ -405,7 +413,8 @@ class _PickupModeCard extends ConsumerWidget {
       children: [
         Positioned.fill(
           child: RoutePreviewMap(
-            from: DemoData.places[3].coordinate,
+            controller: mapController,
+            from: DemoData.mockDriverLocation.coordinate,
             to: state.pickup.coordinate,
             height: double.infinity,
             borderRadius: BorderRadius.zero,
@@ -420,6 +429,8 @@ class _PickupModeCard extends ConsumerWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: _DriverMapSheet(
+            key: mapController.panelKey,
+            onCenterRoute: () => mapController.fitRoute(),
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -439,8 +450,6 @@ class _PickupModeCard extends ConsumerWidget {
                 label: arrived ? 'Start Trip' : 'Arrived at Pickup',
                 onPressed: onAction,
               ),
-              const SizedBox(height: 4),
-              const _VisibleMapAttribution(),
             ],
           ),
         ),
@@ -450,8 +459,12 @@ class _PickupModeCard extends ConsumerWidget {
 }
 
 class _DriverTripModeCard extends ConsumerWidget {
-  const _DriverTripModeCard({required this.onComplete});
+  const _DriverTripModeCard({
+    required this.mapController,
+    required this.onComplete,
+  });
 
+  final LiveMapViewController mapController;
   final VoidCallback onComplete;
 
   @override
@@ -461,6 +474,7 @@ class _DriverTripModeCard extends ConsumerWidget {
       children: [
         Positioned.fill(
           child: RoutePreviewMap(
+            controller: mapController,
             from: state.pickup.coordinate,
             to: DemoData.places[1].coordinate,
             height: double.infinity,
@@ -472,6 +486,8 @@ class _DriverTripModeCard extends ConsumerWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: _DriverMapSheet(
+            key: mapController.panelKey,
+            onCenterRoute: () => mapController.fitRoute(),
             header: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -524,8 +540,6 @@ class _DriverTripModeCard extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               ArangButton(label: 'Complete Trip', onPressed: onComplete),
-              const SizedBox(height: 4),
-              const _VisibleMapAttribution(),
             ],
           ),
         ),
@@ -566,62 +580,138 @@ class _PassengerRow extends StatelessWidget {
 }
 
 class _DriverMapSheet extends StatefulWidget {
-  const _DriverMapSheet({required this.header, required this.actions});
+  const _DriverMapSheet({
+    required this.header,
+    required this.actions,
+    required this.onCenterRoute,
+    super.key,
+  });
 
   /// Always visible, whether the sheet is expanded or collapsed: enough to
   /// know who the passenger is and what is happening without touching the
   /// handle.
   final Widget header;
 
-  /// Only shown when expanded -- the action buttons, SOS, and attribution.
+  /// Only shown when expanded -- the action buttons and SOS.
   /// Before this the sheet had no collapse state to speak of; the handle
   /// existed only as decoration.
   final List<Widget> actions;
+  final VoidCallback onCenterRoute;
 
   @override
   State<_DriverMapSheet> createState() => _DriverMapSheetState();
 }
 
-class _DriverMapSheetState extends State<_DriverMapSheet> {
+class _DriverMapSheetState extends State<_DriverMapSheet>
+    with SingleTickerProviderStateMixin {
   // Starts expanded, matching the sheet's previous always-full appearance.
   bool _expanded = true;
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: AppMotion.sheet,
+    value: 1,
+  );
+
+  static const _dragExtent = 260.0;
+
+  void _setExpanded(bool expanded) {
+    setState(() => _expanded = expanded);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      _reveal.value = expanded ? 1 : 0;
+    } else {
+      _reveal.animateTo(
+        expanded ? 1 : 0,
+        duration: AppMotion.sheet,
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _drag(double dy) {
+    _reveal.value = (_reveal.value - dy / _dragExtent).clamp(0.0, 1.0);
+  }
+
+  void _endDrag(double velocity) {
+    final expand =
+        velocity < -250 || (velocity.abs() <= 250 && _reveal.value >= 0.5);
+    _setExpanded(expand);
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.52,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadii.sheet),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x141F1E1D),
-            blurRadius: 10,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SheetDragHandle(
-              expanded: _expanded,
-              onToggle: () => setState(() => _expanded = !_expanded),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 20, bottom: AppSpacing.xs),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox.square(
+              dimension: AppSizes.minTapTarget,
+              child: ArangIconButton(
+                icon: Icons.center_focus_strong,
+                tooltip: 'Center route',
+                onPressed: widget.onCenterRoute,
+              ),
             ),
-            widget.header,
-            if (_expanded) ...[
-              const SizedBox(height: AppSpacing.md),
-              ...widget.actions,
-            ],
-          ],
+          ),
         ),
-      ),
+        Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.52,
+          ),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppRadii.sheet),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x141F1E1D),
+                blurRadius: 10,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SheetDragHandle(
+                  expanded: _expanded,
+                  onToggle: () => _setExpanded(!_expanded),
+                  onDragUpdate: _drag,
+                  onDragEnd: _endDrag,
+                ),
+                widget.header,
+                SizeTransition(
+                  sizeFactor: _reveal,
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.md),
+                      ...widget.actions,
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const _VisibleMapAttribution(),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -4,13 +4,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/widgets/dashboard_back_button.dart';
 import '../../core/widgets/empty_state_card.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
+/// The trip summary sits flat on the page -- a top divider and spacing mark
+/// it off, not a bordered card. There is exactly one summary block here, so
+/// a card would not be communicating hierarchy over anything else.
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
 
@@ -19,7 +22,10 @@ class TripsScreen extends ConsumerWidget {
     final state = ref.watch(demoStateProvider);
     final isDriver = state.currentUser?.role == DemoRole.driver;
     return Scaffold(
-      appBar: AppBar(title: const Text('Trips')),
+      appBar: AppBar(
+        leading: DashboardBackButton(isDriver: isDriver),
+        title: const Text('Trips'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,
@@ -46,31 +52,21 @@ class TripsScreen extends ConsumerWidget {
               return ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
-                  SectionCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          status == DriverTripStatus.completed
-                              ? 'Completed driver trip'
-                              : 'Current driver trip',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        const Text(
-                          'Joshua Ramos · Calamba Crossing to SM Calamba',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        FilledButton(
-                          onPressed: () => context.go('/driver'),
-                          child: Text(
-                            status == DriverTripStatus.completed
-                                ? 'View Summary'
-                                : 'Resume',
-                          ),
-                        ),
-                      ],
-                    ),
+                  _TripSummary(
+                    icon: status == DriverTripStatus.completed
+                        ? Icons.check_circle
+                        : Icons.directions_run,
+                    iconColor: status == DriverTripStatus.completed
+                        ? AppColors.green
+                        : AppColors.coral,
+                    title: status == DriverTripStatus.completed
+                        ? 'Completed driver trip'
+                        : 'Current driver trip',
+                    subtitle: 'Joshua Ramos · Calamba Crossing to SM Calamba',
+                    buttonLabel: status == DriverTripStatus.completed
+                        ? 'View Summary'
+                        : 'Resume',
+                    onButtonPressed: () => context.go('/driver'),
                   ),
                 ],
               );
@@ -91,46 +87,21 @@ class TripsScreen extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            booking.status == BookingStatus.completed
-                                ? Icons.check_circle
-                                : Icons.directions_run,
-                            color: booking.status == BookingStatus.completed
-                                ? AppColors.green
-                                : AppColors.coral,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              booking.status == BookingStatus.completed
-                                  ? 'Completed trip'
-                                  : 'Active booking',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${booking.pickupName} → ${booking.destinationName}',
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      FilledButton(
-                        onPressed: () => context.go(_routeFor(booking.status)),
-                        child: Text(
-                          booking.status == BookingStatus.completed
-                              ? 'View Receipt'
-                              : 'Resume',
-                        ),
-                      ),
-                    ],
-                  ),
+                _TripSummary(
+                  icon: booking.status == BookingStatus.completed
+                      ? Icons.check_circle
+                      : Icons.directions_run,
+                  iconColor: booking.status == BookingStatus.completed
+                      ? AppColors.green
+                      : AppColors.coral,
+                  title: booking.status == BookingStatus.completed
+                      ? 'Completed trip'
+                      : 'Active booking',
+                  subtitle: '${booking.pickupName} → ${booking.destinationName}',
+                  buttonLabel: booking.status == BookingStatus.completed
+                      ? 'View Receipt'
+                      : 'Resume',
+                  onButtonPressed: () => context.go(_routeFor(booking.status)),
                 ),
               ],
             );
@@ -149,4 +120,46 @@ class TripsScreen extends ConsumerWidget {
     BookingStatus.completed => '/receipt',
     BookingStatus.cancelled => '/home',
   };
+}
+
+class _TripSummary extends StatelessWidget {
+  const _TripSummary({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.buttonLabel,
+    required this.onButtonPressed,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
+  final VoidCallback onButtonPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Icon(icon, color: iconColor),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(subtitle),
+        const SizedBox(height: AppSpacing.md),
+        FilledButton(onPressed: onButtonPressed, child: Text(buttonLabel)),
+      ],
+    );
+  }
 }

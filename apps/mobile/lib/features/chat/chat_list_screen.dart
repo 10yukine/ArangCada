@@ -7,6 +7,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/relative_time.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/dashboard_back_button.dart';
 import '../../core/widgets/slidable.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
@@ -31,7 +32,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         ref.watch(demoStateProvider).currentUser?.role == DemoRole.driver;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chats')),
+      appBar: AppBar(
+        leading: DashboardBackButton(isDriver: viewerIsDriver),
+        title: const Text('Chats'),
+      ),
       body: ListenableBuilder(
         listenable: repository,
         builder: (context, _) {
@@ -264,14 +268,17 @@ class _ThreadRow extends ConsumerWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Body no. ${thread.bodyNumber} · ${thread.todaName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption,
-                      ),
-                      const SizedBox(height: 4),
+                      if (!viewerIsDriver) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Body no. ${thread.bodyNumber} · ${thread.todaName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption,
+                        ),
+                        const SizedBox(height: 4),
+                      ] else
+                        const SizedBox(height: 2),
                       Text(
                         thread.preview,
                         maxLines: 1,

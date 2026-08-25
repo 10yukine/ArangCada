@@ -8,7 +8,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
-import '../../core/widgets/section_card.dart';
+import '../../core/widgets/dashboard_back_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/demo_user.dart';
 
@@ -24,6 +24,11 @@ import '../../domain/models/demo_user.dart';
 /// Information" row. Notifications are reached from the dashboard bell, and
 /// notification *settings* live in App Settings, so there is no
 /// notifications row here.
+///
+/// Rows sit flat on the page background, separated by hairline dividers,
+/// rather than grouped inside bordered cards -- matching the reference
+/// prototype's flatter list style. A card would only be justified here if it
+/// communicated hierarchy; a single settings list does not need one.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -54,116 +59,118 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final isDriver = state.currentUser?.role == DemoRole.driver;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        leading: DashboardBackButton(isDriver: isDriver),
+        title: const Text('Profile'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,
           builder: (context, _) {
             final user = state.currentUser;
-            final isDriver = user?.role == DemoRole.driver;
 
             return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               children: [
-                _ProfileHeader(
-                  name: user?.displayName ?? (isDriver ? 'Driver' : 'Commuter'),
-                  subtitle: isDriver
-                      ? 'Body no. 024 · Calamba TODA'
-                      : (user?.email ?? ''),
-                  isDriver: isDriver,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: _ProfileHeader(
+                    name:
+                        user?.displayName ?? (isDriver ? 'Driver' : 'Commuter'),
+                    subtitle: isDriver
+                        ? 'Body no. 024 · Calamba TODA'
+                        : (user?.email ?? ''),
+                    isDriver: isDriver,
+                  ),
                 ),
                 if (isDriver) ...[
                   const SizedBox(height: AppSpacing.md),
-                  const _SectionLabel('LGU & TODA records'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    child: _SectionLabel('LGU & TODA records'),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  SectionCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        _ProfileRow(
-                          icon: Icons.description_outlined,
-                          label: 'Franchise & documents',
-                          onTap: () => _governedNotice(
-                            context,
-                            'Franchise & documents',
-                          ),
-                          trailing: const ArangBadge(
-                            'Verified',
-                            tone: ArangBadgeTone.green,
-                          ),
-                        ),
-                        const Divider(height: 1),
-                        _ProfileRow(
-                          icon: Icons.groups_outlined,
-                          label: 'TODA membership',
-                          onTap: () =>
-                              _governedNotice(context, 'TODA membership'),
-                        ),
-                      ],
+                  _ProfileRow(
+                    icon: Icons.description_outlined,
+                    label: 'Franchise & documents',
+                    onTap: () =>
+                        _governedNotice(context, 'Franchise & documents'),
+                    trailing: const ArangBadge(
+                      'Verified',
+                      tone: ArangBadgeTone.green,
                     ),
+                  ),
+                  const Divider(height: 1),
+                  _ProfileRow(
+                    icon: Icons.groups_outlined,
+                    label: 'TODA membership',
+                    onTap: () => _governedNotice(context, 'TODA membership'),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                const _SectionLabel('Account'),
-                const SizedBox(height: AppSpacing.xs),
-                SectionCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      // A driver's places and fare-discount status are the
-                      // rider's concerns, not theirs -- they run under a
-                      // fixed TODA fare, not a discount card they carry.
-                      if (!isDriver) ...[
-                        _ProfileRow(
-                          icon: Icons.bookmark_border,
-                          label: 'Saved Places',
-                          onTap: () => context.push('/profile/saved-places'),
-                        ),
-                        const Divider(height: 1),
-                      ],
-                      _ProfileRow(
-                        icon: Icons.discount_outlined,
-                        label: 'Fare matrix',
-                        onTap: () => context.push('/fare-matrix'),
-                      ),
-                      const Divider(height: 1),
-                      if (!isDriver) ...[
-                        _ProfileRow(
-                          icon: Icons.verified_user_outlined,
-                          label: 'Discount Eligibility',
-                          onTap: () =>
-                              context.push('/profile/discount-eligibility'),
-                        ),
-                        const Divider(height: 1),
-                      ],
-                      _ProfileRow(
-                        icon: Icons.support_agent_outlined,
-                        label: 'Support',
-                        onTap: () => context.push('/profile/support'),
-                      ),
-                      const Divider(height: 1),
-                      _ProfileRow(
-                        icon: Icons.settings_outlined,
-                        label: 'App Settings',
-                        onTap: () => context.push('/profile/app-settings'),
-                      ),
-                      const Divider(height: 1),
-                      _ProfileRow(
-                        icon: Icons.info_outline,
-                        label: 'About ArangCada',
-                        onTap: () => context.push('/profile/about'),
-                      ),
-                    ],
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: _SectionLabel('Account'),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                ArangButton(
-                  label: 'Sign out',
+                const SizedBox(height: AppSpacing.xs),
+                // A driver's places and fare-discount status are the
+                // rider's concerns, not theirs -- they run under a fixed
+                // TODA fare, not a discount card they carry.
+                if (!isDriver) ...[
+                  _ProfileRow(
+                    icon: Icons.bookmark_border,
+                    label: 'Saved Places',
+                    onTap: () => context.push('/profile/saved-places'),
+                  ),
+                  const Divider(height: 1),
+                ],
+                _ProfileRow(
+                  icon: Icons.discount_outlined,
+                  label: 'Fare matrix',
+                  onTap: () => context.push('/fare-matrix'),
+                ),
+                const Divider(height: 1),
+                if (!isDriver) ...[
+                  _ProfileRow(
+                    icon: Icons.verified_user_outlined,
+                    label: 'Discount Eligibility',
+                    onTap: () => context.push('/profile/discount-eligibility'),
+                  ),
+                  const Divider(height: 1),
+                ],
+                _ProfileRow(
+                  icon: Icons.support_agent_outlined,
+                  label: 'Support',
+                  onTap: () => context.push('/profile/support'),
+                ),
+                const Divider(height: 1),
+                _ProfileRow(
+                  icon: Icons.settings_outlined,
+                  label: 'App Settings',
+                  onTap: () => context.push('/profile/app-settings'),
+                ),
+                const Divider(height: 1),
+                _ProfileRow(
+                  icon: Icons.info_outline,
+                  label: 'About ArangCada',
+                  onTap: () => context.push('/profile/about'),
+                ),
+                const Divider(height: 1),
+                // Same flat row as everything above it -- only the red icon
+                // and label mark it as destructive. No separate pill/card
+                // button, no chevron (it's a terminal action, not a drill
+                // down).
+                _ProfileRow(
                   icon: Icons.logout,
-                  variant: ArangButtonVariant.dangerGhost,
-                  onPressed: () => _logout(context, ref),
+                  label: 'Sign out',
+                  danger: true,
+                  showChevron: false,
+                  onTap: () => _logout(context, ref),
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
@@ -260,51 +267,49 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
-      child: Row(
-        children: [
-          ArangAvatar(
-            name: name,
-            size: 52,
-            background: isDriver ? AppColors.primary : AppColors.clayFill,
-            foreground: isDriver ? Colors.white : AppColors.clayText,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+    return Row(
+      children: [
+        ArangAvatar(
+          name: name,
+          size: 52,
+          background: isDriver ? AppColors.primary : AppColors.clayFill,
+          foreground: isDriver ? Colors.white : AppColors.clayText,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption,
-                ),
-                if (isDriver) ...[
-                  const SizedBox(height: 6),
-                  const ArangBadge('Verified', tone: ArangBadgeTone.green),
-                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption,
+              ),
+              if (isDriver) ...[
+                const SizedBox(height: 6),
+                const ArangBadge('Verified', tone: ArangBadgeTone.green),
               ],
-            ),
+            ],
           ),
-          ArangIconButton(
-            icon: Icons.edit_outlined,
-            tooltip: 'Edit profile',
-            onPressed: () => _edit(context),
-          ),
-        ],
-      ),
+        ),
+        ArangIconButton(
+          icon: Icons.edit_outlined,
+          tooltip: 'Edit profile',
+          onPressed: () => _edit(context),
+        ),
+      ],
     );
   }
 }
@@ -316,12 +321,9 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: AppSpacing.xxs),
-      child: Text(
-        text,
-        style: AppTypography.label.copyWith(color: AppColors.textSecondary),
-      ),
+    return Text(
+      text,
+      style: AppTypography.label.copyWith(color: AppColors.textSecondary),
     );
   }
 }
@@ -332,28 +334,37 @@ class _ProfileRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.trailing,
+    this.danger = false,
+    this.showChevron = true,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final Widget? trailing;
+  final bool danger;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: AppRowIcon(icon),
-      title: Text(label),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailing != null) ...[
-            trailing!,
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          const Icon(Icons.chevron_right),
-        ],
+      leading: AppRowIcon(icon, danger: danger),
+      title: Text(
+        label,
+        style: danger ? const TextStyle(color: AppColors.danger) : null,
       ),
+      trailing: showChevron || trailing != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (trailing != null) ...[
+                  trailing!,
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                if (showChevron) const Icon(Icons.chevron_right),
+              ],
+            )
+          : null,
       onTap: onTap,
     );
   }

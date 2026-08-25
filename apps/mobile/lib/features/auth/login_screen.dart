@@ -30,6 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   int _brandTapCount = 0;
   bool _showTestAccounts = false;
 
+  static const _padTop = AppSpacing.lg;
+  static const _padBottom = AppSpacing.xl;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -83,18 +86,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl,
-              AppSpacing.lg,
+              _padTop,
               AppSpacing.xl,
-              AppSpacing.xl,
+              _padBottom,
             ),
+            // The padding is subtracted because SingleChildScrollView adds it
+            // *around* this box. Using the raw viewport height here makes the
+            // content taller than the screen by exactly the padding, which
+            // reads as a page biased toward the bottom.
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - _padTop - _padBottom,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
                   child: AutofillGroup(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Center(
                           child: GestureDetector(
