@@ -48,10 +48,23 @@ echo "==> Rebuilding database: $DB"
 echo "==> Applying local auth shim"
 "${PSQL[@]}" -d "$DB" -f "$ROOT/supabase/tests/00_bootstrap_local.sql"
 
+MIGERR=$(mktemp)
+trap 'rm -f "$MIGERR"' EXIT
+
 echo "==> Applying migrations"
 for migration in "$ROOT"/supabase/migrations/*.sql; do
   echo "    - $(basename "$migration")"
-  "${PSQL[@]}" -d "$DB" -f "$migration"
+  if ! "${PSQL[@]}" -d "$DB" -f "$migration" 2>"$MIGERR"; then
+    # Some extensions (pg_net) ship only on hosted Supabase and have no local
+    # build. Skipping those keeps the suite runnable here instead of aborting
+    # the whole run; 00_bootstrap_local.sql stubs the surfaces they provide.
+    if grep -q 'is not available' "$MIGERR"; then
+      echo "      (skipped: needs a Supabase-hosted extension unavailable locally)"
+    else
+      cat "$MIGERR" >&2
+      exit 1
+    fi
+  fi
 done
 
 echo "==> Applying seed"
