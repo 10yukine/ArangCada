@@ -1,0 +1,12 @@
+-- pg_net was missing on this project, which meant trips_fcm_webhook()'s own
+-- `if exists (select 1 from pg_catalog.pg_extension where extname = 'pg_net')`
+-- guard silently no-opped on every real driver_assigned transition -- the
+-- automatic push path never fired, even though a direct manual call to
+-- dispatch_fcm (bypassing the trigger) worked. This was caught by a real
+-- physical-device test: a manual function invocation delivered a push, but
+-- the trigger-driven one right after did not.
+--
+-- pg_net is a standard, officially supported Supabase Postgres extension for
+-- async HTTP calls from SQL; enabling it does not touch any existing table,
+-- row, or RLS policy.
+create extension if not exists pg_net with schema extensions;
