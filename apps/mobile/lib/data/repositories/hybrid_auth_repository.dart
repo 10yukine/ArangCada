@@ -58,9 +58,25 @@ class HybridAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
-    if (_live != null) {
-      await _live.signOut();
-    } else {
+    // Sign out of both, always. Routing on `_live != null` signed the user out
+    // of the wrong repository whenever Supabase was configured but the session
+    // came from a hidden local test account: `_live.signOut()` ran, the local
+    // branch never did, and `DemoState.currentUser` stayed set, so the app went
+    // on believing someone was signed in.
+    //
+    // Signing out of both is deliberate rather than recording which repository
+    // authenticated. Sign-out has to be total and idempotent; an "active
+    // repository" flag is one more piece of state that can drift out of step
+    // with reality across restarts and token refreshes. Signing out of a
+    // repository that holds no session costs nothing -- MockAuthRepository's
+    // signOut is just `setCurrentUser(null)`.
+    //
+    // The local clear sits in `finally` so a failed remote sign-out (offline,
+    // expired token) cannot strand the user in a locally signed-in state. The
+    // remote error still propagates, exactly as it did before.
+    try {
+      await _live?.signOut();
+    } finally {
       await _local.signOut();
     }
   }
