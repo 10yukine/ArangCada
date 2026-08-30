@@ -1,0 +1,17 @@
+# Cloudflare Pages security headers for the admin dashboard.
+#
+# CLAUDE.md and docs/CLOUDFLARE_PAGES_SETUP.md name Cloudflare Pages as the
+# hosting target for apps/admin_web. Until this file existed, the only headers
+# configuration in the repo was vercel.json -- so the *documented* deployment
+# path shipped with no security headers at all, while the undocumented one had
+# them. This restores parity.
+#
+# Kept byte-for-byte equivalent to vercel.json so the two hosts cannot drift.
+# Cloudflare Pages reads this file from the build output root; Flutter web
+# copies web/ into build/web verbatim, so it lands in the right place.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
