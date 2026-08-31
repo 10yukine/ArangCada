@@ -34,7 +34,17 @@
     // an unrecognised path, so the visitor gets the landing page: a better
     // answer for a stranger than a bare 404.
     "not_found_handling": "single-page-application"
-  }
+  },
+
+  // Custom domains. Cloudflare creates and manages the DNS records for these,
+  // which is why the zone has to be active on this account first.
+  //
+  // www is included because someone will type it, and a bare "site not found"
+  // for a tracking link is a support message nobody needs to receive.
+  "routes": [
+    { "pattern": "arangcada.app", "custom_domain": true },
+    { "pattern": "www.arangcada.app", "custom_domain": true }
+  ]
 
   // No Worker script. This deploys static assets only — there is no
   // server-side code, and deliberately so: the page talks straight to one
