@@ -41,11 +41,9 @@ would have published the tests and this README at `arangcada.app/README.md`.
 | `public/render.js` | **Pure logic** — token parsing, view model, wording. No DOM, no network |
 | `public/track.js` | Fetch, poll, and DOM updates |
 | `public/style.css` | Styling, using the app's colour tokens and the system font |
-| `public/_redirects` | Redirect rule for plain static hosts (superseded by wrangler on Workers, kept as a fallback) |
 | `public/config.js` | **Generated, gitignored.** Written by `build-config.js` |
 | `render.test.js` | 22 tests, `node --test`, no browser needed |
 | `build-config.js` | Writes `public/config.js` from env vars at deploy time |
-| `config.example.js` | Template for local use |
 | `wrangler.jsonc` | Workers deploy config: served directory and SPA routing |
 
 The split between `render.js` and `track.js` exists so the logic is testable
@@ -66,25 +64,26 @@ payload grows, and that the page sets `no-referrer` and `noindex`.
 
 ## Configure
 
+`public/config.js` is generated, never hand-written and never committed:
+
 ```bash
-cp apps/track_web/config.example.js apps/track_web/public/config.js
+SUPABASE_URL=https://<ref>.supabase.co SUPABASE_ANON_KEY=<anon key> MAPTILER_STYLE_URL='https://api.maptiler.com/maps/streets-v2/style.json?key=<key>' node apps/track_web/build-config.js
 ```
 
-Then fill in three values. **None of them is a secret** — everything in that
-file ships to the browser:
+Same command, same three variables, locally and in CI — one mechanism rather
+than a checked-in example file that drifts out of date.
 
-| Value | Why it is safe |
-|---|---|
-| `supabaseUrl` | Public endpoint |
-| `supabaseAnonKey` | Designed for clients. RLS protects the data; `ride_share_links` denies `anon` outright, and the only function `anon` can execute is `ride_share_view()` |
-| MapTiler key in `mapStyleUrl` | Client-side by design |
+**None of the three is a secret**; all ship to the browser. The anon key is
+designed for clients and RLS protects the data — `ride_share_links` denies
+`anon` outright, and the only function `anon` can execute is
+`ride_share_view()`. The MapTiler key is client-side by design.
 
 > ⚠️ **Restrict the MapTiler key to `arangcada.app`** in the MapTiler dashboard.
-> The control here is the domain restriction, not secrecy — a public web page is
-> more exposed than an APK. Do this before the link is shared with anyone.
+> The control is the domain restriction, not secrecy — a public web page is more
+> exposed than an APK. Do this before sharing any link.
 
-A `service_role` key must never appear in `config.js`. There is deliberately no
-variable name reserved for one.
+`build-config.js` fails rather than writing a partial config, and refuses a key
+containing `service_role`.
 
 ## Deploy — Cloudflare Workers
 
@@ -100,7 +99,8 @@ admin console.
 
 `/t/<token>` works because `wrangler.jsonc` sets
 `not_found_handling: "single-page-application"` — any path that is not a real
-file serves `index.html`, and `track.js` reads the token from the URL.
+file serves `index.html`, and `track.js` reads the token from the URL. No
+`_redirects` file is needed.
 
 Step-by-step, including which variables screen to use, is in
 `docs/DOMAIN_DNS_RUNBOOK.md` Part 2.

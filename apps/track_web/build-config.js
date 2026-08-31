@@ -17,7 +17,8 @@
 //   Build command:   node apps/track_web/build-config.js
 //   Deploy command:  npx wrangler deploy --config apps/track_web/wrangler.jsonc
 //
-// Locally, `cp config.example.js public/config.js` and edit is still fine.
+// Locally, run the same script with the same three variables set. One
+// mechanism for both, rather than a checked-in example file that drifts.
 
 import { writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';

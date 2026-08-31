@@ -14,8 +14,9 @@
  * Pull the share token out of the URL.
  *
  * Two shapes are accepted:
- *   /t/<token>      the real one, served via the Cloudflare Pages _redirects rule
- *   ?t=<token>      a fallback that works on any static host without redirects
+ *   /t/<token>      the real one; wrangler's single-page-application routing
+ *                   serves index.html for any path that is not a real file
+ *   ?t=<token>      a fallback that works without that routing
  *
  * Returns null when there is no plausible token, so the caller can show the
  * expired state rather than firing a pointless request.

@@ -214,7 +214,7 @@ function start() {
   if (!hasConfig) {
     // A deploy without config.js. Loud in the console for whoever deployed it,
     // neutral on screen for the visitor.
-    console.error('track_web: config.js is missing or incomplete. See config.example.js.');
+    console.error('track_web: config.js missing. Run build-config.js with SUPABASE_URL, SUPABASE_ANON_KEY and MAPTILER_STYLE_URL set.');
   }
 
   switch (chooseInitialState(token, hasConfig)) {

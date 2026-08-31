@@ -1,4 +1,0 @@
-# Cloudflare Pages: serve index.html for /t/<token> so the token can live in the
-# path rather than a query string. Status 200 (rewrite, not redirect) keeps the
-# token in the address bar for track.js to read.
-/t/*  /index.html  200
