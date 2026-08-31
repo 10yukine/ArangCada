@@ -36,6 +36,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000055a6', 'ob-fresh@example.test',
      '{"display_name":"Fresh Account","mobile_number":"+639170005507"}'::jsonb);
 
+-- Phone verification (added 31 Aug 2026). can_driver_go_online() and
+-- request_ride() now require a verified mobile number, so every fixture
+-- account has to be verified or the assertions below fail for a reason that
+-- has nothing to do with what they are testing. 69_phone_verification_test.sql
+-- is what covers the gate itself.
+update public.profiles set phone_verified_at = now()
+ where id::text like '%-0000000055__';
+
 update public.profiles set role = 'admin'
  where id = '00000000-0000-0000-0000-0000000055c1';
 update public.profiles set status = 'suspended'
@@ -69,7 +77,7 @@ select is(
 -- ===========================================================================
 -- Every admin RPC refuses a non-admin
 -- ===========================================================================
-savepoint before_outsider;
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000055a1';
 
@@ -108,12 +116,10 @@ select throws_ok(
 );
 
 reset role;
-rollback to savepoint before_outsider;
 
 -- ===========================================================================
 -- Candidate preview
 -- ===========================================================================
-savepoint before_preview;
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000055c1';
 
@@ -153,12 +159,9 @@ select is(
 );
 
 reset role;
-rollback to savepoint before_preview;
-
 -- ===========================================================================
 -- Promotion
 -- ===========================================================================
-savepoint before_promote;
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000055c1';
 
@@ -390,12 +393,9 @@ select is(
 );
 
 reset role;
-rollback to savepoint before_promote;
-
 -- ===========================================================================
 -- admin_activate_new_driver: reachable only by a trusted server process
 -- ===========================================================================
-savepoint before_activate;
 set local role service_role;
 
 select lives_ok(
@@ -430,8 +430,6 @@ select throws_ok(
 );
 
 reset role;
-rollback to savepoint before_activate;
-
 select * from finish();
 
 rollback;

@@ -48,6 +48,14 @@ values
 --   'pooling' = "Regular na Byahe"  — PHP 15.00 + PHP 2.00/km, PER PASSENGER, max 4
 --   'special' = "Espesyal na Byahe" — PHP 60.00 + PHP 8.00/km, PER TRIP, 1-3 passengers
 --
+-- min_passengers/max_passengers below are the ORDINANCE TRANSCRIPTION and are
+-- pinned by 15_lgu_ordinance_743_test.sql. They are not what the app enforces.
+-- Since 31 Aug 2026 the LGU permits 4 passengers on Espesyal and pooling is no
+-- longer bookable; both facts live in fare_matrix.operating_max_passengers and
+-- fare_matrix.is_bookable, set by 20260831110000_special_only_four_passengers.sql.
+-- Do not "fix" the 3 below to a 4 — it would make the database disagree with the
+-- posted matrix. See docs/LGU_FARE_MATRIX.md section 2a.
+--
 -- discount_per_km_centavos is the statutory 20% applied to the per-km increment.
 -- It is used only past the 20 km end of the printed table; inside it, the
 -- transcribed fare_discount_brackets rows govern.
@@ -55,11 +63,15 @@ values
 insert into public.fare_matrix (
   ride_type, base_fare_centavos, base_distance_m, per_km_centavos,
   discount_per_km_centavos, min_passengers, max_passengers,
-  is_per_passenger, ordinance_ref, printed_max_km
+  is_per_passenger, ordinance_ref, printed_max_km,
+  operating_max_passengers, is_bookable
 )
 values
-  ('special', 6000, 2000, 800, 640, 1, 3, false, 'City Ordinance No. 743, s. 2022', 20),
-  ('pooling', 1500, 2000, 200, 160, 1, 4, true,  'City Ordinance No. 743, s. 2022', 20);
+  -- min/max_passengers are the ordinance transcription (Espesyal 1-3).
+  -- operating_max_passengers and is_bookable are the LGU operating decisions of
+  -- 31 Aug 2026: Espesyal carries 4 and is the only bookable type.
+  ('special', 6000, 2000, 800, 640, 1, 3, false, 'City Ordinance No. 743, s. 2022', 20, 4,    true),
+  ('pooling', 1500, 2000, 200, 160, 1, 4, true,  'City Ordinance No. 743, s. 2022', 20, null, false);
 
 -- ---------------------------------------------------------------------------
 -- Senior Citizen / PWD / student column — transcribed verbatim
