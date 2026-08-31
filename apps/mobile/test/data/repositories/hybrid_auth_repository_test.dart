@@ -29,6 +29,21 @@ class _SpyLiveAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) => throw UnimplementedError();
 
+  /// Records the number handed to the live repository, so the OTP-routing
+  /// test can assert the hybrid did not divert a code request to the mock.
+  String? sentOtpTo;
+
+  @override
+  Future<void> sendPhoneOtp(String e164Phone) async {
+    sentOtpTo = e164Phone;
+  }
+
+  @override
+  Future<DemoUser> verifyPhoneOtp({
+    required String e164Phone,
+    required String token,
+  }) => throw UnimplementedError();
+
   @override
   Future<void> signOut() async {
     signOutCalls++;
@@ -120,6 +135,24 @@ void main() {
       await repo.signOut();
 
       expect(repo.currentUser, isNull);
+    });
+  });
+
+  group('HybridAuthRepository OTP routing', () {
+    test('sends the code through the live repository, never the mock', () async {
+      // The mock repository throws for sendPhoneOtp, so if the hybrid ever
+      // routed a code request locally -- for instance by reusing the
+      // _isLocalTestEmail check that signIn uses -- this would throw instead
+      // of recording the number. A real user whose email merely looked local
+      // would silently never receive a code.
+      final state = DemoState();
+      addTearDown(state.dispose);
+      final live = _SpyLiveAuthRepository();
+      final hybrid = HybridAuthRepository(state: state, live: live);
+
+      await hybrid.sendPhoneOtp('+639171234567');
+
+      expect(live.sentOtpTo, '+639171234567');
     });
   });
 }

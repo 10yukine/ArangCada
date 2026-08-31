@@ -2,17 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_controller.dart';
+import 'app_config.dart';
 import 'models.dart';
 import 'screens.dart';
 import 'session.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   WidgetsBinding.instance.ensureSemantics();
+  if (AdminAppConfig.isSupabaseConfigured) {
+    await Supabase.initialize(
+      url: AdminAppConfig.supabaseUrl,
+      publishableKey: AdminAppConfig.supabaseAnonKey,
+    );
+  }
   runApp(const ProviderScope(child: AdminApp()));
 }
 
@@ -70,10 +78,7 @@ class _AdminAppState extends State<AdminApp> {
             path: '/evaluation',
             builder: (context, state) => _consolePage(const EvaluationScreen()),
           ),
-          GoRoute(
-            path: '/survey',
-            builder: (context, state) => _consolePage(const SurveyScreen()),
-          ),
+          GoRoute(path: '/survey', redirect: (context, state) => '/evaluation'),
           GoRoute(
             path: '/settings',
             builder: (context, state) => _consolePage(const SettingsScreen()),
@@ -100,10 +105,44 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final formKey = GlobalKey<FormState>();
-  final email = TextEditingController(text: 'evaluator@calambacity.gov.ph');
-  final password = TextEditingController(text: 'arangcada-demo');
+  final email = TextEditingController(
+    text: AdminAppConfig.isSupabaseConfigured
+        ? ''
+        : 'evaluator@calambacity.gov.ph',
+  );
+  final password = TextEditingController(
+    text: AdminAppConfig.isSupabaseConfigured ? '' : 'arangcada-demo',
+  );
   AdminRole role = AdminRole.lgu;
   bool obscure = true;
+  bool demoMode = !AdminAppConfig.isSupabaseConfigured;
+  bool submitting = false;
+  String? signInError;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
+  }
+
+  Future<void> _restoreSession() async {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null || !repository.hasSession || auth.value != null) {
+      return;
+    }
+    try {
+      final session = await repository.restoreSession();
+      await ref.read(adminProvider.notifier).connect(session);
+      if (mounted) auth.value = session;
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => signInError =
+              'Your administrator session expired. Sign in again.',
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -112,14 +151,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void submit() {
+  Future<void> submit() async {
     if (!formKey.currentState!.validate()) return;
-    ref.read(adminProvider.notifier).resetViewFilters();
-    auth.value = AdminSession(
-      name: role == AdminRole.lgu ? 'LGU Evaluator' : 'Brgy. Real Coordinator',
-      role: role,
-      toda: role == AdminRole.toda ? 'Brgy. Real' : null,
-    );
+    setState(() {
+      submitting = true;
+      signInError = null;
+    });
+    try {
+      if (demoMode) {
+        await ref
+            .read(adminProvider.notifier)
+            .connect(
+              AdminSession(
+                name: role == AdminRole.lgu
+                    ? 'LGU Evaluator'
+                    : 'Brgy. Real Coordinator',
+                email: email.text.trim(),
+                role: role,
+                toda: role == AdminRole.toda ? 'Brgy. Real' : null,
+              ),
+            );
+        auth.value = AdminSession(
+          name: role == AdminRole.lgu
+              ? 'LGU Evaluator'
+              : 'Brgy. Real Coordinator',
+          email: email.text.trim(),
+          role: role,
+          toda: role == AdminRole.toda ? 'Brgy. Real' : null,
+        );
+        return;
+      }
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) {
+        throw StateError('The connected administrator service is unavailable.');
+      }
+      final session = await repository.signIn(
+        email: email.text,
+        password: password.text,
+      );
+      await ref.read(adminProvider.notifier).connect(session);
+      if (mounted) auth.value = session;
+    } on AuthException catch (error) {
+      if (mounted) setState(() => signInError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => signInError =
+              'This account is not an active administrator, or its assigned scope could not be loaded.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => submitting = false);
+    }
   }
 
   @override
@@ -161,17 +244,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 18),
                 Text(
                   'A focused evaluation console for LGU and TODA administrators in Calamba City.',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFFC9C4BA),
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(color: AdminColors.railText),
                 ),
                 const SizedBox(height: 36),
-                const Wrap(
+                Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    StatusPill('Internal MVP', tone: StatusTone.clay),
-                    StatusPill('Simulated admin data'),
+                    const StatusPill('Internal MVP', tone: StatusTone.clay),
+                    StatusPill(
+                      demoMode ? 'Local demo data' : 'Connected Supabase data',
+                    ),
                   ],
                 ),
               ],
@@ -194,30 +279,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to the local evaluation console.',
+                      demoMode
+                          ? 'Sign in to the local evaluation console.'
+                          : 'Use your assigned LGU or TODA administrator account.',
                       style: Theme.of(
                         context,
                       ).textTheme.bodyLarge?.copyWith(color: AdminColors.muted),
                     ),
                     const SizedBox(height: 30),
-                    SegmentedButton<AdminRole>(
-                      segments: const [
-                        ButtonSegment(
-                          value: AdminRole.lgu,
-                          label: Text('LGU admin'),
-                          icon: Icon(Icons.account_balance_outlined),
-                        ),
-                        ButtonSegment(
-                          value: AdminRole.toda,
-                          label: Text('TODA admin'),
-                          icon: Icon(Icons.groups_outlined),
-                        ),
-                      ],
-                      selected: {role},
-                      onSelectionChanged: (selection) =>
-                          setState(() => role = selection.first),
-                    ),
-                    const SizedBox(height: 20),
+                    if (demoMode) ...[
+                      SegmentedButton<AdminRole>(
+                        segments: const [
+                          ButtonSegment(
+                            value: AdminRole.lgu,
+                            label: Text('LGU admin'),
+                            icon: Icon(Icons.account_balance_outlined),
+                          ),
+                          ButtonSegment(
+                            value: AdminRole.toda,
+                            label: Text('TODA admin'),
+                            icon: Icon(Icons.groups_outlined),
+                          ),
+                        ],
+                        selected: {role},
+                        onSelectionChanged: (selection) =>
+                            setState(() => role = selection.first),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     TextFormField(
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
@@ -254,17 +343,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : 'Use at least 6 characters.',
                     ),
                     const SizedBox(height: 20),
+                    if (signInError != null) ...[
+                      Text(
+                        signInError!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AdminColors.danger,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     FilledButton.icon(
-                      onPressed: submit,
-                      icon: const Icon(Icons.arrow_forward),
-                      label: const Text('Open console'),
+                      onPressed: submitting ? null : submit,
+                      icon: submitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.arrow_forward),
+                      label: Text(submitting ? 'Signing in…' : 'Open console'),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Demo only — credentials are checked locally and are not transmitted.',
+                      demoMode
+                          ? 'Demo only — credentials are checked locally and are not transmitted.'
+                          : 'Administrator access and TODA scope are verified on the server.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (AdminAppConfig.isSupabaseConfigured) ...[
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: submitting
+                            ? null
+                            : () => setState(() {
+                                demoMode = !demoMode;
+                                signInError = null;
+                                email.text = demoMode
+                                    ? 'evaluator@calambacity.gov.ph'
+                                    : '';
+                                password.text = demoMode
+                                    ? 'arangcada-demo'
+                                    : '';
+                              }),
+                        child: Text(
+                          demoMode
+                              ? 'Use connected administrator sign-in'
+                              : 'Use local demo',
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -291,7 +418,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   );
 }
 
-class AdminShell extends StatelessWidget {
+class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.location, required this.child});
   final String location;
   final Widget child;
@@ -302,16 +429,16 @@ class AdminShell extends StatelessWidget {
     ('/drivers', 'Drivers', Icons.badge_outlined),
     ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
     ('/evaluation', 'Evaluation', Icons.fact_check_outlined),
-    ('/survey', 'Driver survey', Icons.query_stats_outlined),
     ('/settings', 'Settings', Icons.settings_outlined),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final session = auth.value!;
+    final state = ref.watch(adminProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final expanded = constraints.maxWidth >= 1120;
+        final expanded = constraints.maxWidth >= 960;
         final railWidth = expanded ? 236.0 : 84.0;
         return Scaffold(
           body: Row(
@@ -361,63 +488,18 @@ class AdminShell extends StatelessWidget {
                           ),
                         ),
                       const Spacer(),
-                      if (expanded)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .06),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                session.name,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(color: Colors.white),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                session.scope,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: const Color(0xFFBDB8AE)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      Tooltip(
-                        message: 'Sign out',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => auth.value = null,
-                          child: SizedBox(
-                            height: 48,
-                            child: Row(
-                              mainAxisAlignment: expanded
-                                  ? MainAxisAlignment.start
-                                  : MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.logout,
-                                  color: Color(0xFFC9C4BA),
-                                ),
-                                if (expanded) ...[
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Sign out',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: const Color(0xFFC9C4BA),
-                                        ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
+                      Container(
+                        height: 1,
+                        color: AdminColors.railText.withValues(alpha: .2),
+                      ),
+                      const SizedBox(height: 12),
+                      _RailAccountFooter(
+                        session: session,
+                        expanded: expanded,
+                        onSignOut: () async {
+                          await ref.read(adminProvider.notifier).disconnect();
+                          auth.value = null;
+                        },
                       ),
                     ],
                   ),
@@ -448,15 +530,27 @@ class AdminShell extends StatelessWidget {
                           const SizedBox(width: 8),
                           IconButton(
                             tooltip: 'Notifications',
-                            onPressed: () =>
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'No new local notifications.',
-                                    ),
+                            onPressed: () {
+                              final count = state.unreadSafetyAlerts;
+                              ref
+                                  .read(adminProvider.notifier)
+                                  .clearSafetyNotifications();
+                              if (count > 0) context.go('/safety');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    count == 0
+                                        ? 'No unread safety alerts.'
+                                        : '$count new safety report${count == 1 ? '' : 's'}.',
                                   ),
                                 ),
-                            icon: const Icon(Icons.notifications_none),
+                              );
+                            },
+                            icon: Badge(
+                              isLabelVisible: state.unreadSafetyAlerts > 0,
+                              label: Text('${state.unreadSafetyAlerts}'),
+                              child: const Icon(Icons.notifications_none),
+                            ),
                           ),
                         ],
                       ),
@@ -469,6 +563,81 @@ class AdminShell extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _RailAccountFooter extends StatelessWidget {
+  const _RailAccountFooter({
+    required this.session,
+    required this.expanded,
+    required this.onSignOut,
+  });
+
+  final AdminSession session;
+  final bool expanded;
+  final Future<void> Function() onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = CircleAvatar(
+      radius: 20,
+      backgroundColor: AdminColors.primaryTint,
+      foregroundColor: AdminColors.primaryPress,
+      child: Text(
+        session.initials,
+        style: Theme.of(
+          context,
+        ).textTheme.labelLarge?.copyWith(color: AdminColors.primaryPress),
+      ),
+    );
+    final signOut = Semantics(
+      label: 'Sign out',
+      button: true,
+      child: IconButton(
+        tooltip: 'Sign out',
+        onPressed: onSignOut,
+        color: AdminColors.railText,
+        icon: const Icon(Icons.logout),
+      ),
+    );
+    if (!expanded) {
+      return Column(children: [avatar, const SizedBox(height: 8), signOut]);
+    }
+    return Semantics(
+      container: true,
+      label: 'Signed in as ${session.name}, ${session.deskLabel}',
+      child: Row(
+        children: [
+          avatar,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  session.deskLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AdminColors.railTextMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          signOut,
+        ],
+      ),
     );
   }
 }
@@ -502,7 +671,7 @@ class _NavItem extends StatelessWidget {
           height: 48,
           padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 0),
           decoration: BoxDecoration(
-            color: selected ? AdminColors.clay : Colors.transparent,
+            color: selected ? AdminColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -510,10 +679,7 @@ class _NavItem extends StatelessWidget {
                 ? MainAxisAlignment.start
                 : MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: selected ? Colors.white : const Color(0xFFC9C4BA),
-              ),
+              Icon(icon, color: selected ? Colors.white : AdminColors.railText),
               if (expanded) ...[
                 const SizedBox(width: 12),
                 Expanded(
@@ -522,7 +688,7 @@ class _NavItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: selected ? Colors.white : const Color(0xFFC9C4BA),
+                      color: selected ? Colors.white : AdminColors.railText,
                     ),
                   ),
                 ),

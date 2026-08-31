@@ -50,7 +50,15 @@ class FareCalculator {
       );
     }
 
-    final maximumPassengers = rideType == RideType.pooling ? 4 : 3;
+    // Calamba City Hall, 31 Aug 2026: the LGU administrator raised the Espesyal
+    // operating cap from the ordinance's printed 3 to 4 when pooling was
+    // withdrawn as a bookable option. Both ride types now cap at 4.
+    //
+    // This mirrors fare_matrix.operating_max_passengers server-side. It is a
+    // preview convenience only -- compute_fare_centavos() remains the
+    // authoritative check (CLAUDE.md rule 7), so a tampered client cannot book
+    // a fifth passenger by editing this line.
+    const maximumPassengers = 4;
     if (passengerCount < 1 || passengerCount > maximumPassengers) {
       throw ArgumentError.value(
         passengerCount,

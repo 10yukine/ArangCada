@@ -5,10 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
-import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/format/ph_mobile.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
@@ -29,6 +29,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _submitting = false;
   bool _obscure = true;
   bool _obscureRepeat = true;
+  bool _agreedToLegal = false;
   String? _error;
 
   static const _padTop = AppSpacing.lg;
@@ -55,8 +56,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       );
       return;
     }
+    // Normalise before anything else touches the number. Supabase needs E.164,
+    // and a number that fails here must be rejected at the form -- if a bad
+    // number reaches the gateway the account is created but the code goes
+    // nowhere, stranding the user with no way to verify.
+    final mobile = normalizePhMobile(_mobile.text);
+    if (!mobile.isValid) {
+      setState(() => _error = mobile.error);
+      return;
+    }
     if (_repeatPassword.text != _password.text) {
       setState(() => _error = 'Passwords do not match.');
+      return;
+    }
+    if (!_agreedToLegal) {
+      setState(() => _error = 'You must agree to the Terms of Service and Privacy Policy.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -69,37 +83,32 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           .read(authRepositoryProvider)
           .signUp(
             displayName: _name.text,
-            mobileNumber: _mobile.text,
+            mobileNumber: mobile.e164!,
             email: _email.text,
             password: _password.text,
           );
       if (!mounted) return;
-      if (result.requiresEmailConfirmation) {
-        await showDialog<void>(
-          context: context,
-          builder: (context) => ArangDialog(
-            icon: const Icon(
-              Icons.mark_email_read_outlined,
-              color: AppColors.green,
-            ),
-            title: 'Check your email',
-            content: const Text(
-              'Open the confirmation message from Supabase Auth, then return to sign in.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-        );
-        if (mounted) context.go('/login');
-        return;
+
+      // Since 31 Aug 2026 verification is a 6-digit SMS code rather than an
+      // emailed link. Send it now so the verify screen opens with a code
+      // already on its way, then let the router redirect take over: it watches
+      // DemoState and routes an unverified account to /verify-phone on its own.
+      //
+      // A failure here is deliberately NOT fatal. The account exists at this
+      // point, so bouncing the user back to registration would orphan it. The
+      // verify screen has a Resend button; surface the reason and continue.
+      try {
+        await ref.read(authRepositoryProvider).sendPhoneOtp(mobile.e164!);
+      } on DemoAuthException catch (error) {
+        if (mounted) setState(() => _error = error.message);
       }
+
+      if (!mounted) return;
       final user = result.user;
-      if (user != null) {
+      if (user != null && !user.needsPhoneVerification) {
         context.go(user.role == DemoRole.driver ? '/driver' : '/home');
+      } else {
+        context.go('/verify-phone');
       }
     } on DemoAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -284,6 +293,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               ),
                             ),
                           ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _agreedToLegal,
+                                  onChanged: (value) => setState(() => _agreedToLegal = value ?? false),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              const Expanded(
+                                child: AuthLegalNotice(prefixText: 'I agree to the '),
+                              ),
+                            ],
+                          ),
                           if (_error != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
@@ -310,8 +337,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       actionLabel: 'Log In',
                       onTap: () => context.go('/login'),
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    const AuthLegalNotice(actionVerb: 'creating an account'),
                   ],
                 ),
               ),

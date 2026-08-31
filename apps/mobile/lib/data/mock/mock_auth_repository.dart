@@ -20,6 +20,16 @@ class MockAuthRepository implements AuthRepository {
         email: 'commuter@arangcada.demo',
         displayName: 'Joshua Adia',
         role: DemoRole.commuter,
+        // isInternalTester must be true or these accounts are trapped.
+        //
+        // Phone verification (31 Aug 2026) routes any account with
+        // needsPhoneVerification to /verify-phone. These demo logins have no
+        // SIM behind them and this repository throws for sendPhoneOtp, so
+        // without the flag a QA session would reach the verify screen and have
+        // no way off it except signing out -- every device QA run would be
+        // dead on arrival. The flag mirrors profiles.is_internal_tester, which
+        // is what the server-side gate checks.
+        isInternalTester: true,
       ),
       password: 'demo1234',
     ),
@@ -28,6 +38,7 @@ class MockAuthRepository implements AuthRepository {
         email: 'driver@arangcada.demo',
         displayName: 'Marco Dela Cruz',
         role: DemoRole.driver,
+        isInternalTester: true,
       ),
       password: 'demo1234',
     ),
@@ -73,6 +84,29 @@ class MockAuthRepository implements AuthRepository {
   Future<void> sendPasswordReset(String email) {
     throw const DemoAuthException(
       'Password recovery requires configured Supabase Auth.',
+    );
+  }
+
+  // The seeded demo accounts have no SIM behind them, so there is nothing to
+  // send a code to. They are exempt instead: the accounts above set
+  // isInternalTester, which makes needsPhoneVerification false, and the server
+  // grants the same exemption through is_verified_account(). Reaching either
+  // method below therefore means something routed a demo account to the verify
+  // screen, which is a bug -- hence the explicit throw rather than a no-op.
+  @override
+  Future<void> sendPhoneOtp(String e164Phone) {
+    throw const DemoAuthException(
+      'Demo accounts are already verified and cannot receive an SMS code.',
+    );
+  }
+
+  @override
+  Future<DemoUser> verifyPhoneOtp({
+    required String e164Phone,
+    required String token,
+  }) {
+    throw const DemoAuthException(
+      'Demo accounts are already verified and cannot receive an SMS code.',
     );
   }
 }
