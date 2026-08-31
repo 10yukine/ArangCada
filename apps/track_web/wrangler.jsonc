@@ -1,0 +1,50 @@
+{
+  // Cloudflare Workers static-assets config for the public ride-tracking page.
+  //
+  // WHY THIS FILE EXISTS
+  //
+  // Cloudflare has folded Pages into Workers, and the "Import a repository"
+  // flow deploys with `wrangler deploy` rather than asking for a build output
+  // directory in the dashboard. That means the output directory and the routing
+  // behaviour have to live here, in the repo, instead of in dashboard settings.
+  //
+  // That is an improvement, not a nuisance: the deploy configuration is now
+  // versioned and reviewable alongside the page it deploys.
+
+  "name": "arangcada-track",
+  "compatibility_date": "2026-08-31",
+
+  "assets": {
+    // Relative to THIS file, so it resolves to apps/track_web/public/.
+    //
+    // ONLY publishable files live in public/. Everything else -- the tests, the
+    // README, build-config.js, this config -- stays in the parent directory and
+    // is therefore never served. Pointing this at "./" would have published
+    // render.test.js and wrangler.jsonc at arangcada.app/render.test.js, which
+    // is not a secret leak but is sloppy and tells a stranger more about the
+    // deploy than they need to know.
+    "directory": "./public/",
+
+    // Serves index.html for any path that does not match a real file, with a
+    // 200. This is what makes /t/<token> work: there is no file at that path,
+    // so index.html loads and track.js reads the token out of the URL.
+    //
+    // It also means a typo'd path such as /tt/abc serves the page rather than a
+    // 404 — which is fine and deliberate here. parseToken() finds no token in
+    // an unrecognised path, so the visitor gets the landing page: a better
+    // answer for a stranger than a bare 404.
+    //
+    // This supersedes the _redirects file. _redirects is kept because it is
+    // still honoured, costs nothing, and keeps the page deployable on plain
+    // static hosting without this config.
+    "not_found_handling": "single-page-application"
+  },
+
+  // No Worker script. This deploys static assets only — there is no
+  // server-side code, and deliberately so: the page talks straight to one
+  // anon-callable Supabase RPC, so adding a Worker in front would be an extra
+  // moving part with no job to do.
+  "observability": {
+    "enabled": true
+  }
+}

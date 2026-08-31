@@ -5,7 +5,11 @@
 *.env
 .env.*
 env.json
-secrets/
+# Credential staging. The directory contents are ignored, but *.example
+# templates are tracked so a new machine knows which keys are needed without
+# ever seeing a value.
+secrets/*
+!secrets/*.example
 supabase/.temp/
 supabase/.branches/
 
@@ -76,3 +80,7 @@ Desktop.ini
 # Local build artifacts (APKs are large and rebuildable; never version them)
 # ---------------------------------------------------------------------------
 dist/
+
+# Public tracking page config: holds the MapTiler key and the Supabase anon key.
+# The .example template is tracked; the real file is not.
+apps/track_web/public/config.js

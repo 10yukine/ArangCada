@@ -1,0 +1,232 @@
+// Public ride-tracking page — network and DOM.
+//
+// All decision logic lives in render.js so it can be tested without a browser.
+// This file fetches, polls, and pushes values into elements.
+//
+// It runs for someone with no ArangCada account, quite possibly on a poor
+// connection, so it fails soft everywhere: a failed poll keeps the last good
+// render rather than blanking the screen.
+
+import {
+  parseToken,
+  toViewModel,
+  focusPoint,
+  chooseInitialState,
+} from './render.js';
+
+const POLL_MS = 10_000;
+const POLL_MS_BACKOFF = 30_000;
+const FAILURES_BEFORE_BACKOFF = 2;
+
+const cfg = window.ARANGCADA_CONFIG || {};
+
+const el = (id) => document.getElementById(id);
+const show = (id) => el(id).classList.remove('hidden');
+const hide = (id) => el(id).classList.add('hidden');
+
+let map = null;
+let driverMarker = null;
+let pollTimer = null;
+let consecutiveFailures = 0;
+let stopped = false;
+let hasRenderedOnce = false;
+
+const token = parseToken(window.location.pathname, window.location.search);
+
+/**
+ * Calls the one function anon is allowed to execute. Everything else in the
+ * schema denies anon outright, so there is no other endpoint to get wrong.
+ */
+async function fetchTrip() {
+  const response = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/ride_share_view`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: cfg.supabaseAnonKey,
+      Authorization: `Bearer ${cfg.supabaseAnonKey}`,
+    },
+    body: JSON.stringify({ p_token: token }),
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function renderExpired() {
+  stopPolling();
+  hide('state-loading');
+  hide('state-active');
+  hide('state-landing');
+  show('state-expired');
+}
+
+/**
+ * Someone typed the bare domain. Not an error -- tell them what this is.
+ */
+function renderLanding() {
+  stopPolling();
+  hide('state-loading');
+  hide('state-active');
+  hide('state-expired');
+  show('state-landing');
+}
+
+function renderActive(vm) {
+  hide('state-loading');
+  hide('state-expired');
+  hide('state-landing');
+  show('state-active');
+
+  el('status-text').textContent = vm.statusText;
+  el('status-dot').className = `dot ${vm.statusTone === 'alert' ? 'dot-alert' : 'dot-live'}`;
+
+  el('driver-name').textContent = vm.driverName;
+
+  setRow('body-row', 'body-number', vm.bodyNumber);
+  setRow('toda-row', 'toda-name', vm.todaName);
+
+  el('pickup-label').textContent = vm.pickupLabel;
+  el('destination-label').textContent = vm.destinationLabel;
+
+  const age = el('position-age');
+  if (!vm.hasDriverPosition) {
+    age.textContent = 'Waiting for the driver’s location…';
+    age.classList.remove('warn');
+  } else {
+    age.textContent = `Location updated ${vm.positionAge}`;
+    // A stale dot presented as current is misleading -- it reads as "the
+    // tricycle stopped" when it usually means the phone lost signal.
+    age.classList.toggle('warn', vm.positionIsStale);
+  }
+
+  updateMap(vm);
+  hasRenderedOnce = true;
+}
+
+function setRow(rowId, valueId, value) {
+  const row = el(rowId);
+  if (value) {
+    el(valueId).textContent = value;
+    row.hidden = false;
+  } else {
+    row.hidden = true;
+  }
+}
+
+function updateMap(vm) {
+  const focus = focusPoint(vm);
+  if (!focus) return;
+
+  if (!map) {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: cfg.mapStyleUrl,
+      center: [focus.lng, focus.lat],
+      zoom: 15,
+      attributionControl: true,
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+    if (vm.pickup) staticMarker(vm.pickup, 'marker-pickup', 'Pickup');
+    if (vm.destination) staticMarker(vm.destination, 'marker-destination', 'Destination');
+  }
+
+  if (vm.driver) {
+    if (!driverMarker) {
+      const node = document.createElement('div');
+      node.className = 'marker-driver';
+      node.setAttribute('aria-label', 'Tricycle location');
+      driverMarker = new maplibregl.Marker({ element: node })
+        .setLngLat([vm.driver.lng, vm.driver.lat])
+        .addTo(map);
+    } else {
+      driverMarker.setLngLat([vm.driver.lng, vm.driver.lat]);
+    }
+    map.easeTo({ center: [vm.driver.lng, vm.driver.lat], duration: 800 });
+  }
+}
+
+function staticMarker(point, className, label) {
+  const node = document.createElement('div');
+  node.className = className;
+  node.setAttribute('aria-label', label);
+  new maplibregl.Marker({ element: node }).setLngLat([point.lng, point.lat]).addTo(map);
+}
+
+async function tick() {
+  if (stopped) return;
+
+  try {
+    const rows = await fetchTrip();
+    consecutiveFailures = 0;
+    hide('reconnecting');
+
+    const vm = toViewModel(rows);
+    if (vm.kind === 'expired') {
+      renderExpired();
+      return;
+    }
+    renderActive(vm);
+  } catch (error) {
+    consecutiveFailures += 1;
+    // Keep whatever is already on screen. Blanking a map because one poll
+    // failed is worse than showing a slightly old position with a note.
+    if (hasRenderedOnce) {
+      show('reconnecting');
+    } else if (consecutiveFailures >= FAILURES_BEFORE_BACKOFF) {
+      // Never rendered anything and repeatedly failing: most likely a bad
+      // token or a blocked network. Expired is the safe, non-revealing message.
+      renderExpired();
+      return;
+    }
+  }
+
+  schedule();
+}
+
+function schedule() {
+  clearTimeout(pollTimer);
+  if (stopped || document.hidden) return;
+  const delay = consecutiveFailures >= FAILURES_BEFORE_BACKOFF ? POLL_MS_BACKOFF : POLL_MS;
+  pollTimer = setTimeout(tick, delay);
+}
+
+function stopPolling() {
+  stopped = true;
+  clearTimeout(pollTimer);
+}
+
+// A phone left in a pocket must not poll all afternoon. Pause when the tab is
+// hidden, and refresh immediately when the viewer comes back rather than
+// showing them a stale screen for up to ten seconds.
+document.addEventListener('visibilitychange', () => {
+  if (stopped) return;
+  if (document.hidden) {
+    clearTimeout(pollTimer);
+  } else {
+    tick();
+  }
+});
+
+function start() {
+  const hasConfig = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
+
+  if (!hasConfig) {
+    // A deploy without config.js. Loud in the console for whoever deployed it,
+    // neutral on screen for the visitor.
+    console.error('track_web: config.js is missing or incomplete. See config.example.js.');
+  }
+
+  switch (chooseInitialState(token, hasConfig)) {
+    case 'landing':
+      renderLanding();
+      return;
+    case 'expired':
+      renderExpired();
+      return;
+    default:
+      tick();
+  }
+}
+
+start();

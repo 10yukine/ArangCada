@@ -1,0 +1,9 @@
+{
+  "name": "arangcada-track-web",
+  "private": true,
+  "type": "module",
+  "description": "Public ride-tracking page opened from a shared link. Static HTML/CSS/JS - no build step, no dependencies. type=module lets `node --test` load the same ES modules the browser loads.",
+  "scripts": {
+    "test": "node --test render.test.js"
+  }
+}
