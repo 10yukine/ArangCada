@@ -1,5 +1,4 @@
 import 'package:arangcada/data/mock/demo_state.dart';
-import 'package:arangcada/data/mock/mock_auth_repository.dart';
 import 'package:arangcada/data/repositories/auth_repository.dart';
 import 'package:arangcada/data/repositories/hybrid_auth_repository.dart';
 import 'package:arangcada/domain/models/demo_user.dart';

@@ -8,7 +8,6 @@ import '../../core/widgets/arangcada_mark.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
 import '../../core/widgets/section_card.dart';
-import '../../data/mock/mock_auth_repository.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
@@ -26,9 +25,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
   bool _submitting = false;
   bool _obscurePassword = true;
-  String? _selectedDemoEmail;
-  int _brandTapCount = 0;
-  bool _showTestAccounts = false;
 
   static const _padTop = AppSpacing.lg;
   static const _padBottom = AppSpacing.xl;
@@ -40,21 +36,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _prefill(DemoAccount account) {
-    _emailController.text = account.user.email;
-    _passwordController.text = account.password;
-    setState(() {
-      _errorMessage = null;
-      _selectedDemoEmail = account.user.email;
-    });
-  }
-
-  void _onBrandTap() {
-    _brandTapCount++;
-    if (_brandTapCount < 5) return;
-    _brandTapCount = 0;
-    setState(() => _showTestAccounts = true);
-  }
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
@@ -106,16 +87,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Center(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _onBrandTap,
-                            // `badge: true` swaps in the rounded-square
-                            // backdrop and the square-framed mark. See
-                            // ArangCadaMark for why both differ from every
-                            // other call site.
-                            child: const ArangCadaMark(badge: true),
-                          ),
+                        const Center(
+                          child: ArangCadaMark(badge: true),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         const Center(
@@ -212,55 +185,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         const AuthLegalNotice(actionVerb: 'logging in'),
-                        if (_showTestAccounts) ...[
-                          const SizedBox(height: AppSpacing.xl),
-                          Row(
-                            children: [
-                              Text(
-                                'Test accounts',
-                                style: Theme.of(context).textTheme.labelLarge,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              const Chip(label: Text('SANDBOX')),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Wrap(
-                            spacing: AppSpacing.xs,
-                            runSpacing: AppSpacing.xs,
-                            children: [
-                              for (final account in MockAuthRepository.accounts)
-                                ChoiceChip(
-                                  selected:
-                                      _selectedDemoEmail == account.user.email,
-                                  side: BorderSide(
-                                    color:
-                                        _selectedDemoEmail == account.user.email
-                                        ? AppColors.sky
-                                        : AppColors.borderStrong,
-                                  ),
-                                  avatar: Icon(
-                                    account.user.role == DemoRole.commuter
-                                        ? Icons.person_outline
-                                        : Icons.electric_rickshaw_outlined,
-                                    size: 18,
-                                  ),
-                                  label: Text(
-                                    account.user.role == DemoRole.commuter
-                                        ? 'Commuter'
-                                        : 'Driver',
-                                  ),
-                                  onSelected: (_) => _prefill(account),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Password: demo1234',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textMuted),
-                          ),
-                        ],
                       ],
                     ),
                   ),
