@@ -506,32 +506,66 @@ class _ActiveTripSheetState extends State<_ActiveTripSheet>
                     onDragUpdate: _drag,
                     onDragEnd: _endDrag,
                   ),
+                  // The driver's face sits to the left of the destination and
+                  // their name, so the person carrying the ride is the first
+                  // thing read rather than a line of caption text under an
+                  // address. Matches the avatar driver_matched_screen already
+                  // shows; a placeholder icon until avatar upload lands
+                  // (specs.md Spec 8b), at which point only the child changes.
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'To ${booking.destinationName}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
+                      const Padding(
+                        padding: EdgeInsets.only(
+                          top: 2,
+                          right: AppSpacing.sm,
+                        ),
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: AppColors.primaryFill,
+                          child: Icon(
+                            Icons.person,
+                            size: 26,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        widget.eta,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.primary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'To ${booking.destinationName}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  widget.eta,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.etaFallback
+                                  ? 'Route estimate unavailable · fallback ETA'
+                                  : 'Marco Dela Cruz · Body no. 024',
+                              style: AppTypography.caption,
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.etaFallback
-                        ? 'Route estimate unavailable · fallback ETA'
-                        : 'Marco Dela Cruz · Body no. 024',
-                    style: AppTypography.caption,
                   ),
                   if (!_expanded) ...[
                     const SizedBox(height: AppSpacing.xs),
