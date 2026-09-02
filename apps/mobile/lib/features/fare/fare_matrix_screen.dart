@@ -55,7 +55,7 @@ class FareMatrixScreen extends StatelessWidget {
               subtitle: 'Special · private ride',
               billing: 'Charged PER TRIP',
               capacity: '1 to 3 passengers',
-              tone: ArangBadgeTone.clay,
+              tone: ArangBadgeTone.brand,
               full: FareMatrix.specialFullCentavos,
               discounted: FareMatrix.specialDiscountedCentavos,
               pastTwentyFull: FareMatrix.incrementPast20Centavos(RideType.special, DiscountClass.full),

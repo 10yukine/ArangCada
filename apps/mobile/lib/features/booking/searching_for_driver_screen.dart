@@ -196,7 +196,7 @@ class _SearchingForDriverScreenState
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0x1F1F1E1D),
+                        color: AppColors.shadowMedium,
                         blurRadius: 10,
                         offset: Offset(0, -2),
                       ),

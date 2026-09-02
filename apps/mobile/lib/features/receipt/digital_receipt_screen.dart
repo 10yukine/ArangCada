@@ -18,7 +18,16 @@ class DigitalReceiptScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital receipt')),
+      appBar: AppBar(
+        // Same destination as "Back to Home" below -- this is a `go()`
+        // route with nothing on the Navigator stack to pop to.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Home',
+          onPressed: () => context.go('/home'),
+        ),
+        title: const Text('Digital receipt'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,

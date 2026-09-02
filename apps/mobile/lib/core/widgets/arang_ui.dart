@@ -138,7 +138,7 @@ class ArangButton extends StatelessWidget {
   }
 }
 
-/// Compact pill filter/selection chip. Selected state uses the clay tint.
+/// Compact pill filter/selection chip. Selected state uses the brand tint.
 class ArangChip extends StatelessWidget {
   const ArangChip({
     required this.label,
@@ -404,7 +404,7 @@ class ArangAvatar extends StatelessWidget {
   }
 }
 
-enum ArangBadgeTone { green, amber, red, clay, neutral }
+enum ArangBadgeTone { green, amber, red, brand, neutral }
 
 /// Small status pill. Tone always pairs with text, never colour alone.
 class ArangBadge extends StatelessWidget {
@@ -427,7 +427,7 @@ class ArangBadge extends StatelessWidget {
       case ArangBadgeTone.red:
         background = AppColors.dangerFill;
         foreground = AppColors.dangerDeep;
-      case ArangBadgeTone.clay:
+      case ArangBadgeTone.brand:
         background = AppColors.primaryFill;
         foreground = AppColors.primaryText;
       case ArangBadgeTone.neutral:

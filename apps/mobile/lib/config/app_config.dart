@@ -23,6 +23,15 @@ class AppConfig {
   static const String mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
   static const String orsApiKey = String.fromEnvironment('ORS_API_KEY');
 
+  /// Optional. Google Routes API is a paid, opt-in upgrade over
+  /// openrouteservice for unnamed/barangay-road accuracy -- see
+  /// GoogleRoutesConfig. Absent by default; the app must keep working with
+  /// only ORS configured, and ORS remains the automatic fallback even when
+  /// this is present. Never required by assertConfigured().
+  static const String googleRoutesApiKey = String.fromEnvironment(
+    'GOOGLE_ROUTES_API_KEY',
+  );
+
   /// Per-service readiness. Each live integration degrades on its own rather
   /// than the whole app refusing to start, so a missing MapTiler key costs the
   /// map but not authentication.
@@ -32,6 +41,8 @@ class AppConfig {
   static bool get isMapTilerConfigured => mapTilerKey.isNotEmpty;
 
   static bool get isOrsConfigured => orsApiKey.isNotEmpty;
+
+  static bool get isGoogleRoutesConfigured => googleRoutesApiKey.isNotEmpty;
 
   /// True when every integration has a value. Never logs which one is absent
   /// at runtime beyond its name, and never a value.

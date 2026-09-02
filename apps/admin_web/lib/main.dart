@@ -253,7 +253,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    const StatusPill('Internal MVP', tone: StatusTone.clay),
+                    const StatusPill('Internal MVP', tone: StatusTone.brand),
                     StatusPill(
                       demoMode ? 'Local demo data' : 'Connected Supabase data',
                     ),
@@ -526,7 +526,7 @@ class AdminShell extends ConsumerWidget {
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const Spacer(),
-                          StatusPill(session.scope, tone: StatusTone.clay),
+                          StatusPill(session.scope, tone: StatusTone.brand),
                           const SizedBox(width: 8),
                           IconButton(
                             tooltip: 'Notifications',

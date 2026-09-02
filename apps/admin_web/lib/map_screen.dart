@@ -9,6 +9,9 @@ import 'session.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
+@visibleForTesting
+const dashboardMapGesturesEnabled = true;
+
 class LiveMapScreen extends ConsumerStatefulWidget {
   const LiveMapScreen({super.key});
   @override
@@ -50,6 +53,17 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         : rides.where((ride) => ride.status == filter).toList();
   }
 
+  List<Driver> get onlineDrivers => ref
+      .read(adminProvider.notifier)
+      .scopedDrivers(auth.value!)
+      .where(
+        (driver) =>
+            driver.online &&
+            driver.latitude != null &&
+            driver.longitude != null,
+      )
+      .toList();
+
   Map<String, dynamic> boundaryGeoJson(AdminState state) => {
     'type': 'FeatureCollection',
     'features': [
@@ -82,12 +96,29 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
             'id': ride.id,
             'selected': ride.id == selected,
             'status': ride.status,
+            'kind': 'ride',
           },
           'geometry': {
             'type': 'Point',
             'coordinates': [ride.longitude, ride.latitude],
           },
         },
+      for (final driver in onlineDrivers)
+        if (!scopedRides.any((ride) => ride.driverId == driver.id))
+          {
+            'type': 'Feature',
+            'id': 'driver:${driver.id}',
+            'properties': {
+              'id': 'driver:${driver.id}',
+              'selected': false,
+              'status': 'Available',
+              'kind': 'driver',
+            },
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [driver.longitude, driver.latitude],
+            },
+          },
     ],
   };
 
@@ -129,8 +160,14 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
           circleColor: [
             'case',
             ['get', 'selected'],
-            '#B4552F',
-            '#262421',
+            '#1262D0',
+            [
+              '==',
+              ['get', 'kind'],
+              'driver',
+            ],
+            '#16795C',
+            '#0F1A28',
           ],
           circleStrokeWidth: 3,
           circleStrokeColor: '#FFFFFF',
@@ -144,7 +181,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         layerId,
         annotation,
       ) {
-        if (layerId == 'ride-circles') selectRide(id);
+        if (layerId == 'ride-circles' && !id.startsWith('driver:')) {
+          selectRide(id);
+        }
       });
       if (mounted) {
         setState(() {
@@ -189,6 +228,23 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       adminProvider.select((value) => value.selectedRide),
       (_, _) => syncRides(),
     );
+    ref.listen(
+      adminProvider.select((value) => value.rides),
+      (_, _) => syncRides(),
+    );
+    ref.listen(
+      adminProvider.select((value) => value.drivers),
+      (_, _) => syncRides(),
+    );
+    final liveDrivers = onlineDrivers;
+    final centerLatitude =
+        scopedRides.firstOrNull?.latitude ??
+        liveDrivers.firstOrNull?.latitude ??
+        14.2094;
+    final centerLongitude =
+        scopedRides.firstOrNull?.longitude ??
+        liveDrivers.firstOrNull?.longitude ??
+        121.1647;
     final selected = state.selectedRide == null
         ? null
         : scopedRides
@@ -197,10 +253,11 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading(
+        PageHeading(
           title: 'Live dispatch map',
-          subtitle:
-              'Inspect synthetic ride positions and evaluation-only TODA overlays.',
+          subtitle: state.connected
+              ? 'Inspect live commuter requests, driver GPS, and server-scoped TODA jurisdictions.'
+              : 'Inspect synthetic ride positions and evaluation-only TODA overlays.',
         ),
         const SizedBox(height: 18),
         Container(
@@ -218,7 +275,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Prototype boundary · evaluation only. These polygons are not authoritative and must never determine ride eligibility.',
+                  state.connected
+                      ? 'TODA boundaries are read-only server records. The SJVTODA developer-test polygon is provisional; only trusted server dispatch determines ride eligibility.'
+                      : 'Prototype boundary · evaluation only. These polygons are not authoritative and must never determine ride eligibility.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -239,12 +298,13 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                     children: [
                       Positioned.fill(
                         child: Semantics(
-                          label:
-                              'Interactive MapLibre dispatch map with ${scopedRides.length} visible simulated rides',
+                          label: state.connected
+                              ? 'Interactive MapLibre dispatch map with ${scopedRides.length} visible live rides'
+                              : 'Interactive MapLibre dispatch map with ${scopedRides.length} visible simulated rides',
                           child: MapLibreMap(
                             styleString: styleUrl,
-                            initialCameraPosition: const CameraPosition(
-                              target: LatLng(14.2094, 121.1647),
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(centerLatitude, centerLongitude),
                               zoom: 13.2,
                             ),
                             onMapCreated: (controller) =>
@@ -343,7 +403,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                             const Spacer(),
                             StatusPill(
                               '${scopedRides.length} visible',
-                              tone: StatusTone.clay,
+                              tone: StatusTone.brand,
                             ),
                           ],
                         ),
@@ -425,6 +485,44 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 14),
+                  Panel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Online drivers',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            StatusPill(
+                              '${liveDrivers.length} sharing GPS',
+                              tone: StatusTone.success,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (liveDrivers.isEmpty)
+                          const Text(
+                            'No online drivers are currently sharing a location.',
+                          )
+                        else
+                          for (final driver in liveDrivers)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.electric_rickshaw,
+                                color: AdminColors.success,
+                              ),
+                              title: Text(driver.name),
+                              subtitle: Text(driver.toda),
+                            ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             );
@@ -446,9 +544,14 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
 }
 
 class DashboardMapPreview extends StatefulWidget {
-  const DashboardMapPreview({super.key, required this.rides});
+  const DashboardMapPreview({
+    super.key,
+    required this.rides,
+    this.connected = false,
+  });
 
   final List<Ride> rides;
+  final bool connected;
 
   @override
   State<DashboardMapPreview> createState() => _DashboardMapPreviewState();
@@ -492,7 +595,7 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
         'dashboard-ride-circles',
         const CircleLayerProperties(
           circleRadius: 8,
-          circleColor: '#B4552F',
+          circleColor: '#1262D0',
           circleStrokeColor: '#FFFFFF',
           circleStrokeWidth: 2,
         ),
@@ -517,8 +620,9 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
 
   @override
   Widget build(BuildContext context) {
-    final label =
-        'Read-only dispatch map with ${widget.rides.length} simulated rides';
+    final label = widget.connected
+        ? 'Interactive dispatch map with ${widget.rides.length} live rides'
+        : 'Interactive dispatch map with ${widget.rides.length} simulated rides';
     if (!kIsWeb || failed) {
       return ColoredBox(
         color: AdminColors.surface,
@@ -527,7 +631,7 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
             label: label,
             child: Icon(
               failed ? Icons.map_outlined : Icons.location_on_outlined,
-              color: AdminColors.clay,
+              color: AdminColors.primary,
             ),
           ),
         ),
@@ -547,8 +651,9 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
         compassEnabled: false,
         rotateGesturesEnabled: false,
         tiltGesturesEnabled: false,
-        scrollGesturesEnabled: false,
-        zoomGesturesEnabled: false,
+        dragEnabled: dashboardMapGesturesEnabled,
+        scrollGesturesEnabled: dashboardMapGesturesEnabled,
+        zoomGesturesEnabled: dashboardMapGesturesEnabled,
       ),
     );
   }
@@ -576,9 +681,9 @@ class _RideCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.clayTint : AdminColors.background,
+          color: selected ? AdminColors.primaryTint : AdminColors.background,
           border: Border.all(
-            color: selected ? AdminColors.clay : AdminColors.border,
+            color: selected ? AdminColors.primary : AdminColors.border,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -588,7 +693,7 @@ class _RideCard extends StatelessWidget {
               width: 39,
               height: 39,
               decoration: BoxDecoration(
-                color: selected ? AdminColors.clay : AdminColors.rail,
+                color: selected ? AdminColors.primary : AdminColors.rail,
                 borderRadius: BorderRadius.circular(11),
               ),
               child: const Icon(

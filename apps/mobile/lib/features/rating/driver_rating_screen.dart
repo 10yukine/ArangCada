@@ -65,7 +65,17 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Rate your passenger')),
+      appBar: AppBar(
+        // Same destination as Skip below -- this is a `go()` route with
+        // nothing on the Navigator stack to pop to, so the arrow is an
+        // explicit call to the same _done() the Skip button uses.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Skip',
+          onPressed: _done,
+        ),
+        title: const Text('Rate your passenger'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,

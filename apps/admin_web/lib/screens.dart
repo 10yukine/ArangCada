@@ -1,5 +1,7 @@
 export 'map_screen.dart';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,11 +25,16 @@ class DashboardScreen extends ConsumerWidget {
     final rides = controller.visibleRides(session);
     final reports = controller.visibleReports(session);
     final audit = controller.visibleAudit(session);
-    final todas = [
+    final todas = <String>{
       for (final boundary in state.boundaries)
         if (session.role == AdminRole.lgu || boundary.name == session.toda)
           boundary.name,
-    ];
+      for (final item in state.feedbackSummaries)
+        if (session.role == AdminRole.lgu || item.toda == session.toda)
+          item.toda,
+      for (final driver in drivers) driver.toda,
+      if (session.toda != null) session.toda!,
+    }.toList();
     final approved = drivers
         .where((driver) => driver.status == DriverStatus.approved)
         .length;
@@ -38,11 +45,11 @@ class DashboardScreen extends ConsumerWidget {
               driver.status == DriverStatus.submitted,
         )
         .length;
-    final surveyResponses = todas.fold<int>(
+    final feedbackParticipants = todas.fold<int>(
       0,
-      (total, toda) => total + (state.surveyCounts[toda] ?? 0),
+      (total, toda) => total + (state.feedbackCounts[toda] ?? 0),
     );
-    final surveyTarget = todas.length * 10;
+    final participantTarget = todas.length * state.respondentTarget;
     final readyDrivers = approved + pending;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +77,9 @@ class DashboardScreen extends ConsumerWidget {
             MetricCard(
               label: 'Active rides',
               value: '${rides.length}',
-              detail: 'Simulated now',
+              detail: state.connected
+                  ? 'Updated in real time'
+                  : 'Local demo data',
               icon: Icons.location_on_outlined,
               onTap: () => context.go('/live-map'),
             ),
@@ -129,12 +138,17 @@ class DashboardScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
                       height: stack ? 240 : 280,
-                      child: DashboardMapPreview(rides: rides),
+                      child: DashboardMapPreview(
+                        rides: rides,
+                        connected: state.connected,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Synthetic ride positions · inspect prototype boundaries in the full map.',
+                    state.connected
+                        ? 'Pan or zoom to inspect live trip and driver GPS positions in your jurisdiction.'
+                        : 'Pan or zoom to inspect synthetic positions; prototype boundaries remain on the full map.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -152,14 +166,24 @@ class DashboardScreen extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      const StatusPill('Illustrative'),
+                      StatusPill(
+                        state.connected ? 'Connected data' : 'Illustrative',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _HourlyRideChart(activeRides: rides.length),
+                  if (state.connected)
+                    const EmptyState(
+                      message:
+                          'Hourly trip-history aggregation has not yet been collected.',
+                    )
+                  else
+                    _HourlyRideChart(activeRides: rides.length),
                   const SizedBox(height: 10),
                   Text(
-                    'Example activity only; not collected trip history.',
+                    state.connected
+                        ? 'No estimated or synthetic ride totals are shown.'
+                        : 'Example activity only; not collected trip history.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -180,7 +204,11 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const StatusPill('Local event log'),
+                      StatusPill(
+                        state.connected
+                            ? 'Connected operations'
+                            : 'Local event log',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -219,7 +247,9 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   Text(
-                    'Scoped local records; terminal queue order is not simulated.',
+                    state.connected
+                        ? 'Server-scoped live driver and dispatch records.'
+                        : 'Scoped local records; terminal queue order is not simulated.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -234,19 +264,24 @@ class DashboardScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 18),
-                  const _ProgressRow(
-                    label: 'Feature scenarios',
-                    value: .82,
-                    caption: '9 of 11 checks prepared',
-                  ),
-                  const SizedBox(height: 18),
+                  if (!state.connected) ...[
+                    const _ProgressRow(
+                      label: 'Feature scenarios',
+                      value: .82,
+                      caption: '9 of 11 checks prepared',
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   _ProgressRow(
-                    label: 'Driver survey sample',
-                    value: surveyTarget == 0
+                    label: 'Unique driver app-feedback participants',
+                    value: participantTarget == 0
                         ? 0
-                        : (surveyResponses / surveyTarget).clamp(0, 1),
+                        : (feedbackParticipants / participantTarget).clamp(
+                            0,
+                            1,
+                          ),
                     caption:
-                        '$surveyResponses of $surveyTarget target responses',
+                        '$feedbackParticipants of $participantTarget target drivers',
                   ),
                   const SizedBox(height: 18),
                   _ProgressRow(
@@ -259,7 +294,9 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Prototype metrics support the capstone evaluation and do not represent production operations.',
+                    state.connected
+                        ? 'Participation is counted by unique drivers; repeat feedback does not inflate readiness.'
+                        : 'Prototype metrics support the capstone evaluation and do not represent production operations.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -315,7 +352,16 @@ class DriversScreen extends ConsumerWidget {
       'Suspended',
       'Expired',
     ];
-    const todas = ['All TODAs', 'Brgy. Real', 'Parian', 'Canlubang'];
+    final todas = [
+      'All TODAs',
+      ...{
+        for (final driver in controller.scopedDrivers(auth.value!)) driver.toda,
+        for (final boundary in state.boundaries)
+          if (auth.value!.role == AdminRole.lgu ||
+              boundary.name == auth.value!.toda)
+            boundary.name,
+      },
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -323,11 +369,13 @@ class DriversScreen extends ConsumerWidget {
           title: 'Driver verification',
           subtitle:
               'Enroll drivers, review submitted records, and preserve an auditable lifecycle.',
-          action: FilledButton.icon(
-            onPressed: () => _showEnrollment(context, ref),
-            icon: const Icon(Icons.person_add_alt_1),
-            label: const Text('Enroll driver'),
-          ),
+          action: state.connected
+              ? const StatusPill('Applications submitted in the driver app')
+              : FilledButton.icon(
+                  onPressed: () => _showEnrollment(context, ref),
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Enroll driver'),
+                ),
         ),
         const SizedBox(height: 22),
         Panel(
@@ -504,13 +552,62 @@ class SafetyScreen extends ConsumerStatefulWidget {
 
 class _SafetyScreenState extends ConsumerState<SafetyScreen> {
   String? selected;
+  Timer? reportedChatPoll;
+  bool refreshingChats = false;
+  String? chatRefreshError;
+
+  @override
+  void initState() {
+    super.initState();
+    final session = auth.value;
+    if (session?.role == AdminRole.lgu && (session?.connected ?? false)) {
+      reportedChatPoll = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => unawaited(_refreshReportedChats()),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    reportedChatPoll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshReportedChats() async {
+    final session = auth.value;
+    if (!mounted ||
+        refreshingChats ||
+        session?.role != AdminRole.lgu ||
+        !(session?.connected ?? false)) {
+      return;
+    }
+    setState(() => refreshingChats = true);
+    try {
+      await ref.read(adminProvider.notifier).refreshReportedChats(session!);
+      if (mounted && chatRefreshError != null) {
+        setState(() => chatRefreshError = null);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => chatRefreshError =
+              'Reported conversations could not be refreshed.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => refreshingChats = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(adminProvider);
-    final reports = ref
+    final state = ref.watch(adminProvider);
+    final session = auth.value!;
+    final reports = ref.read(adminProvider.notifier).visibleReports(session);
+    final reportedChats = ref
         .read(adminProvider.notifier)
-        .visibleReports(auth.value!);
+        .visibleReportedChats(session);
     if (reports.isNotEmpty && !reports.any((report) => report.id == selected)) {
       selected = reports.first.id;
     }
@@ -554,19 +651,155 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
                   ],
                 ),
         ),
+        if (session.role == AdminRole.lgu) ...[
+          const SizedBox(height: 18),
+          _ReportedConversationSection(
+            reportedChats: reportedChats,
+            connected: state.connected,
+            refreshing: refreshingChats,
+            refreshError: chatRefreshError,
+            onRefresh: _refreshReportedChats,
+          ),
+        ],
       ],
     );
   }
 }
 
-class EvaluationScreen extends StatefulWidget {
-  const EvaluationScreen({super.key});
+class _ReportedConversationSection extends StatelessWidget {
+  const _ReportedConversationSection({
+    required this.reportedChats,
+    required this.connected,
+    required this.refreshing,
+    required this.refreshError,
+    required this.onRefresh,
+  });
+
+  final List<ReportedTripChat> reportedChats;
+  final bool connected;
+  final bool refreshing;
+  final String? refreshError;
+  final VoidCallback onRefresh;
+
   @override
-  State<EvaluationScreen> createState() => _EvaluationScreenState();
+  Widget build(BuildContext context) => Panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 14,
+          runSpacing: 10,
+          children: [
+            Text(
+              'Reported conversations · LGU only',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            OutlinedButton.icon(
+              onPressed: connected && !refreshing ? onRefresh : null,
+              icon: refreshing
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              label: Text(refreshing ? 'Refreshing…' : 'Refresh reports'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Only conversations explicitly reported and shared with participant consent are visible. Ordinary trip messages remain private.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (refreshError != null) ...[
+          const SizedBox(height: 9),
+          Text(
+            refreshError!,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AdminColors.danger),
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (reportedChats.isEmpty)
+          const EmptyState(message: 'No consented conversation reports.')
+        else
+          for (final report in reportedChats)
+            _ReportedConversationCard(report: report),
+      ],
+    ),
+  );
 }
 
-class _EvaluationScreenState extends State<EvaluationScreen> {
-  final checks = <int>{0, 1, 3};
+class _ReportedConversationCard extends StatelessWidget {
+  const _ReportedConversationCard({required this.report});
+
+  final ReportedTripChat report;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      border: Border.all(color: AdminColors.border),
+      borderRadius: BorderRadius.circular(13),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(report.reason, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 5),
+        Text(
+          'Reported by ${report.reporterName} · ${report.toda} · consent confirmed ${shortTime(report.consentedAt)}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        if (report.messages.isEmpty)
+          const Text('The reported conversation contained no saved messages.')
+        else
+          for (final message in report.messages)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AdminColors.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${message.senderRole} · ${message.senderName}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(message.body),
+                  if (message.createdAt != null) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      shortTime(message.createdAt!),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+      ],
+    ),
+  );
+}
+
+class EvaluationScreen extends ConsumerStatefulWidget {
+  const EvaluationScreen({super.key});
+  @override
+  ConsumerState<EvaluationScreen> createState() => _EvaluationScreenState();
+}
+
+class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
+  final checks = <int>{};
   static const criteria = [
     ('Functional suitability', .88, 'Core dispatch and governance scenarios'),
     ('Performance efficiency', .76, 'Observed response and rendering behavior'),
@@ -577,335 +810,445 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
   ];
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const PageHeading(
-        title: 'ISO/IEC 25010 evaluation',
-        subtitle:
-            'Compare the internal MVP against the traditional manual-dispatch baseline using six 2023 product-quality characteristics.',
-      ),
-      const SizedBox(height: 22),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final results = Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Evaluation results',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    const StatusPill('Illustrative scores'),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                for (final item in criteria)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 17),
-                    child: _ProgressRow(
-                      label: item.$1,
-                      value: item.$2,
-                      caption: item.$3,
-                    ),
-                  ),
-              ],
-            ),
-          );
-          final scenarios = Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Test scenario checklist',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                for (final entry in const [
-                  'Request and assign a ride',
-                  'Contain dispatch inside TODA scope',
-                  'Review and approve a driver',
-                  'Submit and respond to a safety report',
-                  'Recover after refreshing a routed view',
-                ].indexed)
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: checks.contains(entry.$1),
-                    onChanged: (value) => setState(
-                      () => value == true
-                          ? checks.add(entry.$1)
-                          : checks.remove(entry.$1),
-                    ),
-                    title: Text(entry.$2),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                const Divider(),
-                Text(
-                  '${checks.length} of 5 scenarios checked',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-          );
-          return constraints.maxWidth < 940
-              ? Column(
-                  children: [results, const SizedBox(height: 16), scenarios],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: results),
-                    const SizedBox(width: 16),
-                    Expanded(flex: 2, child: scenarios),
-                  ],
-                );
-        },
-      ),
-      const SizedBox(height: 18),
-      Panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Manual baseline comparison',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 14),
-            const _ComparisonRow(
-              'Dispatch visibility',
-              'Radio / terminal inquiry',
-              'Shared status board',
-            ),
-            const _ComparisonRow(
-              'Driver verification',
-              'Paper record lookup',
-              'Lifecycle and audit history',
-            ),
-            const _ComparisonRow(
-              'Safety response trace',
-              'Separate written log',
-              'Report status and notes',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'The displayed scores and comparisons are sample evaluation content, not final research findings.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class SurveyScreen extends ConsumerStatefulWidget {
-  const SurveyScreen({super.key});
-  @override
-  ConsumerState<SurveyScreen> createState() => _SurveyScreenState();
-}
-
-class _SurveyScreenState extends ConsumerState<SurveyScreen> {
-  @override
   Widget build(BuildContext context) {
-    final counts = ref.watch(adminProvider).surveyCounts;
+    final state = ref.watch(adminProvider);
     final session = auth.value!;
-    final visibleCounts = <String, int>{
-      for (final entry in counts.entries)
-        if (session.role == AdminRole.lgu || entry.key == session.toda)
-          entry.key: entry.value,
-    };
-    final total = visibleCounts.values.fold<int>(0, (sum, item) => sum + item);
-    final target = visibleCounts.length * 10;
+    final summaries = _visibleFeedbackSummaries(state, session);
+    final responses = [
+      for (final response in state.feedbackResponses)
+        if (session.role == AdminRole.lgu || response.toda == session.toda)
+          response,
+    ];
+    final responseCount = summaries.fold<int>(
+      0,
+      (total, summary) => total + summary.responseCount,
+    );
+    final uniqueDrivers = summaries.fold<int>(
+      0,
+      (total, summary) => total + summary.uniqueDrivers,
+    );
+    final target = summaries.length * state.respondentTarget;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PageHeading(
-          title: 'TODA driver survey',
+        const PageHeading(
+          title: 'Driver feedback and evaluation',
           subtitle:
-              'Track the fixed sample target of 10 eligible respondents per TODA.',
-          action: FilledButton.icon(
-            onPressed: () => _showSurvey(context),
-            icon: const Icon(Icons.add_chart),
-            label: const Text('Record response'),
-          ),
+              'Driver app-usage feedback and formal ISO/IEC 25010 quality assessment are separate, clearly labeled study instruments.',
         ),
         const SizedBox(height: 22),
+        Text(
+          'Driver App Feedback · Objective 4',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Required after every ${state.feedbackInterval} completed trip${state.feedbackInterval == 1 ? '' : 's'} · anonymous unless the driver chooses to share their name.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 18),
         _ResponsiveGrid(
           children: [
             MetricCard(
-              label: 'Responses',
-              value: '$total',
-              detail:
-                  'Across ${visibleCounts.length} TODA${visibleCounts.length == 1 ? '' : 's'}',
-              icon: Icons.how_to_reg_outlined,
+              label: 'Feedback responses',
+              value: '$responseCount',
+              detail: 'Repeat submissions are counted separately',
+              icon: Icons.rate_review_outlined,
             ),
             MetricCard(
-              label: 'Target sample',
+              label: 'Unique drivers',
+              value: '$uniqueDrivers',
+              detail: 'Distinct participants in your scope',
+              icon: Icons.groups_outlined,
+              tone: AdminColors.success,
+            ),
+            MetricCard(
+              label: 'Participation target',
               value: '$target',
-              detail: '10 per TODA',
+              detail: '${state.respondentTarget} unique drivers per TODA',
               icon: Icons.flag_outlined,
               tone: AdminColors.warning,
-            ),
-            MetricCard(
-              label: 'Completion',
-              value: '${target == 0 ? 0 : (total / target * 100).round()}%',
-              detail: 'Prototype tracking',
-              icon: Icons.donut_large_outlined,
-              tone: AdminColors.success,
             ),
           ],
         ),
         const SizedBox(height: 18),
+        SelectionArea(
+          child: _DriverFeedbackSection(
+            summaries: summaries,
+            responses: responses,
+            connected: state.connected,
+            interval: state.feedbackInterval,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          'ISO/IEC 25010:2023 · Objective 3',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Formal evaluator assessment and comparison against traditional manual dispatch; these are not driver feedback scores.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
-            final progress = Panel(
+            final results = Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Sample threshold progress',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Evaluation results',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      StatusPill(
+                        state.connected
+                            ? 'Awaiting evaluator measurements'
+                            : 'Illustrative demo scores',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
-                  for (final entry in visibleCounts.entries)
+                  for (final item in criteria)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: _ProgressRow(
-                        label: entry.key,
-                        value: (entry.value / 10).clamp(0, 1),
-                        caption: '${entry.value} of 10 eligible respondents',
-                      ),
+                      padding: const EdgeInsets.only(bottom: 17),
+                      child: state.connected
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.$1,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
+                                      ),
+                                    ),
+                                    const StatusPill('Not yet measured'),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  item.$3,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            )
+                          : _ProgressRow(
+                              label: item.$1,
+                              value: item.$2,
+                              caption: item.$3,
+                            ),
                     ),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AdminColors.warningTint,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: AdminColors.warning,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Eligibility: active TODA membership and at least 3 completed trips. The questionnaire still requires validation before research use.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             );
-            final summary = Panel(
+            final scenarios = Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Illustrative Likert summary',
+                    'Test scenario checklist',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 16),
-                  const _ScoreBar('Easy to understand', 4.3),
-                  const _ScoreBar('Supports dispatch work', 4.1),
-                  const _ScoreBar('Improves safety visibility', 4.4),
-                  const _ScoreBar('Would use during evaluation', 4.0),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  for (final entry in const [
+                    'Request and assign a ride',
+                    'Contain dispatch inside TODA scope',
+                    'Review and approve a driver',
+                    'Submit and respond to a safety report',
+                    'Recover after refreshing a routed view',
+                  ].indexed)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: checks.contains(entry.$1),
+                      onChanged: (value) => setState(
+                        () => value == true
+                            ? checks.add(entry.$1)
+                            : checks.remove(entry.$1),
+                      ),
+                      title: Text(entry.$2),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  const Divider(),
                   Text(
-                    'Sample values only; do not cite as study results.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    '${checks.length} of 5 scenarios checked',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
               ),
             );
-            return constraints.maxWidth < 900
+            return constraints.maxWidth < 940
                 ? Column(
-                    children: [progress, const SizedBox(height: 16), summary],
+                    children: [results, const SizedBox(height: 16), scenarios],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(flex: 3, child: progress),
+                      Expanded(flex: 3, child: results),
                       const SizedBox(width: 16),
-                      Expanded(flex: 2, child: summary),
+                      Expanded(flex: 2, child: scenarios),
                     ],
                   );
           },
+        ),
+        const SizedBox(height: 18),
+        Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Manual baseline comparison',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 14),
+              const _ComparisonRow(
+                'Dispatch visibility',
+                'Radio / terminal inquiry',
+                'Shared status board',
+              ),
+              const _ComparisonRow(
+                'Driver verification',
+                'Paper record lookup',
+                'Lifecycle and audit history',
+              ),
+              const _ComparisonRow(
+                'Safety response trace',
+                'Separate written log',
+                'Report status and notes',
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.connected
+                    ? 'Comparison dimensions are a study framework; formal evaluation results have not been collected.'
+                    : 'Displayed demo scores are illustrative and must not be cited as study findings.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Future<void> _showSurvey(BuildContext context) async {
-    final counts = ref.read(adminProvider).surveyCounts;
-    final session = auth.value!;
-    String toda = session.toda ?? counts.keys.first;
-    double rating = 4;
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Record survey response'),
-          content: SizedBox(
-            width: 430,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+  List<TodaFeedbackSummary> _visibleFeedbackSummaries(
+    AdminState state,
+    AdminSession session,
+  ) {
+    if (state.feedbackSummaries.isNotEmpty) {
+      return [
+        for (final summary in state.feedbackSummaries)
+          if (session.role == AdminRole.lgu || summary.toda == session.toda)
+            summary,
+      ];
+    }
+    final names = <String>{
+      ...state.feedbackCounts.keys,
+      for (final driver in state.drivers) driver.toda,
+      if (session.toda != null) session.toda!,
+    };
+    return [
+      for (final name in names)
+        if (session.role == AdminRole.lgu || name == session.toda)
+          TodaFeedbackSummary(
+            toda: name,
+            responseCount: state.feedbackCounts[name] ?? 0,
+            uniqueDrivers: state.feedbackCounts[name] ?? 0,
+            target: state.respondentTarget,
+          ),
+    ];
+  }
+}
+
+class _DriverFeedbackSection extends StatelessWidget {
+  const _DriverFeedbackSection({
+    required this.summaries,
+    required this.responses,
+    required this.connected,
+    required this.interval,
+  });
+
+  final List<TodaFeedbackSummary> summaries;
+  final List<DriverAppFeedback> responses;
+  final bool connected;
+  final int interval;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final progress = Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Unique-driver participation by TODA',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 18),
+              if (summaries.isEmpty)
+                const EmptyState(
+                  message:
+                      'No drivers or app-feedback responses are available yet.',
+                )
+              else
+                for (final item in summaries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _ProgressRow(
+                      label: item.toda,
+                      value: item.progress,
+                      caption:
+                          '${item.uniqueDrivers} of ${item.target} unique drivers · ${item.responseCount} total response${item.responseCount == 1 ? '' : 's'}',
+                    ),
+                  ),
+              Text(
+                'The app requires feedback after $interval completed trip${interval == 1 ? '' : 's'}. Repeat responses never inflate the unique-driver threshold.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (!connected) ...[
+                const SizedBox(height: 10),
+                const StatusPill('Local illustrative participant counts'),
+              ],
+            ],
+          ),
+        );
+        final scores = Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Driver app-usage Likert results',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Five-point scale · only submitted driver responses',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 15),
+              for (final entry in feedbackQuestionLabels.entries)
+                _FeedbackScoreRow(
+                  label: entry.value,
+                  responses: responses,
+                  summaries: summaries,
+                  question: entry.key,
+                ),
+              const SizedBox(height: 16),
+              Text(
+                'Recent driver feedback',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (responses.isEmpty)
+                const Text('No submitted driver app feedback yet.')
+              else
+                for (final response in responses.take(5))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${response.displayName} · ${response.toda}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (response.comment?.trim().isNotEmpty ?? false)
+                          Text(response.comment!),
+                        Text(
+                          shortTime(response.submittedAt),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+            ],
+          ),
+        );
+        return constraints.maxWidth < 930
+            ? Column(children: [progress, const SizedBox(height: 16), scores])
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: progress),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 2, child: scores),
+                ],
+              );
+      },
+    );
+  }
+}
+
+class _FeedbackScoreRow extends StatelessWidget {
+  const _FeedbackScoreRow({
+    required this.label,
+    required this.responses,
+    required this.summaries,
+    required this.question,
+  });
+
+  final String label;
+  final List<DriverAppFeedback> responses;
+  final List<TodaFeedbackSummary> summaries;
+  final String question;
+
+  @override
+  Widget build(BuildContext context) {
+    final observed = [
+      for (final response in responses)
+        if (response.scores[question] case final int score) score,
+    ];
+    double? mean;
+    if (observed.isNotEmpty) {
+      mean =
+          observed.fold<int>(0, (sum, value) => sum + value) / observed.length;
+    } else {
+      var weighted = 0.0;
+      var count = 0;
+      for (final summary in summaries) {
+        final value = summary.questionMeans[question];
+        if (value == null || summary.responseCount == 0) continue;
+        weighted += value * summary.responseCount;
+        count += summary.responseCount;
+      }
+      if (count > 0) mean = weighted / count;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: mean == null
+          ? Row(
               children: [
-                const Text(
-                  'Confirm respondent eligibility outside this prototype before recording.',
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: toda,
-                  decoration: const InputDecoration(labelText: 'TODA'),
-                  items: [
-                    for (final name in counts.keys)
-                      if (session.role == AdminRole.lgu || name == session.toda)
-                        DropdownMenuItem(value: name, child: Text(name)),
-                  ],
-                  onChanged: (value) => setDialogState(() => toda = value!),
-                ),
-                const SizedBox(height: 18),
-                Text('Overall rating: ${rating.round()} of 5'),
-                Slider(
-                  value: rating,
-                  min: 1,
-                  max: 5,
-                  divisions: 4,
-                  label: '${rating.round()}',
-                  onChanged: (value) => setDialogState(() => rating = value),
+                Expanded(child: Text(label)),
+                Text(
+                  'No responses',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ScoreBar(label, mean),
+                if (observed.isNotEmpty)
+                  Text(
+                    [
+                      for (var rating = 1; rating <= 5; rating++)
+                        '$rating★ ${observed.where((score) => score == rating).length}',
+                    ].join('   '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Submit response'),
-            ),
-          ],
-        ),
-      ),
     );
-    if (submitted == true && context.mounted) {
-      ref.read(adminProvider.notifier).recordSurveyResponse(session, toda);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Response recorded for $toda.')));
-    }
   }
 }
 
@@ -915,106 +1258,516 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(adminProvider);
     final controller = ref.read(adminProvider.notifier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const PageHeading(
-          title: 'Settings',
-          subtitle: 'Local console preferences and evaluation context.',
+    final session = auth.value!;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 920),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _AccountProfilePanel(session: session),
+            const SizedBox(height: 16),
+            _PasswordSettingsPanel(session: session),
+            const SizedBox(height: 16),
+            _ConsoleAccessPanel(session: session),
+            const SizedBox(height: 16),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Console preferences',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Compact table density'),
+                    subtitle: const Text(
+                      'Reduce row height on data-heavy views.',
+                    ),
+                    value: state.compactDensity,
+                    onChanged: controller.setCompactDensity,
+                  ),
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Local desktop alerts'),
+                    subtitle: Text(
+                      state.connected
+                          ? 'Play an unobtrusive chime for new SOS reports.'
+                          : 'Show local status notifications during evaluation.',
+                    ),
+                    value: state.desktopAlerts,
+                    onChanged: controller.setDesktopAlerts,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Driver app-feedback rules',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    session.role == AdminRole.lgu
+                        ? 'Global settings apply to all TODAs and are enforced on the server.'
+                        : 'Global settings are managed by the LGU and shown here as read-only.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  _FeedbackIntervalSetting(session: session),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Participation target: ${state.respondentTarget} unique drivers per TODA.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Map and data status',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 14),
+                  const _SettingRow(
+                    icon: Icons.map_outlined,
+                    title: 'Base map',
+                    detail:
+                        'MapLibre with OpenStreetMap raster tiles; optional MapTiler key at build time.',
+                  ),
+                  _SettingRow(
+                    icon: Icons.layers_outlined,
+                    title: 'TODA boundaries',
+                    detail: state.connected
+                        ? 'Server-defined jurisdictions; developer test boundary is provisional.'
+                        : 'Prototype boundary · evaluation only',
+                  ),
+                  _SettingRow(
+                    icon: Icons.storage_outlined,
+                    title: 'Admin records',
+                    detail: state.connected
+                        ? 'Supabase records secured by administrator scope and row-level security.'
+                        : 'Synthetic in-memory records; refresh resets changes.',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'About this build',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('ArangCada Admin · Internal MVP'),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Standalone Flutter Web target. It does not import or depend on the commuter/driver mobile client.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 14),
+                  const StatusPill(
+                    'Evaluation build · 2026-08-22',
+                    tone: StatusTone.brand,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 22),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
+      ),
+    );
+  }
+}
+
+class _AccountProfilePanel extends StatelessWidget {
+  const _AccountProfilePanel({required this.session});
+
+  final AdminSession session;
+
+  @override
+  Widget build(BuildContext context) => Panel(
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 26,
+          backgroundColor: AdminColors.primaryTint,
+          foregroundColor: AdminColors.primaryPress,
+          child: Text(session.initials),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Console preferences',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 10),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Compact table density'),
-                      subtitle: const Text(
-                        'Reduce row height on data-heavy views.',
-                      ),
-                      value: state.compactDensity,
-                      onChanged: controller.setCompactDensity,
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Local desktop alerts'),
-                      subtitle: const Text(
-                        'Show simulated status notifications during evaluation.',
-                      ),
-                      value: state.desktopAlerts,
-                      onChanged: controller.setDesktopAlerts,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Map and data status',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 14),
-                    const _SettingRow(
-                      icon: Icons.map_outlined,
-                      title: 'Base map',
-                      detail:
-                          'MapLibre with OpenStreetMap raster tiles; optional MapTiler key at build time.',
-                    ),
-                    const _SettingRow(
-                      icon: Icons.layers_outlined,
-                      title: 'TODA boundaries',
-                      detail: 'Prototype boundary · evaluation only',
-                    ),
-                    const _SettingRow(
-                      icon: Icons.storage_outlined,
-                      title: 'Admin records',
-                      detail:
-                          'Synthetic in-memory records; refresh resets changes.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'About this build',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('ArangCada Admin · Internal MVP'),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Standalone Flutter Web target. It does not import or depend on the commuter/driver mobile client.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 14),
-                    const StatusPill(
-                      'Evaluation build · 2026-08-22',
-                      tone: StatusTone.clay,
-                    ),
-                  ],
-                ),
+              Text(session.name, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 3),
+              Wrap(
+                spacing: 4,
+                children: [
+                  Text(
+                    '${session.deskLabel} ·',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    session.email ?? 'Local demo account',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
             ],
           ),
         ),
+        const SizedBox(width: 12),
+        StatusPill(session.roleLabel, tone: StatusTone.brand),
+      ],
+    ),
+  );
+}
+
+class _PasswordSettingsPanel extends ConsumerStatefulWidget {
+  const _PasswordSettingsPanel({required this.session});
+
+  final AdminSession session;
+
+  @override
+  ConsumerState<_PasswordSettingsPanel> createState() =>
+      _PasswordSettingsPanelState();
+}
+
+class _PasswordSettingsPanelState
+    extends ConsumerState<_PasswordSettingsPanel> {
+  final formKey = GlobalKey<FormState>();
+  final currentPassword = TextEditingController();
+  final newPassword = TextEditingController();
+  final confirmPassword = TextEditingController();
+  bool currentHidden = true;
+  bool newHidden = true;
+  bool confirmHidden = true;
+  bool saving = false;
+
+  bool get canChange =>
+      widget.session.connected && (widget.session.email?.isNotEmpty ?? false);
+
+  @override
+  void dispose() {
+    currentPassword.dispose();
+    newPassword.dispose();
+    confirmPassword.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!formKey.currentState!.validate()) return;
+    if (!canChange) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Connect an administrator account to change its password.',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() => saving = true);
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .updateOwnPassword(
+            session: widget.session,
+            currentPassword: currentPassword.text,
+            newPassword: newPassword.text,
+          );
+      currentPassword.clear();
+      newPassword.clear();
+      confirmPassword.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Password updated.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Password could not be updated. Check your current password and try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required bool hidden,
+    required VoidCallback toggle,
+    required String? Function(String?) validator,
+    required Iterable<String> autofillHints,
+  }) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: TextFormField(
+      controller: controller,
+      obscureText: hidden,
+      autofillHints: autofillHints,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: const Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          tooltip: hidden ? 'Show password' : 'Hide password',
+          onPressed: toggle,
+          icon: Icon(
+            hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Panel(
+    child: Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Change password',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            canChange
+                ? 'Enter your current password, then choose a new one.'
+                : 'Password changes are available after signing in to the connected console.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          _passwordField(
+            controller: currentPassword,
+            label: 'Current password',
+            hint: 'Enter current password',
+            hidden: currentHidden,
+            toggle: () => setState(() => currentHidden = !currentHidden),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Enter your current password.'
+                : null,
+            autofillHints: const [AutofillHints.password],
+          ),
+          _passwordField(
+            controller: newPassword,
+            label: 'New password',
+            hint: 'At least 8 characters',
+            hidden: newHidden,
+            toggle: () => setState(() => newHidden = !newHidden),
+            validator: (value) => value == null || value.length < 8
+                ? 'Enter at least 8 characters.'
+                : null,
+            autofillHints: const [AutofillHints.newPassword],
+          ),
+          _passwordField(
+            controller: confirmPassword,
+            label: 'Confirm new password',
+            hint: 'Re-enter new password',
+            hidden: confirmHidden,
+            toggle: () => setState(() => confirmHidden = !confirmHidden),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Confirm the new password.';
+              }
+              return value == newPassword.text
+                  ? null
+                  : 'Passwords do not match.';
+            },
+            autofillHints: const [AutofillHints.newPassword],
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: saving ? null : _save,
+            child: Text(saving ? 'Updating…' : 'Update password'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ConsoleAccessPanel extends StatelessWidget {
+  const _ConsoleAccessPanel({required this.session});
+
+  final AdminSession session;
+
+  @override
+  Widget build(BuildContext context) => Panel(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Console access',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 10),
+            const Text('Reset a staff password'),
+            const SizedBox(height: 2),
+            Text(
+              session.role == AdminRole.lgu
+                  ? 'Issue a temporary password to another LGU/TODA desk officer.'
+                  : 'Only an LGU administrator can reset another staff account.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        );
+        final button = OutlinedButton(
+          onPressed: session.role == AdminRole.lgu
+              ? () => showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Staff password reset'),
+                    content: const Text(
+                      'Resetting another staff account requires a reviewed server-side LGU workflow. It is not available from this public web client yet.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          child: const Text('Reset staff password'),
+        );
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [copy, const SizedBox(height: 16), button],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(child: copy),
+            const SizedBox(width: 16),
+            button,
+          ],
+        );
+      },
+    ),
+  );
+}
+
+class _FeedbackIntervalSetting extends ConsumerStatefulWidget {
+  const _FeedbackIntervalSetting({required this.session});
+
+  final AdminSession session;
+
+  @override
+  ConsumerState<_FeedbackIntervalSetting> createState() =>
+      _FeedbackIntervalSettingState();
+}
+
+class _FeedbackIntervalSettingState
+    extends ConsumerState<_FeedbackIntervalSetting> {
+  late final TextEditingController interval = TextEditingController(
+    text: '${ref.read(adminProvider).feedbackInterval}',
+  );
+  bool saving = false;
+  String? error;
+
+  @override
+  void dispose() {
+    interval.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final value = int.tryParse(interval.text.trim());
+    if (value == null || value < 1) {
+      setState(() => error = 'Enter a whole number greater than zero.');
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .updateFeedbackSettings(
+            session: widget.session,
+            feedbackInterval: value,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Drivers will provide app feedback after every $value completed trip${value == 1 ? '' : 's'}.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => error = 'The global feedback setting could not be saved.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canEdit = widget.session.role == AdminRole.lgu;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: interval,
+            enabled: canEdit && !saving,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Completed trips between required feedback',
+              errorText: error,
+              suffixText: 'trip(s)',
+            ),
+            onSubmitted: canEdit ? (_) => _save() : null,
+          ),
+        ),
+        if (canEdit) ...[
+          const SizedBox(width: 12),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: FilledButton(
+              onPressed: saving ? null : _save,
+              child: Text(saving ? 'Saving…' : 'Save interval'),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1065,8 +1818,8 @@ class _HourlyRideChart extends StatelessWidget {
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
                                   color: entry.$2 == maximum
-                                      ? AdminColors.clay
-                                      : AdminColors.clayTint,
+                                      ? AdminColors.primary
+                                      : AdminColors.primaryTint,
                                   borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(6),
                                     bottom: Radius.circular(3),
@@ -1135,7 +1888,7 @@ class _TerminalActivityRow extends StatelessWidget {
           child: LinearProgressIndicator(
             value: enrolled == 0 ? 0 : (rides / enrolled).clamp(0, 1),
             minHeight: 7,
-            color: AdminColors.clay,
+            color: AdminColors.primary,
             backgroundColor: AdminColors.surface,
           ),
         ),
@@ -1186,7 +1939,7 @@ class _AuditRow extends StatelessWidget {
           height: 9,
           margin: const EdgeInsets.only(top: 5),
           decoration: const BoxDecoration(
-            color: AdminColors.clay,
+            color: AdminColors.primary,
             shape: BoxShape.circle,
           ),
         ),
@@ -1236,7 +1989,7 @@ class _ProgressRow extends StatelessWidget {
               '${(value * 100).round()}%',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(color: AdminColors.clay),
+              ).textTheme.titleMedium?.copyWith(color: AdminColors.primary),
             ),
           ],
         ),
@@ -1247,7 +2000,7 @@ class _ProgressRow extends StatelessWidget {
             value: value,
             minHeight: 9,
             backgroundColor: AdminColors.surface,
-            color: AdminColors.clay,
+            color: AdminColors.primary,
           ),
         ),
         const SizedBox(height: 5),
@@ -1277,7 +2030,7 @@ class _ReportTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.clayTint : Colors.transparent,
+          color: selected ? AdminColors.primaryTint : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -1285,8 +2038,23 @@ class _ReportTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(report.id, style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
+                if (report.priority == 'critical') ...[
+                  const Icon(
+                    Icons.priority_high,
+                    size: 18,
+                    color: AdminColors.danger,
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Expanded(
+                  child: Text(
+                    safetyReportLabel(report.id),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 StatusPill(
                   reportStatusLabel(report.status),
                   tone: reportTone(report.status),
@@ -1322,7 +2090,7 @@ class _SafetyDetail extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    report.id,
+                    safetyReportLabel(report.id),
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 4),
@@ -1349,6 +2117,13 @@ class _SafetyDetail extends ConsumerWidget {
             _LabelValue('Rider', report.rider),
             _LabelValue('Driver', report.driver),
             _LabelValue('TODA', report.toda),
+            if (report.priority == 'critical')
+              const _LabelValue('Priority', 'Critical SOS'),
+            if (report.latitude != null && report.longitude != null)
+              _LabelValue(
+                'Reported location',
+                '${report.latitude!.toStringAsFixed(5)}, ${report.longitude!.toStringAsFixed(5)}',
+              ),
           ],
         ),
         const SizedBox(height: 22),
@@ -1371,28 +2146,41 @@ class _SafetyDetail extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 18),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            FilledButton(
-              onPressed: report.status == ReportStatus.resolved
-                  ? null
-                  : () => _updateReport(context, ref, ReportStatus.resolved),
-              child: const Text('Mark resolved'),
-            ),
-            OutlinedButton(
-              onPressed: () =>
-                  _updateReport(context, ref, ReportStatus.investigating),
-              child: const Text('Investigate'),
-            ),
-            OutlinedButton(
-              onPressed: () =>
-                  _updateReport(context, ref, ReportStatus.escalated),
-              child: const Text('Escalate locally'),
-            ),
-          ],
-        ),
+        if (auth.value?.role != AdminRole.lgu)
+          const StatusPill('Read-only · LGU manages safety report status')
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton(
+                onPressed: report.status == ReportStatus.resolved
+                    ? null
+                    : () => _updateReport(context, ref, ReportStatus.resolved),
+                child: const Text('Mark resolved'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    _updateReport(context, ref, ReportStatus.acknowledged),
+                child: const Text('Acknowledge'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    _updateReport(context, ref, ReportStatus.investigating),
+                child: const Text('Investigate'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    _updateReport(context, ref, ReportStatus.escalated),
+                child: const Text('Escalate'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    _updateReport(context, ref, ReportStatus.dismissed),
+                child: const Text('Dismiss'),
+              ),
+            ],
+          ),
       ],
     ),
   );
@@ -1429,16 +2217,26 @@ class _SafetyDetail extends ConsumerWidget {
       ),
     );
     if (confirm == true && context.mounted) {
-      ref
-          .read(adminProvider.notifier)
-          .transitionReport(report.id, status, note.text);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${report.id} is now ${reportStatusLabel(status).toLowerCase()}.',
+      try {
+        await ref
+            .read(adminProvider.notifier)
+            .transitionReport(report.id, status, note.text);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${report.id} is now ${reportStatusLabel(status).toLowerCase()}.',
+            ),
           ),
-        ),
-      );
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This safety report could not be updated.'),
+          ),
+        );
+      }
     }
     note.dispose();
   }
@@ -1549,10 +2347,10 @@ class _SettingRow extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: AdminColors.clayTint,
+            color: AdminColors.primaryTint,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AdminColors.clay),
+          child: Icon(icon, color: AdminColors.primary),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -1712,29 +2510,23 @@ Future<void> _showDriver(
               ),
               const SizedBox(height: 8),
               for (final item in const [
-                'TODA endorsement',
-                'Driver identification',
-                'Tricycle registration',
-                'Safety orientation record',
+                ('drivers_license', 'Driver’s license'),
+                ('mtop_franchise', 'MTOP / franchise permit'),
+                ('toda_membership', 'TODA membership endorsement'),
+                ('or_cr', 'Vehicle OR / CR registration'),
               ].indexed)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    item.$1 < driver.documents
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
-                    color: item.$1 < driver.documents
-                        ? AdminColors.success
-                        : AdminColors.muted,
-                  ),
-                  title: Text(item.$2),
-                  trailing: Text(
-                    item.$1 < driver.documents ? 'Received' : 'Missing',
-                  ),
+                _DriverDocumentRow(
+                  driver: driver,
+                  documentType: item.$2.$1,
+                  label: item.$2.$2,
+                  demoIndex: item.$1,
+                  connected: auth.value?.connected ?? false,
                 ),
               const SizedBox(height: 12),
               Text(
-                'Local actions create audit events. Backend verification and storage policies are outside this evaluation build.',
+                auth.value?.connected ?? false
+                    ? 'Only document review status is shown. Files remain private; driver approval is checked and audited by the server.'
+                    : 'Local demo actions create illustrative audit events.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -1746,21 +2538,19 @@ Future<void> _showDriver(
           onPressed: () => Navigator.pop(context),
           child: const Text('Close'),
         ),
-        if (driver.status == DriverStatus.suspended)
+        if (auth.value?.role == AdminRole.lgu &&
+            driver.status == DriverStatus.suspended)
           OutlinedButton(
-            onPressed: () {
-              ref
-                  .read(adminProvider.notifier)
-                  .updateDriver(
-                    driver.id,
-                    DriverStatus.approved,
-                    'Reinstated after local review',
-                  );
-              Navigator.pop(context);
-            },
+            onPressed: () => _applyDriverAction(
+              context,
+              ref,
+              driver,
+              DriverStatus.approved,
+              'Reinstated after administrator review',
+            ),
             child: const Text('Reinstate'),
           )
-        else
+        else if (auth.value?.role == AdminRole.lgu)
           OutlinedButton(
             onPressed: () => _confirmDriverAction(
               context,
@@ -1770,29 +2560,98 @@ Future<void> _showDriver(
             ),
             child: const Text('Suspend'),
           ),
-        OutlinedButton(
-          onPressed: () =>
-              _confirmDriverAction(context, ref, driver, DriverStatus.rejected),
-          child: const Text('Reject'),
-        ),
+        if (auth.value?.role == AdminRole.lgu)
+          OutlinedButton(
+            onPressed: () => _confirmDriverAction(
+              context,
+              ref,
+              driver,
+              DriverStatus.rejected,
+            ),
+            child: const Text('Reject'),
+          ),
         FilledButton(
-          onPressed: driver.documents < 4
+          onPressed:
+              driver.approvedDocuments < 4 ||
+                  driver.status == DriverStatus.suspended
               ? null
-              : () {
-                  ref
-                      .read(adminProvider.notifier)
-                      .updateDriver(
-                        driver.id,
-                        DriverStatus.approved,
-                        'Documents accepted in local evaluation',
-                      );
-                  Navigator.pop(context);
-                },
+              : () => _applyDriverAction(
+                  context,
+                  ref,
+                  driver,
+                  DriverStatus.approved,
+                  'Required driver documents reviewed and accepted',
+                ),
           child: const Text('Approve'),
         ),
       ],
     ),
   );
+}
+
+class _DriverDocumentRow extends StatelessWidget {
+  const _DriverDocumentRow({
+    required this.driver,
+    required this.documentType,
+    required this.label,
+    required this.demoIndex,
+    required this.connected,
+  });
+
+  final Driver driver;
+  final String documentType;
+  final String label;
+  final int demoIndex;
+  final bool connected;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = connected
+        ? driver.documentStatuses[documentType]
+        : demoIndex < driver.documents
+        ? 'approved'
+        : null;
+    final approved = status == 'approved';
+    final description = switch (status) {
+      'approved' => 'Approved',
+      'pending' => 'Pending review',
+      'rejected' => 'Rejected',
+      _ => 'Missing',
+    };
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        approved ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: approved ? AdminColors.success : AdminColors.muted,
+      ),
+      title: Text(label),
+      trailing: Text(description),
+    );
+  }
+}
+
+Future<void> _applyDriverAction(
+  BuildContext dialogContext,
+  WidgetRef ref,
+  Driver driver,
+  DriverStatus status,
+  String reason,
+) async {
+  try {
+    await ref
+        .read(adminProvider.notifier)
+        .updateDriver(driver.id, status, reason);
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+  } catch (_) {
+    if (!dialogContext.mounted) return;
+    ScaffoldMessenger.of(dialogContext).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'The requested driver action was not accepted by the server.',
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _confirmDriverAction(
@@ -1828,10 +2687,7 @@ Future<void> _confirmDriverAction(
     ),
   );
   if (confirmed == true && dialogContext.mounted) {
-    ref
-        .read(adminProvider.notifier)
-        .updateDriver(driver.id, status, reason.text);
-    Navigator.pop(dialogContext);
+    await _applyDriverAction(dialogContext, ref, driver, status, reason.text);
   }
   reason.dispose();
 }

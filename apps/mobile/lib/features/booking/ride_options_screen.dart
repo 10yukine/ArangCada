@@ -199,7 +199,7 @@ class _RideSheet extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x141F1E1D),
+            color: AppColors.shadowLight,
             blurRadius: 10,
             offset: Offset(0, -4),
           ),

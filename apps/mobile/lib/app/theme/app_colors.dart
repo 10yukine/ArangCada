@@ -46,6 +46,16 @@ abstract final class AppColors {
   static const disabledFill = Color(0xFFCCD8E6);
 
   // --- Brand ----------------------------------------------------------------
+  // Shadow tints. Const so they can sit inside `const BoxShadow`, which rules
+  // out ink.withValues(...) -- a method call is not a constant expression.
+  //
+  // These are `ink` (0F1A28) at three alphas. They previously hardcoded
+  // 1F1E1D, the ink of the superseded warm-brown palette, which tinted every
+  // card shadow in the app faintly brown on an otherwise blue product.
+  static const shadowLight = Color(0x140F1A28);   // ~8%  cards, sheets
+  static const shadowMedium = Color(0x1F0F1A28);  // ~12% brand mark, overlays
+  static const shadowStrong = Color(0x240F1A28);  // ~14% floating nav
+
   static const primary = Color(0xFF1262D0);
   static const primaryPressed = Color(0xFF0E4EA6);
 

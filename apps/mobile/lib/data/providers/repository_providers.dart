@@ -8,6 +8,8 @@ import '../mock/demo_state.dart';
 import '../remote/geolocator_location_repository.dart';
 import '../remote/maptiler_geocoding_repository.dart';
 import '../remote/openrouteservice_routing_repository.dart';
+import '../remote/google_routes_routing_repository.dart';
+import '../remote/fallback_routing_repository.dart';
 import '../remote/supabase_chat_repository.dart';
 import '../remote/supabase_ride_repository.dart';
 import '../mock/local_chat_repository.dart';
@@ -165,10 +167,20 @@ final chatUnreadCountProvider = Provider<int>((ref) {
 
 /// Road geometry for display only. Its distance and duration must never reach
 /// the fare calculator -- billing uses Haversine (see `domain/fare/`).
+///
+/// Google Routes is preferred when configured (better unnamed/barangay-road
+/// coverage than ORS in Calamba), with openrouteservice as the automatic
+/// fallback -- never the other way around, and never both queried for a
+/// route the primary already answered. With no Google key configured, this
+/// is exactly the previous ORS-only behavior.
 final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
-  final repository = OpenRouteServiceRoutingRepository();
-  ref.onDispose(repository.dispose);
-  return repository;
+  final ors = OpenRouteServiceRoutingRepository();
+  ref.onDispose(ors.dispose);
+  if (!AppConfig.isGoogleRoutesConfigured) return ors;
+
+  final google = GoogleRoutesRoutingRepository();
+  ref.onDispose(google.dispose);
+  return FallbackRoutingRepository(primary: google, secondary: ors);
 });
 
 /// MapTiler forward/reverse geocoding for destination search and pin-on-map.

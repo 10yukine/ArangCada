@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -54,31 +55,46 @@ class AuthSwitchLink extends StatelessWidget {
 
 /// Placeholder legal notice for the bottom of an auth screen.
 ///
-/// Explicitly a placeholder: no real Terms of Service or Privacy Policy
-/// content exists yet -- that is deliberately out of scope for this pass.
-/// Tapping either link is honest about that instead of opening a page that
-/// doesn't exist, matching how the rest of this app handles not-yet-built
-/// destinations.
+/// Temporarily launches placeholder URLs (e.g. arangcada.ph/tos) until the 
+/// legal pages are fully integrated into the app.
 class AuthLegalNotice extends StatelessWidget {
-  const AuthLegalNotice({required this.actionVerb, super.key});
+  const AuthLegalNotice({
+    this.actionVerb,
+    this.prefixText,
+    super.key,
+  }) : assert(actionVerb != null || prefixText != null);
 
-  /// "Logging in" or "Creating an account" -- keeps the sentence accurate
-  /// to which screen it's on rather than a single generic phrase.
-  final String actionVerb;
+  /// "Logging in" or "Creating an account"
+  final String? actionVerb;
+  
+  /// "I agree to the "
+  final String? prefixText;
 
-  void _showPlaceholder(BuildContext context, String document) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$document is a placeholder for this academic prototype -- not '
-          'written yet.',
-        ),
-      ),
-    );
+  void _launchURL(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch browser')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch browser')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final prefix = prefixText ?? 'By $actionVerb, you agree to ArangCada\'s ';
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: RichText(
@@ -86,7 +102,7 @@ class AuthLegalNotice extends StatelessWidget {
         text: TextSpan(
           style: AppTypography.caption.copyWith(height: 1.5),
           children: [
-            TextSpan(text: 'By $actionVerb, you agree to ArangCada\'s '),
+            TextSpan(text: prefix),
             TextSpan(
               text: 'Terms of Service',
               style: const TextStyle(
@@ -95,7 +111,7 @@ class AuthLegalNotice extends StatelessWidget {
               ),
               recognizer:
                   (TapGestureRecognizer()
-                    ..onTap = () => _showPlaceholder(context, 'Terms of Service')),
+                    ..onTap = () => _launchURL(context, 'https://arangcada.ph/tos')),
             ),
             const TextSpan(text: ' and '),
             TextSpan(
@@ -106,7 +122,7 @@ class AuthLegalNotice extends StatelessWidget {
               ),
               recognizer:
                   (TapGestureRecognizer()
-                    ..onTap = () => _showPlaceholder(context, 'Privacy Policy')),
+                    ..onTap = () => _launchURL(context, 'https://arangcada.ph/privacy')),
             ),
             const TextSpan(text: '.'),
           ],

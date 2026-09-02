@@ -57,7 +57,7 @@ class ArangCadaMark extends StatelessWidget {
               // badge from the page now that the fill colour matches.
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x1F1F1E1D),
+                  color: AppColors.shadowMedium,
                   blurRadius: 16,
                   offset: Offset(0, 6),
                 ),
