@@ -152,8 +152,18 @@ void main() {
     // worse than showing the wait.
     expect(find.textContaining('Resend code in'), findsOneWidget);
 
-    await tester.tap(find.textContaining('Resend code in'));
-    await tester.pump();
+    // And the wait is shown as text, not as a disabled button. A countdown is
+    // not a control: rendering it as one invites a tap that can never be
+    // honoured. This assertion is the point of the test -- a later restyle
+    // that turns it back into a greyed-out button would silently reinstate
+    // exactly the affordance that was removed.
+    expect(
+      find.ancestor(
+        of: find.textContaining('Resend code in'),
+        matching: find.byType(TextButton),
+      ),
+      findsNothing,
+    );
     expect(auth.sendCalls, 0);
   });
 

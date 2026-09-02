@@ -114,23 +114,25 @@ class DigitalReceiptScreen extends ConsumerWidget {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.lg),
-                      // Once rated, no button here leads back into the
-                      // rating flow at all -- a prior version relabeled it
-                      // "View Rating" instead of removing it, which still
-                      // read as an invitation to rate again.
-                      if (state.tripRating == null)
-                        FilledButton(
-                          onPressed: () => context.push('/rating'),
-                          child: const Text('Rate This Ride'),
-                        )
-                      else
+                      // No button here leads back into the rating flow, in
+                      // either state. Rating is over by the time the receipt
+                      // renders -- whether it was submitted or skipped -- and
+                      // re-offering it made a deliberate "skip" look like it
+                      // had failed to register. A prior version relabeled the
+                      // button "View Rating" instead of removing it, which
+                      // still read as an invitation to rate again; keeping it
+                      // only in the unrated branch had the same effect. The
+                      // receipt now states the outcome and offers exactly one
+                      // action.
+                      if (state.tripRating != null) ...[
                         Text(
                           'You rated this ride ${state.tripRating} out of 5.',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
-                      const SizedBox(height: AppSpacing.xs),
-                      OutlinedButton(
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      FilledButton(
                         onPressed: () => context.go('/home'),
                         child: const Text('Back to Home'),
                       ),
