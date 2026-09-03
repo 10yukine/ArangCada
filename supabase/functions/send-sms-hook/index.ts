@@ -73,7 +73,12 @@ const SEMAPHORE_ENDPOINT =
     : 'priority'
 
 interface HookPayload {
-  user: { id: string; phone?: string }
+  // `phone` is the number already confirmed on the account. `new_phone` is the
+  // one being claimed. This app registers with email+password and only then
+  // attaches a number via updateUser(phone:), which is the phone-CHANGE flow,
+  // so for the verification that matters here `phone` is null and the number
+  // lives in `new_phone` until the code is accepted.
+  user: { id: string; phone?: string; new_phone?: string }
   sms: { otp: string }
 }
 
@@ -110,7 +115,13 @@ function verifySignature(body: string, headers: Headers): boolean {
   const age = Math.abs(Date.now() / 1000 - Number(timestamp))
   if (!Number.isFinite(age) || age > 300) return false
 
-  const secretBytes = Buffer.from(HOOK_SECRET.replace(/^v1,?/, ''), 'base64')
+  // Supabase hands out the secret as `v1,whsec_<base64>`. BOTH prefixes have to
+  // come off before decoding. `whsec_` is not base64, and Buffer.from silently
+  // discards invalid characters rather than throwing, so leaving it attached
+  // yields a different key and therefore a signature that can never match --
+  // a 401 with nothing in the logs to explain it.
+  const rawSecret = HOOK_SECRET.replace(/^v1,/, '').replace(/^whsec_/, '')
+  const secretBytes = Buffer.from(rawSecret, 'base64')
   const expected = createHmac('sha256', secretBytes)
     .update(`${id}.${timestamp}.${body}`)
     .digest('base64')
@@ -205,16 +216,29 @@ Deno.serve(async (req) => {
   try {
     payload = JSON.parse(body) as HookPayload
   } catch {
+    // Logged, because a bare 400 is invisible: GoTrue reports it to the client
+    // as "Invalid payload sent to hook" while the function log stays completely
+    // empty, which reads like the hook was never called at all.
+    console.error('send-sms-hook: body was not valid JSON')
     return new Response(JSON.stringify({ error: { message: 'invalid payload' } }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
   }
 
-  const phone = payload.user?.phone ?? ''
+  // new_phone first: during a phone change it is the only field carrying the
+  // number the code is being sent to. Reading `phone` alone rejected every
+  // registration in this app, because an account created with email+password
+  // has no confirmed phone yet -- and it failed silently, since the branch
+  // below used to return 400 without logging.
+  const phone = payload.user?.new_phone || payload.user?.phone || ''
   const otp = payload.sms?.otp ?? ''
 
   if (!phone || !otp) {
+    console.error(
+      `send-sms-hook: payload missing ${!phone ? 'phone' : ''}` +
+        `${!phone && !otp ? ' and ' : ''}${!otp ? 'otp' : ''}`,
+    )
     return new Response(JSON.stringify({ error: { message: 'missing phone or otp' } }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
