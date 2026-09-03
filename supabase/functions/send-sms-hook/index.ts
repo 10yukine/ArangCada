@@ -53,6 +53,15 @@
 // if credits ever matter more than latency.
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
+// Buffer is a global in Node but NOT in Deno's edge runtime, where it must be
+// imported explicitly. Without this the hook threw
+// "ReferenceError: Buffer is not defined" and returned 500 for every OTP.
+//
+// It stayed hidden because verifySignature() returns early when no secret is
+// configured, so these three lines had never once executed -- setting
+// SEND_SMS_HOOK_SECRET is what armed the path, and the failure appeared at the
+// moment the endpoint was secured rather than when the code was written.
+import { Buffer } from 'node:buffer'
 
 const MODE = (Deno.env.get('SMS_HOOK_MODE') ?? 'stub').toLowerCase()
 const HOOK_SECRET = Deno.env.get('SEND_SMS_HOOK_SECRET') ?? ''

@@ -89,6 +89,27 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           );
       if (!mounted) return;
 
+      // No session means the project still demands an emailed confirmation
+      // link before the account may act. The SMS flow cannot run without one:
+      // updateUser(phone:) has no signed-in user to attach a number to, and
+      // /verify-phone bounces straight back to /login because the router sends
+      // a null user anywhere that is not an auth path. That bounce is silent
+      // and looks exactly like a rejected registration, so say what happened
+      // instead of navigating into a dead end.
+      //
+      // Verification here is deliberately the SMS code and not an emailed link
+      // (a Filipino holds one or two SIMs but unlimited email addresses), so
+      // reaching this branch is a project misconfiguration, not a user error.
+      // requiresEmailConfirmation was already being computed and thrown away.
+      if (result.requiresEmailConfirmation) {
+        setState(
+          () => _error =
+              'Your account was created, but this project still requires email '
+              'confirmation. Turn off "Confirm email" in Supabase, then sign in.',
+        );
+        return;
+      }
+
       // Since 31 Aug 2026 verification is a 6-digit SMS code rather than an
       // emailed link. Send it now so the verify screen opens with a code
       // already on its way, then let the router redirect take over: it watches
@@ -97,10 +118,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       // A failure here is deliberately NOT fatal. The account exists at this
       // point, so bouncing the user back to registration would orphan it. The
       // verify screen has a Resend button; surface the reason and continue.
+      // Carried to the next screen rather than shown on this one. Setting it
+      // here displayed the reason on a form that is destroyed by the very next
+      // line, so a send that failed looked exactly like a send that worked.
+      String? sendFailure;
       try {
         await ref.read(authRepositoryProvider).sendPhoneOtp(mobile.e164!);
       } on DemoAuthException catch (error) {
-        if (mounted) setState(() => _error = error.message);
+        sendFailure = error.message;
       }
 
       if (!mounted) return;
@@ -108,7 +133,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (user != null && !user.needsPhoneVerification) {
         context.go(user.role == DemoRole.driver ? '/driver' : '/home');
       } else {
-        context.go('/verify-phone');
+        context.go('/verify-phone', extra: sendFailure);
       }
     } on DemoAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);

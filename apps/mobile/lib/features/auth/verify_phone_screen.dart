@@ -26,7 +26,17 @@ import '../../data/repositories/auth_repository.dart';
 /// refuse an unverified account, so a tampered client that skips this screen
 /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
 class VerifyPhoneScreen extends ConsumerStatefulWidget {
-  const VerifyPhoneScreen({super.key});
+  const VerifyPhoneScreen({this.initialError, super.key});
+
+  /// Why the code that sign-up tried to send never went out.
+  ///
+  /// Registration deliberately treats a failed send as non-fatal -- the account
+  /// already exists, so bouncing back to the form would orphan it -- but it
+  /// then set the message on a screen it immediately navigated away from, so
+  /// the reason was destroyed on the way here. The user landed on a screen
+  /// saying "We sent it by SMS" when nothing had been sent, and the only clue
+  /// was a 60-second wait for a Resend button.
+  final String? initialError;
 
   @override
   ConsumerState<VerifyPhoneScreen> createState() => _VerifyPhoneScreenState();
@@ -68,6 +78,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
   @override
   void initState() {
     super.initState();
+    _error = widget.initialError;
     _shake = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),

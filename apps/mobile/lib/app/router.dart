@@ -159,8 +159,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/verify-phone',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const VerifyPhoneScreen()),
+        pageBuilder: (context, state) => _screenPage(
+          state,
+          // Survives the redirect above: an account that still needs
+          // verification returns null for this path rather than redirecting,
+          // so `extra` is not discarded on the way in.
+          VerifyPhoneScreen(initialError: state.extra as String?),
+        ),
       ),
       GoRoute(
         path: '/signup',
