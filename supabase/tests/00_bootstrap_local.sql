@@ -20,6 +20,21 @@ create table if not exists auth.users (
   raw_user_meta_data jsonb not null default '{}'::jsonb
 );
 
+-- Phone verification (31 Aug 2026). Real Supabase auth.users carries these two
+-- columns; the shim gained them when SMS OTP registration landed, because the
+-- trigger that mirrors phone_confirmed_at into public.profiles cannot be tested
+-- without them. Added with ALTER rather than in the CREATE above so an existing
+-- local test database picks them up on the next run.
+alter table auth.users add column if not exists phone              text;
+alter table auth.users add column if not exists phone_confirmed_at timestamptz;
+
+-- Abandoned-registration sweep (4 Sep 2026). Real auth.users has always had
+-- created_at; the shim did not, so sweep_abandoned_registrations() -- which
+-- decides what to delete by account age -- could not be exercised locally at
+-- all. A function that deletes users in bulk is the last thing that should be
+-- untestable, so the shim gained the column.
+alter table auth.users add column if not exists created_at timestamptz not null default now();
+
 -- Supabase reads the caller's user id from a request-scoped JWT claim.
 -- Tests impersonate a user with:  set local request.jwt.claim.sub = '<uuid>';
 create or replace function auth.uid()

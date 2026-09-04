@@ -100,23 +100,79 @@ void main() {
     );
   });
 
-  test('survey responses persist centrally and reject cross-TODA writes', () {
+  test(
+    'demo feedback participants stay scoped and reject cross-TODA writes',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final controller = container.read(adminProvider.notifier);
+      const todaSession = AdminSession(
+        name: 'Coordinator',
+        role: AdminRole.toda,
+        toda: 'Brgy. Real',
+      );
+
+      controller.recordDemoFeedbackResponse(todaSession, 'Brgy. Real');
+
+      expect(container.read(adminProvider).feedbackCounts['Brgy. Real'], 9);
+      expect(
+        () => controller.recordDemoFeedbackResponse(todaSession, 'Parian'),
+        throwsStateError,
+      );
+      expect(container.read(adminProvider).feedbackCounts['Parian'], 7);
+    },
+  );
+
+  test(
+    'only LGU administrators can update the global feedback interval',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final controller = container.read(adminProvider.notifier);
+      const lguSession = AdminSession(
+        name: 'LGU evaluator',
+        role: AdminRole.lgu,
+      );
+      const todaSession = AdminSession(
+        name: 'Coordinator',
+        role: AdminRole.toda,
+        toda: 'Brgy. Real',
+      );
+
+      expect(container.read(adminProvider).feedbackInterval, 1);
+      await controller.updateFeedbackSettings(
+        session: lguSession,
+        feedbackInterval: 3,
+      );
+      expect(container.read(adminProvider).feedbackInterval, 3);
+      await expectLater(
+        controller.updateFeedbackSettings(
+          session: todaSession,
+          feedbackInterval: 1,
+        ),
+        throwsStateError,
+      );
+      expect(container.read(adminProvider).feedbackInterval, 3);
+    },
+  );
+
+  test('demo sessions cannot change an account password', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final controller = container.read(adminProvider.notifier);
-    const todaSession = AdminSession(
-      name: 'Coordinator',
-      role: AdminRole.toda,
-      toda: 'Brgy. Real',
-    );
 
-    controller.recordSurveyResponse(todaSession, 'Brgy. Real');
-
-    expect(container.read(adminProvider).surveyCounts['Brgy. Real'], 9);
-    expect(
-      () => controller.recordSurveyResponse(todaSession, 'Parian'),
+    await expectLater(
+      container
+          .read(adminProvider.notifier)
+          .updateOwnPassword(
+            session: const AdminSession(
+              name: 'LGU evaluator',
+              email: 'evaluator@calambacity.gov.ph',
+              role: AdminRole.lgu,
+            ),
+            currentPassword: 'current-password',
+            newPassword: 'new-password',
+          ),
       throwsStateError,
     );
-    expect(container.read(adminProvider).surveyCounts['Parian'], 7);
   });
 }

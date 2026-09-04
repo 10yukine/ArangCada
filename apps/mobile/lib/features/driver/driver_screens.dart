@@ -895,7 +895,7 @@ class _DriverMapSheetState extends State<_DriverMapSheet>
             ),
             boxShadow: [
               BoxShadow(
-                color: Color(0x141F1E1D),
+                color: AppColors.shadowLight,
                 blurRadius: 10,
                 offset: Offset(0, -4),
               ),
@@ -1012,7 +1012,7 @@ class _AvailabilityCard extends StatelessWidget {
   }
 }
 
-/// Today's earnings, in the prototype's clay panel.
+/// Today's earnings panel.
 class _EarningsCard extends StatelessWidget {
   const _EarningsCard({required this.onView});
 

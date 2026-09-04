@@ -23,8 +23,13 @@ import '../../demo/demo_data.dart';
 /// bottom bar carrying the fare beside the primary action.
 ///
 /// The prototype's "Pay with" chips are replaced by passenger count. Payment
-/// method belongs on the review screen; passenger count is what actually moves
-/// the Pooling fare, so it belongs here next to the prices it changes.
+/// method belongs on the review screen.
+///
+/// Since 31 Aug 2026 Espesyal is the only bookable ride type (Calamba City
+/// Hall), so there is no ride-type choice left to make here. Passenger count
+/// does not change an Espesyal fare -- it is billed kada byahe -- but it is
+/// captured here because dispatch and the driver need to know how many people
+/// are waiting.
 class RideOptionsScreen extends ConsumerStatefulWidget {
   const RideOptionsScreen({super.key});
 
@@ -63,23 +68,19 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
 
         final fare = ref.read(fareRepositoryProvider);
         final discountClass = state.userFareClass.discountClass;
-        final pooling = fare.quote(
+        // Espesyal only since 31 Aug 2026 (Calamba City Hall withdrew pooling
+        // as a bookable option). The RideType enum and the pooling fare data
+        // are deliberately retained as the ordinance record of Regular na
+        // Byahe -- see docs/LGU_FARE_MATRIX.md section 2a -- so the fare-matrix
+        // reference screen can still show it. It is simply never offered here.
+        const selected = RideType.special;
+        final special = fare.quote(
           distanceMeters: distanceMeters,
-          rideType: RideType.pooling,
+          rideType: selected,
           passengerCount: state.passengerCount.clamp(1, 4),
           discountClass: discountClass,
         );
-        final special = state.passengerCount <= 3
-            ? fare.quote(
-                distanceMeters: distanceMeters,
-                rideType: RideType.special,
-                passengerCount: state.passengerCount,
-                discountClass: discountClass,
-              )
-            : null;
-
-        final selected = state.selectedRideType;
-        final active = selected == RideType.special ? special : pooling;
+        final active = special;
 
         return Scaffold(
           body: Column(
@@ -121,15 +122,14 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                 destinationName: destination.name,
                 distanceMeters: distanceMeters,
                 rejection: rejection,
-                pooling: pooling,
-                poolingEnabled: ref.read(liveRideRepositoryProvider) == null,
                 special: special,
-                selected: selected,
                 passengerCount: state.passengerCount,
-                onSelectType: state.setSelectedRideType,
                 onPassengerCount: state.setPassengerCount,
                 active: active,
-                onReview: (rejection == null && active != null)
+                // `active` is now always non-null: with pooling withdrawn
+                // there is exactly one quote and it is unconditional. Only the
+                // service-area rejection can block review.
+                onReview: (rejection == null)
                     ? () {
                         // The review screen renders DemoState.activeBooking.
                         // Pushing the route without creating the draft first
@@ -165,12 +165,8 @@ class _RideSheet extends StatelessWidget {
     required this.destinationName,
     required this.distanceMeters,
     required this.rejection,
-    required this.pooling,
-    required this.poolingEnabled,
     required this.special,
-    required this.selected,
     required this.passengerCount,
-    required this.onSelectType,
     required this.onPassengerCount,
     required this.active,
     required this.onReview,
@@ -182,12 +178,8 @@ class _RideSheet extends StatelessWidget {
   final String destinationName;
   final double distanceMeters;
   final String? rejection;
-  final FareQuote pooling;
-  final bool poolingEnabled;
-  final FareQuote? special;
-  final RideType selected;
+  final FareQuote special;
   final int passengerCount;
-  final ValueChanged<RideType> onSelectType;
   final ValueChanged<int> onPassengerCount;
   final FareQuote? active;
   final VoidCallback? onReview;
@@ -207,7 +199,7 @@ class _RideSheet extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x141F1E1D),
+            color: AppColors.shadowLight,
             blurRadius: 10,
             offset: Offset(0, -4),
           ),
@@ -250,38 +242,29 @@ class _RideSheet extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
+                    // Espesyal is the only bookable ride type since
+                    // 31 Aug 2026. It stays rendered as a single selected
+                    // option rather than being dropped entirely, so the
+                    // commuter can still see what they are booking and what it
+                    // costs before confirming.
                     _RideOption(
                       title: 'Special',
-                      subtitle: special == null
-                          ? 'Private trip · up to 3 passengers'
-                          : 'Private trip · '
-                                '${formatCentavos(special!.partyTotalCentavos)}',
+                      subtitle: 'Private trip · '
+                          '${formatCentavos(special.partyTotalCentavos)}',
                       icon: Icons.person_outline,
-                      selected: selected == RideType.special,
-                      enabled: special != null,
-                      onTap: () => onSelectType(RideType.special),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _RideOption(
-                      title: 'Pooling',
-                      subtitle: poolingEnabled
-                          ? 'Shared trip · '
-                                '${formatCentavos(pooling.unitFareCentavos)} each'
-                          : 'Shared trips are not enabled for live testing.',
-                      icon: Icons.groups_outlined,
-                      selected: selected == RideType.pooling,
-                      enabled: poolingEnabled,
-                      onTap: () => onSelectType(RideType.pooling),
+                      selected: true,
+                      enabled: true,
+                      onTap: () {},
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _PassengerRow(
                       count: passengerCount,
-                      max: selected == RideType.special ? 3 : 4,
+                      max: 4,
                       onChanged: onPassengerCount,
                     ),
-                    if (expanded && active != null) ...[
+                    if (expanded) ...[
                       const SizedBox(height: AppSpacing.md),
-                      _FareBreakdown(quote: active!),
+                      _FareBreakdown(quote: special),
                     ],
                   ],
                 ),
@@ -524,7 +507,9 @@ class _RideOption extends StatelessWidget {
 }
 
 /// Occupies the prototype's "Pay with" row. Payment method is chosen on the
-/// review screen; passenger count is what actually moves the Pooling fare.
+/// review screen. Espesyal is billed per trip, so this does not move the fare;
+/// it tells the driver how many passengers to expect. Capped at 4 by LGU
+/// decision of 31 Aug 2026.
 class _PassengerRow extends StatelessWidget {
   const _PassengerRow({
     required this.count,
@@ -587,7 +572,7 @@ class _FareBreakdown extends StatelessWidget {
             value: formatCentavos(quote.unitFareCentavos),
           ),
           _BreakdownLine(
-            label: pooling ? 'Per passenger' : 'Per trip · 1–3 passengers',
+            label: pooling ? 'Per passenger' : 'Per trip · 1–4 passengers',
             value: pooling ? '× ${quote.passengerCount}' : '× 1',
           ),
           _BreakdownLine(

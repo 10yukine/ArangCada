@@ -392,6 +392,17 @@ class _LiveMapViewState extends State<LiveMapView> {
     );
   }
 
+  void _retry() {
+    _styleTimeout?.cancel();
+    setState(() {
+      _styleFailed = false;
+      _styleReady = false;
+    });
+    _styleTimeout = Timer(_styleLoadBudget, () {
+      if (mounted && !_styleReady) setState(() => _styleFailed = true);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final radius =
@@ -399,8 +410,16 @@ class _LiveMapViewState extends State<LiveMapView> {
         const BorderRadius.all(Radius.circular(AppRadii.card));
 
     Widget content;
-    if (!AppConfig.isMapTilerConfigured || _styleFailed) {
+    if (!AppConfig.isMapTilerConfigured) {
+      // No key configured at all -- retrying cannot help.
       content = const _MapUnavailable();
+    } else if (_styleFailed) {
+      // Configured but the style never loaded in time (a real bug this
+      // was: a transient network drop or a resume-from-sleep hiccup set
+      // this once and there was no way back -- the map stayed dead for the
+      // rest of the widget's life). Retry rebuilds a fresh MapLibreMap
+      // below, which starts a new load attempt from scratch.
+      content = _MapUnavailable(onRetry: _retry);
     } else {
       content = Stack(
         fit: StackFit.expand,
@@ -565,7 +584,9 @@ class MapAttribution extends StatelessWidget {
 }
 
 class _MapUnavailable extends StatelessWidget {
-  const _MapUnavailable();
+  const _MapUnavailable({this.onRetry});
+
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -595,6 +616,10 @@ class _MapUnavailable extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: AppTypography.caption,
               ),
+              if (onRetry != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                TextButton(onPressed: onRetry, child: const Text('Retry')),
+              ],
             ],
           ),
         ),

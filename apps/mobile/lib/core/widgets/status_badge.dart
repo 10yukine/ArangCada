@@ -4,7 +4,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 
-enum StatusBadgeVariant { green, amber, red, clay }
+enum StatusBadgeVariant { green, amber, red, brand }
 
 class StatusBadge extends StatelessWidget {
   const StatusBadge(this.label, {required this.variant, super.key});
@@ -18,7 +18,7 @@ class StatusBadge extends StatelessWidget {
       StatusBadgeVariant.green => (AppColors.greenFill, AppColors.greenDark),
       StatusBadgeVariant.amber => (AppColors.amberFill, AppColors.amberText),
       StatusBadgeVariant.red => (AppColors.dangerFill, AppColors.dangerDeep),
-      StatusBadgeVariant.clay => (AppColors.primaryFill, AppColors.primaryText),
+      StatusBadgeVariant.brand => (AppColors.primaryFill, AppColors.primaryText),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),

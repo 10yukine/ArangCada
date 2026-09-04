@@ -29,4 +29,4 @@ See [docs/TECH_STACK_DECISIONS.md](docs/TECH_STACK_DECISIONS.md) for rationale.
 
 ## Scope guardrails
 
-Calamba City only. Internal testing only — no production deployment, no app store release. Booking types: `special` and `pooling`. Payments: cash, GCash record, QR transfer record. No surge pricing.
+Calamba City only. Internal testing only — no production deployment, no app store release. Bookable ride type: `special` (Espesyal na Byahe), 1-4 passengers; `pooling` is retained in the schema as the ordinance record of Regular na Byahe but is not offered to commuters. Dispatch matches the nearest available driver city-wide with a staged 1 km -> 3 km search radius. Commuters can share a live ride-tracking link. Payments: cash, GCash record, QR transfer record. No surge pricing.

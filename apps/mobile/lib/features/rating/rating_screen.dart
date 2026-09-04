@@ -38,7 +38,16 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Rate your ride')),
+      appBar: AppBar(
+        // Same destination as Skip below -- this is a `go()` route with
+        // nothing on the Navigator stack to pop to.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Skip',
+          onPressed: () => context.go('/receipt'),
+        ),
+        title: const Text('Rate your ride'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,

@@ -56,6 +56,29 @@ class HybridAuthRepository implements AuthRepository {
   Future<void> sendPasswordReset(String email) =>
       _requiredLive.sendPasswordReset(email);
 
+  // OTP always goes to the live repository. The local test accounts never
+  // reach the verify screen -- they are internal testers, so
+  // needsPhoneVerification is false -- and routing a code request to the mock
+  // would silently do nothing for a real user whose email happened to look
+  // local.
+  @override
+  Future<void> sendPhoneOtp(String e164Phone) =>
+      _requiredLive.sendPhoneOtp(e164Phone);
+
+  @override
+  Future<DemoUser> verifyPhoneOtp({
+    required String e164Phone,
+    required String token,
+  }) => _requiredLive.verifyPhoneOtp(e164Phone: e164Phone, token: token);
+
+  // Live only, for the same reason as the OTP methods above: a local test
+  // account has no server-side row to delete, and routing this to the mock
+  // would silently do nothing for a real user whose email happened to look
+  // local. `_requiredLive` throws a message the user can act on instead.
+  @override
+  Future<void> abandonUnverifiedRegistration() =>
+      _requiredLive.abandonUnverifiedRegistration();
+
   @override
   Future<void> signOut() async {
     // Sign out of both, always. Routing on `_live != null` signed the user out

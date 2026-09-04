@@ -1,0 +1,31 @@
+{
+  // Cloudflare Workers static-assets config for the LGU/TODA admin console.
+  //
+  // Deployed with:
+  //   cd apps/admin_web && flutter build web --release --dart-define-from-file=env.json
+  //   npx wrangler deploy --config apps/admin_web/wrangler.jsonc
+  //
+  // No Git build pipeline. Flutter is not in Cloudflare's build image, and
+  // wiring one for a capstone that redeploys occasionally would be machinery
+  // with no job to do. Build locally, deploy locally.
+
+  "name": "arangcada-admin",
+  "compatibility_date": "2026-09-01",
+
+  "assets": {
+    // Build output, not source. Gitignored, so this only resolves after a build.
+    "directory": "./build/web/",
+
+    // Flutter Web routes on the client, so a deep link such as /drivers has no
+    // corresponding file. Without this, a refresh on any screen but the root
+    // would 404.
+    "not_found_handling": "single-page-application"
+  },
+
+  // Its own subdomain, never a path under arangcada.app. Different audience,
+  // different risk profile: this console reaches driver documents and SOS
+  // reports, while the root domain is a public tracking page.
+  "routes": [
+    { "pattern": "admin.arangcada.app", "custom_domain": true }
+  ]
+}

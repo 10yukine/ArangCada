@@ -21,10 +21,7 @@ void main() {
           latitude: 14.2000,
           longitude: 121.1600,
         ),
-        'Barangay Real': GeoCoordinate(
-          latitude: 14.2300,
-          longitude: 121.1500,
-        ),
+        'Barangay Real': GeoCoordinate(latitude: 14.2300, longitude: 121.1500),
       };
       for (final entry in inside.entries) {
         expect(
@@ -68,6 +65,25 @@ void main() {
       expect(
         ServiceArea.rejectionReason(pickup: manila, destination: calamba),
         contains('pickup'),
+      );
+    });
+
+    test('Cabuyao remains an explicitly enabled developer-only exception', () {
+      const cabuyao = GeoCoordinate(latitude: 14.3100, longitude: 121.1250);
+      const calamba = GeoCoordinate(latitude: 14.2116, longitude: 121.1652);
+
+      expect(ServiceArea.contains(cabuyao), isFalse);
+      expect(
+        ServiceArea.contains(cabuyao, allowCabuyaoTestException: true),
+        isTrue,
+      );
+      expect(
+        ServiceArea.rejectionReason(
+          pickup: cabuyao,
+          destination: calamba,
+          allowCabuyaoTestException: true,
+        ),
+        isNull,
       );
     });
   });

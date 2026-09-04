@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- PRIVACY: without no-referrer, every map tile request would carry the full
+     tracking URL -- including the share token -- to the tile provider in the
+     Referer header. That would hand a third party a working link to a named
+     person's live location. -->
+<meta name="referrer" content="no-referrer">
+
+<!-- A shared link must never end up in a search index. -->
+<meta name="robots" content="noindex, nofollow, noarchive">
+
+<title>Live ride tracking &middot; ArangCada</title>
+<meta name="description" content="Follow an ArangCada tricycle trip in real time.">
+<meta name="theme-color" content="#0C2340">
+
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<header class="bar">
+  <span class="brand">ArangCada</span>
+  <span class="bar-sub">Live ride tracking</span>
+</header>
+
+<!-- LOADING ---------------------------------------------------------------->
+<section id="state-loading" class="panel">
+  <div class="skeleton skeleton-title"></div>
+  <div class="skeleton skeleton-line"></div>
+  <div class="skeleton skeleton-map"></div>
+  <p class="muted">Loading this trip&hellip;</p>
+</section>
+
+<!-- LANDING ----------------------------------------------------------------
+     Shown when someone opens the bare domain with no token. This is NOT an
+     error state: a panelist, an LGU officer or a curious driver typing
+     arangcada.app has done nothing wrong, and greeting them with "this link
+     has expired" would be false and a poor first impression. -->
+<section id="state-landing" class="panel hidden">
+  <div class="icon-circle">&#128663;</div>
+  <h1>ArangCada</h1>
+  <p class="muted">
+    A tricycle ride-hailing and dispatch system for Calamba City, built with
+    local TODA operators and the city government.
+  </p>
+
+  <div class="card">
+    <div class="route">
+      <span class="pin pin-start" aria-hidden="true"></span>
+      <div class="route-text">
+        <span class="value">Following someone&rsquo;s trip?</span>
+        <span class="label">
+          Open the tracking link they shared with you. This page only works with
+          that link &mdash; there is nothing to sign in to here.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <p class="privacy-note">
+    Tracking links are created by the passenger, show only the vehicle&rsquo;s
+    live location for a single trip, and stop working once that trip ends.
+  </p>
+
+  <p class="muted small">
+    Undergraduate capstone project &middot; Calamba City, Laguna
+  </p>
+</section>
+
+<!-- EXPIRED / INVALID / REVOKED --------------------------------------------
+     All three collapse to one message on purpose. Telling a stranger apart
+     "no such trip" from "that trip has finished" would confirm that a guessed
+     token was once real. -->
+<section id="state-expired" class="panel hidden">
+  <div class="icon-circle">&#9203;</div>
+  <h1>This tracking link has expired</h1>
+  <p class="muted">
+    Tracking links stop working once the trip ends, or if the passenger turns
+    off sharing.
+  </p>
+  <p class="muted small">
+    If you were expecting to follow a trip, ask the passenger to share a new
+    link from the ArangCada app.
+  </p>
+</section>
+
+<!-- ACTIVE ----------------------------------------------------------------->
+<section id="state-active" class="panel hidden">
+  <div id="status-row" class="status-row">
+    <span id="status-dot" class="dot"></span>
+    <span id="status-text" class="status-text">&nbsp;</span>
+  </div>
+
+  <div id="map" role="img" aria-label="Map showing the tricycle's current location"></div>
+
+  <p id="position-age" class="position-age muted small">&nbsp;</p>
+
+  <div class="card">
+    <div class="row">
+      <span class="label">Driver</span>
+      <span id="driver-name" class="value">&nbsp;</span>
+    </div>
+    <div class="row" id="body-row" hidden>
+      <span class="label">Body number</span>
+      <span id="body-number" class="value">&nbsp;</span>
+    </div>
+    <div class="row" id="toda-row" hidden>
+      <span class="label">TODA</span>
+      <span id="toda-name" class="value">&nbsp;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="route">
+      <span class="pin pin-start" aria-hidden="true"></span>
+      <div class="route-text">
+        <span class="label">Pickup</span>
+        <span id="pickup-label" class="value">&nbsp;</span>
+      </div>
+    </div>
+    <div class="route">
+      <span class="pin pin-end" aria-hidden="true"></span>
+      <div class="route-text">
+        <span class="label">Destination</span>
+        <span id="destination-label" class="value">&nbsp;</span>
+      </div>
+    </div>
+  </div>
+
+  <p id="reconnecting" class="muted small hidden">Reconnecting&hellip;</p>
+
+  <!-- Says plainly what this page does NOT show, so a viewer is not left
+       wondering whether they are seeing more than they should be. -->
+  <p class="privacy-note">
+    This page shows only the vehicle's current location for this one trip. It
+    does not show the passenger's name, contact details, or any past trips, and
+    it stops working when the trip ends.
+  </p>
+</section>
+
+<noscript>
+  <section class="panel">
+    <h1>JavaScript is required</h1>
+    <p class="muted">
+      This page needs JavaScript to show the map and the live location. Please
+      open the link in a browser with JavaScript enabled.
+    </p>
+  </section>
+</noscript>
+
+<footer class="foot">
+  <span>ArangCada &middot; Calamba City</span>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="./config.js"></script>
+<script type="module" src="./track.js"></script>
+</body>
+</html>

@@ -19,7 +19,7 @@
 
 begin;
 
-select plan(20);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- REGULAR NA PAMASAHE — the printed table, row for row
@@ -145,11 +145,36 @@ select throws_ok(
   'Regular na Byahe is capped at APAT (4) na pasahero'
 );
 
-select throws_ok(
+-- REVISED 31 August 2026 (Calamba City Hall).
+--
+-- This assertion used to read "Espesyal na Byahe is capped at TATLO (3) na
+-- pasahero" and expected 4 passengers to be REJECTED. The LGU administrator
+-- raised the operating cap to 4 when pooling was withdrawn, so 4 must now be
+-- accepted. See docs/LGU_FARE_MATRIX.md section 2a.
+--
+-- The ordinance transcription itself was NOT touched: the assertion further
+-- down still pins fare_matrix.max_passengers at 3 for Espesyal, because that is
+-- what the posted matrix prints. This file therefore now asserts both facts
+-- separately -- what the tarpaulin says, and what the LGU permits us to do --
+-- which is exactly the distinction the schema was changed to express.
+select lives_ok(
   $$ select public.compute_fare(3000, 'special', 'standard', 4) $$,
+  'Espesyal na Byahe accepts APAT (4) na pasahero under the LGU operating cap '
+  'approved 31 Aug 2026, even though the printed matrix says tatlo (3)'
+);
+
+select is(
+  public.compute_fare_centavos(3000, 'special', 'standard', 4),
+  public.compute_fare_centavos(3000, 'special', 'standard', 1),
+  'the 4th passenger costs nothing extra -- Espesyal is billed kada byahe, so '
+  'raising the cap moved no fare'
+);
+
+select throws_ok(
+  $$ select public.compute_fare(3000, 'special', 'standard', 5) $$,
   '22023',
   null,
-  'Espesyal na Byahe is capped at TATLO (3) na pasahero'
+  'a 5th passenger is still refused -- the cap moved to 4, it was not removed'
 );
 
 select throws_ok(

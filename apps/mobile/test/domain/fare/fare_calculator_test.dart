@@ -103,19 +103,38 @@ void main() {
       }
     });
 
-    test('special accepts min and max', () {
+    // REVISED 31 August 2026 (Calamba City Hall). The Espesyal operating cap
+    // moved from the ordinance's printed 3 to an LGU-approved 4 when pooling
+    // was withdrawn as a bookable option. See docs/LGU_FARE_MATRIX.md 2a.
+    test('special accepts min and the raised max of four', () {
       expect(
         quote(distanceMeters: 0, rideType: RideType.special),
         isA<FareQuote>(),
       );
       expect(
-        quote(distanceMeters: 0, rideType: RideType.special, passengerCount: 3),
+        quote(distanceMeters: 0, rideType: RideType.special, passengerCount: 4),
         isA<FareQuote>(),
       );
     });
 
+    test('the fourth Espesyal passenger costs nothing extra', () {
+      // Espesyal is billed kada byahe, so raising the cap must not move a fare.
+      expect(
+        quote(
+          distanceMeters: 3000,
+          rideType: RideType.special,
+          passengerCount: 4,
+        ).partyTotalCentavos,
+        quote(
+          distanceMeters: 3000,
+          rideType: RideType.special,
+          passengerCount: 1,
+        ).partyTotalCentavos,
+      );
+    });
+
     test('special rejects zero, negative, and max plus one', () {
-      for (final count in [0, -1, 4]) {
+      for (final count in [0, -1, 5]) {
         expect(
           () => quote(
             distanceMeters: 0,

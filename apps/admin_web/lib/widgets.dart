@@ -80,7 +80,7 @@ class StatusPill extends StatelessWidget {
       StatusTone.success => (AdminColors.successTint, AdminColors.success),
       StatusTone.warning => (AdminColors.warningTint, AdminColors.warning),
       StatusTone.danger => (AdminColors.dangerTint, AdminColors.danger),
-      StatusTone.clay => (AdminColors.clayTint, AdminColors.clayPress),
+      StatusTone.brand => (AdminColors.primaryTint, AdminColors.primaryPress),
       StatusTone.neutral => (AdminColors.surface, AdminColors.secondary),
     };
     return Semantics(
@@ -103,7 +103,7 @@ class StatusPill extends StatelessWidget {
   }
 }
 
-enum StatusTone { success, warning, danger, clay, neutral }
+enum StatusTone { success, warning, danger, brand, neutral }
 
 StatusTone driverTone(DriverStatus status) => switch (status) {
   DriverStatus.approved => StatusTone.success,
@@ -129,7 +129,7 @@ class MetricCard extends StatelessWidget {
     required this.value,
     required this.detail,
     required this.icon,
-    this.tone = AdminColors.clay,
+    this.tone = AdminColors.primary,
     this.onTap,
   });
   final String label;

@@ -6,12 +6,35 @@ class DemoUser {
     required this.displayName,
     required this.role,
     this.isInternalTester = false,
+    this.mobileNumber,
+    this.phoneVerified = false,
   });
 
   final String email;
   final String displayName;
   final DemoRole role;
   final bool isInternalTester;
+
+  /// E.164, as stored on the account. Null when the account predates phone
+  /// collection or the number was never set.
+  final String? mobileNumber;
+
+  /// Whether SMS OTP has proved control of [mobileNumber].
+  ///
+  /// This mirrors `profiles.phone_verified_at` and is used only to decide which
+  /// screen to show. It is **not** the access control: `request_ride`,
+  /// `can_driver_go_online` and `create_ride_share_link` each enforce
+  /// verification server-side, so a tampered client that forces this to true
+  /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
+  final bool phoneVerified;
+
+  /// True when the app should hold this account on the verify screen.
+  ///
+  /// Internal testers are exempt because the hidden `@arangcada.demo` accounts
+  /// have no real SIM behind them. The same exemption exists server-side, and
+  /// `is_internal_tester` is not self-service -- the profiles privilege guard
+  /// stops an ordinary account granting itself the flag.
+  bool get needsPhoneVerification => !phoneVerified && !isInternalTester;
 
   /// The seeded `@arangcada.demo` accounts, and only those accounts. Used to
   /// gate every walkthrough-only affordance: manual pickup choice, and the

@@ -35,18 +35,28 @@ class _DriverAppFeedbackScreenState
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     final rides = ref.read(liveRideRepositoryProvider);
-    if (rides == null || _submitting) return;
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await rides.submitDriverFeedback(
-        answers: Map.unmodifiable(_answers),
-        anonymous: _anonymous,
-        comment: _comment.text,
-      );
+      if (rides == null) {
+        // No live repository (a local sandbox/demo session) means there is
+        // no server row to submit against. This is only reachable at all if
+        // driverFeedbackPending was left true from another account -- which
+        // is now cleared on every sign-in -- but the screen must still have
+        // an exit rather than silently doing nothing on Submit, since it is
+        // otherwise unpoppable (PopScope canPop: false, no back button).
+        ref.read(demoStateProvider).clearDriverFeedbackPending();
+      } else {
+        await rides.submitDriverFeedback(
+          answers: Map.unmodifiable(_answers),
+          anonymous: _anonymous,
+          comment: _comment.text,
+        );
+      }
       // submitDriverFeedback() ends by calling notifyListeners() on the
       // repository, which is DemoState's refreshListenable for go_router --
       // that alone can trigger the router to re-evaluate its redirect in the
@@ -208,8 +218,18 @@ class _DriverAppFeedbackScreenState
               ],
               const SizedBox(height: AppSpacing.md),
               ArangButton(
-                label: _submitting ? 'Submitting…' : 'Submit and continue',
-                onPressed: !complete || _submitting ? null : _submit,
+                label: _submitting ? 'Submitting...' : 'Submit and continue',
+                onPressed: _submitting
+                    ? null
+                    : (!complete
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please answer all questions and check the consent box to continue.'),
+                              ),
+                            );
+                          }
+                        : _submit),
               ),
               const SizedBox(height: AppSpacing.md),
             ],

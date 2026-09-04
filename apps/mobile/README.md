@@ -17,16 +17,19 @@ This is the single most important table in this file. Do not blur it.
 | **MapTiler geocoding** | **Live.** Forward search and reverse lookup, scoped to Calamba. |
 | **openrouteservice Directions** | **Live.** Road geometry, distance and duration, drawn on the map. |
 | **Device GPS (geolocator)** | **Live.** While-in-use only. |
-| Dispatch / driver matching | Simulated on device. |
-| Driver availability and positions | Simulated. Illustrative markers, never live telemetry. |
-| Trip persistence | Local only. Remote tables are not deployed. |
-| Chat transport | Local only. **Not** cross-device messaging. |
+| Dispatch / driver matching | **Live for authenticated accounts.** Guarded Supabase RPC assigns an approved same-TODA driver; hidden demo accounts retain simulation. |
+| Driver availability and positions | **Live for authenticated accounts.** Foreground device GPS is scoped to the assigned ride and authorized administrators. |
+| Trip persistence | **Live for authenticated accounts.** Server-owned trip transitions, locked ordinance fare, and a 30-second driver offer. |
+| Chat transport | **Live for authenticated accounts.** Private realtime text chat; completed trips remain read-only for 30 days. |
+| Safety reports | **Live for authenticated accounts.** Three-second hold, issue selection, then delivery to scoped LGU/TODA administrators. No emergency service is contacted. |
+| Driver app evaluation | **Live for authenticated drivers.** Required bilingual five-point feedback after the configured completed-trip interval; passenger ratings remain separate. |
 | Wallet balance and payments | Sandbox. No provider connected, no money moves. |
 | Driver payouts / settlement | Sandbox. |
 | Predictive ETA | Mock range. |
 
-`lib/data/providers/repository_providers.dart` carries the same split as a
-comment, so the boundary is visible in code and not only here.
+`lib/data/providers/repository_providers.dart` selects connected repositories
+only for a matching authenticated Supabase account. Hidden `@arangcada.demo`
+accounts remain explicitly local.
 
 ---
 
@@ -151,6 +154,10 @@ Email and password only.
 - **No Google Sign-In button.** Rather than ship a dead or half-configured
   social control, it is absent.
 - Drivers do not self-register; enrolment is administered.
+- Connected mobile roles and developer-only Cabuyao access come from the
+  authoritative `profiles` row, never user-editable account metadata.
+- Cabuyao/SJVTODA is synthetic, provisional, and restricted to trusted internal
+  tester accounts; Calamba remains the permanent service area.
 
 ---
 
@@ -164,11 +171,12 @@ balance is provider-held. `PaymentRepository` is the single replacement point.
 
 ---
 
-## Not deployed
+## Development backend prerequisite
 
-Supabase migrations have **not** been pushed to the remote project, so the
-application tables return 404 there. That is why trips, dispatch and chat stay
-local. Deploying them is a separate, explicitly authorised task.
+Connected trips, chat, SOS, and evaluation require the reviewed live-connected
+Supabase migration chain to exist on the configured development project. When a
+hidden demo account is chosen, the previous on-device walkthrough remains
+available without remote ride data. This is internal testing only.
 
 ---
 

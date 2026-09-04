@@ -1,32 +1,48 @@
 import 'package:flutter/material.dart';
 
 abstract final class AdminColors {
-  static const background = Color(0xFFFAF9F5);
-  static const surface = Color(0xFFF0EEE5);
+  // Shares the mobile client's Brand Blue identity (AppColors in
+  // apps/mobile). The two apps are deliberately not code-coupled, so the
+  // values are restated here rather than imported; keep them in step by hand
+  // when the palette moves.
+  static const background = Color(0xFFF6F9FD);
+  static const surface = Color(0xFFE9F0F8);
   static const card = Colors.white;
-  static const ink = Color(0xFF1F1E1D);
-  static const body = Color(0xFF3D3A34);
-  static const secondary = Color(0xFF5C574D);
-  static const muted = Color(0xFF6B675E);
-  static const border = Color(0xFFE3DFD5);
-  static const clay = Color(0xFFB4552F);
-  static const clayPress = Color(0xFF9C4826);
-  static const clayTint = Color(0xFFF6E3D7);
-  static const rail = Color(0xFF262421);
-  static const success = Color(0xFF3D7558);
-  static const successTint = Color(0xFFE5F1EA);
-  static const warning = Color(0xFF98691D);
-  static const warningTint = Color(0xFFFFF0D0);
-  static const danger = Color(0xFFA74343);
-  static const dangerTint = Color(0xFFF9E2E2);
+  static const ink = Color(0xFF0F1A28);
+  static const body = Color(0xFF2B3B4D);
+  static const secondary = Color(0xFF48586B);
+  static const muted = Color(0xFF5A6A7D);
+  static const border = Color(0xFFDBE5F1);
+
+  static const primary = Color(0xFF1262D0);
+  static const primaryPress = Color(0xFF0E4EA6);
+  static const primaryTint = Color(0xFFE4F0FE);
+
+  /// Light brand accent. Decoration only -- 2.20:1 on white, so it never
+  /// carries text on a light surface. On the navy [rail] it is legible and
+  /// is the correct colour for the active nav indicator.
+  static const sky = Color(0xFF53B8F6);
+
+  /// Sidebar. Deep navy rather than near-black so the rail reads as the
+  /// darkest step of the brand ramp instead of an unrelated neutral.
+  static const rail = Color(0xFF0C2340);
+  static const railText = Color(0xFFA8BED8);
+  static const railTextMuted = Color(0xFF7E97B5);
+
+  static const success = Color(0xFF16795C);
+  static const successTint = Color(0xFFDFF3EB);
+  static const warning = Color(0xFF8A6011);
+  static const warningTint = Color(0xFFFCEFD6);
+  static const danger = Color(0xFFB3403A);
+  static const dangerTint = Color(0xFFFBE7E5);
 }
 
 ThemeData adminTheme() {
   final scheme = ColorScheme.fromSeed(
-    seedColor: AdminColors.clay,
+    seedColor: AdminColors.primary,
     brightness: Brightness.light,
     surface: AdminColors.card,
-    primary: AdminColors.clay,
+    primary: AdminColors.primary,
     error: AdminColors.danger,
   );
   return ThemeData(
@@ -98,7 +114,7 @@ ThemeData adminTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(12)),
-        borderSide: BorderSide(color: AdminColors.clay, width: 2),
+        borderSide: BorderSide(color: AdminColors.primary, width: 2),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(

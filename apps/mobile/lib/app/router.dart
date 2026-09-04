@@ -6,6 +6,7 @@ import '../core/widgets/adaptive_screen_frame.dart';
 import '../data/providers/repository_providers.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
+import '../features/auth/verify_phone_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/sign_up_screen.dart';
 import '../features/booking/ride_options_screen.dart';
@@ -86,9 +87,16 @@ bool isSharedFullScreenPath(String path) =>
     path == '/fare-matrix' ||
     path == '/notifications';
 
+/// Lets code outside the widget tree (specifically the FCM tap handler in
+/// PushNotificationService, which runs from a plugin callback with no
+/// BuildContext of its own) navigate through the same router the rest of
+/// the app uses, instead of maintaining a second navigation mechanism.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final demoState = ref.watch(demoStateProvider);
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: demoState,
     redirect: (context, state) {
@@ -99,6 +107,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthPath =
           path == '/login' || path == '/signup' || path == '/forgot-password';
       if (user == null) return isAuthPath ? null : '/login';
+
+      // Phone verification gate. An account that has not proved control of its
+      // mobile number is signed in but goes nowhere except the verify screen.
+      //
+      // This is a convenience gate, not the access control: request_ride,
+      // can_driver_go_online and create_ride_share_link each refuse an
+      // unverified account server-side, so forcing past this redirect gains a
+      // tampered client nothing (CLAUDE.md rule 6).
+      if (user.needsPhoneVerification) {
+        return path == '/verify-phone' ? null : '/verify-phone';
+      }
+      if (path == '/verify-phone') {
+        return user.role == DemoRole.commuter ? '/home' : '/driver';
+      }
 
       final roleHome = user.role == DemoRole.commuter ? '/home' : '/driver';
       if (isAuthPath || path == '/') return roleHome;
@@ -134,6 +156,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         pageBuilder: (context, state) =>
             _screenPage(state, const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: '/verify-phone',
+        pageBuilder: (context, state) => _screenPage(
+          state,
+          // Survives the redirect above: an account that still needs
+          // verification returns null for this path rather than redirecting,
+          // so `extra` is not discarded on the way in.
+          VerifyPhoneScreen(initialError: state.extra as String?),
+        ),
       ),
       GoRoute(
         path: '/signup',

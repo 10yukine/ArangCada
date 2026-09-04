@@ -1,14 +1,134 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'app_config.dart';
 import 'models.dart';
+import 'supabase_admin_repository.dart';
+
+final adminRepositoryProvider = Provider<SupabaseAdminRepository?>((ref) {
+  if (!AdminAppConfig.isSupabaseConfigured) return null;
+  try {
+    final repository = SupabaseAdminRepository(Supabase.instance.client);
+    ref.onDispose(repository.dispose);
+    return repository;
+  } on AssertionError {
+    return null;
+  } on StateError {
+    return null;
+  }
+});
 
 final adminProvider = NotifierProvider<AdminController, AdminState>(
   AdminController.new,
 );
 
 class AdminController extends Notifier<AdminState> {
+  AdminSession? _connectedSession;
+  bool _refreshing = false;
+  bool _refreshPending = false;
+
   @override
   AdminState build() => seedAdminState();
+
+  Future<void> connect(AdminSession session) async {
+    if (!session.connected) {
+      _connectedSession = null;
+      state = seedAdminState();
+      return;
+    }
+    if (ref.read(adminRepositoryProvider) == null) {
+      throw StateError('The Supabase administrator connection is unavailable.');
+    }
+    _connectedSession = session;
+    state = const AdminState(
+      drivers: [],
+      reports: [],
+      rides: [],
+      boundaries: [],
+      audit: [],
+      feedbackCounts: {},
+      connected: true,
+      loading: true,
+    );
+    await refresh();
+    if (_connectedSession != session) return;
+    ref
+        .read(adminRepositoryProvider)!
+        .subscribe(
+          session: session,
+          onDataChanged: () => unawaited(refresh()),
+          onSafetyInserted: _notifyNewSafetyReport,
+        );
+  }
+
+  Future<void> refresh() async {
+    final session = _connectedSession;
+    final repository = ref.read(adminRepositoryProvider);
+    if (session == null || repository == null) return;
+    if (_refreshing) {
+      _refreshPending = true;
+      return;
+    }
+    _refreshing = true;
+    try {
+      final snapshot = await repository.load(session);
+      if (_connectedSession != session) return;
+      state = state.copyWith(
+        drivers: snapshot.drivers,
+        reports: snapshot.reports,
+        reportedChats: snapshot.reportedChats,
+        rides: snapshot.rides,
+        boundaries: snapshot.boundaries,
+        feedbackSummaries: snapshot.feedbackSummaries,
+        feedbackResponses: snapshot.feedbackResponses,
+        feedbackCounts: {
+          for (final item in snapshot.feedbackSummaries)
+            item.toda: item.uniqueDrivers,
+        },
+        feedbackInterval: snapshot.feedbackInterval,
+        respondentTarget: snapshot.respondentTarget,
+        repeatFeedback: snapshot.repeatFeedback,
+        connected: true,
+        loading: false,
+        clearConnectionError: true,
+      );
+    } catch (_) {
+      if (_connectedSession == session) {
+        state = state.copyWith(
+          loading: false,
+          connectionError:
+              'Connected records could not be refreshed. Check your administrator scope and deployed database migrations.',
+        );
+      }
+      rethrow;
+    } finally {
+      _refreshing = false;
+      if (_refreshPending) {
+        _refreshPending = false;
+        unawaited(refresh());
+      }
+    }
+  }
+
+  Future<void> disconnect() async {
+    final session = _connectedSession;
+    _connectedSession = null;
+    if (session != null) await ref.read(adminRepositoryProvider)?.signOut();
+    state = seedAdminState();
+  }
+
+  void _notifyNewSafetyReport() {
+    state = state.copyWith(unreadSafetyAlerts: state.unreadSafetyAlerts + 1);
+    if (state.desktopAlerts) {
+      unawaited(SystemSound.play(SystemSoundType.alert).catchError((_) {}));
+    }
+  }
+
+  void clearSafetyNotifications() =>
+      state = state.copyWith(unreadSafetyAlerts: 0);
 
   List<Driver> scopedDrivers(AdminSession session) => state.drivers
       .where(
@@ -50,6 +170,24 @@ class AdminController extends Notifier<AdminState> {
       )
       .toList();
 
+  List<ReportedTripChat> visibleReportedChats(AdminSession session) =>
+      session.role == AdminRole.lgu
+      ? List.unmodifiable(state.reportedChats)
+      : const [];
+
+  Future<void> refreshReportedChats(AdminSession session) async {
+    if (session.role != AdminRole.lgu) {
+      throw StateError('Reported conversations are restricted to LGU review.');
+    }
+    if (!state.connected || _connectedSession != session) return;
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) throw StateError('Administrator session expired.');
+    final reports = await repository.loadReportedChats(session);
+    if (_connectedSession == session) {
+      state = state.copyWith(reportedChats: reports);
+    }
+  }
+
   List<AuditEvent> visibleAudit(AdminSession session) => state.audit
       .where(
         (event) => session.role == AdminRole.lgu || event.toda == session.toda,
@@ -68,18 +206,43 @@ class AdminController extends Notifier<AdminState> {
   void setDesktopAlerts(bool value) =>
       state = state.copyWith(desktopAlerts: value);
 
-  void recordSurveyResponse(AdminSession session, String toda) {
-    if (session.role == AdminRole.toda && session.toda != toda) {
-      throw StateError('Survey responses must stay within the assigned TODA.');
+  Future<void> updateOwnPassword({
+    required AdminSession session,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final repository = ref.read(adminRepositoryProvider);
+    final email = session.email;
+    final userId = session.userId;
+    if (!session.connected ||
+        repository == null ||
+        email == null ||
+        userId == null) {
+      throw StateError('Password changes require a connected account.');
     }
-    final count = state.surveyCounts[toda];
+    await repository.updateOwnPassword(
+      expectedUserId: userId,
+      email: email,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  void recordDemoFeedbackResponse(AdminSession session, String toda) {
+    if (state.connected) {
+      throw StateError('Connected feedback can only be submitted by drivers.');
+    }
+    if (session.role == AdminRole.toda && session.toda != toda) {
+      throw StateError('Feedback must stay within the assigned TODA.');
+    }
+    final count = state.feedbackCounts[toda];
     if (count == null) throw ArgumentError.value(toda, 'toda', 'Unknown TODA');
     state = state.copyWith(
-      surveyCounts: {...state.surveyCounts, toda: count + 1},
+      feedbackCounts: {...state.feedbackCounts, toda: count + 1},
       audit: [
         AuditEvent(
-          'Survey response recorded',
-          '$toda · eligible respondent',
+          'Driver app feedback received',
+          '$toda · unique driver participant',
           DateTime.now(),
           toda: toda,
         ),
@@ -101,14 +264,17 @@ class AdminController extends Notifier<AdminState> {
     required String phone,
     required String plate,
   }) {
+    if (state.connected) {
+      throw StateError('Connected driver onboarding starts in the mobile app.');
+    }
     final id =
-        state.drivers.fold<int>(
-          0,
-          (max, item) => item.id > max ? item.id : max,
-        ) +
+        state.drivers.fold<int>(0, (max, item) {
+          final value = int.tryParse(item.id) ?? 0;
+          return value > max ? value : max;
+        }) +
         1;
     final driver = Driver(
-      id: id,
+      id: id.toString(),
       name: name.trim(),
       toda: toda,
       phone: phone.trim(),
@@ -133,8 +299,26 @@ class AdminController extends Notifier<AdminState> {
     return driver;
   }
 
-  void updateDriver(int id, DriverStatus status, String reason) {
+  Future<void> updateDriver(
+    String id,
+    DriverStatus status,
+    String reason,
+  ) async {
     final current = state.drivers.firstWhere((driver) => driver.id == id);
+    final session = _connectedSession;
+    if (state.connected) {
+      if (session == null) throw StateError('Administrator session expired.');
+      await ref
+          .read(adminRepositoryProvider)!
+          .updateDriver(
+            driver: current,
+            status: status,
+            reason: reason,
+            session: session,
+          );
+      await refresh();
+      return;
+    }
     state = state.copyWith(
       drivers: [
         for (final driver in state.drivers)
@@ -155,8 +339,26 @@ class AdminController extends Notifier<AdminState> {
     );
   }
 
-  void transitionReport(String id, ReportStatus status, String note) {
+  Future<void> transitionReport(
+    String id,
+    ReportStatus status,
+    String note,
+  ) async {
     final current = state.reports.firstWhere((report) => report.id == id);
+    final session = _connectedSession;
+    if (state.connected) {
+      if (session == null) throw StateError('Administrator session expired.');
+      await ref
+          .read(adminRepositoryProvider)!
+          .updateSafetyReport(
+            reportId: id,
+            status: status,
+            note: note,
+            session: session,
+          );
+      await refresh();
+      return;
+    }
     state = state.copyWith(
       reports: [
         for (final report in state.reports)
@@ -184,15 +386,53 @@ class AdminController extends Notifier<AdminState> {
       ],
     );
   }
+
+  Future<void> updateFeedbackSettings({
+    required AdminSession session,
+    required int feedbackInterval,
+    int? respondentTarget,
+    bool? repeatFeedback,
+  }) async {
+    if (session.role != AdminRole.lgu) {
+      throw StateError(
+        'Only an LGU administrator can change global feedback settings.',
+      );
+    }
+    if (feedbackInterval < 1) {
+      throw ArgumentError.value(
+        feedbackInterval,
+        'feedbackInterval',
+        'Must be positive.',
+      );
+    }
+    final target = respondentTarget ?? state.respondentTarget;
+    final repeat = repeatFeedback ?? state.repeatFeedback;
+    if (state.connected) {
+      await ref
+          .read(adminRepositoryProvider)!
+          .updateFeedbackSettings(
+            feedbackInterval: feedbackInterval,
+            respondentTarget: target,
+            repeatFeedback: repeat,
+          );
+      await refresh();
+      return;
+    }
+    state = state.copyWith(
+      feedbackInterval: feedbackInterval,
+      respondentTarget: target,
+      repeatFeedback: repeat,
+    );
+  }
 }
 
 AdminState seedAdminState() {
   final now = DateTime(2026, 8, 22, 10, 30);
   return AdminState(
-    surveyCounts: const {'Brgy. Real': 8, 'Parian': 7, 'Canlubang': 5},
+    feedbackCounts: const {'Brgy. Real': 8, 'Parian': 7, 'Canlubang': 5},
     drivers: [
       Driver(
-        id: 123,
+        id: '123',
         name: 'Ramon Dela Cruz',
         toda: 'Brgy. Real',
         phone: '0917 555 0123',
@@ -203,7 +443,7 @@ AdminState seedAdminState() {
         updated: now.subtract(const Duration(hours: 2)),
       ),
       Driver(
-        id: 124,
+        id: '124',
         name: 'Joel Mendoza',
         toda: 'Brgy. Real',
         phone: '0918 555 0124',
@@ -214,7 +454,7 @@ AdminState seedAdminState() {
         updated: now.subtract(const Duration(hours: 5)),
       ),
       Driver(
-        id: 125,
+        id: '125',
         name: 'Mario Santos',
         toda: 'Parian',
         phone: '0919 555 0125',
@@ -225,7 +465,7 @@ AdminState seedAdminState() {
         updated: now.subtract(const Duration(days: 1)),
       ),
       Driver(
-        id: 126,
+        id: '126',
         name: 'Benjie Reyes',
         toda: 'Canlubang',
         phone: '0920 555 0126',
@@ -236,7 +476,7 @@ AdminState seedAdminState() {
         updated: now.subtract(const Duration(days: 2)),
       ),
       Driver(
-        id: 127,
+        id: '127',
         name: 'Arturo Lim',
         toda: 'Brgy. Real',
         phone: '0921 555 0127',
@@ -317,22 +557,27 @@ AdminState seedAdminState() {
         updatedMinutes: 1,
       ),
     ],
+    // Categorical, not brand-decorative: these three overlays sit on top of
+    // each other on the same map, so they are spread across hue *and*
+    // lightness rather than being three steps of one blue ramp. The home
+    // TODA keeps the brand blue; the other two take a teal and a violet far
+    // enough away to stay separable.
     boundaries: const [
-      Boundary('Brgy. Real', 0xFFB4552F, [
+      Boundary('Brgy. Real', 0xFF1262D0, [
         [121.1570, 14.2060],
         [121.1690, 14.2060],
         [121.1690, 14.2160],
         [121.1570, 14.2160],
         [121.1570, 14.2060],
       ]),
-      Boundary('Parian', 0xFF56876D, [
+      Boundary('Parian', 0xFF0E9384, [
         [121.1510, 14.1970],
         [121.1630, 14.1970],
         [121.1630, 14.2070],
         [121.1510, 14.2070],
         [121.1510, 14.1970],
       ]),
-      Boundary('Canlubang', 0xFF8573B3, [
+      Boundary('Canlubang', 0xFF9A4FBF, [
         [121.1640, 14.1960],
         [121.1760, 14.1960],
         [121.1760, 14.2060],
