@@ -178,124 +178,142 @@ class _DragSheetScaffoldState extends State<DragSheetScaffold>
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final screenHeight = media.size.height;
-    final topInset = media.padding.top;
+    final topInset = MediaQuery.paddingOf(context).top;
 
-    return Stack(
-      children: [
-        // Background and overlay share one builder: they belong to the same
-        // layer conceptually, and fading them together avoids a recentre
-        // button hovering over an empty white sheet.
-        Positioned.fill(
-          child: AnimatedBuilder(
-            animation: _reveal,
-            builder: (context, child) {
-              // Cleared a little before the sheet physically covers it, so the
-              // map reads as being put away rather than merely occluded.
-              final opacity = (1 - Curves.easeIn.transform(_reveal.value) * 1.3)
-                  .clamp(0.0, 1.0);
-              if (opacity == 0) {
-                // Stop painting entirely once invisible. A live map is not
-                // cheap, and there is no reason to keep drawing one nobody can
-                // see.
-                return const SizedBox.shrink();
-              }
-              return Opacity(opacity: opacity, child: child);
-            },
-            child: Stack(
-              children: [
-                Positioned.fill(child: widget.background),
-                ...widget.overlay,
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: AnimatedBuilder(
-            animation: _reveal,
-            builder: (context, child) {
-              final height = lerpDouble(
-                widget.collapsedHeight,
-                screenHeight,
-                _reveal.value,
-              )!;
-              return SizedBox(
-                height: height,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    // The corners flatten as the sheet becomes the screen. A
-                    // rounded top against the status bar reads as a sheet that
-                    // failed to finish opening.
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(
-                        AppRadii.sheet * (1 - _reveal.value),
-                      ),
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: AppColors.shadowLight,
-                        blurRadius: 10,
-                        offset: Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    // Earns its status-bar padding on the way up, so text
-                    // never slides under the clock.
-                    padding: EdgeInsets.only(top: topInset * _reveal.value),
-                    child: child,
-                  ),
+    // Sized against the box this widget actually occupies, never against the
+    // display. The ride screens render inside the commuter shell, whose bottom
+    // tab bar makes the body shorter than the screen -- expanding to
+    // MediaQuery.size.height overshot by exactly that difference, pushing the
+    // drag handle off the top edge and leaving no way to drag the sheet back
+    // down. A sheet that cannot be closed is worse than one that never opened.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final expandedHeight = constraints.maxHeight;
+        // A caller's peek height must not exceed the space available either,
+        // or the collapsed sheet is already overshooting before anyone drags.
+        final collapsedHeight = widget.collapsedHeight > expandedHeight
+            ? expandedHeight
+            : widget.collapsedHeight;
+
+        return Stack(
+          children: [
+            // Background and overlay share one builder: they belong to the same
+            // layer conceptually, and fading them together avoids a recentre
+            // button hovering over an empty white sheet.
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _reveal,
+                builder: (context, child) {
+                  // Cleared a little before the sheet physically covers it, so the
+                  // map reads as being put away rather than merely occluded.
+                  final opacity =
+                      (1 - Curves.easeIn.transform(_reveal.value) * 1.3).clamp(
+                        0.0,
+                        1.0,
+                      );
+                  if (opacity == 0) {
+                    // Stop painting entirely once invisible. A live map is not
+                    // cheap, and there is no reason to keep drawing one nobody can
+                    // see.
+                    return const SizedBox.shrink();
+                  }
+                  return Opacity(opacity: opacity, child: child);
+                },
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: widget.background),
+                    ...widget.overlay,
+                  ],
                 ),
-              );
-            },
-            child: SafeArea(
-              top: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SheetDragHandle(
-                    expanded: _expanded,
-                    onToggle: () => _setExpanded(!_expanded),
-                    onDragUpdate: _drag,
-                    onDragEnd: _endDrag,
-                    trailing: widget.handleTrailing,
-                    semanticLabel: widget.handleSemanticLabel,
-                  ),
-                  // Scrolls rather than overflows: the collapsed peek is
-                  // deliberately shorter than its content, and a fixed-height
-                  // box around growing text is how a translated string clips.
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.lg,
-                        AppSpacing.xs,
-                        AppSpacing.lg,
-                        AppSpacing.md,
-                      ),
-                      child: widget.sheetBuilder(context, _expanded),
-                    ),
-                  ),
-                  if (widget.footer != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.lg,
-                        0,
-                        AppSpacing.lg,
-                        AppSpacing.sm,
-                      ),
-                      child: widget.footer,
-                    ),
-                ],
               ),
             ),
-          ),
-        ),
-      ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedBuilder(
+                animation: _reveal,
+                builder: (context, child) {
+                  final height = lerpDouble(
+                    collapsedHeight,
+                    expandedHeight,
+                    _reveal.value,
+                  )!;
+                  return SizedBox(
+                    height: height,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        // The corners flatten as the sheet becomes the screen. A
+                        // rounded top against the status bar reads as a sheet that
+                        // failed to finish opening.
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(
+                            AppRadii.sheet * (1 - _reveal.value),
+                          ),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppColors.shadowLight,
+                            blurRadius: 10,
+                            offset: Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        // Earns its status-bar padding on the way up, so text
+                        // never slides under the clock.
+                        padding: EdgeInsets.only(top: topInset * _reveal.value),
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SheetDragHandle(
+                        expanded: _expanded,
+                        onToggle: () => _setExpanded(!_expanded),
+                        onDragUpdate: _drag,
+                        onDragEnd: _endDrag,
+                        trailing: widget.handleTrailing,
+                        semanticLabel: widget.handleSemanticLabel,
+                      ),
+                      // Scrolls rather than overflows: the collapsed peek is
+                      // deliberately shorter than its content, and a fixed-height
+                      // box around growing text is how a translated string clips.
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            AppSpacing.xs,
+                            AppSpacing.lg,
+                            AppSpacing.md,
+                          ),
+                          child: widget.sheetBuilder(context, _expanded),
+                        ),
+                      ),
+                      if (widget.footer != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            0,
+                            AppSpacing.lg,
+                            AppSpacing.sm,
+                          ),
+                          child: widget.footer,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
