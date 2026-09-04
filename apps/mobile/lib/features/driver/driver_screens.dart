@@ -431,7 +431,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       points: DemoData.calambaPoblacionPrototypeBoundary,
                     ),
                   ],
-                  boundaryLabel: 'Prototype boundary · evaluation only',
                   markers: [
                     MapMarker(
                       coordinate:
@@ -596,7 +595,6 @@ class _PickupModeCard extends ConsumerWidget {
             boundaries: const [
               MapBoundary(points: DemoData.calambaPoblacionPrototypeBoundary),
             ],
-            boundaryLabel: 'Prototype boundary · evaluation only',
           ),
         ),
         Align(

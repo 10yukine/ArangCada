@@ -134,7 +134,6 @@ class LiveMapView extends StatefulWidget {
     this.markers = const [],
     this.route = const [],
     this.boundaries = const [],
-    this.boundaryLabel,
     this.routeIsFallback = false,
     this.showUserLocation = false,
     this.interactive = true,
@@ -150,7 +149,6 @@ class LiveMapView extends StatefulWidget {
   final List<MapMarker> markers;
   final List<GeoCoordinate> route;
   final List<MapBoundary> boundaries;
-  final String? boundaryLabel;
 
   /// True when no ORS road route is available. Suppresses routing attribution
   /// because nothing was routed.
@@ -483,34 +481,27 @@ class _LiveMapViewState extends State<LiveMapView> {
               right: 8,
               child: ValueListenableBuilder<double>(
                 valueListenable: _bearing,
-                builder: (context, bearing, _) =>
-                    MapCompass(bearing: bearing, onPressed: _resetNorth),
-              ),
-            ),
-          if (widget.boundaryLabel != null)
-            Positioned(
-              // Below the compass when there is one, since both live on the
-              // right now.
-              top: widget.interactive
-                  ? MediaQuery.paddingOf(context).top +
-                        8 +
-                        AppSizes.minTapTarget +
-                        4
-                  : MediaQuery.paddingOf(context).top + 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.94),
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(AppRadii.pill),
-                  ),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  widget.boundaryLabel!,
-                  style: AppTypography.caption.copyWith(fontSize: 10),
-                ),
+                builder: (context, bearing, _) {
+                  // Only when the map is actually off north. A permanent
+                  // "reset north" button on a map nobody has turned is a
+                  // control that spends its whole life doing nothing -- but
+                  // deleting it would strand anyone who rotates the map by
+                  // accident with a two-finger twist and no way back. It
+                  // appears exactly when there is something to escape from,
+                  // which is how Google Maps and Waze both behave.
+                  final level = bearing.abs() < 0.5;
+                  return IgnorePointer(
+                    ignoring: level,
+                    child: AnimatedOpacity(
+                      opacity: level ? 0 : 1,
+                      duration: AppMotion.button,
+                      child: MapCompass(
+                        bearing: bearing,
+                        onPressed: _resetNorth,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           Positioned(

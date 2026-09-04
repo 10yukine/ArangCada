@@ -101,7 +101,6 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                   points: DemoData.calambaPoblacionPrototypeBoundary,
                 ),
               ],
-              boundaryLabel: 'Prototype boundary · evaluation only',
             ),
             overlay: [
               Positioned(
