@@ -84,3 +84,6 @@ dist/
 # Public tracking page config: holds the MapTiler key and the Supabase anon key.
 # The .example template is tracked; the real file is not.
 apps/track_web/public/config.js
+
+# Cloudflare Wrangler local state and build cache (track_web / admin_web deploys)
+.wrangler/
