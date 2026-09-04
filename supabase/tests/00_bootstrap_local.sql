@@ -28,6 +28,13 @@ create table if not exists auth.users (
 alter table auth.users add column if not exists phone              text;
 alter table auth.users add column if not exists phone_confirmed_at timestamptz;
 
+-- Abandoned-registration sweep (4 Sep 2026). Real auth.users has always had
+-- created_at; the shim did not, so sweep_abandoned_registrations() -- which
+-- decides what to delete by account age -- could not be exercised locally at
+-- all. A function that deletes users in bulk is the last thing that should be
+-- untestable, so the shim gained the column.
+alter table auth.users add column if not exists created_at timestamptz not null default now();
+
 -- Supabase reads the caller's user id from a request-scoped JWT claim.
 -- Tests impersonate a user with:  set local request.jwt.claim.sub = '<uuid>';
 create or replace function auth.uid()
