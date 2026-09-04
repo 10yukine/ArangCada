@@ -10,6 +10,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../domain/fare/fare_matrix.dart';
+import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
 import '../wallet/wallet_sheets.dart';
 import '../../core/widgets/arang_dialog.dart';
@@ -58,16 +59,27 @@ class BookingReviewScreen extends ConsumerWidget {
         await liveRides.requestRide(booking);
       }
       if (context.mounted) context.go('/booking/searching');
-    } on Exception {
+    } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Booking could not be sent. Check your location, driver '
-            'availability, and connection.',
-          ),
-        ),
-      );
+      // The server usually knows exactly what is wrong -- "pickup is outside
+      // all approved or developer-test TODA jurisdictions" is a complete
+      // answer. This used to replace every failure with a guess naming three
+      // unrelated causes, so a commuter standing outside Calamba was told to
+      // check their connection.
+      //
+      // `catch` without a type on purpose: requestRide also throws StateError
+      // for its own preconditions, and StateError is an Error rather than an
+      // Exception, so `on Exception` let those escape entirely.
+      final message = switch (error) {
+        ApiException(:final message) => message,
+        StateError(:final message) => message,
+        _ =>
+          'Booking could not be sent. Check your location, driver '
+              'availability, and connection.',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 

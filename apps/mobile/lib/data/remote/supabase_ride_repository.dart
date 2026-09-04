@@ -8,6 +8,7 @@ import '../../core/geo/haversine.dart';
 import '../../demo/demo_data.dart';
 import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
+import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
 import '../../domain/models/driver_app_feedback.dart';
@@ -296,18 +297,34 @@ class SupabaseRideRepository extends ChangeNotifier {
     final destination = _state.destination;
     if (destination == null) throw StateError('Choose a destination first.');
     final idempotencyKey = _bookingKeys.putIfAbsent(booking, _uuid.v4);
-    final result = await _client.rpc(
-      'request_ride',
-      params: {
-        'p_pickup_lat': _state.pickup.coordinate.latitude,
-        'p_pickup_lng': _state.pickup.coordinate.longitude,
-        'p_destination_lat': destination.coordinate.latitude,
-        'p_destination_lng': destination.coordinate.longitude,
-        'p_pickup_label': _state.pickup.name,
-        'p_destination_label': destination.name,
-        'p_idempotency_key': idempotencyKey,
-      },
-    );
+    final dynamic result;
+    try {
+      result = await _client.rpc(
+        'request_ride',
+        params: {
+          'p_pickup_lat': _state.pickup.coordinate.latitude,
+          'p_pickup_lng': _state.pickup.coordinate.longitude,
+          'p_destination_lat': destination.coordinate.latitude,
+          'p_destination_lng': destination.coordinate.longitude,
+          'p_pickup_label': _state.pickup.name,
+          'p_destination_label': destination.name,
+          'p_idempotency_key': idempotencyKey,
+        },
+      );
+    } on PostgrestException catch (error) {
+      // request_ride picks its SQLSTATEs deliberately: 22023 for a rejected
+      // business rule (outside the service area, bad coordinates, a booking key
+      // that belongs to someone else) and 42501 for a privilege refusal. Those
+      // messages are written to be read by a commuter, so they are passed
+      // through. Anything else is an unplanned database error that can name
+      // columns and constraints, so it gets generic text instead.
+      throw switch (error.code) {
+        '22023' || '42501' when error.message.isNotEmpty => ApiRejectedException(
+          error.message,
+        ),
+        _ => const ApiUnexpectedException(),
+      };
+    }
     _applyTrip(_row(result));
   }
 

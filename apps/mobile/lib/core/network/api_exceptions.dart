@@ -57,6 +57,23 @@ class ApiUnexpectedException extends ApiException {
   ]);
 }
 
+/// A rule the server deliberately enforced, carrying the server's own wording.
+///
+/// Only raised for SQLSTATEs the RPCs choose on purpose -- 22023 for a rejected
+/// business rule, 42501 for a privilege refusal. Every other Postgres error
+/// becomes [ApiUnexpectedException] with generic text, because an unplanned
+/// database error can name columns, constraints and functions, and this class's
+/// contract is that its message is safe to put in front of a user.
+///
+/// It exists because the alternative is worse than unhelpful. "Booking could
+/// not be sent. Check your location, driver availability, and connection."
+/// replaced "pickup is outside all approved or developer-test TODA
+/// jurisdictions" -- the server knew exactly what was wrong and the app threw
+/// it away, leaving the user to guess between three unrelated causes.
+class ApiRejectedException extends ApiException {
+  const ApiRejectedException(super.message);
+}
+
 /// The feature is not configured in this build (missing compile-time key).
 class ApiNotConfiguredException extends ApiException {
   const ApiNotConfiguredException([
