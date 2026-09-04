@@ -188,7 +188,7 @@ class TripsScreen extends ConsumerWidget {
     BookingStatus.draft => '/booking/review',
     BookingStatus.confirmed || BookingStatus.searching => '/booking/searching',
     BookingStatus.matched => '/booking/driver-matched',
-    BookingStatus.approaching => '/trip/approach',
+    BookingStatus.approaching => '/booking/driver-matched',
     BookingStatus.inProgress => '/trip/active',
     BookingStatus.completed => '/receipt',
     BookingStatus.cancelled => '/home',

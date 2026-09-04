@@ -36,7 +36,6 @@ import '../features/search/pin_on_map_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/trips/trips_screen.dart';
 import '../features/trip/active_trip_screen.dart';
-import '../features/trip/driver_approach_screen.dart';
 import '../features/wallet/wallet_screen.dart';
 import 'shells/commuter_shell.dart';
 import 'shells/driver_shell.dart';
@@ -188,10 +187,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _screenPage(state, const DriverMatchedScreen()),
       ),
+      // Kept as a redirect rather than deleted. The approach screen merged into
+      // driver-matched on 4 Sep 2026, but this path is still reachable from
+      // notifications, a resumed session, and anything that stored a deep link
+      // before the merge -- and a dead route would strand those on a 404.
       GoRoute(
         path: '/trip/approach',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const DriverApproachScreen()),
+        redirect: (context, state) => '/booking/driver-matched',
       ),
       GoRoute(
         path: '/trip/active',
