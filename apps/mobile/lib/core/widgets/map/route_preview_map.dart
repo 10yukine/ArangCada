@@ -25,7 +25,6 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
     this.borderRadius,
     this.showCaption = true,
     this.interactive = false,
-    this.compassTopInset = 8,
     this.controller,
     this.boundaries = const [],
     this.boundaryLabel,
@@ -41,7 +40,6 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
   /// Off when the map fills a screen and the caption lives in a sheet below.
   final bool showCaption;
   final bool interactive;
-  final double compassTopInset;
   final LiveMapViewController? controller;
   final List<MapBoundary> boundaries;
   final String? boundaryLabel;
@@ -109,7 +107,6 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
       route: route == null || route.isFallback ? const [] : route.geometry,
       routeIsFallback: route?.isFallback ?? false,
       interactive: widget.interactive,
-      compassTopInset: widget.compassTopInset,
       boundaries: widget.boundaries,
       boundaryLabel: widget.boundaryLabel,
       markers: [

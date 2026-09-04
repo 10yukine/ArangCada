@@ -138,7 +138,6 @@ class LiveMapView extends StatefulWidget {
     this.routeIsFallback = false,
     this.showUserLocation = false,
     this.interactive = true,
-    this.compassTopInset = 8,
     this.onMapTap,
     this.controller,
     this.height,
@@ -159,7 +158,6 @@ class LiveMapView extends StatefulWidget {
 
   final bool showUserLocation;
   final bool interactive;
-  final double compassTopInset;
   final void Function(GeoCoordinate)? onMapTap;
   final LiveMapViewController? controller;
   final double? height;
@@ -474,10 +472,14 @@ class _LiveMapViewState extends State<LiveMapView> {
             ),
           if (widget.interactive)
             Positioned(
-              // Right, opposite the floating back button. On the left it stacked
-              // directly beneath the back button, which read as a second
-              // navigation control rather than a map one.
-              top: widget.compassTopInset,
+              // Same y as the floating back button opposite it. Callers used
+              // to pass this inset, every one of them computing the identical
+              // safe-area expression -- except the active-trip screen, which
+              // carried an extra 64px from when the compass sat on the LEFT and
+              // had to dodge the back button. It moved right; the dodge stayed;
+              // the two controls stopped lining up. A parameter with one
+              // correct value is a parameter waiting to be passed wrongly.
+              top: MediaQuery.paddingOf(context).top + 8,
               right: 8,
               child: ValueListenableBuilder<double>(
                 valueListenable: _bearing,
@@ -487,13 +489,14 @@ class _LiveMapViewState extends State<LiveMapView> {
             ),
           if (widget.boundaryLabel != null)
             Positioned(
-              // Offset below the compass when there is one, since both live on
-              // the right now. Callers that go edge to edge pass a safe-area
-              // value for compassTopInset, so this stays clear of the status
-              // bar either way -- that was a separate bug, fixed the same way.
+              // Below the compass when there is one, since both live on the
+              // right now.
               top: widget.interactive
-                  ? widget.compassTopInset + AppSizes.minTapTarget + 4
-                  : widget.compassTopInset,
+                  ? MediaQuery.paddingOf(context).top +
+                        8 +
+                        AppSizes.minTapTarget +
+                        4
+                  : MediaQuery.paddingOf(context).top + 8,
               right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),

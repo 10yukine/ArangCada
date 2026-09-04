@@ -303,10 +303,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                       radius: 9,
                     ),
                 ],
-                compassTopInset:
-                    MediaQuery.paddingOf(context).top +
-                    AppSizes.minTapTarget +
-                    16,
               ),
               aboveSheet: ArangIconButton(
                 icon: Icons.center_focus_strong,

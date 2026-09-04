@@ -133,11 +133,7 @@ void main() {
           ],
           child: const MaterialApp(
             home: Scaffold(
-              body: RoutePreviewMap(
-                from: current,
-                to: pickup,
-                compassTopInset: 80,
-              ),
+              body: RoutePreviewMap(from: current, to: pickup),
             ),
           ),
         ),
@@ -148,7 +144,6 @@ void main() {
       expect(map.route, const [snappedStart, snappedEnd]);
       expect(map.markers.first.coordinate, current);
       expect(map.markers.last.coordinate, pickup);
-      expect(map.compassTopInset, 80);
     },
   );
 

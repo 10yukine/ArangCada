@@ -307,7 +307,6 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
               center: state.liveDriverLocation ?? state.pickup.coordinate,
               borderRadius: BorderRadius.zero,
               interactive: true,
-              compassTopInset: MediaQuery.paddingOf(context).top + 8,
               markers: [
                 MapMarker(
                   coordinate: state.pickup.coordinate,

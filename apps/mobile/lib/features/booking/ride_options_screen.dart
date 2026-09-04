@@ -96,7 +96,6 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
               showCaption: false,
               // Keeps the compass AND the boundary chip out from under the
               // status bar; this map runs edge to edge.
-              compassTopInset: MediaQuery.paddingOf(context).top + 8,
               boundaries: const [
                 MapBoundary(
                   points: DemoData.calambaPoblacionPrototypeBoundary,

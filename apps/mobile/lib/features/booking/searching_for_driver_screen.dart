@@ -174,7 +174,6 @@ class _SearchingForDriverScreenState
               center: state.pickup.coordinate,
               borderRadius: BorderRadius.zero,
               interactive: false,
-              compassTopInset: MediaQuery.paddingOf(context).top + 8,
               markers: [
                 MapMarker(
                   coordinate: state.pickup.coordinate,
