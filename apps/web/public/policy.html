@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArangCada — Privacy Policy</title>
+<style>
+body { font-family: Georgia, 'Times New Roman', serif; max-width: 800px;
+       margin: 40px auto; line-height: 1.55; color: #1a1a1a; padding: 0 20px; }
+h1 { font-size: 26px; border-bottom: 3px solid #1262d0; padding-bottom: 8px; }
+h2 { font-size: 19px; margin-top: 34px; color: #0e4ea6; }
+h3 { font-size: 15px; margin-top: 22px; }
+blockquote { background: #fff3cd; border-left: 5px solid #e0a800; margin: 16px 0;
+             padding: 10px 16px; font-size: 14px; }
+table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: #f0f4fa; }
+code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+p, li { font-size: 14.5px; }
+a { color: #1262d0; }
+</style></head><body><h1>ArangCada Privacy Policy</h1>
+<blockquote>
+<p><strong>STATUS: DRAFT — internal capstone review only.</strong> This document has not
+been reviewed by a licensed Philippine attorney, has not been reviewed by
+the Calamba City LGU/TODA partner, and does not yet have an effective date.
+Clauses that need that review are marked <strong><code>[⚠️ LEGAL REVIEW REQUIRED]</code></strong>.
+Do not present this as final to the panel, the LGU, or any real user until
+those items are resolved. Source of truth for the data practices described
+here is <code>CLAUDE.md</code>; if the two ever disagree, treat that as a bug in this
+document and fix this document, not the other way around.</p>
+</blockquote>
+<p><strong>Applies to:</strong> the ArangCada mobile app (commuter and driver roles) and the
+ArangCada LGU/TODA admin web console.
+<strong>Prepared by:</strong> ArangCada capstone group (NU Laguna, Department of Computer
+Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet
+O. Niega.
+<strong>Last updated:</strong> <em>[date of next review]</em> · <strong>Effective date:</strong> <em>not yet in
+effect — internal testing only</em>
+<strong>Published at:</strong> <code>arangcada.app/policy</code> (once the site ships; see <code>apps/web</code>)</p>
+<hr />
+<h2>TL;DR (plain English)</h2>
+<ul>
+<li>ArangCada is a <strong>school capstone project</strong>, not a commercial company. It is
+  being tested internally in Calamba City for about three months. It is not
+  a public, paid product yet.</li>
+<li>We collect your <strong>location</strong> (to match you with the nearest available
+  tricycle and compute your fare), basic <strong>account info</strong> (name, phone,
+  role), <strong>driver documents</strong> (license, vehicle papers, photo) if you
+  register as a driver, <strong>trip and payment records</strong>, and <strong>SOS/safety
+  reports</strong> if you use that feature.</li>
+<li>The only bookable ride is <strong>Special, up to 4 passengers</strong>. You're matched
+  to the nearest available verified driver anywhere in Calamba City, not
+  just drivers from your pickup's own TODA.</li>
+<li>During a trip you can generate a <strong>live ride-tracking link</strong> to send to
+  family or friends — see Section 6a for exactly what it shows and when it
+  stops working.</li>
+<li>If you're a <strong>driver</strong>, you're also asked to complete short <strong>feedback
+  surveys</strong> about using the app and about the LGU's own manual dispatch
+  process (the "pila" system). Those results, and your ISO-quality-testing
+  results, are shared with the <strong>Calamba City LGU/TODA office</strong>, usually as
+  combined numbers rather than singling you out where possible.</li>
+<li>We do <strong>not sell</strong> your data. We do <strong>not</strong> show ads. We do <strong>not</strong> log
+  your full name, phone number, government ID numbers, or your full GPS
+  trail in plain system logs.</li>
+<li>Payments in this version are <strong>cash, GCash reference, QR transfer
+  reference, and PayMongo in test mode only</strong> — no live money moves through
+  PayMongo in this app yet.</li>
+<li>You have rights under Philippine law (the <strong>Data Privacy Act of 2012, RA
+  10173</strong>) to see, correct, or ask us to delete your data, and to complain to
+  the <strong>National Privacy Commission (NPC)</strong> if you think we mishandled it.</li>
+</ul>
+<p>If any of that sounds wrong for what the app actually does, tell the group —
+this document is supposed to describe reality, not the other way around.</p>
+<hr />
+<h2>1. Who this document is about</h2>
+<p>ArangCada has three kinds of users:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>What ArangCada does for/with them</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Commuter</td>
+<td>Books a Special tricycle ride (up to 4 passengers), sees a fare estimate, tracks the assigned driver, can share a live ride-tracking link, can send an SOS report</td>
+</tr>
+<tr>
+<td>Driver</td>
+<td>Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares live location while on a trip, completes mandatory in-app feedback</td>
+</tr>
+<tr>
+<td>LGU/TODA administrator</td>
+<td>Approves drivers, manages TODA zones, reviews trips and complaints, monitors dispatch, views evaluation results</td>
+</tr>
+</tbody>
+</table>
+<h2>2. What we collect</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Examples</th>
+<th>Where it lives</th>
+<th>Who it's for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Account/profile info</td>
+<td>Display name, phone number, role, account status</td>
+<td><code>profiles</code> table, Supabase Auth</td>
+<td>You, and admins for verification</td>
+</tr>
+<tr>
+<td>Location data</td>
+<td>Live GPS while you have an active ride, pickup/destination points, Calamba service-area checks</td>
+<td><code>trip_locations</code> table (active trips only)</td>
+<td>Dispatch, geofencing, fare distance</td>
+</tr>
+<tr>
+<td>Driver verification documents</td>
+<td>Driver's license, vehicle OR/CR, profile photo</td>
+<td><code>driver_documents</code> table + private Supabase Storage bucket (not public)</td>
+<td>LGU/TODA admin review only</td>
+</tr>
+<tr>
+<td>Trip records</td>
+<td>Pickup/destination, ride type (currently always Special — see <code>docs/LGU_FARE_MATRIX.md</code> §2a), passenger count (1–4), fare amount, status history</td>
+<td><code>trips</code> table</td>
+<td>You, your matched driver, TODA/LGU admin</td>
+</tr>
+<tr>
+<td>Ride-tracking link data</td>
+<td>An unguessable link code, the trip it points to, when it was created or revoked</td>
+<td><code>ride_share_links</code> table</td>
+<td>You (the creator); anyone holding the link sees only a limited live view — see Section 6a</td>
+</tr>
+<tr>
+<td>Payment records</td>
+<td>Cash acknowledgment, GCash reference number, QR transfer reference, PayMongo test-mode reference/status</td>
+<td><code>payments</code> table</td>
+<td>You and admins (no raw card numbers — PayMongo tokenizes card data on its own systems, we only ever store its reference IDs)</td>
+</tr>
+<tr>
+<td>Emergency/safety reports</td>
+<td>SOS event, linked ride, location snapshot at time of report</td>
+<td><code>emergency_reports</code> table</td>
+<td>LGU/TODA admin review</td>
+</tr>
+<tr>
+<td>Complaints</td>
+<td>Commuter or driver complaint text</td>
+<td><code>complaints</code> table</td>
+<td>LGU/TODA admin review</td>
+</tr>
+<tr>
+<td>ISO/IEC 25010 evaluation responses</td>
+<td>Your ratings/answers comparing the app to the manual dispatch baseline</td>
+<td>Evaluation dataset (admin console)</td>
+<td>Capstone research + LGU/TODA program review</td>
+</tr>
+<tr>
+<td>Mandatory driver app-usage feedback</td>
+<td>Bilingual five-point Likert responses, collected after a configurable number of completed trips (currently every trip)</td>
+<td>Evaluation dataset (admin console)</td>
+<td>Capstone research + LGU/TODA program review, reported with per-TODA counts and item means</td>
+</tr>
+</tbody>
+</table>
+<p>We <strong>do not</strong> intentionally collect: government ID numbers beyond what's on
+an uploaded driver document image itself, health data, biometric data
+(no facial recognition), or precise location from anyone who is not
+currently a rider/driver on an active trip.</p>
+<h2>3. How we collect it</h2>
+<ul>
+<li><strong>Directly from you</strong>: registration forms, document uploads, in-app
+  feedback surveys, complaint/SOS submissions.</li>
+<li><strong>Automatically, only during an active ride</strong>: device GPS via the
+  <code>geolocator</code> package, sent only while a trip is in progress.</li>
+<li><strong>From LGU/TODA administrators</strong>: approval/rejection decisions, TODA-zone
+  assignment.</li>
+</ul>
+<h2>4. Why we use it</h2>
+<ul>
+<li><strong>Dispatch and fare</strong>: match you to the <strong>nearest available verified
+  driver within Calamba City</strong> — a server-side proximity search that starts
+  at a 1 km radius and widens to 3 km if unmatched — and compute your fare
+  using straight-line (Haversine) distance against the LGU-approved fare
+  matrix (Calamba City Ordinance No. 743, s. 2022) — see
+  <code>docs/LGU_FARE_MATRIX.md</code>. A separate server-side check confirms your
+  pickup and destination are both inside Calamba City; a driver's TODA
+  membership no longer restricts which pickups they can be matched to, though
+  it is still recorded for LGU/TODA oversight and reporting. There is no
+  surge pricing, ever.</li>
+<li><strong>Driver verification</strong>: confirm you hold a valid license and are
+  registered under a legitimate TODA before you can receive ride requests.</li>
+<li><strong>Safety response</strong>: route SOS reports and complaints to LGU/TODA admins
+  for review.</li>
+<li><strong>Capstone research and LGU program evaluation</strong>: the ISO/IEC 25010
+  comparison against manual dispatch, and the mandatory driver app-usage
+  survey, exist specifically to measure whether this system is worth
+  recommending to the LGU beyond the capstone — this is a required part of
+  the underlying academic study, not incidental data collection.</li>
+</ul>
+<h2>5. Legal basis (Republic Act No. 10173, the Data Privacy Act of 2012)</h2>
+<p>This app operates in the Philippines, so the Data Privacy Act of 2012 (RA
+10173) and its Implementing Rules and Regulations govern how we handle your
+personal data, under the oversight of the <strong>National Privacy Commission
+(NPC)</strong>. Our basis for processing includes:</p>
+<ul>
+<li><strong>Consent</strong> — you agree to this policy and to specific permissions (e.g.
+  location access) when you use the app.</li>
+<li><strong>Contract necessity</strong> — we cannot match you with a driver or compute a
+  fare without your pickup location and trip details.</li>
+<li><strong>Legal obligation / public function</strong> — verifying drivers and routing
+  safety reports supports the LGU's public transport-safety function.</li>
+<li><code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm whether mandatory driver participation
+  in ISO 25010/feedback surveys needs a separate, explicit consent clause
+  distinct from ordinary service-use consent, since it is described in
+  <code>CLAUDE.md</code> as <strong>mandatory</strong> rather than optional for drivers.</li>
+</ul>
+<p>Driver's license and vehicle registration images may fall under RA 10173's
+definition of <strong>sensitive personal information</strong> once uploaded (government
+issued IDs). We apply the Act's higher standard of care to
+<code>driver_documents</code>: private Storage only, visible solely to the document
+owner and authorized LGU/TODA admins, per existing RLS/Storage policy.</p>
+<h2>6. Who can see your data</h2>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Visible to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Your profile</td>
+<td>You; LGU/TODA admins (for verification/support)</td>
+</tr>
+<tr>
+<td>Live trip location</td>
+<td>You; your matched driver; LGU/TODA admin (active trip only)</td>
+</tr>
+<tr>
+<td>Driver documents</td>
+<td>You (the driver); LGU/TODA admins reviewing verification — never other drivers or commuters</td>
+</tr>
+<tr>
+<td>Trip/payment history</td>
+<td>You; your counterpart on that trip; LGU/TODA admin</td>
+</tr>
+<tr>
+<td>SOS/complaint reports</td>
+<td>LGU/TODA admin reviewers only; never shown publicly, and emergency-contact details are not exposed to unauthorized users</td>
+</tr>
+<tr>
+<td>ISO 25010 / app-usage feedback</td>
+<td>Capstone group (research); LGU/TODA admins, generally as aggregated per-TODA figures rather than individually attributed responses where the sample size allows it</td>
+</tr>
+<tr>
+<td>Shared ride-tracking link</td>
+<td>Anyone you send the link to, for the duration of that one trip — see Section 6a</td>
+</tr>
+<tr>
+<td>Your mobile number</td>
+<td>You; your matched driver during an active trip; LGU/TODA admins; our SMS provider, solely to deliver your verification code (see the Semaphore entry below for its current status)</td>
+</tr>
+</tbody>
+</table>
+<h3>6a. Ride-tracking links you choose to share</h3>
+<p>During an active trip you can generate a tracking link and send it to family or
+friends. This exists because Calamba City Hall asked for it: so someone can watch
+your trip in real time and know you arrived.</p>
+<p>You should understand exactly what you are handing out when you send that link.</p>
+<p><strong>Anyone who has the link can open it. No account and no password is required.</strong>
+The link contains a long random code that cannot be guessed, but it is not
+secret from anyone you forward it to, and they can forward it onward. Only send
+it to people you trust.</p>
+<p><strong>What the link shows:</strong></p>
+<ul>
+<li>the current status of the trip</li>
+<li>the vehicle's live position on a map and the estimated arrival time</li>
+<li>the pickup and destination place names</li>
+<li>the driver's display name and tricycle body number</li>
+</ul>
+<p><strong>What the link does not show:</strong></p>
+<ul>
+<li>your name, phone number, or email address</li>
+<li>the driver's phone number, address, or verification documents</li>
+<li>any of your past trips, payments, or chat messages</li>
+<li>any stored history of where you have been — only the current position</li>
+</ul>
+<p><strong>It stops working when the trip ends.</strong> The link expires automatically once
+the trip is completed or cancelled. It is not a permanent window into your
+location. You can also revoke it yourself before the trip ends.</p>
+<p>The expiry and the limits above are enforced on our server, not by the app on
+your phone, so they cannot be bypassed by modifying the app.</p>
+<p><strong>Third-party processors</strong> (they receive only what's needed to do their job,
+not a full copy of your account):</p>
+<ul>
+<li><strong>Supabase</strong> — hosts our database, authentication, file storage, and
+  realtime updates (Auth, Postgres with Row Level Security, Storage,
+  Realtime, Edge Functions).</li>
+<li><strong>MapTiler</strong> and <strong>OpenStreetMap</strong> — receive map tile requests (coordinates
+  needed to draw the map), not your identity.</li>
+<li><strong>openrouteservice</strong> — receives coordinates to compute a route/ETA, not
+  your identity.</li>
+<li><strong>Google Routes API</strong> — an optional route/ETA provider present in the
+  codebase, intended to supplement or replace openrouteservice for better
+  minor-road coverage in Calamba. If it is ever used, it would receive only
+  the two coordinates needed for a route lookup — never your name, ride ID,
+  or documents. <strong>Not active, and staying that way for now</strong>: no API key is
+  configured, so no request currently reaches Google. The project owner
+  confirmed on 4 Sept 2026 that this stays off — Google Routes is a paid API
+  and the project has no budget for it during internal testing (flagged in
+  <code>.pipeline/changes.md</code>, 1 Sept and 4 Sept 2026). If that changes, this
+  Privacy Policy will be updated first. <code>[⚠️ LEGAL REVIEW REQUIRED]</code> A
+  US-headquartered processor receiving Philippine location data would need
+  its own RA 10173 cross-border-transfer review before activation.</li>
+<li><strong>PayMongo</strong> — receives payment details only if/when a PayMongo payment is
+  actually initiated; today that only happens in test mode, and no live
+  transaction is wired into the app (see Section 9).</li>
+<li><strong>Semaphore</strong> (SOMBRA, Inc., Philippines) — designed to receive your mobile
+  number and a one-time verification code in order to deliver that code by
+  SMS when you register. <strong>Not active for real messages yet</strong>: verification
+  currently runs in a development "stub" mode, where the code is written to
+  a server-side function log instead of being sent by SMS, so Semaphore does
+  not yet receive live traffic. The project owner confirmed on 4 Sept 2026
+  that stub mode stays on for now because the project has not purchased
+  Semaphore SMS credits — this is a budget decision, not a technical one; the
+  provider itself is already chosen. This entry applies in full from the day
+  credits are purchased and stub mode is switched off. Semaphore does not
+  receive your name, email address, location, or trip history.
+  <code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm Semaphore's own retention period for
+  delivered message content and recipient numbers before switching off stub
+  mode.</li>
+</ul>
+<p><code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm and disclose the physical server
+location(s) used by Supabase/MapTiler/openrouteservice for this project, and
+whether that constitutes a cross-border transfer requiring additional
+disclosure under RA 10173.</p>
+<h2>7. How we protect it</h2>
+<ul>
+<li>Row Level Security (RLS) is enabled on every table holding user, driver,
+  trip, document, complaint, location, or emergency data — the database
+  itself enforces who can read or write each row, not just the app's UI.</li>
+<li>Driver documents and any GCash/QR proof images are stored in <strong>private</strong>
+  Supabase Storage buckets, never public.</li>
+<li>We do not write your full name, phone number, government ID, license file
+  contents, full GPS trail, or emergency contact details into application
+  logs.</li>
+<li>Admin actions that touch sensitive records (approving a driver, editing
+  fare data) are recorded in an audit log.</li>
+<li>No system is 100% secure; if we ever detect a data breach likely to harm
+  you, we will notify you and the NPC as required by RA 10173 and its breach
+  notification rules.</li>
+</ul>
+<h2>8. How long we keep it</h2>
+<p><code>[⚠️ LEGAL REVIEW REQUIRED]</code> — final retention periods are a group/adviser/LGU
+decision, not yet fixed. Proposed defaults for the internal-testing period:</p>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Proposed retention</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Account/profile data</td>
+<td>While your account is active, plus the remainder of the capstone testing period</td>
+</tr>
+<tr>
+<td>Live trip location pings</td>
+<td>Deleted or aggregated shortly after the trip completes; not kept as a standing GPS trail</td>
+</tr>
+<tr>
+<td>Ride-tracking link tokens</td>
+<td>Expire automatically at trip completion/cancellation, or when revoked by the creator — not kept as a standing link</td>
+</tr>
+<tr>
+<td>Driver verification documents</td>
+<td>Until the driver account is deactivated, then deleted after a short grace period</td>
+</tr>
+<tr>
+<td>Trip and payment records</td>
+<td>Kept through the capstone evaluation and defense period for research/audit purposes</td>
+</tr>
+<tr>
+<td>SOS/complaint reports</td>
+<td>Kept through the capstone evaluation period, then archived or deleted per LGU records policy</td>
+</tr>
+<tr>
+<td>Evaluation/feedback responses</td>
+<td>Kept for the research write-up; may be retained longer in de-identified/aggregated form for the paper</td>
+</tr>
+</tbody>
+</table>
+<h2>9. Payments</h2>
+<p>Supported payment methods in this version: <strong>cash, GCash payment
+reference, QR transfer reference, and PayMongo in test mode.</strong> PayMongo live
+API keys exist for this project (kept outside the app, in a gitignored
+secrets file) but are <strong>not called by the app</strong>, and no real payment has been
+or can currently be processed through it. If that changes in a future
+version, this section and the corresponding consent flow will be updated
+<em>before</em> any live transaction is enabled — final fare and payment
+confirmation logic will remain server-side, never trusted to the client
+alone.</p>
+<h2>10. Sharing with the Calamba City LGU/TODA office</h2>
+<p>Because this system exists to support the LGU's tricycle dispatch and to
+measure whether it should be recommended beyond the capstone, some data is
+specifically built to be shared with LGU/TODA administrators, not just kept
+internal to the app:</p>
+<ul>
+<li>Driver verification status and documents (for approval decisions).</li>
+<li>Trip, complaint, and SOS records relevant to dispatch oversight and safety.</li>
+<li><strong>ISO/IEC 25010 evaluation results</strong>, comparing the app against the manual
+  "pila" baseline.</li>
+<li><strong>Mandatory driver app-usage feedback</strong> (bilingual five-point Likert
+  survey), reported to LGU/TODA administrators with per-TODA submission
+  counts, unique-driver sample progress, and item means — kept separate from
+  any optional driver-to-commuter star rating, which is not shared with the
+  LGU in the same way.</li>
+</ul>
+<p>Only LGU administrators may configure how often the mandatory feedback is
+requested; during internal testing that interval is every trip.</p>
+<h2>11. Your rights under RA 10173</h2>
+<p>You may:</p>
+<ul>
+<li><strong>Be informed</strong> about how your data is processed (this document).</li>
+<li><strong>Access</strong> a copy of your personal data that we hold.</li>
+<li><strong>Object</strong> to processing, and <strong>withdraw consent</strong> where consent is the
+  basis for that processing.</li>
+<li><strong>Correct</strong> inaccurate data.</li>
+<li><strong>Erase or block</strong> your data under certain conditions (e.g. it's no longer
+  needed for the stated purpose).</li>
+<li><strong>Claim damages</strong> if you suffer harm from a violation of your rights.</li>
+<li><strong>Data portability</strong> — request your data in a usable electronic format.</li>
+<li><strong>File a complaint</strong> with the <strong>National Privacy Commission (NPC)</strong> if you
+  believe your rights were violated.</li>
+</ul>
+<p>To exercise these rights during the capstone testing period, contact:
+<code>[⚠️ LEGAL REVIEW REQUIRED — insert capstone group contact email/phone here]</code>.</p>
+<h2>12. Children's privacy</h2>
+<p>ArangCada is not directed at children. Driver registration requires a valid
+driver's license (implying legal driving age under Philippine law).
+<code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm and state a minimum commuter age, if any,
+before this app is shown to any real user outside the development team.</p>
+<h2>13. Changes to this policy</h2>
+<p>Because this is an active capstone build, this policy will be revisited
+whenever <code>CLAUDE.md</code>'s data model, dispatch/matching rule, third-party
+provider list, RLS scope, or payment method list changes. Material changes
+will be dated and summarized here before the next round of internal testing.
+There is currently no in-app mechanism to notify users of changes — that is
+part of the future UI-wiring spec referenced in <code>.pipeline/specs.md</code>.</p>
+<h2>14. Contact</h2>
+<p><strong>Data controller (for capstone purposes):</strong> ArangCada capstone group,
+Section CpE231B, Department of Computer Engineering, NU Laguna. Adviser: Dr.
+Juliet O. Niega. Group legal-research contact: Hernandez, Justin T.
+Privacy/data inquiries: <code>[⚠️ LEGAL REVIEW REQUIRED — insert contact email]</code>.</p>
+<p><strong>National Privacy Commission (NPC):</strong> for complaints or guidance on RA
+10173, see <code>privacy.gov.ph</code>. <code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm current NPC
+contact channel before publishing.</p></body></html>

@@ -167,7 +167,7 @@ export function focusPoint(vm) {
  * Which screen to show before any network call.
  *
  * The distinction that matters: **no token is not an error.** Someone who types
- * `arangcada.app` into a browser -- a panelist, an LGU officer, a curious
+ * `track.arangcada.app` into a browser -- a panelist, an LGU officer, a curious
  * driver -- has done nothing wrong, and telling them "this tracking link has
  * expired" is both false and a bad first impression of the project.
  *

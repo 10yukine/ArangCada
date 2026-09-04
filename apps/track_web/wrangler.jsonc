@@ -20,7 +20,7 @@
     // ONLY publishable files live in public/. Everything else -- the tests, the
     // README, build-config.js, this config -- stays in the parent directory and
     // is therefore never served. Pointing this at "./" would have published
-    // render.test.js and wrangler.jsonc at arangcada.app/render.test.js, which
+    // render.test.js and wrangler.jsonc at track.arangcada.app/render.test.js, which
     // is not a secret leak but is sloppy and tells a stranger more about the
     // deploy than they need to know.
     "directory": "./public/",
@@ -36,14 +36,16 @@
     "not_found_handling": "single-page-application"
   },
 
-  // Custom domains. Cloudflare creates and manages the DNS records for these,
+  // Custom domain. Cloudflare creates and manages the DNS record for this,
   // which is why the zone has to be active on this account first.
   //
-  // www is included because someone will type it, and a bare "site not found"
-  // for a tracking link is a support message nobody needs to receive.
+  // MOVED off the apex/`www` on 4 Sep 2026: those now belong to `apps/web`,
+  // the new root marketing/legal site. This project keeps only the
+  // tracking subdomain -- see .pipeline/specs.md "Split arangcada.app" and
+  // docs/DOMAIN_DNS_RUNBOOK.md's "Part 8" addendum for the manual Cloudflare
+  // steps this file alone does not perform.
   "routes": [
-    { "pattern": "arangcada.app", "custom_domain": true },
-    { "pattern": "www.arangcada.app", "custom_domain": true }
+    { "pattern": "track.arangcada.app", "custom_domain": true }
   ]
 
   // No Worker script. This deploys static assets only — there is no

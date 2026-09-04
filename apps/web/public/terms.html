@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArangCada — Terms of Service</title>
+<style>
+body { font-family: Georgia, 'Times New Roman', serif; max-width: 800px;
+       margin: 40px auto; line-height: 1.55; color: #1a1a1a; padding: 0 20px; }
+h1 { font-size: 26px; border-bottom: 3px solid #1262d0; padding-bottom: 8px; }
+h2 { font-size: 19px; margin-top: 34px; color: #0e4ea6; }
+h3 { font-size: 15px; margin-top: 22px; }
+blockquote { background: #fff3cd; border-left: 5px solid #e0a800; margin: 16px 0;
+             padding: 10px 16px; font-size: 14px; }
+table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: #f0f4fa; }
+code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+p, li { font-size: 14.5px; }
+a { color: #1262d0; }
+</style></head><body><h1>ArangCada Terms of Service</h1>
+<blockquote>
+<p><strong>STATUS: DRAFT — internal capstone review only.</strong> This document has not
+been reviewed by a licensed Philippine attorney, has not been reviewed by
+the Calamba City LGU/TODA partner, and does not yet have an effective date.
+Clauses that need that review are marked <strong><code>[⚠️ LEGAL REVIEW REQUIRED]</code></strong>.
+Read alongside <code>docs/legal/PRIVACY_POLICY.md</code>, which this document
+incorporates by reference for all data-handling questions.</p>
+</blockquote>
+<p><strong>Applies to:</strong> the ArangCada mobile app (commuter and driver roles) and the
+ArangCada LGU/TODA admin web console.
+<strong>Prepared by:</strong> ArangCada capstone group (NU Laguna, Department of Computer
+Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet
+O. Niega.
+<strong>Last updated:</strong> <em>[date of next review]</em> · <strong>Effective date:</strong> <em>not yet in
+effect — internal testing only</em>
+<strong>Published at:</strong> <code>arangcada.app/terms</code> (once the site ships; see <code>apps/web</code>)</p>
+<hr />
+<h2>TL;DR (plain English)</h2>
+<ul>
+<li>ArangCada is a <strong>3-month academic capstone project</strong>, currently in
+  <strong>internal testing only</strong>. It is not a launched commercial product, and
+  using it does not create a commercial contract or guarantee of service.</li>
+<li>The app only works for <strong>tricycle dispatch within Calamba City</strong> (a small,
+  clearly-labeled exception exists for developer test accounts in Cabuyao's
+  SJVTODA — it is not a public service-area expansion).</li>
+<li>The only bookable ride is <strong>Special ("Espesyal"), up to 4 passengers, one
+  flat fare per trip</strong>. You're matched to the <strong>nearest available verified
+  driver city-wide</strong>, not just drivers from your pickup's own TODA — search
+  starts at 1 km and widens to 3 km if needed.</li>
+<li>Fares are computed <strong>by the server</strong>, using straight-line distance and the
+  official Calamba City fare ordinance — never a surprise "surge" price.</li>
+<li>If you're a <strong>driver</strong>, you must be verified (license, TODA membership,
+  vehicle documents) by an LGU/TODA administrator before you can accept
+  rides, and you are required to complete short in-app feedback surveys.</li>
+<li>During a trip you can <strong>share a live ride-tracking link</strong> with family or
+  friends — no account is needed to view it, and it stops working once the
+  trip ends. See the Privacy Policy for exactly what it shows.</li>
+<li>The in-app <strong>SOS button</strong> notifies our administrators — it is <strong>not</strong> a
+  replacement for calling local emergency services directly.</li>
+<li>Because this is a student project, there is <strong>no commercial warranty or
+  guaranteed uptime</strong>, and payments are currently limited to cash, GCash
+  reference, QR transfer reference, and PayMongo in test mode (no live money
+  moves through PayMongo yet).</li>
+</ul>
+<hr />
+<h2>1. Acceptance of these terms</h2>
+<p>By creating an account or using ArangCada, you agree to these Terms of
+Service and to <code>docs/legal/PRIVACY_POLICY.md</code>. ArangCada is presented here as
+an <strong>academic capstone Minimum Viable Product (MVP)</strong> built and operated by a
+student group at NU Laguna for a 3-month internal testing cycle. It is not a
+registered commercial transport network company, and nothing in these terms
+should be read as commercial liability comparable to a launched ride-hailing
+business. <code>[⚠️ LEGAL REVIEW REQUIRED]</code> Confirm enforceability/appropriate
+framing of a "terms of service" for a non-commercial academic pilot before
+this is shown to any user outside the development/testing group.</p>
+<h2>2. Eligibility</h2>
+<ul>
+<li><strong>Commuters</strong>: <code>[⚠️ LEGAL REVIEW REQUIRED]</code> confirm minimum age, if any.</li>
+<li><strong>Drivers</strong>: must hold a valid Philippine driver's license appropriate to
+  a tricycle, be a member in good standing of a recognized Calamba City TODA,
+  and complete the in-app verification process (document upload, LGU/TODA
+  admin approval) before receiving ride requests.</li>
+<li><strong>Service area</strong>: Calamba City only. A separate, clearly-labeled,
+  server-enforced exception exists solely for explicitly marked
+  developer-test accounts operating under Cabuyao's SJVTODA; this is a
+  testing accommodation, not a public expansion of the service area.</li>
+</ul>
+<h2>3. Description of the service</h2>
+<p>ArangCada digitizes the manual tricycle "pila" (queue) process. It offers:</p>
+<ul>
+<li><strong>Special</strong> bookings only ("Espesyal na Byahe" — up to 4 passengers, one
+  flat fare per trip), matched to the <strong>nearest available verified driver
+  within Calamba City</strong>. Driver search starts at a 1 km radius and widens to
+  3 km if unmatched. A driver's TODA membership no longer restricts which
+  pickups they can be dispatched to — the pickup's TODA is still recorded for
+  LGU/TODA oversight and reporting, but it is not a matching boundary.
+  <strong>Pooling ("Regular na Byahe") is not currently offered to commuters</strong> —
+  its fare figures remain in the system only as the ordinance's own record
+  (see <code>docs/LGU_FARE_MATRIX.md</code> §2a).</li>
+<li>A fare estimate and a final fare, both computed using Haversine distance
+  against the LGU-approved fare matrix (Calamba City Ordinance No. 743, s.
+  2022 — see <code>docs/LGU_FARE_MATRIX.md</code>). <strong>There is no surge pricing.</strong> Final
+  fare computation always happens server-side; the app only ever previews it.</li>
+<li>Driver registration, document verification, and dispatch status updates.</li>
+<li>Real-time ride tracking between a commuter and their assigned driver,
+  including an optional <strong>live ride-tracking link</strong> you can generate and
+  send to family or friends for the duration of one trip — see
+  <code>docs/legal/PRIVACY_POLICY.md</code> Section 6a for exactly what it shows, what
+  it does not show, and when it stops working.</li>
+<li>An in-app SOS/emergency reporting feature (see Section 7).</li>
+<li>Mandatory ISO/IEC 25010 evaluation and driver app-usage feedback, used to
+  measure this system against the LGU's manual dispatch baseline (see
+  Section 8 and <code>docs/legal/PRIVACY_POLICY.md</code> Section 10).</li>
+</ul>
+<h2>4. Accounts and verification</h2>
+<p>You are responsible for the accuracy of the information you provide and for
+keeping your account credentials confidential. Creating an account requires
+verifying your mobile number with a one-time code sent by SMS — see
+<code>docs/legal/PRIVACY_POLICY.md</code> Section 6 for how that code is delivered.
+Driver accounts additionally require LGU/TODA administrator approval before
+activation; an administrator may reject, suspend, or deactivate a driver
+account for failure to meet verification, safety, or conduct requirements.
+Role-based access in the app UI is a convenience only — actual authorization
+is enforced server-side (database Row Level Security and server-side
+functions), not by the app alone.</p>
+<h2>5. Fares and payment</h2>
+<ul>
+<li>Fares follow the published LGU ordinance. Neither party may negotiate a
+  different fare inside the app.</li>
+<li>Accepted payment methods in this version: <strong>cash, GCash payment
+  reference, QR transfer reference, and PayMongo in test mode.</strong> PayMongo
+  live keys exist for this project but are not wired into the app, and no
+  live/real-money PayMongo transaction is currently possible through
+  ArangCada. <code>[⚠️ LEGAL REVIEW REQUIRED]</code> before any future version enables
+  live PayMongo transactions, these terms must be updated with real payment
+  liability, refund, and dispute language.</li>
+<li>Final fare and payment-completion logic is verified server-side; the app
+  displaying a number is a preview, not a binding quote independent of the
+  server calculation.</li>
+<li><strong>Fare or ride disputes during internal testing:</strong> because payments are
+  currently limited to cash, GCash reference, QR transfer reference, and
+  PayMongo test mode, there is no automated in-app refund yet. If a fare
+  looks wrong, a trip wasn't completed as booked, or a payment reference
+  looks off, contact the group (Section 14) or the relevant LGU/TODA
+  administrator directly and describe the trip. <code>[⚠️ LEGAL REVIEW REQUIRED]</code>
+  a formal refund/dispute procedure — timeframe, who decides, and how
+  cash-paid trips are handled differently from digital ones — must be
+  written before this expands beyond internal testing or before live
+  payments are enabled.</li>
+</ul>
+<h2>6. User conduct</h2>
+<p>You agree not to: submit fraudulent booking requests; misuse the SOS/safety
+reporting feature for non-emergencies or as a prank; attempt to bypass driver
+verification requirements; attempt to access another user's trip, location,
+document, or payment data; widely redistribute a ride-tracking link to people
+you do not trust, given that anyone holding the link can view that trip's
+live position for as long as it is active; or use the app outside its
+intended Calamba City service area (other than the explicit developer-test
+exception in Section 2).</p>
+<h2>7. Safety reporting (SOS)</h2>
+<p>The in-app SOS feature notifies ArangCada's LGU/TODA administrators of a
+safety concern tied to an active ride. <strong>It is administrator-reviewed, not a
+live emergency dispatch line.</strong> If you are in immediate danger, contact local
+emergency services or the Calamba City LGU's official emergency hotline
+directly — do not rely on the in-app SOS button as your primary means of
+requesting emergency help. <code>[⚠️ LEGAL REVIEW REQUIRED]</code> confirm and publish
+the current official Calamba City emergency hotline number alongside this
+disclosure once available.</p>
+<h2>8. Mandatory evaluation participation</h2>
+<p>As part of the underlying capstone research, <strong>registered drivers are
+required</strong> to complete a short bilingual, five-point Likert app-usage
+feedback survey after a configurable number of completed trips (currently
+every trip, an LGU-administrator-configurable setting). Both drivers and the
+LGU/TODA office may also see ISO/IEC 25010 evaluation results comparing this
+system to the manual dispatch baseline. This is separate from, and does not
+replace, the optional driver-to-commuter star rating. See
+<code>docs/legal/PRIVACY_POLICY.md</code> Section 10 for how this data is shared with
+the Calamba City LGU/TODA office.</p>
+<h2>9. Service availability; no warranty</h2>
+<p>This is an internal-testing academic MVP. <strong>There is no guaranteed uptime,
+no service-level agreement, and the service may change, be interrupted, or be
+discontinued at any time without notice</strong>, including at the end of the
+capstone testing period. The app is provided "as is" and "as available."
+Map, routing, and geolocation data are provided by third parties (MapTiler,
+OpenStreetMap contributors, openrouteservice/HeiGIT) and may be inaccurate,
+delayed, or unavailable. A Google Routes integration also exists in the
+codebase as an optional route/ETA provider but is <strong>not active in current
+builds</strong> (see <code>docs/legal/PRIVACY_POLICY.md</code> Section 6 for its disclosure and
+current status) — if it or any other additional routing provider is
+activated, this section and the Privacy Policy will be updated first.</p>
+<h2>10. Limitation of liability</h2>
+<p><code>[⚠️ LEGAL REVIEW REQUIRED]</code> — this section requires attorney review before
+being relied upon. As a non-commercial, internal-testing academic capstone
+project, ArangCada and its student developers do not accept liability
+equivalent to a commercial transport-network company. This project does not
+process real payments beyond cash/GCash/QR references and PayMongo test
+mode, and does not guarantee driver conduct, ride safety outcomes, or route
+accuracy. Nothing here is intended to waive rights that cannot be waived
+under Philippine law.</p>
+<h2>11. Termination and suspension</h2>
+<ul>
+<li><strong>Drivers:</strong> LGU/TODA administrators may suspend or deactivate a driver
+  account for verification failure, safety complaints, or policy
+  violations, using the approval/rejection/suspension states described in
+  <code>CLAUDE.md</code>'s ride and driver lifecycle.</li>
+<li><strong>Commuters:</strong> an administrator may likewise suspend or deactivate a
+  commuter account for violating Section 6 (User conduct) — for example,
+  fraudulent bookings or misuse of the SOS feature. <code>[⚠️ LEGAL REVIEW
+  REQUIRED]</code> a defined commuter suspension/appeal process, comparable to the
+  driver verification lifecycle, has not yet been written.</li>
+<li><strong>Either role:</strong> you may stop using the app and request account
+  deactivation at any time by contacting the group (see Section 14).</li>
+<li>Because this is a testing MVP, the entire service may be wound down at the
+  end of the capstone cycle.</li>
+</ul>
+<h2>12. Governing law</h2>
+<p><code>[⚠️ LEGAL REVIEW REQUIRED]</code> — proposed: these terms are governed by the laws
+of the Republic of the Philippines, without regard to conflict-of-law rules,
+and any dispute is intended to be resolved in a manner appropriate to
+Calamba City, Laguna, subject to final confirmation by qualified counsel.</p>
+<h2>13. Changes to these terms</h2>
+<p>These terms will be revisited whenever the app's fare rules, payment
+methods, service area, dispatch matching rule, or data-sharing practices
+change, consistent with <code>CLAUDE.md</code>. There is currently no in-app mechanism
+to notify users of changes — that is part of a future UI-wiring spec (see
+<code>.pipeline/specs.md</code>).</p>
+<h2>14. Contact</h2>
+<p>ArangCada capstone group, Section CpE231B, Department of Computer
+Engineering, NU Laguna. Adviser: Dr. Juliet O. Niega. Group legal-research
+contact: Hernandez, Justin T. General inquiries:
+<code>[⚠️ LEGAL REVIEW REQUIRED — insert contact email]</code>.</p></body></html>

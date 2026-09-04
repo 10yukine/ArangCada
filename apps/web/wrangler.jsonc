@@ -1,0 +1,40 @@
+{
+  // Cloudflare Workers static-assets config for the ArangCada root/marketing
+  // site: arangcada.app and www.arangcada.app.
+  //
+  // Split off `apps/track_web` on 4 Sep 2026, per the owner's URL structure:
+  //   arangcada.app         -> redirects to /ph (see public/_redirects)
+  //   arangcada.app/ph      -> main webpage (placeholder, no design yet)
+  //   arangcada.app/terms   -> Terms of Service, rendered from docs/legal/
+  //   arangcada.app/policy  -> Privacy Policy, rendered from docs/legal/
+  //   track.arangcada.app   -> the ride-tracking page (apps/track_web, moved
+  //                            off this domain by this same change)
+  //
+  // Mirrors apps/track_web/wrangler.jsonc's shape deliberately -- same
+  // no-framework, static-assets-only pattern, same reasoning for keeping
+  // publishable files isolated in public/.
+
+  "name": "arangcada-web",
+  "compatibility_date": "2026-09-04",
+
+  "assets": {
+    "directory": "./public/"
+    // No "not_found_handling" override: every path here is a real static
+    // file (ph.html, terms.html, policy.html) plus the root redirect in
+    // _redirects. Unlike apps/track_web there is no client-side token
+    // route to fall back for, so the platform's normal 404 is correct for
+    // anything else.
+  },
+
+  // Custom domains. Cloudflare creates and manages the DNS records for
+  // these once the zone is active on this account -- see
+  // docs/DOMAIN_DNS_RUNBOOK.md's new "Part 8" addendum for the manual
+  // dashboard steps this repo change does not and cannot execute.
+  "routes": [
+    { "pattern": "arangcada.app", "custom_domain": true },
+    { "pattern": "www.arangcada.app", "custom_domain": true }
+  ]
+
+  // No Worker script. Static assets only, same as apps/track_web -- there
+  // is nothing here that needs server-side code.
+}

@@ -1,0 +1,13 @@
+# Root domain routing for arangcada.app.
+#
+# The owner's explicit instruction: the apex redirects to /ph.
+#
+# An earlier draft of this file also redirected legacy /t/<token> links to
+# track.arangcada.app, in case a tracking link had already been shared
+# before the domain split. Owner confirmed (4 Sep 2026) nobody has a real
+# link yet -- still in dev -- so that redirect was removed rather than kept
+# as unnecessary complexity. If real tracking links are ever shared from the
+# old arangcada.app/t/<token> shape before this repeats, re-add:
+#   /t/*   https://track.arangcada.app/t/:splat   301
+
+/            /ph      301

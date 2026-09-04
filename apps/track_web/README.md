@@ -3,7 +3,7 @@
 The page a family member opens when a commuter shares a tracking link.
 
 ```
-https://arangcada.app/t/<token>
+https://track.arangcada.app/t/<token>
 ```
 
 **Spec:** `.pipeline/spec-ride-share-page.md`
@@ -33,7 +33,7 @@ framework here — the whole page is HTML, CSS, and two ES modules.
 
 **`public/` is the only directory that gets published.** Everything else is
 source and tooling, and is never served — pointing the deploy at the parent
-would have published the tests and this README at `arangcada.app/README.md`.
+would have published the tests and this README at `track.arangcada.app/README.md`.
 
 | File | Purpose |
 |---|---|
@@ -78,7 +78,7 @@ designed for clients and RLS protects the data — `ride_share_links` denies
 `anon` outright, and the only function `anon` can execute is
 `ride_share_view()`. The MapTiler key is client-side by design.
 
-> ⚠️ **Restrict the MapTiler key to `arangcada.app`** in the MapTiler dashboard.
+> ⚠️ **Restrict the MapTiler key to `track.arangcada.app`** in the MapTiler dashboard.
 > The control is the domain restriction, not secrecy — a public web page is more
 > exposed than an APK. Do this before sharing any link.
 
@@ -95,7 +95,7 @@ admin console.
 |---|---|
 | Build command | `node apps/track_web/build-config.js` |
 | Deploy command | `npx wrangler deploy --config apps/track_web/wrangler.jsonc` |
-| Custom domain | `arangcada.app` |
+| Custom domain | `track.arangcada.app` (moved off the apex 4 Sep 2026 -- `arangcada.app` now belongs to `apps/web`) |
 
 `/t/<token>` works because `wrangler.jsonc` sets
 `not_found_handling: "single-page-application"` — any path that is not a real
