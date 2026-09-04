@@ -284,7 +284,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
             return DragSheetScaffold(
               sheetKey: _mapController.panelKey,
               controller: _sheetController,
-              collapsedHeight: 260,
+              collapsedHeight: 330,
               handleSemanticLabel: 'Trip details',
               handleTrailing: ArangIconButton(
                 icon: Icons.center_focus_strong,
@@ -467,73 +467,80 @@ class _ActiveTripSheetBody extends StatelessWidget {
             ),
           ],
         ),
-        if (!expanded) ...[
-          const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          awaitingConfirmation ? 'Arrived · tap to finish' : 'On the way',
+          style: AppTypography.bodySm,
+        ),
+
+        // Detail only. What the ride costs and how far along it is are worth
+        // reading, but neither is urgent.
+        if (expanded) ...[
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            awaitingConfirmation ? 'Arrived · tap to finish' : 'On the way',
+            '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
+            '${booking.paymentMethod.label} · fare locked',
             style: AppTypography.bodySm,
           ),
+          const SizedBox(height: AppSpacing.sm),
+          if (awaitingConfirmation) ...[
+            const _ArrivedBanner(),
+            const SizedBox(height: AppSpacing.sm),
+            ArangButton(
+              label: "I've arrived — finish ride",
+              icon: Icons.flag_outlined,
+              onPressed: canConfirmArrival ? onConfirmArrival : null,
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'Finishing automatically in ${secondsLeft}s',
+                style: AppTypography.caption,
+              ),
+            ),
+          ] else ...[
+            const LinearProgressIndicator(minHeight: 3),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'On the way to your destination.',
+              style: AppTypography.caption,
+            ),
+          ],
         ],
-        if (expanded)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
-                '${booking.paymentMethod.label} · fare locked',
-                style: AppTypography.bodySm,
+
+        // ALWAYS VISIBLE, collapsed or not. These three were inside the
+        // expanded branch, which meant SOS -- the control a rider reaches for
+        // when something is going wrong inside a stranger's vehicle -- required
+        // noticing the sheet could be dragged, and then dragging it. A safety
+        // control behind a gesture is not a safety control.
+        //
+        // Chat and Call keep it company for the same reason at lower stakes:
+        // "where are you?" is the most common thing a rider needs mid-trip, and
+        // it should not cost an interaction to find.
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: ArangButton(
+                label: 'Chat',
+                icon: Icons.chat_outlined,
+                variant: ArangButtonVariant.ghost,
+                onPressed: onMessage,
               ),
-              const SizedBox(height: AppSpacing.sm),
-              if (awaitingConfirmation) ...[
-                const _ArrivedBanner(),
-                const SizedBox(height: AppSpacing.sm),
-                ArangButton(
-                  label: "I've arrived — finish ride",
-                  icon: Icons.flag_outlined,
-                  onPressed: canConfirmArrival ? onConfirmArrival : null,
-                ),
-                const SizedBox(height: 4),
-                Center(
-                  child: Text(
-                    'Finishing automatically in ${secondsLeft}s',
-                    style: AppTypography.caption,
-                  ),
-                ),
-              ] else ...[
-                const LinearProgressIndicator(minHeight: 3),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'On the way to your destination.',
-                  style: AppTypography.caption,
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: ArangButton(
-                      label: 'Chat',
-                      icon: Icons.chat_outlined,
-                      variant: ArangButtonVariant.ghost,
-                      onPressed: onMessage,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: ArangButton(
-                      label: 'Call',
-                      icon: Icons.call_outlined,
-                      variant: ArangButtonVariant.ghost,
-                      onPressed: onCall,
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: ArangButton(
+                label: 'Call',
+                icon: Icons.call_outlined,
+                variant: ArangButtonVariant.ghost,
+                onPressed: onCall,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              SosHoldButton(onCompleted: onSos),
-            ],
-          ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        SosHoldButton(onCompleted: onSos),
         const SizedBox(height: AppSpacing.xs),
         const Center(
           child: Text(
