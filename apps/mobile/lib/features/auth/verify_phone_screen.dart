@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
 
 import '../../app/theme/app_colors.dart';
@@ -179,29 +180,19 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     }
   }
 
-  /// Android shows the code in the notification shade, and copying it is often
-  /// faster than memorising six digits and switching back. Reading the
-  /// clipboard on an explicit tap keeps that convenient without the app
-  /// silently inspecting clipboard contents.
-  Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final digits = (data?.text ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-    if (!mounted) return;
-
-    if (digits.length < _codeLength) {
-      setState(() => _error = 'No 6-digit code found on the clipboard.');
-      return;
-    }
-
-    // Take the first six digits: an SMS body carries prose around the code.
-    final code = digits.substring(0, _codeLength);
-    _pinController.text = code;
-    setState(() => _error = null);
-    await _submit(code);
-  }
-
-  Future<void> _signOut() async {
+  /// Leaves verification and returns to the registration form.
+  ///
+  /// Signing out first is not optional today: this screen is only reachable
+  /// once the account exists and is signed in, so without ending the session
+  /// the router's verification gate redirects straight back here. `/signup` is
+  /// an auth path, so a signed-out user is allowed to land on it.
+  ///
+  /// Once registration defers account creation until the code is accepted
+  /// (specs.md Spec 10) there is no session to end and this becomes a plain
+  /// pop. Written as sign-out-then-navigate so it behaves correctly either way.
+  Future<void> _goBack() async {
     await ref.read(authRepositoryProvider).signOut();
+    if (mounted) context.go('/signup');
   }
 
   /// Two states, one shape. The circle is the only thing on the screen that
@@ -360,8 +351,11 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                       // -- Pinput's default autofillHints already include
                       // oneTimeCode, which is Android's
                       // AUTOFILL_HINT_SMS_OTP_CODE, so the keyboard offers the
-                      // code from the notification, and the Paste button below
-                      // covers the rest.
+                      // code straight from the notification. A dedicated Paste
+                      // button used to sit below; it was removed because long
+                      // pressing the field already gives the platform's own
+                      // paste affordance, and the app reading the clipboard
+                      // unprompted is worse than the user choosing to.
                       onCompleted: _submit,
                     ),
                   );
@@ -404,13 +398,6 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               // the grouping now; the Divider that used to attempt it is gone
               // (a line where space would do reads as structure that is not
               // there).
-              const SizedBox(height: AppSpacing.xs),
-              TextButton.icon(
-                onPressed: _busy || _verified ? null : _pasteFromClipboard,
-                icon: const Icon(Icons.content_paste_outlined, size: 18),
-                label: const Text('Paste code'),
-              ),
-
               // A countdown is not a control. Rendering it as a disabled
               // button invited a tap that could never work; while it runs it
               // is plain text, and the button only exists once it is pressable.
@@ -435,13 +422,13 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
 
               const SizedBox(height: AppSpacing.xxl),
 
-              // A typo in the mobile number would otherwise strand the account
-              // permanently: the code goes to a number the user does not hold,
-              // and there is no other way back. Signing out returns them to
-              // registration.
+              // A typo in the mobile number would otherwise strand the account:
+              // the code goes to a number the user does not hold, and there is
+              // no other way back. This is that way back, and it returns to
+              // registration rather than to a login screen -- there is nothing
+              // to log in to yet.
               Text(
-                'Wrong number? Sign out and register again with the correct '
-                'one.',
+                'Using the wrong number?',
                 style: AppTypography.caption.copyWith(
                   color: AppColors.textMuted,
                 ),
@@ -449,8 +436,8 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               ),
               const SizedBox(height: AppSpacing.xxs),
               TextButton(
-                onPressed: _busy || _verified ? null : _signOut,
-                child: const Text('Sign out'),
+                onPressed: _busy || _verified ? null : _goBack,
+                child: const Text('Go Back'),
               ),
             ],
           ),

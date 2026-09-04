@@ -175,7 +175,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget _form(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
+        // Clamping, not Never. The form fits a phone with the keyboard closed,
+        // and the minHeight below already makes the child exactly viewport
+        // height in that case -- so there is no scroll extent and no rubber
+        // banding, which is what NeverScrollableScrollPhysics was reaching for.
+        //
+        // But the Scaffold shrinks its body by the keyboard inset, so once the
+        // keyboard opens `constraints.maxHeight` drops and the form no longer
+        // fits. Disabling scrolling outright meant the lower fields could not
+        // be reached at all: focusing "Repeat Password" put the caret behind
+        // the keyboard with no way to bring it into view. Clamping also lets
+        // Flutter auto-scroll the focused field into view, which it cannot do
+        // inside a scrollable that refuses to move.
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl,
           _padTop,

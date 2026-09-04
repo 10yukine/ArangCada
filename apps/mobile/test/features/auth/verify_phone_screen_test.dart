@@ -4,8 +4,8 @@ import 'package:arangcada/data/repositories/auth_repository.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
 import 'package:arangcada/features/auth/verify_phone_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records calls and never touches the network.
@@ -93,7 +93,26 @@ void main() {
       demoStateProvider.overrideWithValue(state),
       authRepositoryProvider.overrideWithValue(auth),
     ],
-    child: const MaterialApp(home: VerifyPhoneScreen()),
+    // A real router, not MaterialApp(home:). "Go Back" navigates, and a bare
+    // home widget has no GoRouter in context for it to navigate with -- the
+    // screen would throw in the test while working perfectly in the app.
+    child: MaterialApp.router(
+      routerConfig: GoRouter(
+        initialLocation: '/verify-phone',
+        routes: [
+          GoRoute(
+            path: '/verify-phone',
+            builder: (_, _) => const VerifyPhoneScreen(),
+          ),
+          // Go Back's destination. A stand-in: the registration form itself is
+          // not under test here, only that leaving lands on it.
+          GoRoute(
+            path: '/signup',
+            builder: (_, _) => const Scaffold(body: Text('signup form')),
+          ),
+        ],
+      ),
+    ),
   );
 
   testWidgets('shows the number masked, not in full', (tester) async {
@@ -184,50 +203,40 @@ void main() {
     expect(auth.sendCalls, 1);
   });
 
-  testWidgets('paste pulls a 6-digit code out of a full SMS body', (
+  // Asserted as an absence. The button read the clipboard on the user's
+  // behalf, which long-pressing the field already offers through the
+  // platform's own paste affordance -- and Android logs a denial every time an
+  // unfocused app touches the clipboard. Removing it is easy to undo by
+  // accident, since "add a paste button to the OTP screen" reads like an
+  // improvement.
+  testWidgets('never reads the clipboard on behalf of the user', (
     tester,
   ) async {
-    // What a real SMS looks like -- the code is embedded in prose, and the
-    // user copies the whole message.
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async {
-        if (call.method == 'Clipboard.getData') {
-          return <String, dynamic>{
-            'text': '482913 is your ArangCada verification code. '
-                'It expires in 10 minutes.',
-          };
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        null,
-      ),
-    );
-
     await tester.pumpWidget(harness());
     await tester.pump();
 
-    await tester.tap(find.text('Paste code'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(auth.verifiedTokens, ['482913']);
+    expect(find.text('Paste code'), findsNothing);
+    expect(find.byIcon(Icons.content_paste_outlined), findsNothing);
   });
 
-  testWidgets('offers a way out so a mistyped number cannot strand the account', (
+  testWidgets('offers a way back so a mistyped number cannot strand the account', (
     tester,
   ) async {
     await tester.pumpWidget(harness());
     await tester.pump();
 
-    expect(find.text('Sign out'), findsOneWidget);
-    await tester.tap(find.text('Sign out'));
+    // "Sign out" was the old label. It described the mechanism rather than the
+    // intent, and pointed at a login screen the user has no account for yet.
+    expect(find.text('Sign out'), findsNothing);
+    expect(find.text('Go Back'), findsOneWidget);
+
+    await tester.tap(find.text('Go Back'));
+    await tester.pump();
     await tester.pump();
 
+    // The session must end, or the router's verification gate redirects
+    // straight back to this screen.
     expect(state.currentUser, isNull);
+    expect(find.text('signup form'), findsOneWidget);
   });
 }
