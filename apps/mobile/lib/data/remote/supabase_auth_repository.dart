@@ -219,6 +219,29 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<DemoUser> updateDisplayName(String displayName) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const DemoAuthException('Sign in again to change your name.');
+    }
+
+    final trimmed = displayName.trim();
+    try {
+      await _client
+          .from('profiles')
+          .update({'display_name': trimmed})
+          .eq('id', user.id);
+    } on PostgrestException {
+      throw const DemoAuthException('Could not save your name. Try again.');
+    }
+
+    // Re-read rather than patching local state, so what the app shows is what
+    // the database actually stored. If a trigger or policy rewrote the value,
+    // the user sees the truth instead of the value they typed.
+    return restoreProfile(user);
+  }
+
+  @override
   Future<void> abandonUnverifiedRegistration() async {
     // The session's JWT is dead the moment this returns -- the user it names no
     // longer exists -- so the caller must sign out immediately afterwards.

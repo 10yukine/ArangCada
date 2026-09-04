@@ -28,6 +28,20 @@ class DemoUser {
   /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
   final bool phoneVerified;
 
+  /// Only [displayName] for now, because it is the only field a user may
+  /// change themselves: `profiles` grants UPDATE on (display_name, phone) to
+  /// authenticated and a trigger blocks role and status outright. Widen this
+  /// when the server permits more, not before -- a copyWith that can express
+  /// changes the database will reject is a trap.
+  DemoUser copyWithDisplayName(String value) => DemoUser(
+    email: email,
+    displayName: value,
+    role: role,
+    isInternalTester: isInternalTester,
+    mobileNumber: mobileNumber,
+    phoneVerified: phoneVerified,
+  );
+
   /// True when the app should hold this account on the verify screen.
   ///
   /// Internal testers are exempt because the hidden `@arangcada.demo` accounts

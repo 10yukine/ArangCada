@@ -7,6 +7,7 @@ import '../data/providers/repository_providers.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/verify_phone_screen.dart';
+import '../features/profile/edit_profile_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/sign_up_screen.dart';
 import '../features/booking/ride_options_screen.dart';
@@ -233,6 +234,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         pageBuilder: (context, state) =>
             _screenPage(state, const NotificationsScreen()),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const EditProfileScreen()),
       ),
       GoRoute(
         path: '/profile/saved-places',

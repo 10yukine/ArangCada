@@ -71,6 +71,17 @@ class HybridAuthRepository implements AuthRepository {
     required String token,
   }) => _requiredLive.verifyPhoneOtp(e164Phone: e164Phone, token: token);
 
+  // Routed, unlike the methods below. A demo account has no server-side row,
+  // so its rename has to happen in memory; a real account must reach Postgres.
+  @override
+  Future<DemoUser> updateDisplayName(String displayName) {
+    final current = _state.currentUser;
+    if (current != null && current.isDemoAccount) {
+      return _local.updateDisplayName(displayName);
+    }
+    return _requiredLive.updateDisplayName(displayName);
+  }
+
   // Live only, for the same reason as the OTP methods above: a local test
   // account has no server-side row to delete, and routing this to the mock
   // would silently do nothing for a real user whose email happened to look

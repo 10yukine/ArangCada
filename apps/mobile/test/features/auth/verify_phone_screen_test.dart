@@ -66,6 +66,12 @@ class _FakeAuthRepository implements AuthRepository {
   int abandonCalls = 0;
 
   @override
+
+  @override
+  Future<DemoUser> updateDisplayName(String displayName) async =>
+      throw UnimplementedError();
+
+  @override
   Future<void> abandonUnverifiedRegistration() async => abandonCalls++;
 }
 

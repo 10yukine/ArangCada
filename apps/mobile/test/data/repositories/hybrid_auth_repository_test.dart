@@ -43,6 +43,20 @@ class _SpyLiveAuthRepository implements AuthRepository {
     required String token,
   }) => throw UnimplementedError();
 
+  /// Records the name handed to the live repository, so the routing test can
+  /// assert a real account's rename was not diverted to the mock.
+  String? renamedTo;
+
+  @override
+  Future<DemoUser> updateDisplayName(String displayName) async {
+    renamedTo = displayName;
+    return DemoUser(
+      email: 'live@example.test',
+      displayName: displayName,
+      role: DemoRole.commuter,
+    );
+  }
+
   @override
   Future<void> abandonUnverifiedRegistration() async {
     abandonCalls++;
@@ -160,5 +174,45 @@ void main() {
 
       expect(live.sentOtpTo, '+639171234567');
     });
+  });
+
+  test('a demo account renames in memory and never reaches the live repository', () async {
+    final state = DemoState();
+    final live = _SpyLiveAuthRepository();
+    final hybrid = HybridAuthRepository(state: state, live: live);
+
+    await hybrid.signIn(
+      email: 'commuter@arangcada.demo',
+      password: 'demo1234',
+    );
+    final renamed = await hybrid.updateDisplayName('Bagong Pangalan');
+
+    // The seeded accounts are compiled in, not stored, so there is no row for
+    // the live repository to update. Routing this remotely would fail for an
+    // account that authenticated entirely offline.
+    expect(live.renamedTo, isNull);
+    expect(renamed.displayName, 'Bagong Pangalan');
+    expect(state.currentUser?.displayName, 'Bagong Pangalan');
+
+    state.dispose();
+  });
+
+  test('a real account renames through the live repository', () async {
+    final state = DemoState();
+    final live = _SpyLiveAuthRepository();
+    final hybrid = HybridAuthRepository(state: state, live: live);
+
+    state.setCurrentUser(
+      const DemoUser(
+        email: 'someone@example.test',
+        displayName: 'Old Name',
+        role: DemoRole.commuter,
+      ),
+    );
+    await hybrid.updateDisplayName('New Name');
+
+    expect(live.renamedTo, 'New Name');
+
+    state.dispose();
   });
 }

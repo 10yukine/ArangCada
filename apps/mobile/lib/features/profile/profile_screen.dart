@@ -129,12 +129,21 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const Divider(height: 1),
                 ],
-                _ProfileRow(
-                  icon: Icons.discount_outlined,
-                  label: 'Fare matrix',
-                  onTap: () => context.push('/fare-matrix'),
-                ),
-                const Divider(height: 1),
+                // Drivers only. A commuter already has a "View fare matrix"
+                // card on their home screen, so a second entry point here was
+                // pure duplication -- and it was the row that pushed this list
+                // past one screen, forcing a scroll to reach Sign out.
+                //
+                // A driver has no such card, so removing it for them would
+                // take away their only route to the LGU rates.
+                if (isDriver) ...[
+                  _ProfileRow(
+                    icon: Icons.discount_outlined,
+                    label: 'Fare matrix',
+                    onTap: () => context.push('/fare-matrix'),
+                  ),
+                  const Divider(height: 1),
+                ],
                 if (!isDriver) ...[
                   _ProfileRow(
                     icon: Icons.verified_user_outlined,
@@ -249,13 +258,7 @@ class _ProfileHeader extends StatelessWidget {
                 onPressed: () {
                   Navigator.pop(sheetContext);
                   if (isDriver) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Account editing is not wired up in this prototype.',
-                      ),
-                    ),
-                  );
+                  context.push('/profile/edit');
                 },
               ),
             ],

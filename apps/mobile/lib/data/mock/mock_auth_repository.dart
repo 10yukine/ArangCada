@@ -64,6 +64,19 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<DemoUser> updateDisplayName(String displayName) async {
+    final current = _state.currentUser;
+    if (current == null) {
+      throw const DemoAuthException('Sign in again to change your name.');
+    }
+    // In-memory only. The seeded accounts are compiled in, so the rename lasts
+    // for the session and is gone on the next launch -- correct for a fixture.
+    final renamed = current.copyWithDisplayName(displayName.trim());
+    _state.setCurrentUser(renamed);
+    return renamed;
+  }
+
+  @override
   Future<void> abandonUnverifiedRegistration() async {
     // Nothing to abandon. The seeded accounts are internal testers, so they
     // never reach the verify screen, and they are compiled in rather than

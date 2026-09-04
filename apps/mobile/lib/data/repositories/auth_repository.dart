@@ -29,6 +29,15 @@ abstract interface class AuthRepository {
   /// administrators, so this cannot become a back-door "delete my account".
   Future<void> abandonUnverifiedRegistration();
 
+  /// Renames the signed-in account.
+  ///
+  /// Safe to call from the client: `profiles` grants UPDATE on
+  /// (display_name, phone) to `authenticated` only, and
+  /// guard_profiles_privileged_columns() rejects any attempt to change role or
+  /// status in the same statement. So a tampered client can rename itself and
+  /// nothing else.
+  Future<DemoUser> updateDisplayName(String displayName);
+
   /// Sends a 6-digit SMS code to [e164Phone] and attaches that number to the
   /// signed-in account. Safe to call again to resend; the server throttles.
   Future<void> sendPhoneOtp(String e164Phone);
