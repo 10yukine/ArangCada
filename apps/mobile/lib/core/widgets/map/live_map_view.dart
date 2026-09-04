@@ -535,24 +535,43 @@ class MapCompass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      elevation: 2,
-      shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
-      child: IconButton(
-        tooltip: 'Reset map north',
-        constraints: const BoxConstraints.tightFor(
-          width: AppSizes.minTapTarget,
-          height: AppSizes.minTapTarget,
-        ),
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-        icon: Transform.rotate(
-          angle: -bearing * math.pi / 180,
-          child: const Icon(
-            Icons.navigation_rounded,
-            color: AppColors.danger,
-            size: 24,
+    // Deliberately identical to ArangIconButton: same 42dp circle, same border,
+    // same 20dp glyph. It was 48dp with a 24dp icon and an elevation the other
+    // map controls do not have, so the one button a user never presses was the
+    // largest and heaviest thing floating over the map.
+    // 42dp circle inside a 48dp tap target -- the same trick ArangIconButton
+    // uses. Matching the visual size alone would have quietly cut the tap
+    // target from 48 to 42, below the accessibility minimum, which is a real
+    // regression hiding inside a cosmetic change.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: AppSizes.minTapTarget,
+        minHeight: AppSizes.minTapTarget,
+      ),
+      child: Center(
+        child: Tooltip(
+          message: 'Reset map north',
+          child: Material(
+            color: AppColors.surface,
+            shape: const CircleBorder(
+              side: BorderSide(color: AppColors.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              child: SizedBox(
+                width: AppSizes.iconButton,
+                height: AppSizes.iconButton,
+                child: Transform.rotate(
+                  angle: -bearing * math.pi / 180,
+                  child: const Icon(
+                    Icons.navigation_rounded,
+                    color: AppColors.danger,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

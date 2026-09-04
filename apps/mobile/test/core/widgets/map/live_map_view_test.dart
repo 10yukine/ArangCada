@@ -189,14 +189,44 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: MapCompass(bearing: 90, onPressed: () => resetCount++),
+          // Inside a Positioned, exactly as it sits on a map. Given bounded
+          // constraints it would stretch to fill them -- its ConstrainedBox
+          // sets a minimum, not a maximum, and the Align inside expands
+          // whenever it is allowed to. Under a Positioned the constraints are
+          // unbounded and it shrink-wraps to the 48dp it asks for.
+          body: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                child: MapCompass(bearing: 90, onPressed: () => resetCount++),
+              ),
+            ],
+          ),
         ),
       ),
     );
 
     final resetNorth = find.byTooltip('Reset map north');
     expect(resetNorth, findsOneWidget);
-    expect(tester.getSize(resetNorth), const Size(48, 48));
+
+    // The compass draws at 42 to match the floating back button, but must stay
+    // tappable at 48. Asserting only the visual size would let a future tidy-up
+    // collapse the two and drop the tap target below the accessibility minimum
+    // without failing anything.
+    expect(
+      tester.getSize(find.byType(MapCompass)),
+      const Size(48, 48),
+      reason: 'the tap target must remain 48dp',
+    );
+    expect(
+      tester.getSize(find.descendant(
+        of: resetNorth,
+        matching: find.byType(SizedBox),
+      ).first),
+      const Size(42, 42),
+      reason: 'the visible circle matches ArangIconButton',
+    );
 
     final rotation = tester.widget<Transform>(
       find.ancestor(

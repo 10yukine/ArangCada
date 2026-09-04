@@ -286,11 +286,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
               controller: _sheetController,
               collapsedHeight: 330,
               handleSemanticLabel: 'Trip details',
-              handleTrailing: ArangIconButton(
-                icon: Icons.center_focus_strong,
-                tooltip: 'Center route',
-                onPressed: () => _mapController.fitRoute(),
-              ),
               background: RoutePreviewMap(
                 controller: _mapController,
                 from: state.pickup.coordinate,
@@ -323,9 +318,27 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                   ),
                 ),
                 Positioned(
-                  top: MediaQuery.paddingOf(context).top + 13,
+                  top: MediaQuery.paddingOf(context).top + 8,
                   left: 70,
                   child: const _TripStatusPill(),
+                ),
+                // Floating, not attached to the drag handle. Sitting in the
+                // handle row made a map control look like sheet furniture, and
+                // it disappeared the moment the sheet was dragged over the map
+                // it was meant to recentre.
+                Positioned(
+                  top:
+                      MediaQuery.paddingOf(context).top +
+                      AppSizes.minTapTarget +
+                      16 +
+                      AppSizes.iconButton +
+                      AppSpacing.xs,
+                  right: 14,
+                  child: ArangIconButton(
+                    icon: Icons.center_focus_strong,
+                    tooltip: 'Center route',
+                    onPressed: () => _mapController.fitRoute(),
+                  ),
                 ),
               ],
               sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
@@ -363,14 +376,36 @@ class _TripStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Height, not vertical padding. It sits beside the floating back button,
+    // and padding-derived height left the two a few pixels apart -- close
+    // enough to read as misaligned rather than as a deliberate difference.
+    // Everything floating over the map is now AppSizes.iconButton tall.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      height: AppSizes.iconButton,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.94),
         borderRadius: const BorderRadius.all(Radius.circular(AppRadii.pill)),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Text('In progress', style: AppTypography.caption),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 8,
+            height: 8,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.green,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text('In progress', style: AppTypography.label),
+        ],
+      ),
     );
   }
 }

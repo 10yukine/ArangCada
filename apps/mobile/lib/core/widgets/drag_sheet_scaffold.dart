@@ -1,10 +1,32 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import 'sheet_drag_handle.dart';
+
+/// Whether the last sheet the user interacted with was open.
+///
+/// The ride flow moves through four screens that each carry a sheet, and a
+/// commuter who drags one open has said what level of detail they want. Losing
+/// that at every transition made them re-open it on the next screen, which read
+/// as the app forgetting rather than as a fresh screen with its own default.
+///
+/// Deliberately not persisted beyond the session: it is a reading preference
+/// for a journey, not a setting.
+class SheetExpansionMemory {
+  bool expanded = false;
+}
+
+/// A plain mutable holder rather than a reactive provider, on purpose. Nothing
+/// needs to rebuild when this changes -- each sheet reads it once as it mounts
+/// and writes it when it settles. A StateProvider here would add a rebuild path
+/// nobody listens to.
+final sheetExpansionProvider = Provider<SheetExpansionMemory>(
+  (ref) => SheetExpansionMemory(),
+);
 
 /// Drives a [DragSheetScaffold] from outside it.
 ///
@@ -53,12 +75,11 @@ class DragSheetController extends ChangeNotifier {
 /// scrollable child and runs its own gesture arena, which fights a fixed-height
 /// sheet. That fight is why this codebase grew [SheetDragHandle] in the first
 /// place.
-class DragSheetScaffold extends StatefulWidget {
+class DragSheetScaffold extends ConsumerStatefulWidget {
   const DragSheetScaffold({
     required this.background,
     required this.sheetBuilder,
     this.overlay = const <Widget>[],
-    this.initiallyExpanded = false,
     this.collapsedHeight = 260,
     this.controller,
     this.footer,
@@ -79,8 +100,6 @@ class DragSheetScaffold extends StatefulWidget {
   /// controls. These fade with the background, since a control floating over a
   /// hidden map is pointing at nothing.
   final List<Widget> overlay;
-
-  final bool initiallyExpanded;
 
   /// Height of the collapsed peek. The expanded height is always the full
   /// screen -- that uniformity is the point.
@@ -109,16 +128,18 @@ class DragSheetScaffold extends StatefulWidget {
   final String? handleSemanticLabel;
 
   @override
-  State<DragSheetScaffold> createState() => _DragSheetScaffoldState();
+  ConsumerState<DragSheetScaffold> createState() => _DragSheetScaffoldState();
 }
 
-class _DragSheetScaffoldState extends State<DragSheetScaffold>
+class _DragSheetScaffoldState extends ConsumerState<DragSheetScaffold>
     with SingleTickerProviderStateMixin {
-  late bool _expanded = widget.initiallyExpanded;
+  /// Seeded from the last sheet the user touched, so dragging one open carries
+  /// through the rest of the flow.
+  late bool _expanded = ref.read(sheetExpansionProvider).expanded;
   late final AnimationController _reveal = AnimationController(
     vsync: this,
     duration: AppMotion.sheet,
-    value: widget.initiallyExpanded ? 1 : 0,
+    value: ref.read(sheetExpansionProvider).expanded ? 1 : 0,
   );
 
   /// How far a finger must travel to cross the whole range. Taken from the
@@ -159,6 +180,9 @@ class _DragSheetScaffoldState extends State<DragSheetScaffold>
 
   void _setExpanded(bool expanded) {
     if (mounted) setState(() => _expanded = expanded);
+    // Written on every settle, including the end of a drag, so the next screen
+    // opens the way this one was left.
+    ref.read(sheetExpansionProvider).expanded = expanded;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
