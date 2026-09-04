@@ -9,9 +9,9 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/map/live_map_view.dart';
+import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/arang_ui.dart';
-import '../../core/widgets/sheet_drag_handle.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/remote/supabase_ride_repository.dart';
@@ -67,6 +67,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (booking?.status != BookingStatus.inProgress) return;
     setState(() {
       _awaitingConfirmation = true;
+      _sheetController.expand();
       _secondsLeft = _confirmWindow.inSeconds;
     });
     _confirmTicker?.cancel();
@@ -96,6 +97,9 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   static const Duration _confirmWindow = Duration(seconds: 60);
   Timer? _confirmTicker;
   bool _awaitingConfirmation = false;
+
+  /// Opens the sheet from outside a gesture, for the one moment that needs it.
+  final DragSheetController _sheetController = DragSheetController();
   int _secondsLeft = 0;
 
   void _retryAutomaticCompletion() {
@@ -111,6 +115,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     }
     _confirmTicker?.cancel();
     _completionRun?.cancel();
+    _sheetController.dispose();
     super.dispose();
   }
 
@@ -127,6 +132,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (deadline == null || _awaitingConfirmation) return;
     setState(() {
       _awaitingConfirmation = true;
+      _sheetController.expand();
       _secondsLeft = SupabaseRideRepository.completionSecondsRemaining(
         deadline,
       );
@@ -275,31 +281,38 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
             if (booking == null || booking.status != BookingStatus.inProgress) {
               return const Center(child: Text('No active trip.'));
             }
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: RoutePreviewMap(
-                    controller: _mapController,
-                    from: state.pickup.coordinate,
-                    to: state.destination!.coordinate,
-                    height: double.infinity,
-                    borderRadius: BorderRadius.zero,
-                    showCaption: false,
-                    interactive: true,
-                    additionalMarkers: [
-                      if (state.liveDriverLocation != null)
-                        MapMarker(
-                          coordinate: state.liveDriverLocation!,
-                          color: AppColors.primaryText,
-                          radius: 9,
-                        ),
-                    ],
-                    compassTopInset:
-                        MediaQuery.paddingOf(context).top +
-                        AppSizes.minTapTarget +
-                        16,
-                  ),
-                ),
+            return DragSheetScaffold(
+              sheetKey: _mapController.panelKey,
+              controller: _sheetController,
+              collapsedHeight: 260,
+              handleSemanticLabel: 'Trip details',
+              handleTrailing: ArangIconButton(
+                icon: Icons.center_focus_strong,
+                tooltip: 'Center route',
+                onPressed: () => _mapController.fitRoute(),
+              ),
+              background: RoutePreviewMap(
+                controller: _mapController,
+                from: state.pickup.coordinate,
+                to: state.destination!.coordinate,
+                height: double.infinity,
+                borderRadius: BorderRadius.zero,
+                showCaption: false,
+                interactive: true,
+                additionalMarkers: [
+                  if (state.liveDriverLocation != null)
+                    MapMarker(
+                      coordinate: state.liveDriverLocation!,
+                      color: AppColors.primaryText,
+                      radius: 9,
+                    ),
+                ],
+                compassTopInset:
+                    MediaQuery.paddingOf(context).top +
+                    AppSizes.minTapTarget +
+                    16,
+              ),
+              overlay: [
                 Positioned(
                   top: MediaQuery.paddingOf(context).top + 8,
                   left: 14,
@@ -314,33 +327,29 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                   left: 70,
                   child: const _TripStatusPill(),
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: _ActiveTripSheet(
-                    key: _mapController.panelKey,
-                    booking: booking,
-                    eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
-                    etaFallback: state.forceEtaFallback,
-                    awaitingConfirmation: _awaitingConfirmation,
-                    secondsLeft: _secondsLeft,
-                    canConfirmArrival:
-                        ref.read(liveRideRepositoryProvider) == null ||
-                        _secondsLeft <= 0,
-                    onConfirmArrival: _confirmArrival,
-                    onMessage: () => context.push('/chat/thread-active'),
-                    onCall: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Calling is unavailable in this academic prototype. '
-                          'No call was placed.',
-                        ),
-                      ),
+              ],
+              sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
+                booking: booking,
+                expanded: expanded,
+                eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
+                etaFallback: state.forceEtaFallback,
+                awaitingConfirmation: _awaitingConfirmation,
+                secondsLeft: _secondsLeft,
+                canConfirmArrival:
+                    ref.read(liveRideRepositoryProvider) == null ||
+                    _secondsLeft <= 0,
+                onConfirmArrival: _confirmArrival,
+                onMessage: () => context.push('/chat/thread-active'),
+                onCall: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Calling is unavailable in this academic prototype. '
+                      'No call was placed.',
                     ),
-                    onSos: _recordSos,
-                    onCenterRoute: () => _mapController.fitRoute(),
                   ),
                 ),
-              ],
+                onSos: _recordSos,
+              ),
             );
           },
         ),
@@ -366,9 +375,17 @@ class _TripStatusPill extends StatelessWidget {
   }
 }
 
-class _ActiveTripSheet extends StatefulWidget {
-  const _ActiveTripSheet({
+/// The content of the active-trip sheet, and nothing else.
+///
+/// This was a StatefulWidget carrying its own AnimationController, drag
+/// handling, snap-on-release and reduced-motion branch. All of that moved into
+/// DragSheetScaffold -- it was extracted FROM here in the first place -- so
+/// keeping a second copy meant two sheets in the same app that could drift
+/// apart in feel. What is left is the part that was ever specific to a trip.
+class _ActiveTripSheetBody extends StatelessWidget {
+  const _ActiveTripSheetBody({
     required this.booking,
+    required this.expanded,
     required this.eta,
     required this.etaFallback,
     required this.awaitingConfirmation,
@@ -378,11 +395,10 @@ class _ActiveTripSheet extends StatefulWidget {
     required this.onMessage,
     required this.onCall,
     required this.onSos,
-    required this.onCenterRoute,
-    super.key,
   });
 
   final DemoBooking booking;
+  final bool expanded;
   final String eta;
   final bool etaFallback;
   final bool awaitingConfirmation;
@@ -392,266 +408,138 @@ class _ActiveTripSheet extends StatefulWidget {
   final VoidCallback onMessage;
   final VoidCallback onCall;
   final Future<void> Function() onSos;
-  final VoidCallback onCenterRoute;
-
-  @override
-  State<_ActiveTripSheet> createState() => _ActiveTripSheetState();
-}
-
-class _ActiveTripSheetState extends State<_ActiveTripSheet>
-    with SingleTickerProviderStateMixin {
-  // Starts expanded: this is what the sheet always showed before the handle
-  // became functional, so a rider mid-trip sees no behaviour change until
-  // they actually touch the handle.
-  bool _expanded = true;
-  late final AnimationController _reveal = AnimationController(
-    vsync: this,
-    duration: AppMotion.sheet,
-    value: 1,
-  );
-
-  static const _dragExtent = 260.0;
-
-  void _setExpanded(bool expanded) {
-    setState(() => _expanded = expanded);
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion) {
-      _reveal.value = expanded ? 1 : 0;
-    } else {
-      _reveal.animateTo(
-        expanded ? 1 : 0,
-        duration: AppMotion.sheet,
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
-
-  void _drag(double dy) {
-    _reveal.value = (_reveal.value - dy / _dragExtent).clamp(0.0, 1.0);
-  }
-
-  void _endDrag(double velocity) {
-    final expand =
-        velocity < -250 || (velocity.abs() <= 250 && _reveal.value >= 0.5);
-    _setExpanded(expand);
-  }
-
-  @override
-  void didUpdateWidget(covariant _ActiveTripSheet oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Arrival needs the full sheet in view for the confirm button; a
-    // collapsed peek at that exact moment would hide the one action that
-    // matters.
-    if (widget.awaitingConfirmation && !oldWidget.awaitingConfirmation) {
-      _expanded = true;
-      _reveal.animateTo(1, curve: Curves.easeOutCubic);
-    }
-  }
-
-  @override
-  void dispose() {
-    _reveal.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    final booking = widget.booking;
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 20, bottom: AppSpacing.xs),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox.square(
-              dimension: AppSizes.minTapTarget,
-              child: ArangIconButton(
-                icon: Icons.center_focus_strong,
-                tooltip: 'Center route',
-                onPressed: widget.onCenterRoute,
+        // The driver's face sits to the left of the destination and
+        // their name, so the person carrying the ride is the first
+        // thing read rather than a line of caption text under an
+        // address. Matches the avatar driver_matched_screen already
+        // shows; a placeholder icon until avatar upload lands
+        // (specs.md Spec 8b), at which point only the child changes.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2, right: AppSpacing.sm),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primaryFill,
+                child: Icon(Icons.person, size: 26, color: AppColors.primary),
               ),
             ),
-          ),
-        ),
-        Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.54,
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(AppRadii.sheet),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowLight,
-                blurRadius: 10,
-                offset: Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SheetDragHandle(
-                    expanded: _expanded,
-                    onToggle: () => _setExpanded(!_expanded),
-                    onDragUpdate: _drag,
-                    onDragEnd: _endDrag,
-                  ),
-                  // The driver's face sits to the left of the destination and
-                  // their name, so the person carrying the ride is the first
-                  // thing read rather than a line of caption text under an
-                  // address. Matches the avatar driver_matched_screen already
-                  // shows; a placeholder icon until avatar upload lands
-                  // (specs.md Spec 8b), at which point only the child changes.
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(
-                          top: 2,
-                          right: AppSpacing.sm,
-                        ),
-                        child: CircleAvatar(
-                          radius: 22,
-                          backgroundColor: AppColors.primaryFill,
-                          child: Icon(
-                            Icons.person,
-                            size: 26,
-                            color: AppColors.primary,
-                          ),
+                      Expanded(
+                        child: Text(
+                          'To ${booking.destinationName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'To ${booking.destinationName}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Text(
-                                  widget.eta,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(color: AppColors.primary),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.etaFallback
-                                  ? 'Route estimate unavailable · fallback ETA'
-                                  : 'Marco Dela Cruz · Body no. 024',
-                              style: AppTypography.caption,
-                            ),
-                          ],
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        eta,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  if (!_expanded) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      widget.awaitingConfirmation
-                          ? 'Arrived · tap to finish'
-                          : 'On the way',
-                      style: AppTypography.bodySm,
-                    ),
-                  ],
-                  SizeTransition(
-                    sizeFactor: _reveal,
-                    alignment: Alignment.topCenter,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
-                          '${booking.paymentMethod.label} · fare locked',
-                          style: AppTypography.bodySm,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        if (widget.awaitingConfirmation) ...[
-                          const _ArrivedBanner(),
-                          const SizedBox(height: AppSpacing.sm),
-                          ArangButton(
-                            label: "I've arrived — finish ride",
-                            icon: Icons.flag_outlined,
-                            onPressed: widget.canConfirmArrival
-                                ? widget.onConfirmArrival
-                                : null,
-                          ),
-                          const SizedBox(height: 4),
-                          Center(
-                            child: Text(
-                              'Finishing automatically in ${widget.secondsLeft}s',
-                              style: AppTypography.caption,
-                            ),
-                          ),
-                        ] else ...[
-                          const LinearProgressIndicator(minHeight: 3),
-                          const SizedBox(height: AppSpacing.xs),
-                          const Text(
-                            'On the way to your destination.',
-                            style: AppTypography.caption,
-                          ),
-                        ],
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ArangButton(
-                                label: 'Chat',
-                                icon: Icons.chat_outlined,
-                                variant: ArangButtonVariant.ghost,
-                                onPressed: widget.onMessage,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              child: ArangButton(
-                                label: 'Call',
-                                icon: Icons.call_outlined,
-                                variant: ArangButtonVariant.ghost,
-                                onPressed: widget.onCall,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        SosHoldButton(onCompleted: widget.onSos),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  const Center(
-                    child: Text(
-                      '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 9, color: AppColors.textMuted),
-                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    etaFallback
+                        ? 'Route estimate unavailable · fallback ETA'
+                        : 'Marco Dela Cruz · Body no. 024',
+                    style: AppTypography.caption,
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+        if (!expanded) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            awaitingConfirmation ? 'Arrived · tap to finish' : 'On the way',
+            style: AppTypography.bodySm,
+          ),
+        ],
+        if (expanded)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
+                '${booking.paymentMethod.label} · fare locked',
+                style: AppTypography.bodySm,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (awaitingConfirmation) ...[
+                const _ArrivedBanner(),
+                const SizedBox(height: AppSpacing.sm),
+                ArangButton(
+                  label: "I've arrived — finish ride",
+                  icon: Icons.flag_outlined,
+                  onPressed: canConfirmArrival ? onConfirmArrival : null,
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: Text(
+                    'Finishing automatically in ${secondsLeft}s',
+                    style: AppTypography.caption,
+                  ),
+                ),
+              ] else ...[
+                const LinearProgressIndicator(minHeight: 3),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'On the way to your destination.',
+                  style: AppTypography.caption,
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Chat',
+                      icon: Icons.chat_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: onMessage,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: ArangButton(
+                      label: 'Call',
+                      icon: Icons.call_outlined,
+                      variant: ArangButtonVariant.ghost,
+                      onPressed: onCall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SosHoldButton(onCompleted: onSos),
+            ],
+          ),
+        const SizedBox(height: AppSpacing.xs),
+        const Center(
+          child: Text(
+            '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 9, color: AppColors.textMuted),
           ),
         ),
       ],

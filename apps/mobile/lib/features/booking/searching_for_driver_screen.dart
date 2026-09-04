@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
@@ -150,7 +152,10 @@ class _SearchingForDriverScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Finding your driver')),
+      // No AppBar. Every other map screen in the ride flow runs the map
+      // edge to edge behind a sheet, and a title bar here was the only thing
+      // breaking that. The sheet already says what is happening, and there is
+      // nowhere to go back to mid-search -- Cancel is the way out.
       body: ListenableBuilder(
         listenable: state,
         builder: (context, _) {
@@ -159,112 +164,65 @@ class _SearchingForDriverScreenState
             return const Center(child: Text('No active driver search.'));
           }
           final noDrivers = state.forceNoDriversAvailable;
-          return Stack(
-            children: [
-              Positioned.fill(
-                // Live tiles, same as every other map surface. No routing
-                // request here: nothing is routed while we are still looking
-                // for a driver, so asking ORS would be a wasted call.
-                child: LiveMapView(
-                  center: state.pickup.coordinate,
-                  borderRadius: BorderRadius.zero,
-                  interactive: false,
-                  markers: [
-                    MapMarker(
-                      coordinate: state.pickup.coordinate,
-                      color: AppColors.primary,
-                      radius: 9,
-                    ),
-                  ],
+          return DragSheetScaffold(
+            collapsedHeight: 360,
+            handleSemanticLabel: 'Search details',
+            background: LiveMapView(
+              // Live tiles, same as every other map surface. No routing
+              // request here: nothing is routed while we are still looking
+              // for a driver, so asking ORS would be a wasted call.
+              center: state.pickup.coordinate,
+              borderRadius: BorderRadius.zero,
+              interactive: false,
+              compassTopInset: MediaQuery.paddingOf(context).top + 8,
+              markers: [
+                MapMarker(
+                  coordinate: state.pickup.coordinate,
+                  color: AppColors.primary,
+                  radius: 9,
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(AppRadii.sheet),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.shadowMedium,
-                        blurRadius: 10,
-                        offset: Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(
-                          width: 36,
-                          height: 4,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.disabledFill,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(2),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        if (noDrivers)
-                          const Icon(
-                            Icons.no_transfer_outlined,
-                            size: 38,
-                            color: AppColors.primary,
-                          )
-                        else
-                          const _ScanningIndicator(),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          noDrivers
-                              ? 'No drivers available right now'
-                              : 'Searching for a nearby driver',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.displaySm,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          noDrivers
-                              ? 'A testing override is active. Turn it off to continue.'
-                              : 'Checking approved drivers in your TODA service area.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        if (!noDrivers)
-                          const Text(
-                            'We will connect you as soon as a nearby driver accepts.',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.caption,
-                          ),
-                        if (!noDrivers) const SizedBox(height: AppSpacing.sm),
-                        TextButton(
-                          onPressed: () => _cancel(context, ref, booking),
-                          child: Text(
-                            noDrivers
-                                ? 'Cancel request'
-                                : 'Cancel ride request',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              ],
+            ),
+            footer: ArangButton(
+              label: noDrivers ? 'Cancel request' : 'Cancel ride request',
+              variant: ArangButtonVariant.ghost,
+              onPressed: () => _cancel(context, ref, booking),
+            ),
+            sheetBuilder: (context, expanded) => Column(
+              children: [
+                if (noDrivers)
+                  const Icon(
+                    Icons.no_transfer_outlined,
+                    size: 38,
+                    color: AppColors.primary,
+                  )
+                else
+                  const _ScanningIndicator(),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  noDrivers
+                      ? 'No drivers available right now'
+                      : 'Searching for a nearby driver',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.displaySm,
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  noDrivers
+                      ? 'A testing override is active. Turn it off to continue.'
+                      : 'Checking approved drivers near your pickup.',
+                  textAlign: TextAlign.center,
+                ),
+                if (!noDrivers) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const Text(
+                    'We will connect you as soon as a nearby driver accepts.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.caption,
+                  ),
+                ],
+              ],
+            ),
           );
         },
       ),

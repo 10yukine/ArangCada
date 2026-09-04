@@ -62,6 +62,7 @@ class DragSheetScaffold extends StatefulWidget {
     this.collapsedHeight = 260,
     this.controller,
     this.footer,
+    this.sheetKey,
     this.handleTrailing,
     this.handleSemanticLabel,
     super.key,
@@ -95,6 +96,14 @@ class DragSheetScaffold extends StatefulWidget {
   /// deliberately shorter than its content, so that is the normal case rather
   /// than an edge one.
   final Widget? footer;
+
+  /// Attached to the sheet's own box so a caller can measure its height.
+  ///
+  /// LiveMapViewController.bottomInset reads exactly this to know how much of
+  /// the map is hidden, so fitRoute() can frame the route in the part still
+  /// visible rather than centring it behind the sheet. Without it a "centre
+  /// route" button politely centres the route underneath the panel covering it.
+  final GlobalKey? sheetKey;
 
   final Widget? handleTrailing;
   final String? handleSemanticLabel;
@@ -240,6 +249,7 @@ class _DragSheetScaffoldState extends State<DragSheetScaffold>
                     _reveal.value,
                   )!;
                   return SizedBox(
+                    key: widget.sheetKey,
                     height: height,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
