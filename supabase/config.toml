@@ -9,3 +9,34 @@ entrypoint = "./functions/dispatch_fcm/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/dispatch_fcm/*.html" ]
+
+# Declared so the GitHub integration deploys them. The integration deploys the
+# functions listed HERE, not everything found in supabase/functions/ -- and
+# both of these were missing, which is exactly how send-sms-hook came to be
+# written, committed, and never deployed while CLAUDE.md called the feature
+# done. A deploy path that silently skips two of three functions is not a
+# safety net.
+
+[functions.send-sms-hook]
+enabled = true
+# MUST stay false. Supabase Auth calls this hook itself and authenticates with
+# a Standard Webhooks signature, not a user JWT. With verify_jwt = true the
+# platform gateway would reject GoTrue's request before the function ran, and
+# every registration would fail at the OTP step.
+#
+# It is not unauthenticated: verifySignature() rejects anything not signed with
+# SEND_SMS_HOOK_SECRET. Verified against the live endpoint -- an unsigned POST
+# returns 401 invalid signature.
+verify_jwt = false
+entrypoint = "./functions/send-sms-hook/index.ts"
+
+[functions.admin-onboard-driver]
+enabled = true
+# True, unlike the hook above. This one is called from apps/admin_web with a
+# signed-in administrator's session, so the gateway can reject anonymous callers
+# before any of our code runs. The function still does its own check -- it reads
+# the Authorization header, resolves the caller with auth.getUser() and confirms
+# the admin role -- because the gateway only proves the JWT is valid, not that
+# it belongs to an administrator. This is defence in depth, not a substitute.
+verify_jwt = true
+entrypoint = "./functions/admin-onboard-driver/index.ts"

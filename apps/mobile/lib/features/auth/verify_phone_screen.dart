@@ -47,9 +47,6 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     with SingleTickerProviderStateMixin {
   static const _codeLength = 6;
 
-  /// The app's emphasized easing. Motion decelerates into place rather than
-  /// easing symmetrically, so a correction reads as settling, not bouncing.
-  static const _emphasized = Cubic(0.2, 0, 0, 1);
 
   /// Matches `record_otp_send()`'s 60-second server-side rule. The countdown is
   /// a courtesy so the user is not invited to press a button that will be
@@ -218,37 +215,25 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     }
   }
 
-  /// Two states, one shape. The circle is the only thing on the screen that
-  /// changes when the code is accepted, so it carries the confirmation while
-  /// the router redirect resolves.
+  /// A static circle. This briefly cross-faded to a green checkmark on success,
+  /// which was pointless: the router redirect fires the moment
+  /// needsPhoneVerification flips, so the app is already on the dashboard
+  /// before a 300ms animation can finish. Landing on the dashboard IS the
+  /// confirmation. Removed rather than slowed down, because delaying a correct
+  /// login to show a tick is a worse trade than showing nothing.
   Widget _statusBadge() {
-    return Center(
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: _emphasized,
-        switchOutCurve: _emphasized,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          // 0.25 to 1. Starting nearer zero reads as a pop rather than an
-          // arrival, and a scale is cheaper to composite than a size change.
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.25, end: 1).animate(animation),
-            child: child,
-          ),
-        ),
-        child: Container(
-          key: ValueKey<bool>(_verified),
-          width: 72,
-          height: 72,
-          alignment: Alignment.center,
+    return const Center(
+      child: SizedBox.square(
+        dimension: 72,
+        child: DecoratedBox(
           decoration: BoxDecoration(
-            color: _verified ? AppColors.greenFill : AppColors.primaryFill,
+            color: AppColors.primaryFill,
             shape: BoxShape.circle,
           ),
           child: Icon(
-            _verified ? Icons.check_rounded : Icons.sms_outlined,
+            Icons.sms_outlined,
             size: 32,
-            color: _verified ? AppColors.green : AppColors.primaryText,
+            color: AppColors.primaryText,
           ),
         ),
       ),
@@ -287,15 +272,13 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               _statusBadge(),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                _verified ? 'Number verified' : 'Enter the 6-digit code',
+                'Enter the 6-digit code',
                 style: AppTypography.h2,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                _verified
-                    ? 'Taking you to ArangCada.'
-                    : 'We sent it by SMS to $masked.',
+                'We sent it by SMS to $masked.',
                 style: AppTypography.bodySm.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -351,15 +334,6 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                           ),
                         ),
                       ),
-                      submittedPinTheme: _verified
-                          ? defaultPinTheme.copyWith(
-                              decoration: defaultPinTheme.decoration!
-                                  .copyWith(
-                                    color: AppColors.greenFill,
-                                    border: Border.all(color: AppColors.green),
-                                  ),
-                            )
-                          : defaultPinTheme,
                       errorPinTheme: defaultPinTheme.copyWith(
                         decoration: defaultPinTheme.decoration!.copyWith(
                           color: AppColors.dangerFill,
@@ -404,9 +378,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
 
               const SizedBox(height: AppSpacing.lg),
               ArangButton(
-                label: _verified
-                    ? 'Verified'
-                    : (_busy ? 'Checking...' : 'Verify'),
+                label: _busy || _verified ? 'Checking...' : 'Verify',
                 onPressed:
                     _busy ||
                         _verified ||
