@@ -219,6 +219,13 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> abandonUnverifiedRegistration() async {
+    // The session's JWT is dead the moment this returns -- the user it names no
+    // longer exists -- so the caller must sign out immediately afterwards.
+    await _client.rpc('abandon_unverified_registration');
+  }
+
+  @override
   Future<void> signOut() async {
     try {
       await _client.auth.signOut();

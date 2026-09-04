@@ -71,6 +71,14 @@ class HybridAuthRepository implements AuthRepository {
     required String token,
   }) => _requiredLive.verifyPhoneOtp(e164Phone: e164Phone, token: token);
 
+  // Live only, for the same reason as the OTP methods above: a local test
+  // account has no server-side row to delete, and routing this to the mock
+  // would silently do nothing for a real user whose email happened to look
+  // local. `_requiredLive` throws a message the user can act on instead.
+  @override
+  Future<void> abandonUnverifiedRegistration() =>
+      _requiredLive.abandonUnverifiedRegistration();
+
   @override
   Future<void> signOut() async {
     // Sign out of both, always. Routing on `_live != null` signed the user out

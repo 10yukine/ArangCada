@@ -62,6 +62,11 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async => _state.setCurrentUser(null);
+
+  int abandonCalls = 0;
+
+  @override
+  Future<void> abandonUnverifiedRegistration() async => abandonCalls++;
 }
 
 // NOTE ON pumpAndSettle: this screen runs a Timer.periodic for the resend
@@ -238,5 +243,10 @@ void main() {
     // straight back to this screen.
     expect(state.currentUser, isNull);
     expect(find.text('signup form'), findsOneWidget);
+
+    // And the half-made account must be deleted, not merely signed out of.
+    // Leaving it behind is what locked a user out of their own email address
+    // after mistyping their number.
+    expect(auth.abandonCalls, 1);
   });
 }

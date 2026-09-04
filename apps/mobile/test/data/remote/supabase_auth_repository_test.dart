@@ -18,4 +18,29 @@ void main() {
     expect(commuter.role, DemoRole.commuter);
     expect(commuter.displayName, 'Ana Santos');
   });
+
+  test('authoritative profile role overrides stale auth metadata', () {
+    final promotedDriver = SupabaseAuthRepository.mapIdentity(
+      email: 'driver@example.test',
+      appRole: 'commuter',
+      profileRole: 'driver',
+    );
+    final demotedCommuter = SupabaseAuthRepository.mapIdentity(
+      email: 'commuter@example.test',
+      appRole: 'driver',
+      profileRole: 'commuter',
+    );
+
+    expect(promotedDriver.role, DemoRole.driver);
+    expect(demotedCommuter.role, DemoRole.commuter);
+  });
+
+  test('real commuters can adjust an inaccurate GPS pickup', () {
+    final commuter = SupabaseAuthRepository.mapIdentity(
+      email: 'commuter@example.test',
+      profileRole: 'commuter',
+    );
+
+    expect(commuter.canChoosePickup, isTrue);
+  });
 }

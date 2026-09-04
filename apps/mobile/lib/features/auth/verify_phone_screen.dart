@@ -191,8 +191,31 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
   /// (specs.md Spec 10) there is no session to end and this becomes a plain
   /// pop. Written as sign-out-then-navigate so it behaves correctly either way.
   Future<void> _goBack() async {
-    await ref.read(authRepositoryProvider).signOut();
-    if (mounted) context.go('/signup');
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    final auth = ref.read(authRepositoryProvider);
+    try {
+      // Delete first, sign out second. Deleting needs the session that names
+      // the account, so signing out first would leave the row behind with no
+      // way for this device to reach it again -- the exact orphan this button
+      // exists to prevent.
+      await auth.abandonUnverifiedRegistration();
+    } on Exception {
+      // Deliberately swallowed. If the delete fails -- offline, or the account
+      // turned out to be verified after all -- the user must still be able to
+      // leave this screen. A stranded user is worse than a stray row, and the
+      // hourly sweep collects the row anyway.
+    }
+
+    try {
+      await auth.signOut();
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        context.go('/signup');
+      }
+    }
   }
 
   /// Two states, one shape. The circle is the only thing on the screen that

@@ -90,4 +90,42 @@ void main() {
     expect(submissions, 1);
     expect(find.text('Safety report recorded'), findsOneWidget);
   });
+
+  testWidgets('connected SOS forwards its selected reason to administrators', (
+    tester,
+  ) async {
+    String? submittedReason;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showSafetyReportFlow(
+                context: context,
+                driver: false,
+                connected: true,
+                onSubmit: () async {},
+                onSubmitReason: (reason) async => submittedReason = reason,
+              ),
+              child: const Text('Open live report'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open live report'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wrong route'));
+    await tester.pump();
+    await tester.tap(find.text('Send safety report'));
+    await tester.pumpAndSettle();
+
+    expect(submittedReason, 'Wrong route');
+    expect(find.text('Administrators notified'), findsOneWidget);
+    expect(
+      find.textContaining('Police or emergency services were not contacted'),
+      findsOneWidget,
+    );
+  });
 }

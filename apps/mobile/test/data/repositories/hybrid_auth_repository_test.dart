@@ -44,6 +44,13 @@ class _SpyLiveAuthRepository implements AuthRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<void> abandonUnverifiedRegistration() async {
+    abandonCalls++;
+  }
+
+  int abandonCalls = 0;
+
+  @override
   Future<void> signOut() async {
     signOutCalls++;
     if (throwOnSignOut) {

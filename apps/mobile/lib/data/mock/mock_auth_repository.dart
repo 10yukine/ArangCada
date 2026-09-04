@@ -64,6 +64,13 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> abandonUnverifiedRegistration() async {
+    // Nothing to abandon. The seeded accounts are internal testers, so they
+    // never reach the verify screen, and they are compiled in rather than
+    // stored -- there is no row for this to delete.
+  }
+
+  @override
   Future<void> signOut() async {
     _state.setCurrentUser(null);
   }
