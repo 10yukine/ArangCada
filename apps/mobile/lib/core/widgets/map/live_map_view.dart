@@ -484,7 +484,12 @@ class _LiveMapViewState extends State<LiveMapView> {
             ),
           if (widget.boundaryLabel != null)
             Positioned(
-              top: 8,
+              // Same inset as the compass, not a hardcoded 8. When the map runs
+              // full-bleed to the top of the screen this chip sat underneath
+              // the status bar and was unreadable. Callers that go edge to edge
+              // already pass a safe-area value for the compass; one parameter
+              // now keeps both overlays clear of it.
+              top: widget.compassTopInset,
               right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),

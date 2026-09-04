@@ -10,7 +10,7 @@ import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
-import '../../core/widgets/sheet_drag_handle.dart';
+import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
@@ -38,7 +38,6 @@ class RideOptionsScreen extends ConsumerStatefulWidget {
 }
 
 class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
-  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -83,205 +82,113 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
         final active = special;
 
         return Scaffold(
-          body: Column(
-            children: [
-              Expanded(
-                child: Stack(
+          body: DragSheetScaffold(
+            // Tall enough that the collapsed peek already shows the addresses,
+            // the passenger picker and the Review bar. The fare breakdown is
+            // what expanding is for.
+            collapsedHeight: 340,
+            handleSemanticLabel: 'Show fare breakdown',
+            background: RoutePreviewMap(
+              from: state.pickup.coordinate,
+              to: destination.coordinate,
+              height: double.infinity,
+              borderRadius: BorderRadius.zero,
+              showCaption: false,
+              // Keeps the compass AND the boundary chip out from under the
+              // status bar; this map runs edge to edge.
+              compassTopInset: MediaQuery.paddingOf(context).top + 8,
+              boundaries: const [
+                MapBoundary(
+                  points: DemoData.calambaPoblacionPrototypeBoundary,
+                ),
+              ],
+              boundaryLabel: 'Prototype boundary · evaluation only',
+            ),
+            overlay: [
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 8,
+                left: 14,
+                child: ArangIconButton(
+                  icon: Icons.arrow_back,
+                  tooltip: 'Back',
+                  onPressed: () => context.pop(),
+                ),
+              ),
+            ],
+            footer: _ReviewBar(
+              amount: formatCentavos(active.partyTotalCentavos),
+              // `active` is now always non-null: with pooling withdrawn there
+              // is exactly one quote and it is unconditional. Only the
+              // service-area rejection can block review.
+              onPressed: rejection != null
+                  ? null
+                  : () {
+                      // The review screen renders DemoState.activeBooking.
+                      // Pushing the route without creating the draft first
+                      // lands on an empty screen.
+                      state.setActiveBooking(
+                        DemoBooking.draft(
+                          pickupName: state.pickup.name,
+                          destinationName: destination.name,
+                          rideType: selected,
+                          passengerCount: state.passengerCount,
+                          userFareClass: state.userFareClass,
+                          paymentMethod: PaymentMethod.cash,
+                          fareQuote: active,
+                        ),
+                      );
+                      context.push('/booking/review');
+                    },
+            ),
+            sheetBuilder: (context, expanded) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LocationCard(
+                  pickupName: state.pickup.name,
+                  destinationName: destination.name,
+                ),
+                if (rejection != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _ZoneWarning(message: rejection),
+                ],
+                const SizedBox(height: AppSpacing.md),
+
+                // The "Select a Ride" heading and its single selected card are
+                // gone. Espesyal has been the only bookable ride type since
+                // 31 Aug 2026, so a picker with one permanently chosen option
+                // was a choice that could not be made, taking the room the
+                // fare breakdown needed. What it actually carried -- the
+                // distance and the ordinance the price comes from -- is kept.
+                Row(
                   children: [
-                    Positioned.fill(
-                      child: RoutePreviewMap(
-                        from: state.pickup.coordinate,
-                        to: destination.coordinate,
-                        height: double.infinity,
-                        borderRadius: BorderRadius.zero,
-                        showCaption: false,
-                        boundaries: const [
-                          MapBoundary(
-                            points: DemoData.calambaPoblacionPrototypeBoundary,
-                          ),
-                        ],
-                        boundaryLabel: 'Prototype boundary · evaluation only',
+                    Expanded(
+                      child: Text(
+                        'Espesyal · private trip',
+                        style: AppTypography.label,
                       ),
                     ),
-                    Positioned(
-                      top: MediaQuery.paddingOf(context).top + 8,
-                      left: 14,
-                      child: ArangIconButton(
-                        icon: Icons.arrow_back,
-                        tooltip: 'Back',
-                        onPressed: () => context.pop(),
-                      ),
+                    Text(
+                      '${(distanceMeters / 1000).toStringAsFixed(1)} km '
+                      '· Ord. 743',
+                      style: AppTypography.caption,
                     ),
                   ],
                 ),
-              ),
-              _RideSheet(
-                expanded: _expanded,
-                onToggle: () => setState(() => _expanded = !_expanded),
-                pickupName: state.pickup.name,
-                destinationName: destination.name,
-                distanceMeters: distanceMeters,
-                rejection: rejection,
-                special: special,
-                passengerCount: state.passengerCount,
-                onPassengerCount: state.setPassengerCount,
-                active: active,
-                // `active` is now always non-null: with pooling withdrawn
-                // there is exactly one quote and it is unconditional. Only the
-                // service-area rejection can block review.
-                onReview: (rejection == null)
-                    ? () {
-                        // The review screen renders DemoState.activeBooking.
-                        // Pushing the route without creating the draft first
-                        // lands on an empty screen.
-                        state.setActiveBooking(
-                          DemoBooking.draft(
-                            pickupName: state.pickup.name,
-                            destinationName: destination.name,
-                            rideType: selected,
-                            passengerCount: state.passengerCount,
-                            userFareClass: state.userFareClass,
-                            paymentMethod: PaymentMethod.cash,
-                            fareQuote: active,
-                          ),
-                        );
-                        context.push('/booking/review');
-                      }
-                    : null,
-              ),
-            ],
+                const SizedBox(height: AppSpacing.sm),
+                _PassengerRow(
+                  count: state.passengerCount,
+                  max: 4,
+                  onChanged: state.setPassengerCount,
+                ),
+                if (expanded) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _FareBreakdown(quote: special),
+                ],
+              ],
+            ),
           ),
         );
       },
-    );
-  }
-}
-
-class _RideSheet extends StatelessWidget {
-  const _RideSheet({
-    required this.expanded,
-    required this.onToggle,
-    required this.pickupName,
-    required this.destinationName,
-    required this.distanceMeters,
-    required this.rejection,
-    required this.special,
-    required this.passengerCount,
-    required this.onPassengerCount,
-    required this.active,
-    required this.onReview,
-  });
-
-  final bool expanded;
-  final VoidCallback onToggle;
-  final String pickupName;
-  final String destinationName;
-  final double distanceMeters;
-  final String? rejection;
-  final FareQuote special;
-  final int passengerCount;
-  final ValueChanged<int> onPassengerCount;
-  final FareQuote? active;
-  final VoidCallback? onReview;
-
-  @override
-  Widget build(BuildContext context) {
-    final km = (distanceMeters / 1000).toStringAsFixed(1);
-
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.66,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadii.sheet),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 10,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SheetDragHandle(
-              expanded: expanded,
-              onToggle: onToggle,
-              semanticLabel: expanded
-                  ? 'Hide fare breakdown'
-                  : 'Show fare breakdown',
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LocationCard(
-                      pickupName: pickupName,
-                      destinationName: destinationName,
-                    ),
-                    if (rejection != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      _ZoneWarning(message: rejection!),
-                    ],
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Expanded(
-                          child: Text('Select a Ride', style: AppTypography.h2),
-                        ),
-                        Text('$km km · Ord. 743', style: AppTypography.caption),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    // Espesyal is the only bookable ride type since
-                    // 31 Aug 2026. It stays rendered as a single selected
-                    // option rather than being dropped entirely, so the
-                    // commuter can still see what they are booking and what it
-                    // costs before confirming.
-                    _RideOption(
-                      title: 'Special',
-                      subtitle: 'Private trip · '
-                          '${formatCentavos(special.partyTotalCentavos)}',
-                      icon: Icons.person_outline,
-                      selected: true,
-                      enabled: true,
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _PassengerRow(
-                      count: passengerCount,
-                      max: 4,
-                      onChanged: onPassengerCount,
-                    ),
-                    if (expanded) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      _FareBreakdown(quote: special),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: _ReviewBar(
-                amount: active == null
-                    ? null
-                    : formatCentavos(active!.partyTotalCentavos),
-                onPressed: onReview,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -416,100 +323,6 @@ class _ZoneWarning extends StatelessWidget {
   }
 }
 
-class _RideOption extends StatelessWidget {
-  const _RideOption({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      enabled: enabled,
-      label: '$title. $subtitle',
-      child: AnimatedContainer(
-        duration: AppMotion.button,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryFill : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: enabled ? onTap : null,
-            borderRadius: BorderRadius.circular(AppRadii.card),
-            child: Opacity(
-              opacity: enabled ? 1 : 0.45,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    ArangRowIcon(
-                      icon,
-                      background: AppColors.surface,
-                      foreground: AppColors.primaryText,
-                      size: 38,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(subtitle, style: AppTypography.caption),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      selected ? Icons.check_circle : Icons.circle_outlined,
-                      size: 22,
-                      color: selected
-                          ? AppColors.primary
-                          : AppColors.borderStrong,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Occupies the prototype's "Pay with" row. Payment method is chosen on the
-/// review screen. Espesyal is billed per trip, so this does not move the fare;
-/// it tells the driver how many passengers to expect. Capped at 4 by LGU
-/// decision of 31 Aug 2026.
 class _PassengerRow extends StatelessWidget {
   const _PassengerRow({
     required this.count,

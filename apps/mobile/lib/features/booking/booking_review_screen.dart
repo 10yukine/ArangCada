@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_typography.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/section_card.dart';
@@ -176,38 +177,74 @@ class BookingReviewScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Payment method',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      SegmentedButton<PaymentMethod>(
-                        segments: [
-                          const ButtonSegment(
-                            value: PaymentMethod.cash,
-                            icon: Icon(Icons.payments_outlined),
-                            label: Text('Cash'),
-                          ),
-                          if (ref.read(liveRideRepositoryProvider) == null)
-                            const ButtonSegment(
-                              value: PaymentMethod.digital,
-                              icon: Icon(Icons.account_balance_wallet_outlined),
-                              label: Text('Digital'),
+                      // Label and control on one line. Stacked, this block cost
+                      // three rows of height and pushed the screen past a
+                      // single page for the sake of a two-option choice --
+                      // so the review screen scrolled even though everything
+                      // on it fitted.
+                      //
+                      // The icons come off the segments for the same reason:
+                      // "Cash" and "Digital" are unambiguous words, and the
+                      // icons were what made the control too wide to sit
+                      // beside its own label.
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Payment method',
+                              style: AppTypography.label,
                             ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          SegmentedButton<PaymentMethod>(
+                            showSelectedIcon: false,
+                            style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            segments: [
+                              const ButtonSegment(
+                                value: PaymentMethod.cash,
+                                label: Text('Cash'),
+                              ),
+                              if (ref.read(liveRideRepositoryProvider) == null)
+                                const ButtonSegment(
+                                  value: PaymentMethod.digital,
+                                  label: Text('Digital'),
+                                ),
+                            ],
+                            selected: {booking.paymentMethod},
+                            onSelectionChanged: booking.isFareLocked
+                                ? null
+                                : (selection) {
+                                    booking.changePaymentMethod(
+                                      selection.single,
+                                    );
+                                    state.bookingChanged();
+                                  },
+                          ),
                         ],
-                        selected: {booking.paymentMethod},
-                        onSelectionChanged: booking.isFareLocked
-                            ? null
-                            : (selection) {
-                                booking.changePaymentMethod(selection.single);
-                                state.bookingChanged();
-                              },
                       ),
+                      // Only under Digital, because it is only true then. A
+                      // balance shown beside a cash fare invites the reader to
+                      // work out a relationship that does not exist.
                       if (booking.paymentMethod == PaymentMethod.digital) ...[
                         const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Available: ${formatCentavos(state.walletBalanceCentavos)}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Account balance',
+                                style: AppTypography.caption,
+                              ),
+                            ),
+                            Text(
+                              formatCentavos(state.walletBalanceCentavos),
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

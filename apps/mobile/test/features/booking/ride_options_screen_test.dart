@@ -34,10 +34,15 @@ void main() {
     await tester.pumpWidget(harness(state));
     await tester.pumpAndSettle();
 
+    // The wording moved on 4 Sep: the "Select a Ride" heading and its single
+    // permanently-selected card were removed, because a picker with one option
+    // is not a choice and it was taking the room the fare breakdown needed. The
+    // ride type is still named -- a commuter must be able to see what they are
+    // booking -- just as a caption rather than a control.
     expect(
-      find.text('Special'),
-      findsOneWidget,
-      reason: 'Espesyal is the only bookable ride type and must still be shown',
+      find.textContaining('Espesyal'),
+      findsWidgets,
+      reason: 'the ride type must still be named, even with nothing to choose',
     );
     expect(
       find.text('Pooling'),

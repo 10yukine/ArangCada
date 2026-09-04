@@ -61,6 +61,7 @@ class DragSheetScaffold extends StatefulWidget {
     this.initiallyExpanded = false,
     this.collapsedHeight = 260,
     this.controller,
+    this.footer,
     this.handleTrailing,
     this.handleSemanticLabel,
     super.key,
@@ -85,6 +86,16 @@ class DragSheetScaffold extends StatefulWidget {
   final double collapsedHeight;
 
   final DragSheetController? controller;
+
+  /// Pinned below the scrolling content, never scrolled off.
+  ///
+  /// The sheet's primary action belongs here. Putting it inside the scroll area
+  /// means the one thing the screen exists for can be pushed out of reach by a
+  /// long address or a large text-scale setting -- and the collapsed peek is
+  /// deliberately shorter than its content, so that is the normal case rather
+  /// than an edge one.
+  final Widget? footer;
+
   final Widget? handleTrailing;
   final String? handleSemanticLabel;
 
@@ -269,6 +280,16 @@ class _DragSheetScaffoldState extends State<DragSheetScaffold>
                       child: widget.sheetBuilder(context, _expanded),
                     ),
                   ),
+                  if (widget.footer != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        0,
+                        AppSpacing.lg,
+                        AppSpacing.sm,
+                      ),
+                      child: widget.footer,
+                    ),
                 ],
               ),
             ),
