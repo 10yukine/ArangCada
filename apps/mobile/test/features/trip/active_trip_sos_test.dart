@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:arangcada/core/widgets/sos_hold_button.dart';
+import 'package:arangcada/demo/demo_simulation.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/demo/demo_data.dart';
@@ -90,6 +93,54 @@ void main() {
       find.textContaining('fare locked'),
       findsNothing,
       reason: 'detail belongs in the expanded state, not the peek',
+    );
+  });
+
+  testWidgets('the finish button is reachable on arrival without expanding', (
+    tester,
+  ) async {
+    // The sheet used to throw itself open the moment the ride ended, because
+    // the finish button lived in the expanded branch and something had to
+    // reveal it. The owner disliked a panel moving under their thumb, so the
+    // button moved out instead. This asserts the button is reachable WITHOUT
+    // that shove -- if it ever returns to the expanded branch, the temptation
+    // to re-add the auto-expand comes back with it.
+    final state = DemoState();
+    addTearDown(state.dispose);
+    state.setDestination(DemoData.places[1]);
+    state.setActiveBooking(inProgressBooking());
+
+    // A simulation that reaches the destination almost immediately, so the
+    // arrival state can be observed without a real 10-second trip.
+    final simulation = DemoSimulationService(
+      durations: const DemoSimulationDurations(
+        tripMin: Duration(milliseconds: 5),
+        tripMax: Duration(milliseconds: 5),
+      ),
+      random: Random(3),
+    );
+    addTearDown(simulation.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          demoStateProvider.overrideWithValue(state),
+          demoSimulationServiceProvider.overrideWithValue(simulation),
+        ],
+        child: const MaterialApp(home: ActiveTripScreen()),
+      ),
+    );
+    await tester.pump();
+
+    // Not arrived yet: the finish button has nothing to finish.
+    expect(find.textContaining("I've arrived"), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 40));
+
+    expect(
+      find.textContaining("I've arrived"),
+      findsOneWidget,
+      reason: 'arrival must surface the finish button in the collapsed sheet',
     );
   });
 }

@@ -67,7 +67,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (booking?.status != BookingStatus.inProgress) return;
     setState(() {
       _awaitingConfirmation = true;
-      _sheetController.expand();
       _secondsLeft = _confirmWindow.inSeconds;
     });
     _confirmTicker?.cancel();
@@ -98,8 +97,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   Timer? _confirmTicker;
   bool _awaitingConfirmation = false;
 
-  /// Opens the sheet from outside a gesture, for the one moment that needs it.
-  final DragSheetController _sheetController = DragSheetController();
   int _secondsLeft = 0;
 
   void _retryAutomaticCompletion() {
@@ -115,7 +112,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     }
     _confirmTicker?.cancel();
     _completionRun?.cancel();
-    _sheetController.dispose();
     super.dispose();
   }
 
@@ -132,7 +128,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (deadline == null || _awaitingConfirmation) return;
     setState(() {
       _awaitingConfirmation = true;
-      _sheetController.expand();
       _secondsLeft = SupabaseRideRepository.completionSecondsRemaining(
         deadline,
       );
@@ -283,7 +278,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
             }
             return DragSheetScaffold(
               sheetKey: _mapController.panelKey,
-              controller: _sheetController,
               collapsedHeight: 330,
               handleSemanticLabel: 'Trip details',
               background: RoutePreviewMap(
@@ -307,6 +301,11 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                     AppSizes.minTapTarget +
                     16,
               ),
+              aboveSheet: ArangIconButton(
+                icon: Icons.center_focus_strong,
+                tooltip: 'Center route',
+                onPressed: () => _mapController.fitRoute(),
+              ),
               overlay: [
                 Positioned(
                   top: MediaQuery.paddingOf(context).top + 8,
@@ -322,24 +321,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                   left: 70,
                   child: const _TripStatusPill(),
                 ),
-                // Floating, not attached to the drag handle. Sitting in the
-                // handle row made a map control look like sheet furniture, and
-                // it disappeared the moment the sheet was dragged over the map
-                // it was meant to recentre.
-                Positioned(
-                  top:
-                      MediaQuery.paddingOf(context).top +
-                      AppSizes.minTapTarget +
-                      16 +
-                      AppSizes.iconButton +
-                      AppSpacing.xs,
-                  right: 14,
-                  child: ArangIconButton(
-                    icon: Icons.center_focus_strong,
-                    tooltip: 'Center route',
-                    onPressed: () => _mapController.fitRoute(),
-                  ),
-                ),
+
               ],
               sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
                 booking: booking,
@@ -518,22 +500,9 @@ class _ActiveTripSheetBody extends StatelessWidget {
             style: AppTypography.bodySm,
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (awaitingConfirmation) ...[
-            const _ArrivedBanner(),
-            const SizedBox(height: AppSpacing.sm),
-            ArangButton(
-              label: "I've arrived — finish ride",
-              icon: Icons.flag_outlined,
-              onPressed: canConfirmArrival ? onConfirmArrival : null,
-            ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                'Finishing automatically in ${secondsLeft}s',
-                style: AppTypography.caption,
-              ),
-            ),
-          ] else ...[
+          if (awaitingConfirmation)
+            const _ArrivedBanner()
+          else ...[
             const LinearProgressIndicator(minHeight: 3),
             const SizedBox(height: AppSpacing.xs),
             const Text(
@@ -541,6 +510,27 @@ class _ActiveTripSheetBody extends StatelessWidget {
               style: AppTypography.caption,
             ),
           ],
+        ],
+
+        // Always visible on arrival, collapsed or not. This is the reason the
+        // sheet used to throw itself open when the ride ended: the button lived
+        // in the expanded branch, so something had to expand it. Opening a panel
+        // under the user's thumb to reveal a button is worse than just putting
+        // the button where they can reach it.
+        if (awaitingConfirmation) ...[
+          const SizedBox(height: AppSpacing.sm),
+          ArangButton(
+            label: "I've arrived — finish ride",
+            icon: Icons.flag_outlined,
+            onPressed: canConfirmArrival ? onConfirmArrival : null,
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              'Finishing automatically in ${secondsLeft}s',
+              style: AppTypography.caption,
+            ),
+          ),
         ],
 
         // ALWAYS VISIBLE, collapsed or not. These three were inside the

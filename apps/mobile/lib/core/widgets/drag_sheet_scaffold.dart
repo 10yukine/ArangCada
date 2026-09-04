@@ -28,33 +28,6 @@ final sheetExpansionProvider = Provider<SheetExpansionMemory>(
   (ref) => SheetExpansionMemory(),
 );
 
-/// Drives a [DragSheetScaffold] from outside it.
-///
-/// Needed because some sheets must open themselves in response to something
-/// that is not a gesture -- the active trip expands the moment the driver
-/// arrives, since a collapsed peek at that exact moment hides the one button
-/// that matters. Everything else should leave this null and let the user
-/// drive.
-class DragSheetController extends ChangeNotifier {
-  bool? _request;
-
-  bool? takeRequest() {
-    final value = _request;
-    _request = null;
-    return value;
-  }
-
-  void expand() {
-    _request = true;
-    notifyListeners();
-  }
-
-  void collapse() {
-    _request = false;
-    notifyListeners();
-  }
-}
-
 /// A full-bleed background (the map) with a sheet over it that drags open to
 /// full screen and takes the background away as it goes.
 ///
@@ -81,8 +54,8 @@ class DragSheetScaffold extends ConsumerStatefulWidget {
     required this.sheetBuilder,
     this.overlay = const <Widget>[],
     this.collapsedHeight = 260,
-    this.controller,
     this.footer,
+    this.aboveSheet,
     this.sheetKey,
     this.handleTrailing,
     this.handleSemanticLabel,
@@ -105,8 +78,6 @@ class DragSheetScaffold extends ConsumerStatefulWidget {
   /// screen -- that uniformity is the point.
   final double collapsedHeight;
 
-  final DragSheetController? controller;
-
   /// Pinned below the scrolling content, never scrolled off.
   ///
   /// The sheet's primary action belongs here. Putting it inside the scroll area
@@ -115,6 +86,17 @@ class DragSheetScaffold extends ConsumerStatefulWidget {
   /// deliberately shorter than its content, so that is the normal case rather
   /// than an edge one.
   final Widget? footer;
+
+  /// A control that rests just above the collapsed sheet and is covered as it
+  /// rises.
+  ///
+  /// For map controls that belong to the map rather than to the sheet -- the
+  /// recentre button in particular. Placed in [overlay] it fades with the
+  /// background; placed on the drag handle it looked like sheet furniture and
+  /// travelled upward, leaving the screen at exactly the moment the map it
+  /// recentres was being covered. Here it simply stays where it is and the
+  /// sheet passes over it, which is what a control pinned to a map should do.
+  final Widget? aboveSheet;
 
   /// Attached to the sheet's own box so a caller can measure its height.
   ///
@@ -152,30 +134,9 @@ class _DragSheetScaffoldState extends ConsumerState<DragSheetScaffold>
   static const _velocityThreshold = 250.0;
 
   @override
-  void initState() {
-    super.initState();
-    widget.controller?.addListener(_onControllerRequest);
-  }
-
-  @override
-  void didUpdateWidget(covariant DragSheetScaffold oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller?.removeListener(_onControllerRequest);
-      widget.controller?.addListener(_onControllerRequest);
-    }
-  }
-
-  @override
   void dispose() {
-    widget.controller?.removeListener(_onControllerRequest);
     _reveal.dispose();
     super.dispose();
-  }
-
-  void _onControllerRequest() {
-    final request = widget.controller?.takeRequest();
-    if (request != null) _setExpanded(request);
   }
 
   void _setExpanded(bool expanded) {
@@ -260,6 +221,12 @@ class _DragSheetScaffoldState extends ConsumerState<DragSheetScaffold>
                 ),
               ),
             ),
+            if (widget.aboveSheet != null)
+              Positioned(
+                right: 14,
+                bottom: collapsedHeight + AppSpacing.xs,
+                child: widget.aboveSheet!,
+              ),
             Positioned(
               left: 0,
               right: 0,
