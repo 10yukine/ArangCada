@@ -32,8 +32,8 @@ from PIL import Image, ImageDraw
 
 REFERENCE_SVG = "assets/branding/arangcada_app_icon_organic.svg"
 MONOCHROME_SVG = "assets/branding/arangcada_icon_monochrome_1024.svg"
-BG_HEX = "#C67139"
-CREAM_HEX = "#F5EAD8"
+BG_HEX = "#1262D0"
+CREAM_HEX = "#F2F8FF"
 
 # Android adaptive icon geometry, in dp on the 108dp layer.
 LAYER_DP = 108.0
@@ -60,12 +60,16 @@ RES_DIR = "android/app/src/main/res"
 
 def make_monochrome_reference():
     """The same 1024x1024 composition with the background rect dropped and
-    the mark recolored to one cream tone, so it reads against the orange
+    the mark flattened to one light tone, so it reads against the Brand Blue
     background layer. Position and scale are otherwise untouched -- the
-    two-tone original made the terracotta C nearly vanish on terracotta."""
+    two-tone original made the accent letterform nearly vanish once it shared
+    a hue with the background."""
     s = open(REFERENCE_SVG, encoding="utf-8").read()
     s = re.sub(r"<rect[^>]*></rect>\s*", "", s, count=1)
-    s = s.replace('fill="#f5ead8"', f'fill="{CREAM_HEX}"')
+    # Match whatever single fill the reference currently carries. Hardcoding
+    # the old cream hex here meant the monochrome layer silently stopped being
+    # rewritten the moment the brand palette moved.
+    s = re.sub(r'fill="#[0-9a-fA-F]{6}"', f'fill="{CREAM_HEX}"', s, count=1)
     open(MONOCHROME_SVG, "w", encoding="utf-8").write(s)
 
 

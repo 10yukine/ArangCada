@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Matches the brand's supplied app-icon reference assets
-         (assets/branding/arangcada_app_icon_organic.svg), not
-         AppColors.primary (#B4552F) used for in-app buttons. The icon
-         background is its own explicit brand decision. -->
-    <color name="ic_launcher_background">#C67139</color>
+    <!-- Adaptive-icon background. Matches the brand's supplied app-icon
+         reference assets (assets/branding/arangcada_app_icon_organic.svg)
+         and, since the 2026-08 recolour, also AppColors.primary: the icon
+         and the in-app primary action are now the same Brand Blue. The mark
+         sits on it in #F2F8FF, a measured 5.08:1 - comfortably legible at
+         48dp launcher size. -->
+    <color name="ic_launcher_background">#1262D0</color>
 </resources>
