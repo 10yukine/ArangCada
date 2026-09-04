@@ -93,7 +93,14 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     _completeTrip(booking!);
   }
 
-  static const Duration _confirmWindow = Duration(seconds: 60);
+  /// Three minutes, not one.
+  ///
+  /// This is a fallback for a distracted rider, not the normal way a ride ends
+  /// -- the rider confirming is. Sixty seconds was easy to blow through: most
+  /// rides are cash, and finding the fare, waiting for change and climbing out
+  /// of a tricycle regularly takes longer than that, so the ride auto-finished
+  /// while the rider was still sitting in it.
+  static const Duration _confirmWindow = Duration(minutes: 3);
   Timer? _confirmTicker;
   bool _awaitingConfirmation = false;
 
@@ -426,6 +433,15 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final VoidCallback onCall;
   final Future<void> Function() onSos;
 
+  /// "2:54", not "174s". Past a minute, raw seconds stop being a duration a
+  /// reader can feel.
+  static String _countdown(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    final rest = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$rest';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -512,59 +528,59 @@ class _ActiveTripSheetBody extends StatelessWidget {
           ],
         ],
 
-        // Always visible on arrival, collapsed or not. This is the reason the
-        // sheet used to throw itself open when the ride ended: the button lived
-        // in the expanded branch, so something had to expand it. Opening a panel
-        // under the user's thumb to reveal a button is worse than just putting
-        // the button where they can reach it.
         if (awaitingConfirmation) ...[
-          const SizedBox(height: AppSpacing.sm),
-          ArangButton(
-            label: "I've arrived — finish ride",
-            icon: Icons.flag_outlined,
-            onPressed: canConfirmArrival ? onConfirmArrival : null,
-          ),
           const SizedBox(height: 4),
           Center(
             child: Text(
-              'Finishing automatically in ${secondsLeft}s',
+              'Finishing automatically in ${_countdown(secondsLeft)}',
               style: AppTypography.caption,
             ),
           ),
         ],
 
-        // ALWAYS VISIBLE, collapsed or not. These three were inside the
-        // expanded branch, which meant SOS -- the control a rider reaches for
-        // when something is going wrong inside a stranger's vehicle -- required
+        // ALWAYS VISIBLE, collapsed or not. These were inside the expanded
+        // branch, which meant SOS -- the control a rider reaches for when
+        // something is going wrong inside a stranger's vehicle -- required
         // noticing the sheet could be dragged, and then dragging it. A safety
         // control behind a gesture is not a safety control.
-        //
-        // Chat and Call keep it company for the same reason at lower stakes:
-        // "where are you?" is the most common thing a rider needs mid-trip, and
-        // it should not cost an interaction to find.
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: ArangButton(
-                label: 'Chat',
-                icon: Icons.chat_outlined,
-                variant: ArangButtonVariant.ghost,
-                onPressed: onMessage,
+        if (awaitingConfirmation)
+          // Finish takes the slot Chat and Call had. The tricycle has stopped
+          // and the rider is looking at the driver, so "message" and "call" have
+          // done their job; the only thing left to do is end the ride. Swapping
+          // rather than appending keeps the peek the same height at the exact
+          // moment the rider is also paying and climbing out.
+          ArangButton(
+            label: "I've arrived — finish ride",
+            icon: Icons.flag_outlined,
+            onPressed: canConfirmArrival ? onConfirmArrival : null,
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: ArangButton(
+                  label: 'Chat',
+                  icon: Icons.chat_outlined,
+                  variant: ArangButtonVariant.ghost,
+                  onPressed: onMessage,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: ArangButton(
-                label: 'Call',
-                icon: Icons.call_outlined,
-                variant: ArangButtonVariant.ghost,
-                onPressed: onCall,
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: ArangButton(
+                  label: 'Call',
+                  icon: Icons.call_outlined,
+                  variant: ArangButtonVariant.ghost,
+                  onPressed: onCall,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         const SizedBox(height: AppSpacing.xs),
+        // SOS outlives arrival deliberately. "SOS starts where the ride does"
+        // has a mirror: it must not end before the rider has actually left the
+        // vehicle, and they are still at it while they pay.
         SosHoldButton(onCompleted: onSos),
         const SizedBox(height: AppSpacing.xs),
         const Center(

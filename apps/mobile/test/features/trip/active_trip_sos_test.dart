@@ -142,5 +142,20 @@ void main() {
       findsOneWidget,
       reason: 'arrival must surface the finish button in the collapsed sheet',
     );
+
+    // It takes the slot Chat and Call had rather than being appended, so the
+    // peek does not grow into a four-button stack at the moment the rider is
+    // paying and getting out.
+    expect(find.text('Chat'), findsNothing);
+    expect(find.text('Call'), findsNothing);
+
+    // SOS outlives arrival. The rider is still at the vehicle while they pay,
+    // and "SOS starts where the ride does" must not be read as "and ends the
+    // instant the wheels stop".
+    expect(
+      find.byType(SosHoldButton),
+      findsOneWidget,
+      reason: 'the safety control must not disappear on arrival',
+    );
   });
 }
