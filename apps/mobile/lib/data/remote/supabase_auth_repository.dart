@@ -167,6 +167,54 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> reauthenticate(String currentPassword) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null) {
+      throw const DemoAuthException('Sign in again to continue.');
+    }
+    try {
+      // Deliberately signInWithPassword, not a lighter check: it is the only
+      // Supabase Auth call that actually verifies a password against the
+      // account, and it is what the spec names as step 1. A wrong password
+      // must fail here, not at updateUser -- see .pipeline/specs.md Spec 11 §1.
+      await _client.auth.signInWithPassword(email: email, password: currentPassword);
+    } on AuthException {
+      throw const DemoAuthException('That password is incorrect.');
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (error) {
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not update your password. Try again.'
+            : error.message,
+      );
+    }
+  }
+
+  @override
+  Future<DemoUser> updateEmail(String newEmail) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const DemoAuthException('Sign in again to change your email.');
+    }
+    try {
+      await _client.auth.updateUser(UserAttributes(email: newEmail.trim()));
+    } on AuthException catch (error) {
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not update your email. Try again.'
+            : error.message,
+      );
+    }
+    return restoreProfile(_client.auth.currentUser ?? user);
+  }
+
+  @override
   Future<void> sendPhoneOtp(String e164Phone) async {
     try {
       // Server-side throttle first, so a client loop cannot drain the prepaid
@@ -176,7 +224,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
       // Attaching the phone to the existing account is what triggers the OTP.
       // The account was created with email+password; this is the phone-change
-      // flow, which is why verifyPhoneOtp uses OtpType.phoneChange.
+      // flow, which is why verifyPhoneOtp uses OtpType.phoneChange. Changing an
+      // already-verified number goes through the exact same call -- the caller
+      // is expected to have re-authenticated first.
       await _client.auth.updateUser(UserAttributes(phone: e164Phone));
     } on PostgrestException catch (error) {
       // The throttle speaks in sentences meant for the user, so pass it

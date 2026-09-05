@@ -56,6 +56,23 @@ class HybridAuthRepository implements AuthRepository {
   Future<void> sendPasswordReset(String email) =>
       _requiredLive.sendPasswordReset(email);
 
+  // Live only, for the same reason as updateDisplayName's demo-account branch
+  // is NOT mirrored here: a local test account has a fixed compiled-in
+  // password and no server-side row, so there is nothing real to
+  // re-authenticate against. Routing this to the mock would silently do
+  // nothing useful for a real user whose email happened to look local.
+  @override
+  Future<void> reauthenticate(String currentPassword) =>
+      _requiredLive.reauthenticate(currentPassword);
+
+  @override
+  Future<void> updatePassword(String newPassword) =>
+      _requiredLive.updatePassword(newPassword);
+
+  @override
+  Future<DemoUser> updateEmail(String newEmail) =>
+      _requiredLive.updateEmail(newEmail);
+
   // OTP always goes to the live repository. The local test accounts never
   // reach the verify screen -- they are internal testers, so
   // needsPhoneVerification is false -- and routing a code request to the mock

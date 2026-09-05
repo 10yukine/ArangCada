@@ -76,6 +76,32 @@ class MockAuthRepository implements AuthRepository {
     return renamed;
   }
 
+  // The seeded demo accounts have a fixed, compiled-in password and no
+  // server-side row, so there is nothing real to re-authenticate against or
+  // change. Reaching either method below means something routed a demo
+  // account to the password-change screen, which is a bug -- hence the
+  // explicit throw rather than a silent no-op, matching sendPhoneOtp below.
+  @override
+  Future<void> reauthenticate(String currentPassword) {
+    throw const DemoAuthException(
+      'Demo accounts have a fixed password and cannot be changed.',
+    );
+  }
+
+  @override
+  Future<DemoUser> updateEmail(String newEmail) {
+    throw const DemoAuthException(
+      'Demo accounts have a fixed email and cannot be changed.',
+    );
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) {
+    throw const DemoAuthException(
+      'Demo accounts have a fixed password and cannot be changed.',
+    );
+  }
+
   @override
   Future<void> abandonUnverifiedRegistration() async {
     // Nothing to abandon. The seeded accounts are internal testers, so they

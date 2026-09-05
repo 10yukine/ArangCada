@@ -22,7 +22,7 @@ import '../../domain/models/demo_user.dart';
 ///
 /// Editing lives on the pencil in the header, not on a "Personal
 /// Information" row. Notifications are reached from the dashboard bell, and
-/// notification *settings* live in App Settings, so there is no
+/// notification *settings* live in Settings, so there is no
 /// notifications row here.
 ///
 /// Rows sit flat on the page background, separated by hairline dividers,
@@ -160,7 +160,7 @@ class ProfileScreen extends ConsumerWidget {
                 const Divider(height: 1),
                 _ProfileRow(
                   icon: Icons.settings_outlined,
-                  label: 'App Settings',
+                  label: 'Settings',
                   onTap: () => context.push('/profile/app-settings'),
                 ),
                 const Divider(height: 1),

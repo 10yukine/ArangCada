@@ -26,6 +26,11 @@ import '../../data/repositories/auth_repository.dart';
 /// `request_ride`, `can_driver_go_online` and `create_ride_share_link` each
 /// refuse an unverified account, so a tampered client that skips this screen
 /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
+///
+/// Registration only. A later change to an already-verified number is
+/// confirmed inline on the Account & Security screen instead of here -- see
+/// `edit_profile_screen.dart` -- because the owner decided that flow should
+/// not have its own page at all (Spec 11 §2 revision, 5 Sep 2026).
 class VerifyPhoneScreen extends ConsumerStatefulWidget {
   const VerifyPhoneScreen({this.initialError, super.key});
 

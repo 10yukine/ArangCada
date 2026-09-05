@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -12,21 +11,25 @@ import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 
-/// Lets a commuter change the one thing they are actually allowed to change.
+/// Account details: name, mobile number, and email, all editable directly on
+/// this one screen -- the owner's explicit call (Spec 11 revision, 5 Sep
+/// 2026) is that neither contact field gets its own page. Password lives on
+/// the Settings screen instead (`profile_detail_screens.dart`), reachable
+/// from the profile tab, not from here.
 ///
-/// Everything else on this screen is deliberately read-only, and says why. That
-/// is not a placeholder: `profiles` grants UPDATE on exactly
-/// (display_name, phone) to `authenticated`, and
-/// guard_profiles_privileged_columns() rejects role or status changes outright.
-/// Offering an editable field the database would refuse is worse than showing
-/// none -- the user fills it in, taps Save, and learns nothing about why it did
-/// not take.
+/// Name needs no password: it is low-risk and self-correcting, and gating it
+/// behind a credential trains users to type their password into any box that
+/// asks. Mobile number and email both DO require the current password first
+/// -- `updateUser` neither checks it nor is guarded by RLS, so re-authenticating
+/// is the only thing standing between an unlocked, still-signed-in phone and a
+/// changed identity.
 ///
-/// Email and mobile number are shown because seeing them is the common reason
-/// for opening this screen at all ("which address did I sign up with?").
-/// Changing either is a separate job with its own verification: a new number
-/// re-enters the SMS flow, and a new email needs working SMTP, which this
-/// project does not have yet.
+/// A mobile number change still needs its SMS code accepted before it takes
+/// effect (Supabase's phone-change flow has no other way), so that step
+/// happens right here too, as an inline card, rather than a second screen.
+/// Email has no such step: `mailer_autoconfirm` applies it immediately, and
+/// the owner decided that trade is worth it so a mistyped sign-up address is
+/// recoverable rather than a dead end.
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -35,28 +38,51 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
+  // PROFILE
   late final TextEditingController _name;
-
-  bool _saving = false;
-  String? _error;
+  bool _savingName = false;
   String? _nameError;
+  String? _nameSaveError;
+
+  // CONTACT
+  late final TextEditingController _mobile;
+  late final TextEditingController _email;
+  final _contactPassword = TextEditingController();
+  bool _savingContact = false;
+  String? _contactError;
+
+  /// Set once `sendPhoneOtp` succeeds for a changed number. Non-null shows
+  /// the inline "enter the code" card in place of the Save button.
+  String? _pendingPhoneE164;
+  final _otpCode = TextEditingController();
+  bool _verifyingOtp = false;
+  String? _otpError;
 
   @override
   void initState() {
     super.initState();
-    _name = TextEditingController(
-      text: ref.read(demoStateProvider).currentUser?.displayName ?? '',
+    final user = ref.read(demoStateProvider).currentUser;
+    _name = TextEditingController(text: user?.displayName ?? '');
+    _mobile = TextEditingController(
+      text: user?.mobileNumber == null
+          ? ''
+          : normalizePhMobile(user!.mobileNumber).display,
     );
+    _email = TextEditingController(text: user?.email ?? '');
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _mobile.dispose();
+    _email.dispose();
+    _contactPassword.dispose();
+    _otpCode.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (_saving) return;
+  Future<void> _saveName() async {
+    if (_savingName) return;
 
     // Validated here rather than through a FormField: LabeledTextField is a
     // presentation widget with an errorText slot, not a FormField, and wrapping
@@ -74,8 +100,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
 
     setState(() {
-      _saving = true;
-      _error = null;
+      _savingName = true;
+      _nameSaveError = null;
       _nameError = null;
     });
 
@@ -85,19 +111,120 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Name updated.')));
-      context.pop();
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _nameSaveError = error.message);
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) setState(() => _savingName = false);
     }
+  }
+
+  Future<void> _saveContact() async {
+    if (_savingContact) return;
+    final user = ref.read(demoStateProvider).currentUser;
+
+    final trimmedEmail = _email.text.trim();
+    final emailChanged = trimmedEmail != (user?.email ?? '');
+    if (emailChanged && !trimmedEmail.contains('@')) {
+      setState(() => _contactError = 'Enter a valid email address.');
+      return;
+    }
+
+    PhMobileNumber? mobile;
+    var mobileChanged = false;
+    if (_mobile.text.trim().isNotEmpty) {
+      mobile = normalizePhMobile(_mobile.text);
+      if (!mobile.isValid) {
+        setState(() => _contactError = mobile!.error);
+        return;
+      }
+      mobileChanged = mobile.e164 != user?.mobileNumber;
+    }
+
+    if (!emailChanged && !mobileChanged) return;
+
+    if (_contactPassword.text.isEmpty) {
+      setState(() => _contactError = 'Enter your current password.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _savingContact = true;
+      _contactError = null;
+    });
+
+    final auth = ref.read(authRepositoryProvider);
+    try {
+      // Proves the person is the account owner, not just the phone's holder.
+      // A wrong current password fails HERE, with a message the user can act
+      // on -- never a generic error.
+      await auth.reauthenticate(_contactPassword.text);
+
+      if (emailChanged) {
+        await auth.updateEmail(trimmedEmail);
+      }
+      if (mobileChanged) {
+        await auth.sendPhoneOtp(mobile!.e164!);
+      }
+
+      if (!mounted) return;
+      _contactPassword.clear();
+      if (mobileChanged) {
+        setState(() => _pendingPhoneE164 = mobile!.e164);
+      }
+      if (emailChanged) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Email updated.')));
+      }
+    } on DemoAuthException catch (error) {
+      if (mounted) setState(() => _contactError = error.message);
+    } finally {
+      if (mounted) setState(() => _savingContact = false);
+    }
+  }
+
+  Future<void> _verifyPendingPhone() async {
+    final phone = _pendingPhoneE164;
+    if (phone == null || _verifyingOtp) return;
+
+    setState(() {
+      _verifyingOtp = true;
+      _otpError = null;
+    });
+
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .verifyPhoneOtp(e164Phone: phone, token: _otpCode.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _pendingPhoneE164 = null;
+        _otpCode.clear();
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Mobile number updated.')));
+    } on DemoAuthException catch (error) {
+      if (mounted) setState(() => _otpError = error.message);
+    } finally {
+      if (mounted) setState(() => _verifyingOtp = false);
+    }
+  }
+
+  /// Cancelling needs no server call: GoTrue keeps the old confirmed number in
+  /// `auth.users.phone` and parks the claimed one in `new_phone` until the
+  /// code is accepted, so nothing was ever committed.
+  void _cancelPendingPhone() {
+    setState(() {
+      _pendingPhoneE164 = null;
+      _otpCode.clear();
+      _otpError = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(demoStateProvider).currentUser;
-    final mobile = user?.mobileNumber;
-
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       appBar: AppBar(
@@ -107,118 +234,141 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
       body: SafeArea(
         child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              LabeledTextField(
-                label: 'Full Name',
-                controller: _name,
-                icon: Icons.person_outline,
-                hintText: 'Juan dela Cruz',
-                textInputAction: TextInputAction.done,
-                errorText: _nameError,
-                onSubmitted: (_) => _save(),
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: AppTypography.bodySm.copyWith(color: AppColors.danger),
-                ),
-              ],
-
-              const SizedBox(height: AppSpacing.lg),
-              ArangButton(
-                label: _saving ? 'Saving...' : 'Save',
-                onPressed: _saving ? null : _save,
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Not editable here',
-                style: AppTypography.label.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ReadOnlyRow(
-                      icon: Icons.mail_outline,
-                      label: 'Email address',
-                      value: user?.email ?? '-',
-                      reason:
-                          'Changing this needs a confirmation sent to both '
-                          'addresses.',
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _ReadOnlyRow(
-                      icon: Icons.phone_outlined,
-                      label: 'Mobile number',
-                      // Masked, not shown in full. Rule 10 -- and the user
-                      // already knows their own number; what they need here is
-                      // enough to recognise which one is on the account.
-                      value: mobile == null
-                          ? '-'
-                          : normalizePhMobile(mobile).masked,
-                      reason:
-                          'Changing this sends a new 6-digit code to the new '
-                          'number.',
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: [
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LabeledTextField(
+                    label: 'Full Name',
+                    controller: _name,
+                    icon: Icons.person_outline,
+                    hintText: 'Juan dela Cruz',
+                    textInputAction: TextInputAction.done,
+                    errorText: _nameError,
+                    onSubmitted: (_) => _saveName(),
+                  ),
+                  if (_nameSaveError != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      _nameSaveError!,
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.danger,
+                      ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: AppSpacing.md),
+                  ArangButton(
+                    label: _savingName ? 'Saving...' : 'Save name',
+                    onPressed: _savingName ? null : _saveName,
+                  ),
+                ],
               ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LabeledTextField(
+                    label: 'Mobile Number',
+                    controller: _mobile,
+                    icon: Icons.phone_outlined,
+                    hintText: '0917 123 4567',
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  LabeledTextField(
+                    label: 'Email Address',
+                    controller: _email,
+                    icon: Icons.mail_outline,
+                    hintText: 'you@example.com',
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  LabeledTextField(
+                    label: 'Current Password',
+                    controller: _contactPassword,
+                    icon: Icons.lock_outline,
+                    hintText: 'Enter your password',
+                    obscureText: true,
+                    onSubmitted: (_) => _saveContact(),
+                  ),
+                  if (_contactError != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      _contactError!,
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
+                  ArangButton(
+                    label: _savingContact ? 'Saving...' : 'Save contact info',
+                    onPressed: _savingContact ? null : _saveContact,
+                  ),
+
+                  if (_pendingPhoneE164 != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    const Divider(color: AppColors.dividerLight),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Enter the 6-digit code sent to your new number',
+                      style: AppTypography.label,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    LabeledTextField(
+                      label: 'Code',
+                      controller: _otpCode,
+                      icon: Icons.sms_outlined,
+                      hintText: '123456',
+                      keyboardType: TextInputType.number,
+                      onSubmitted: (_) => _verifyPendingPhone(),
+                    ),
+                    if (_otpError != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        _otpError!,
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ArangButton(
+                            label: _verifyingOtp ? 'Checking...' : 'Verify',
+                            onPressed: _verifyingOtp
+                                ? null
+                                : _verifyPendingPhone,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: ArangButton(
+                            label: 'Cancel',
+                            variant: ArangButtonVariant.ghost,
+                            onPressed: _verifyingOtp
+                                ? null
+                                : _cancelPendingPhone,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ReadOnlyRow extends StatelessWidget {
-  const _ReadOnlyRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.reason,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final String reason;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: AppColors.textMuted),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-              Text(value, style: AppTypography.body),
-              const SizedBox(height: 2),
-              Text(
-                reason,
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

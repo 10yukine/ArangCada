@@ -43,6 +43,35 @@ class _SpyLiveAuthRepository implements AuthRepository {
     required String token,
   }) => throw UnimplementedError();
 
+  /// Records the password handed to the live repository, so the
+  /// re-authentication routing test can assert the hybrid did not divert it
+  /// to the mock (which has no real account to check it against).
+  String? reauthenticatedWith;
+
+  @override
+  Future<void> reauthenticate(String currentPassword) async {
+    reauthenticatedWith = currentPassword;
+  }
+
+  String? updatedPasswordTo;
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    updatedPasswordTo = newPassword;
+  }
+
+  String? updatedEmailTo;
+
+  @override
+  Future<DemoUser> updateEmail(String newEmail) async {
+    updatedEmailTo = newEmail;
+    return DemoUser(
+      email: newEmail,
+      displayName: 'Live User',
+      role: DemoRole.commuter,
+    );
+  }
+
   /// Records the name handed to the live repository, so the routing test can
   /// assert a real account's rename was not diverted to the mock.
   String? renamedTo;
@@ -173,6 +202,45 @@ void main() {
       await hybrid.sendPhoneOtp('+639171234567');
 
       expect(live.sentOtpTo, '+639171234567');
+    });
+  });
+
+  group('HybridAuthRepository password-change routing', () {
+    // The mock repository throws for both methods (Spec 11: a demo account has
+    // a fixed, compiled-in password and no real account to re-authenticate
+    // against), so if the hybrid ever routed either call locally this would
+    // throw instead of recording what it was asked to do.
+    test('reauthenticate always goes through the live repository', () async {
+      final state = DemoState();
+      addTearDown(state.dispose);
+      final live = _SpyLiveAuthRepository();
+      final hybrid = HybridAuthRepository(state: state, live: live);
+
+      await hybrid.reauthenticate('correct-horse-battery-staple');
+
+      expect(live.reauthenticatedWith, 'correct-horse-battery-staple');
+    });
+
+    test('updatePassword always goes through the live repository', () async {
+      final state = DemoState();
+      addTearDown(state.dispose);
+      final live = _SpyLiveAuthRepository();
+      final hybrid = HybridAuthRepository(state: state, live: live);
+
+      await hybrid.updatePassword('a-brand-new-password');
+
+      expect(live.updatedPasswordTo, 'a-brand-new-password');
+    });
+
+    test('updateEmail always goes through the live repository', () async {
+      final state = DemoState();
+      addTearDown(state.dispose);
+      final live = _SpyLiveAuthRepository();
+      final hybrid = HybridAuthRepository(state: state, live: live);
+
+      await hybrid.updateEmail('new@example.test');
+
+      expect(live.updatedEmailTo, 'new@example.test');
     });
   });
 

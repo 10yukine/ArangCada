@@ -38,8 +38,40 @@ abstract interface class AuthRepository {
   /// nothing else.
   Future<DemoUser> updateDisplayName(String displayName);
 
+  /// Proves the signed-in user actually holds [currentPassword] by replaying
+  /// `signInWithPassword` against their own account.
+  ///
+  /// Exists because Supabase's `updateUser(password:)` does not check the
+  /// existing password at all -- it changes it on the strength of the session
+  /// alone. Without this step first, anyone holding an unlocked phone could
+  /// take the account. Implementations must fail with a message naming
+  /// "incorrect password" -- the one case the user can actually fix -- never a
+  /// generic error. See .pipeline/specs.md Spec 11 §1.
+  Future<void> reauthenticate(String currentPassword);
+
+  /// Sets a new password. Callers must call [reauthenticate] first -- this
+  /// method alone proves nothing about ownership, matching what the platform
+  /// call underneath it does.
+  Future<void> updatePassword(String newPassword);
+
+  /// Changes the signed-in account's email address, applied immediately.
+  ///
+  /// Deliberately no confirmation step: the project's `mailer_autoconfirm`
+  /// setting applies the change on the strength of the session alone (no
+  /// custom SMTP exists to send a confirmation link either way), and the
+  /// owner's explicit decision (Spec 11 §3 revision, 5 Sep 2026) is that this
+  /// is the right trade for a capstone account where a mistyped sign-up email
+  /// is otherwise unrecoverable. [reauthenticate] is still required first --
+  /// it is what stops an unlocked-phone attacker who does not know the
+  /// password from redirecting account recovery to an address they control.
+  Future<DemoUser> updateEmail(String newEmail);
+
   /// Sends a 6-digit SMS code to [e164Phone] and attaches that number to the
   /// signed-in account. Safe to call again to resend; the server throttles.
+  ///
+  /// Also the mechanism for changing an already-verified account's number:
+  /// attaching a new number is what triggers the OTP either way. Callers
+  /// changing an existing number must call [reauthenticate] first.
   Future<void> sendPhoneOtp(String e164Phone);
 
   /// Confirms the code. Returns the refreshed user, now phone-verified.

@@ -71,7 +71,7 @@ class AppSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _DetailScaffold(
-      title: 'App Settings',
+      title: 'Settings',
       children: [
         // Notification *settings* live here. The notification list itself is
         // reached from the dashboard bell, so the profile has no duplicate
@@ -105,6 +105,19 @@ class AppSettingsScreen extends ConsumerWidget {
           'Preferences are stored on this device only; the prototype does not '
           'send push notifications.',
           style: AppTypography.caption,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Security', style: AppTypography.h2),
+        const SizedBox(height: AppSpacing.xs),
+        SectionCard(
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.lock_outline, color: AppColors.primary),
+            title: const Text('Password'),
+            subtitle: const Text('Change your account password.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/profile/change-password'),
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
         Text('Data', style: AppTypography.h2),
