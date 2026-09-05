@@ -36,8 +36,15 @@ class DriverShell extends ConsumerWidget {
             showNotification: hasUnread,
           ),
           const AppTabDestination(
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long,
+            // A clock, not a receipt. receipt_long carries ruled lines and a
+            // torn edge that turn to noise at 22px, and it was the busiest
+            // glyph in the row. This tab is trip history, so a clock says the
+            // same thing with a fraction of the detail. access_time over
+            // history because history's arrow is more ink for no more meaning,
+            // and because access_time has a filled twin -- every other
+            // destination pairs an outline with a fill, and history has none.
+            icon: Icons.access_time,
+            selectedIcon: Icons.access_time_filled,
             label: 'Trips',
           ),
           const AppTabDestination(

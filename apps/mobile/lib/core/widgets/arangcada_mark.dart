@@ -30,15 +30,20 @@ class ArangCadaMark extends StatelessWidget {
   ///    framing centres to within 2px on both axes.
   final bool badge;
 
-  static const double _badgeSize = 116;
+  /// 84, down from 116 (5 Sep 2026). The badge is the first thing on the login
+  /// screen and at 116 it took a third of the width, pushing the form the user
+  /// actually came for toward the fold. A brand mark should identify the app,
+  /// not dominate the only screen where nobody has signed in yet.
+  static const double _badgeSize = 84;
 
   /// ~22% of the badge, matching the app icon's own corner ratio
-  /// (225/1024) so the two read as the same family.
-  static const double _badgeRadius = 25;
+  /// (225/1024) so the two read as the same family. Scaled with the badge --
+  /// keeping 25 on an 84px tile would have read as a different shape.
+  static const double _badgeRadius = 18;
 
   /// The square asset carries its own internal padding, so it is inset
-  /// less than the raw mark would need.
-  static const double _badgeMarkSize = 104;
+  /// less than the raw mark would need. Same ~90% ratio as before.
+  static const double _badgeMarkSize = 76;
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +63,8 @@ class ArangCadaMark extends StatelessWidget {
               boxShadow: const [
                 BoxShadow(
                   color: AppColors.shadowMedium,
-                  blurRadius: 16,
-                  offset: Offset(0, 6),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
@@ -72,8 +77,8 @@ class ArangCadaMark extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text('ArangCada', style: AppTypography.display),
+          const SizedBox(height: AppSpacing.sm),
+          Text('ArangCada', style: AppTypography.displaySm),
         ],
       );
     }

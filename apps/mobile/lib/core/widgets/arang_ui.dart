@@ -26,6 +26,7 @@ class ArangButton extends StatelessWidget {
     required this.onPressed,
     this.variant = ArangButtonVariant.primary,
     this.icon,
+    this.iconTrailing = false,
     this.expand = true,
     super.key,
   });
@@ -34,6 +35,14 @@ class ArangButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ArangButtonVariant variant;
   final IconData? icon;
+
+  /// Puts [icon] after the label instead of before it.
+  ///
+  /// For actions that move the user forward. A leading arrow on "Send Reset
+  /// Link" points back the way they came, which is the opposite of what the
+  /// button does; trailing reads as "and then this happens".
+  final bool iconTrailing;
+
   final bool expand;
 
   @override
@@ -62,7 +71,7 @@ class ArangButton extends StatelessWidget {
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (icon != null) ...[
+        if (icon != null && !iconTrailing) ...[
           Icon(icon, size: 18, color: foreground),
           const SizedBox(width: AppSpacing.xs),
         ],
@@ -92,6 +101,10 @@ class ArangButton extends StatelessWidget {
               color: foreground,
             ),
           ),
+        if (icon != null && iconTrailing) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Icon(icon, size: 18, color: foreground),
+        ],
       ],
     );
 

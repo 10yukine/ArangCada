@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
+import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/auth_footer.dart';
+import '../../core/widgets/labeled_text_field.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -53,21 +57,36 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.mark_email_unread_outlined,
-                    size: 40,
-                    color: AppColors.sky,
+                  // A tile, not a bare glyph. The OTP screen already frames
+                  // its icon this way, and an unbacked 40px icon floating above
+                  // a heading reads as decoration rather than as the subject of
+                  // the screen.
+                  Center(
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryFill,
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                      ),
+                      child: const Icon(
+                        Icons.mark_email_unread_outlined,
+                        size: 28,
+                        color: AppColors.primaryText,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     _sent ? 'Check your email' : 'Reset your password',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: AppTypography.displaySm,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -77,40 +96,46 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   if (!_sent) ...[
                     const SizedBox(height: AppSpacing.md),
-                    TextField(
+                    // The app's own field, not a raw TextField. Login and
+                    // register both use LabeledTextField; this screen was the
+                    // last one rendering a Material label that floats into the
+                    // border on focus.
+                    LabeledTextField(
+                      label: 'Email address',
                       controller: _email,
+                      icon: Icons.email_outlined,
+                      hintText: 'you@example.com',
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
+                      textInputAction: TextInputAction.done,
+                      errorText: _error,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        labelText: 'Email address',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
                     ),
-                    if (_error != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _error!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: AppSpacing.md),
-                    FilledButton(
+                    ArangButton(
+                      label: _sending ? 'Sending...' : 'Send Reset Link',
+                      icon: Icons.arrow_forward,
+                      iconTrailing: true,
                       onPressed: _sending ? null : _send,
-                      child: Text(_sending ? 'Sending…' : 'Send Reset Link'),
                     ),
                   ] else ...[
                     const SizedBox(height: AppSpacing.md),
-                    FilledButton(
+                    ArangButton(
+                      label: 'Back to Sign In',
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Back to Sign In'),
                     ),
                   ],
                 ],
               ),
             ),
+            if (!_sent) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AuthSwitchLink(
+                question: 'Remember your password?',
+                actionLabel: 'Log In',
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
           ],
         ),
       ),
