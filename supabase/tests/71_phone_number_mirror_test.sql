@@ -21,7 +21,24 @@
 
 begin;
 
-select plan(9);
+select plan(11);
+
+-- ---------------------------------------------------------------------------
+-- REGRESSION: Security Advisor "Public Can Execute SECURITY DEFINER
+-- Function" on this trigger function. Fixed by
+-- 20260905010000_advisor_sync_phone_trigger_grants.sql. No grant to
+-- authenticated either -- nothing should call a trigger function directly,
+-- and Postgres refuses it outright regardless of privilege.
+-- ---------------------------------------------------------------------------
+select ok(
+  not has_function_privilege('public', 'public.sync_profile_phone_verified()', 'execute'),
+  'sync_profile_phone_verified() is not executable by public'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.sync_profile_phone_verified()', 'execute'),
+  'sync_profile_phone_verified() is not executable by anon'
+);
 
 -- ---------------------------------------------------------------------------
 -- Fixture 1: one already-verified commuter.

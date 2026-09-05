@@ -1,0 +1,31 @@
+-- Supabase Security Advisor: "Public Can Execute SECURITY DEFINER Function"
+-- on public.sync_profile_phone_verified().
+--
+-- WHY THIS SLIPPED THROUGH
+--
+-- 20260825151000_security_definer_public_grants.sql ran a one-time loop over
+-- every SECURITY DEFINER function that existed in public on 25 Aug 2026,
+-- revoking PUBLIC's default execute grant and granting to authenticated
+-- instead. sync_profile_phone_verified() did not exist yet -- it was created
+-- six days later by 20260831130000_phone_verification.sql -- so the blanket
+-- fix never touched it. Every OTHER SECURITY DEFINER function created since
+-- that loop (request_ride, create_ride_share_link, record_otp_send,
+-- is_verified_account, trips_fcm_webhook, ...) picked up its own explicit
+-- revoke/grant in the migration that created it. This one did not.
+--
+-- WHY THIS ONE NEEDS ONLY A REVOKE, NO GRANT
+--
+-- Unlike those, sync_profile_phone_verified() is `returns trigger` -- the
+-- same shape as trips_fcm_webhook(), fixed the same way in
+-- 20260830130000_advisor_security_findings.sql. Postgres refuses to run a
+-- trigger-return function outside actual trigger context ("trigger
+-- functions can only be called as triggers"), so no caller -- public,
+-- authenticated, or otherwise -- can invoke it directly regardless of grant.
+-- The EXECUTE privilege is therefore inert for every role except the one
+-- that matters: triggers do not consult EXECUTE at all, so this revoke has
+-- no effect on `on_auth_user_phone_confirmed` actually firing. There is
+-- nothing to grant to authenticated because nothing should ever call this
+-- directly, on purpose or by accident.
+
+revoke execute on function public.sync_profile_phone_verified() from public;
+revoke execute on function public.sync_profile_phone_verified() from anon;
