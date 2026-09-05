@@ -37,7 +37,7 @@ abstract final class AppSizes {
   static const double maxContentWidth = 480;
 
   /// Width of the side navigation rail shown at [AppBreakpoints.medium] and
-  /// above, replacing the bottom [FloatingTabBar] used on compact widths.
+  /// above, replacing the bottom [AppTabBar] used on compact widths.
   static const double navigationRailWidth = 88;
 }
 

@@ -14,7 +14,7 @@ import '../../domain/geo/service_area.dart';
 import '../../demo/demo_data.dart';
 
 /// Commuter home, following the approved prototype's composition: greeting
-/// row, destination field, discount card, Plan Your Ride, then a compact
+/// row, destination field, Plan Your Ride, discount card, then a compact
 /// "Drivers Nearby You" map.
 ///
 /// Deliberately NOT a full-screen map. The prototype puts a small map card at
@@ -126,7 +126,6 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                   onTap: () => context.push('/home/search'),
                 ),
                 const SizedBox(height: 14),
-                const _DiscountCard(),
                 if (state.destination != null)
                   _CurrentSelection(
                     pickupName: _pickupLabel(state.pickup.name),
@@ -138,6 +137,14 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                     pickupName: _pickupLabel(state.pickup.name),
                     onTap: () => context.push('/home/search'),
                   ),
+                // Below Plan Your Ride, not above it. Booking is why the app
+                // gets opened; the fare matrix is reference material. It sat
+                // between the search field and the primary action, so the first
+                // thing a commuter met was a link to a table. It stays on the
+                // screen -- the LGU rates are part of what this project has to
+                // show a panel -- just underneath the thing people came to do.
+                const SizedBox(height: AppSpacing.sm),
+                const _DiscountCard(),
                 if (_locationError != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   _LocationNotice(

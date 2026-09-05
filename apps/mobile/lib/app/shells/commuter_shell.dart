@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../core/widgets/floating_tab_bar.dart';
+import '../../core/widgets/app_tab_bar.dart';
 import '../../data/providers/repository_providers.dart';
 
 /// Commuter tab tree.
@@ -26,28 +26,28 @@ class CommuterShell extends ConsumerWidget {
       builder: (context, _) {
         final hasUnread = chatRepository.totalUnread > 0;
         final destinations = [
-          const FloatingTabDestination(
+          const AppTabDestination(
             icon: Icons.home_outlined,
             selectedIcon: Icons.home,
             label: 'Home',
           ),
-          FloatingTabDestination(
+          AppTabDestination(
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
             label: 'Chat',
             showNotification: hasUnread,
           ),
-          const FloatingTabDestination(
+          const AppTabDestination(
             icon: Icons.receipt_long_outlined,
             selectedIcon: Icons.receipt_long,
             label: 'Trips',
           ),
-          const FloatingTabDestination(
+          const AppTabDestination(
             icon: Icons.account_balance_wallet_outlined,
             selectedIcon: Icons.account_balance_wallet,
             label: 'Wallet',
           ),
-          const FloatingTabDestination(
+          const AppTabDestination(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             label: 'Profile',
@@ -68,7 +68,7 @@ class CommuterShell extends ConsumerWidget {
   }
 }
 
-/// Bottom [FloatingTabBar] below [AppBreakpoints.compact]; a side
+/// Bottom [AppTabBar] below [AppBreakpoints.compact]; a side
 /// [NavigationRail] at [AppBreakpoints.compact] and above, matching
 /// Material's adaptive navigation guidance (rail replaces bottom bar once a
 /// window has room for one). Shared by [CommuterShell] and `DriverShell` so
@@ -84,7 +84,7 @@ class AdaptiveTabShell extends StatelessWidget {
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-  final List<FloatingTabDestination> destinations;
+  final List<AppTabDestination> destinations;
   final Widget body;
 
   @override
@@ -92,7 +92,7 @@ class AdaptiveTabShell extends StatelessWidget {
     if (AppBreakpoints.isCompact(context)) {
       return Scaffold(
         body: body,
-        bottomNavigationBar: FloatingTabBar(
+        bottomNavigationBar: AppTabBar(
           selectedIndex: selectedIndex,
           onSelected: onSelected,
           destinations: destinations,

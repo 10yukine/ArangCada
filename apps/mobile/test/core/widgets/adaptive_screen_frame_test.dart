@@ -1,7 +1,7 @@
 import 'package:arangcada/app/shells/commuter_shell.dart';
 import 'package:arangcada/app/theme/app_dimensions.dart';
 import 'package:arangcada/core/widgets/adaptive_screen_frame.dart';
-import 'package:arangcada/core/widgets/floating_tab_bar.dart';
+import 'package:arangcada/core/widgets/app_tab_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -58,19 +58,19 @@ void main() {
 
   group('AdaptiveTabShell', () {
     const destinations = [
-      FloatingTabDestination(
+      AppTabDestination(
         icon: Icons.home_outlined,
         selectedIcon: Icons.home,
         label: 'Home',
       ),
-      FloatingTabDestination(
+      AppTabDestination(
         icon: Icons.person_outline,
         selectedIcon: Icons.person,
         label: 'Profile',
       ),
     ];
 
-    testWidgets('shows the bottom FloatingTabBar below the compact breakpoint', (
+    testWidgets('shows the bottom AppTabBar below the compact breakpoint', (
       tester,
     ) async {
       _setWidth(tester, 360);
@@ -86,7 +86,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(FloatingTabBar), findsOneWidget);
+      expect(find.byType(AppTabBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
     });
 
@@ -107,7 +107,7 @@ void main() {
         );
 
         expect(find.byType(NavigationRail), findsOneWidget);
-        expect(find.byType(FloatingTabBar), findsNothing);
+        expect(find.byType(AppTabBar), findsNothing);
       },
     );
   });
