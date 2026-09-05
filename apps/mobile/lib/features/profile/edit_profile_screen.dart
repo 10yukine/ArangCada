@@ -138,6 +138,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         return;
       }
       mobileChanged = mobile.e164 != user?.mobileNumber;
+    } else if ((user?.mobileNumber ?? '').isNotEmpty) {
+      // A cleared field used to be silently treated as "no change" here,
+      // which combined with the early return below into a dead Save button:
+      // no error, no snackbar, nothing. Removing a number outright is not a
+      // flow this screen supports, so say that instead of doing nothing.
+      setState(() => _contactError = 'Mobile number cannot be removed here.');
+      return;
     }
 
     if (!emailChanged && !mobileChanged) return;
@@ -154,6 +161,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
 
     final auth = ref.read(authRepositoryProvider);
+    // Tracked separately from `emailChanged` because updateEmail() can
+    // succeed and THEN sendPhoneOtp() can throw -- two independent server
+    // calls, not one transaction. Without this, that failure was reported
+    // using only the phone error message, and the email change -- already
+    // committed on the server at that point -- went completely unmentioned.
+    var emailSaved = false;
     try {
       // Proves the person is the account owner, not just the phone's holder.
       // A wrong current password fails HERE, with a message the user can act
@@ -162,6 +175,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
       if (emailChanged) {
         await auth.updateEmail(trimmedEmail);
+        emailSaved = true;
       }
       if (mobileChanged) {
         await auth.sendPhoneOtp(mobile!.e164!);
@@ -178,7 +192,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ).showSnackBar(const SnackBar(content: Text('Email updated.')));
       }
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _contactError = error.message);
+      if (mounted) {
+        setState(() {
+          _contactError = emailSaved
+              ? 'Email updated. ${error.message}'
+              : error.message;
+        });
+        if (emailSaved) _contactPassword.clear();
+      }
     } finally {
       if (mounted) setState(() => _savingContact = false);
     }
@@ -310,7 +331,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: AppSpacing.md),
                   ArangButton(
                     label: _savingContact ? 'Saving...' : 'Save contact info',
-                    onPressed: _savingContact ? null : _saveContact,
+                    // Disabled while an OTP for a previous number change is
+                    // still pending: a second Save would send a new code for
+                    // whatever number is in the field now, silently orphaning
+                    // the code already sent to the number the OTP card still
+                    // shows. Cancel that attempt first (below) to edit again.
+                    onPressed: (_savingContact || _pendingPhoneE164 != null)
+                        ? null
+                        : _saveContact,
                   ),
 
                   if (_pendingPhoneE164 != null) ...[

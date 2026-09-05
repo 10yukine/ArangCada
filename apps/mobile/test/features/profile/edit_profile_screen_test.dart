@@ -14,6 +14,7 @@ class _FakeAuthRepository implements AuthRepository {
   final DemoState _state;
 
   String? failReauthWith;
+  String? failSendOtpWith;
   final List<String> reauthCalls = <String>[];
   final List<String> updateEmailCalls = <String>[];
   final List<String> sendOtpCalls = <String>[];
@@ -47,6 +48,8 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> sendPhoneOtp(String e164Phone) async {
     sendOtpCalls.add(e164Phone);
+    final failure = failSendOtpWith;
+    if (failure != null) throw DemoAuthException(failure);
   }
 
   @override
@@ -228,6 +231,60 @@ void main() {
       expect(find.text('Email updated.'), findsOneWidget);
       // No inline OTP card for an email-only change.
       expect(find.text('Verify'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'changing email and mobile together: a phone-step failure still reports '
+    'the email change that already succeeded on the server',
+    (tester) async {
+      auth.failSendOtpWith = 'please wait a minute before requesting another code';
+
+      await tester.pumpWidget(harness());
+      await tester.pump();
+
+      final fields = find.byType(EditableText);
+      await tester.enterText(fields.at(1), '0917 000 1111');
+      await tester.enterText(fields.at(2), 'new@example.test');
+      await tester.enterText(fields.at(3), 'correctpass');
+      await tester.tap(find.text('Save contact info'));
+      await tester.pump();
+      await tester.pump();
+
+      // The email step ran and committed before the phone step threw.
+      expect(auth.updateEmailCalls, ['new@example.test']);
+      // The user must be told the email change went through, not just shown
+      // the throttle error as if nothing happened.
+      expect(
+        find.textContaining('Email updated.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('please wait a minute'),
+        findsOneWidget,
+      );
+      // No OTP card: the phone step never got far enough to send a code.
+      expect(find.text('Verify'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'clearing the mobile field is refused, not silently ignored',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pump();
+
+      final fields = find.byType(EditableText);
+      await tester.enterText(fields.at(1), '');
+      await tester.tap(find.text('Save contact info'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.text('Mobile number cannot be removed here.'),
+        findsOneWidget,
+      );
+      expect(auth.reauthCalls, isEmpty);
     },
   );
 

@@ -109,15 +109,49 @@ class AppSettingsScreen extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Text('Security', style: AppTypography.h2),
         const SizedBox(height: AppSpacing.xs),
-        SectionCard(
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.lock_outline, color: AppColors.primary),
-            title: const Text('Password'),
-            subtitle: const Text('Change your account password.'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/profile/change-password'),
-          ),
+        Builder(
+          builder: (context) {
+            // A seeded @arangcada.demo account has no Supabase session --
+            // HybridAuthRepository routes it entirely through
+            // MockAuthRepository -- so reauthenticate() finds no current
+            // user and throws "Sign in again to continue.", a message that
+            // makes no sense to someone who very much is signed in and can
+            // do nothing about it on this screen. Disable the entry point
+            // instead of shipping a dead-end error, matching how the Demo
+            // account's other screens (e.g. updateDisplayName) route around
+            // capabilities a local test account cannot perform.
+            final isDemo =
+                ref.watch(demoStateProvider).currentUser?.isDemoAccount ??
+                    false;
+            return SectionCard(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.lock_outline,
+                  color: isDemo ? AppColors.textDisabled : AppColors.primary,
+                ),
+                title: Text(
+                  'Password',
+                  style: isDemo
+                      ? AppTypography.body.copyWith(
+                          color: AppColors.textDisabled,
+                        )
+                      : null,
+                ),
+                subtitle: Text(
+                  isDemo
+                      ? 'Not available for demo accounts.'
+                      : 'Change your account password.',
+                ),
+                trailing: isDemo
+                    ? null
+                    : const Icon(Icons.chevron_right),
+                onTap: isDemo
+                    ? null
+                    : () => context.push('/profile/change-password'),
+              ),
+            );
+          },
         ),
         const SizedBox(height: AppSpacing.xl),
         Text('Data', style: AppTypography.h2),

@@ -21,7 +21,7 @@
 
 begin;
 
-select plan(7);
+select plan(9);
 
 -- ---------------------------------------------------------------------------
 -- Fixture 1: one already-verified commuter.
@@ -115,6 +115,37 @@ select is(
   '+639170007102',
   'a null auth.users.phone at insert never blanks out the real number '
   'handle_new_user() just wrote from signup metadata'
+);
+
+-- ---------------------------------------------------------------------------
+-- REGRESSION: a phone collision must not abort the confirming user's OTP
+-- transaction. A third, unverified account (handle_new_user() writes
+-- profiles.phone from signup metadata before the number is ever confirmed --
+-- see 20260905000000_mirror_phone_conflict_guard.sql) is already sitting on
+-- the number that fixture 1 is about to confirm. profiles.phone is UNIQUE,
+-- so the mirror's UPDATE collides. Before the conflict guard this raised
+-- unique_violation and rolled back the whole trigger transaction -- the same
+-- class of failure as the unprefixed-number regression above, just from a
+-- different cause.
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000071a3', 'pnm-stale@example.test',
+   '{"display_name":"PNM Stale","mobile_number":"+639170007103"}'::jsonb);
+
+-- handle_new_user() already wrote this from signup metadata; assert the
+-- fixture is what this test needs before relying on it.
+select is(
+  (select phone from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a3'),
+  '+639170007103',
+  'fixture: the stale unverified account holds the number that will collide'
+);
+
+select lives_ok(
+  $q$update auth.users set phone = '639170007103', phone_confirmed_at = now()
+      where id = '00000000-0000-0000-0000-0000000071a1'$q$,
+  'confirming a number another (unverified) profiles row already holds does '
+  'not raise -- it must not abort the OTP-verify transaction'
 );
 
 -- ---------------------------------------------------------------------------

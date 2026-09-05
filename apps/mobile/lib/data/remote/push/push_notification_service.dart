@@ -40,6 +40,14 @@ class PushNotificationService {
   static final _localNotifications = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static String? _registeredToken;
+  // Every reauthenticate() call (password change, mobile/email change on the
+  // Account & Security screen) fires another AuthChangeEvent.signedIn, and
+  // main.dart's listener calls registerForSession() again. Without tracking
+  // this subscription, each call attached a second onTokenRefresh listener
+  // with no way to cancel the first -- N reauths in one session meant N
+  // duplicate register_push_token RPCs per token refresh, and N closures
+  // pinning a SupabaseClient for the rest of the process's life.
+  static StreamSubscription<String>? _tokenRefreshSub;
 
   /// Only Android is wired for push right now -- google-services.json only
   /// registers an Android app, and iOS/Web are out of this project's
@@ -106,7 +114,13 @@ class PushNotificationService {
       );
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) await _syncToken(client, token);
-      FirebaseMessaging.instance.onTokenRefresh.listen((refreshed) {
+      // Replace, never accumulate: a stale listener from an earlier
+      // reauthenticate() in this same session would otherwise keep syncing
+      // tokens against whatever SupabaseClient it closed over.
+      await _tokenRefreshSub?.cancel();
+      _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((
+        refreshed,
+      ) {
         unawaited(_syncToken(client, refreshed));
       });
     } catch (_) {
@@ -126,6 +140,8 @@ class PushNotificationService {
       // Best-effort: an unreachable backend during sign-out must not block it.
     } finally {
       _registeredToken = null;
+      await _tokenRefreshSub?.cancel();
+      _tokenRefreshSub = null;
     }
   }
 
