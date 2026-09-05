@@ -8,17 +8,27 @@
 -- its number, and admin screens / driver records read profiles.phone, not
 -- auth.users.phone. A regression here means every admin lookup silently
 -- shows a stale number after a change.
+--
+-- FIXTURE SHAPE MATTERS HERE, AND THIS FILE ORIGINALLY GOT IT WRONG.
+--
+-- The first version inserted '+639170007101' into auth.users.phone. GoTrue
+-- never writes that shape: it stores the number WITHOUT the leading '+'
+-- ("639170007101"), while profiles_phone_e164 requires one. Five assertions
+-- passed against a value production cannot produce, and the deploy of
+-- 20260904040000 then failed on real data with SQLSTATE 23514. Every
+-- auth.users.phone below is unprefixed on purpose. Do not "fix" them by
+-- adding a '+' -- that is the bug, not a typo.
 
 begin;
 
-select plan(5);
+select plan(7);
 
 -- ---------------------------------------------------------------------------
 -- Fixture 1: one already-verified commuter.
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email, phone, phone_confirmed_at, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000071a1', 'pnm-commuter@example.test',
-   '+639170007101', now(),
+   '639170007101', now(),
    '{"display_name":"PNM Commuter","mobile_number":"+639170007101"}'::jsonb);
 
 insert into public.profiles (id, role, display_name, phone, email, status, phone_verified_at) values
@@ -34,7 +44,7 @@ select is(
   (select phone from public.profiles
     where id = '00000000-0000-0000-0000-0000000071a1'),
   '+639170007101',
-  'baseline: profiles.phone matches the original number'
+  'baseline: profiles.phone keeps E.164 even though auth.users has no "+"'
 );
 
 -- ---------------------------------------------------------------------------
@@ -43,7 +53,7 @@ select is(
 -- Mirrors what Supabase does the instant an OTP for a phone CHANGE is
 -- accepted: phone and phone_confirmed_at move together, atomically.
 update auth.users
-   set phone = '+639170007199',
+   set phone = '639170007199',
        phone_confirmed_at = now()
  where id = '00000000-0000-0000-0000-0000000071a1';
 
@@ -51,8 +61,7 @@ select is(
   (select phone from public.profiles
     where id = '00000000-0000-0000-0000-0000000071a1'),
   '+639170007199',
-  'the trigger mirrors the NEW number, not just the new timestamp -- this is '
-  'the defect Spec 11 flagged'
+  'the trigger mirrors the NEW number and restores the "+" GoTrue omits'
 );
 
 select isnt(
@@ -60,6 +69,32 @@ select isnt(
     where id = '00000000-0000-0000-0000-0000000071a1'),
   null,
   'the verification timestamp still mirrors correctly alongside the number'
+);
+
+-- ---------------------------------------------------------------------------
+-- REGRESSION: the exact value that failed the 5 Sep 2026 deploy.
+-- An unprefixed number must not raise 23514. This trigger runs inside
+-- GoTrue's own transaction, so a throw here aborts the phone confirmation
+-- itself and breaks registration -- not merely the mirror.
+-- ---------------------------------------------------------------------------
+select lives_ok(
+  $q$update auth.users set phone = '639170009945', phone_confirmed_at = now()
+      where id = '00000000-0000-0000-0000-0000000071a1'$q$,
+  'an unprefixed GoTrue number does not violate profiles_phone_e164'
+);
+
+-- ---------------------------------------------------------------------------
+-- A number that cannot be normalised is SKIPPED: never written, never raised.
+-- A stale profiles row is recoverable; an aborted confirmation is not.
+-- ---------------------------------------------------------------------------
+update auth.users set phone = '12025550123', phone_confirmed_at = now()
+ where id = '00000000-0000-0000-0000-0000000071a1';
+
+select is(
+  (select phone from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  '+639170009945',
+  'a non-PH number leaves the last good number in place rather than raising'
 );
 
 -- ---------------------------------------------------------------------------
@@ -86,17 +121,24 @@ select is(
 -- Backfill statement: idempotent, and a no-op once mirrors already agree
 -- ---------------------------------------------------------------------------
 update public.profiles p
-   set phone = u.phone
+   set phone = '+' || ltrim(btrim(u.phone), '+')
   from auth.users u
  where u.id = p.id
    and u.phone is not null
-   and u.phone is distinct from p.phone;
+   and btrim(u.phone) <> ''
+   and '+' || ltrim(btrim(u.phone), '+') ~ '^\+639[0-9]{9}$'
+   and '+' || ltrim(btrim(u.phone), '+') is distinct from p.phone
+   and not exists (
+     select 1 from public.profiles other
+      where other.phone = '+' || ltrim(btrim(u.phone), '+')
+        and other.id <> p.id
+   );
 
 select is(
   (select phone from public.profiles
     where id = '00000000-0000-0000-0000-0000000071a1'),
-  '+639170007199',
-  'the backfill statement is idempotent -- running it again changes nothing'
+  '+639170009945',
+  'the backfill skips the unnormalisable number rather than corrupting the row'
 );
 
 select * from finish();
