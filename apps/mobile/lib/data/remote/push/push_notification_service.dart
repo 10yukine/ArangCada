@@ -257,22 +257,31 @@ class PushNotificationService {
   /// never appeared as a notification the user could tap "history" for in
   /// the first place.
   static Future<void> _recordNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    final box = _notificationsBox;
-    if (notification == null || box == null) return;
-    final record = AppNotificationRecord(
-      id: message.messageId ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      title: notification.title ?? '',
-      body: notification.body ?? '',
-      receivedAt: DateTime.now(),
-      data: Map<String, dynamic>.from(message.data),
-      read: false,
-    );
-    await box.put(record.id, jsonEncode(record.toJson()));
-    if (box.length > _maxHistoryEntries) {
-      for (final stale in history().skip(_maxHistoryEntries)) {
-        await box.delete(stale.id);
+    // Best-effort only: this runs fire-and-forget via unawaited() from every
+    // FCM listener, so a thrown HiveError/IOException here would otherwise
+    // be an unhandled Future error on the platform-channel callback -- it
+    // must never take down push handling itself. Independent review finding
+    // (Copilot, PR #17 council-review snapshot, 6 Sep 2026).
+    try {
+      final notification = message.notification;
+      final box = _notificationsBox;
+      if (notification == null || box == null) return;
+      final record = AppNotificationRecord(
+        id: message.messageId ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: notification.title ?? '',
+        body: notification.body ?? '',
+        receivedAt: DateTime.now(),
+        data: Map<String, dynamic>.from(message.data),
+        read: false,
+      );
+      await box.put(record.id, jsonEncode(record.toJson()));
+      if (box.length > _maxHistoryEntries) {
+        for (final stale in history().skip(_maxHistoryEntries)) {
+          await box.delete(stale.id);
+        }
       }
+    } catch (_) {
+      // Swallow -- see the best-effort note above.
     }
   }
 

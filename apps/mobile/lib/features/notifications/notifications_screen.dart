@@ -48,6 +48,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Future<void> _open(AppNotificationRecord item) async {
     if (!item.read) {
       await ref.read(notificationsRepositoryProvider).markRead(item.id);
+      // markRead() is awaited above -- the user can navigate away (or the
+      // screen can otherwise be disposed) while it is in flight. setState
+      // via _refresh() on a disposed State throws. Independent review
+      // finding (Copilot, PR #17 council-review snapshot, 6 Sep 2026).
+      if (!mounted) return;
       _refresh();
     }
   }

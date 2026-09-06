@@ -174,6 +174,19 @@ class ProfileScreen extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      // Both repository calls above already wrap their expected failure
+      // types (StorageException, PostgrestException) into
+      // DemoAuthException -- this is a defense-in-depth fallback for
+      // anything unexpected (e.g. a network-layer exception raised before
+      // reaching that wrapping), so the loading dialog can never get stuck
+      // open with no feedback. Independent review finding (Copilot, PR #17
+      // council-review snapshot, 6 Sep 2026).
+      if (!context.mounted) return;
+      _dismissLoadingDialog(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update your photo. Try again.')),
+      );
     }
   }
 

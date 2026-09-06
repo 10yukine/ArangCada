@@ -9,7 +9,7 @@
 
 begin;
 
-select plan(16);
+select plan(18);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -24,19 +24,30 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000072c1', 'cpl-lgu-admin@example.test',
    '{"display_name":"CPL LGU Admin","mobile_number":"+639170007204"}'::jsonb),
   ('00000000-0000-0000-0000-0000000072c2', 'cpl-other-toda-admin@example.test',
-   '{"display_name":"CPL Other TODA Admin","mobile_number":"+639170007205"}'::jsonb);
+   '{"display_name":"CPL Other TODA Admin","mobile_number":"+639170007205"}'::jsonb),
+  ('00000000-0000-0000-0000-0000000072c3', 'cpl-same-toda-admin@example.test',
+   '{"display_name":"CPL Same TODA Admin","mobile_number":"+639170007206"}'::jsonb);
 
 update public.profiles set role = 'driver' where id = '00000000-0000-0000-0000-0000000072b1';
 update public.profiles set role = 'admin'
- where id in ('00000000-0000-0000-0000-0000000072c1', '00000000-0000-0000-0000-0000000072c2');
+ where id in ('00000000-0000-0000-0000-0000000072c1', '00000000-0000-0000-0000-0000000072c2',
+              '00000000-0000-0000-0000-0000000072c3');
 
 -- c1 stays an unscoped (citywide) LGU admin. c2 is scoped to a zone the
--- fixture trip is NOT in, to prove cross-zone RLS denial.
+-- fixture trip is NOT in, to prove cross-zone RLS denial. c3 is scoped to
+-- the fixture trip's own zone (CAL-POB-01), to prove update_complaint_status()
+-- honours the same has_admin_scope() a TODA admin already reads through --
+-- see 20260906020000_complaint_status_admin_scope.sql.
 insert into public.admin_scopes (admin_id, scope, toda_zone_id)
 select '00000000-0000-0000-0000-0000000072c2', 'toda', id
   from public.toda_zones
  where code <> 'CAL-POB-01'
  limit 1;
+
+insert into public.admin_scopes (admin_id, scope, toda_zone_id)
+select '00000000-0000-0000-0000-0000000072c3', 'toda', id
+  from public.toda_zones
+ where code = 'CAL-POB-01';
 
 -- Trip A: reached driver_assigned and beyond -- a complaint about it is valid.
 insert into public.trips
@@ -238,6 +249,32 @@ select throws_ok(
       'acknowledged', null)$$,
   '22023', null,
   'a resolved complaint cannot be reopened through this action'
+);
+
+-- ---------------------------------------------------------------------------
+-- Admin status updates: TODA-scoped admin, same class of check as the RLS
+-- read policy above -- see 20260906020000_complaint_status_admin_scope.sql
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000072c2';
+
+select throws_ok(
+  $$select public.update_complaint_status(
+      (select id from public.complaints where idempotency_key = 'cpl-key-0002'),
+      'acknowledged', null)$$,
+  '42501', null,
+  'SECURITY: a TODA administrator scoped to a different zone still cannot '
+  'update this trip''s zone complaint'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000072c3';
+
+select lives_ok(
+  $$select public.update_complaint_status(
+      (select id from public.complaints where idempotency_key = 'cpl-key-0002'),
+      'investigating', 'Reviewing the driver''s side.')$$,
+  'a TODA administrator scoped to this trip''s own zone can update it -- '
+  'the bug this migration exists to fix: this used to raise 42501 because '
+  'the RPC checked only the global-only is_admin(), not has_admin_scope()'
 );
 
 select * from finish();
