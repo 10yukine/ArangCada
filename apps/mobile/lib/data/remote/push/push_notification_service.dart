@@ -7,9 +7,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
+import '../../../domain/models/app_notification.dart';
 
 /// FCM is used ONLY as a push-delivery transport for ride-offer and
 /// ride-status alerts. Supabase remains the system of record for the trip
@@ -27,6 +29,17 @@ import '../../../app/router.dart';
 /// ```
 class PushNotificationService {
   PushNotificationService._();
+
+  /// Opened in main() before bootstrap() runs (see main.dart), the same way
+  /// the existing arangcada_demo box already is -- so it is available for
+  /// this service to write to and for NotificationsRepository to read from
+  /// regardless of whether push itself is supported on this platform/build.
+  static const notificationsBoxName = 'notifications';
+
+  /// Keeps the local cache from growing without bound over a long-lived
+  /// install. This is history for the bell icon, not an audit log -- older
+  /// entries are simply the least useful to keep.
+  static const _maxHistoryEntries = 50;
 
   static const _channel = AndroidNotificationChannel(
     'ride_offers',
@@ -89,13 +102,24 @@ class PushNotificationService {
         >()
         ?.createNotificationChannel(_channel);
 
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    FirebaseMessaging.onMessage.listen((message) {
+      unawaited(_recordNotification(message));
+      unawaited(_showForegroundNotification(message));
+    });
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      // The OS already showed this one (the app was backgrounded or
+      // terminated when it arrived) -- recording it here is what lets the
+      // inbox reconstruct history for a message this service never itself
+      // displayed a local notification for.
+      unawaited(_recordNotification(message));
       _navigateForData(message.data);
     });
     final initialMessage = await FirebaseMessaging.instance
         .getInitialMessage();
-    if (initialMessage != null) _navigateForData(initialMessage.data);
+    if (initialMessage != null) {
+      unawaited(_recordNotification(initialMessage));
+      _navigateForData(initialMessage.data);
+    }
 
     _initialized = true;
   }
@@ -218,6 +242,74 @@ class PushNotificationService {
         // screen from Trips, reusing that existing, tested routing instead
         // of duplicating a per-status deep-link table here.
         GoRouter.of(context).go('/trips');
+    }
+  }
+
+  static Box<String>? get _notificationsBox =>
+      Hive.isBoxOpen(notificationsBoxName)
+      ? Hive.box<String>(notificationsBoxName)
+      : null;
+
+  /// Appends [message] to the local notifications history, keyed by its FCM
+  /// message id (falling back to a timestamp when absent, which is rare but
+  /// not contractually guaranteed by the platform channel). Silently a
+  /// no-op without a `notification` payload to show -- a data-only message
+  /// never appeared as a notification the user could tap "history" for in
+  /// the first place.
+  static Future<void> _recordNotification(RemoteMessage message) async {
+    final notification = message.notification;
+    final box = _notificationsBox;
+    if (notification == null || box == null) return;
+    final record = AppNotificationRecord(
+      id: message.messageId ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      title: notification.title ?? '',
+      body: notification.body ?? '',
+      receivedAt: DateTime.now(),
+      data: Map<String, dynamic>.from(message.data),
+      read: false,
+    );
+    await box.put(record.id, jsonEncode(record.toJson()));
+    if (box.length > _maxHistoryEntries) {
+      for (final stale in history().skip(_maxHistoryEntries)) {
+        await box.delete(stale.id);
+      }
+    }
+  }
+
+  /// All recorded notifications, newest first. Returns an empty list rather
+  /// than throwing when the box has not been opened (e.g. a build without
+  /// push configured) -- the inbox shows an honest empty state either way.
+  static List<AppNotificationRecord> history() {
+    final box = _notificationsBox;
+    if (box == null) return const [];
+    final records = <AppNotificationRecord>[];
+    for (final key in box.keys) {
+      final raw = box.get(key);
+      if (raw == null) continue;
+      try {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        records.add(AppNotificationRecord.fromJson(key as String, json));
+      } catch (_) {
+        // A corrupt single entry must not take down the whole inbox.
+      }
+    }
+    records.sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
+    return records;
+  }
+
+  /// Marks one entry read in place. A missing id (already deleted by the
+  /// history cap, or never existed) is a silent no-op.
+  static Future<void> markRead(String id) async {
+    final box = _notificationsBox;
+    if (box == null) return;
+    final raw = box.get(id);
+    if (raw == null) return;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      json['read'] = true;
+      await box.put(id, jsonEncode(json));
+    } catch (_) {
+      // Corrupt entry: leave it as-is rather than crash the tap handler.
     }
   }
 }

@@ -1,58 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
+import '../../data/providers/repository_providers.dart';
+import '../../domain/models/app_notification.dart';
 
-class DemoAppNotification {
-  const DemoAppNotification({
-    required this.title,
-    required this.message,
-    required this.timeLabel,
-    required this.icon,
-    this.isUnread = false,
-  });
+/// Real notification history, not the fixed three-entry mock list this
+/// screen used to render regardless of what actually happened. See
+/// .pipeline/specs.md Spec 16.
+///
+/// Backed by a local Hive cache PushNotificationService's own
+/// `onMessage`/`onMessageOpenedApp` handlers already write to -- there is
+/// no server table and no cross-device sync, deliberately (see the spec's
+/// "smallest option" rationale). Tapping an entry marks it read; there is
+/// no detail screen, since every notification type already has its own
+/// one-tap "Resume" destination via the same routing
+/// PushNotificationService uses for a tapped push.
+class NotificationsScreen extends ConsumerStatefulWidget {
+  const NotificationsScreen({super.key});
 
-  final String title;
-  final String message;
-  final String timeLabel;
-  final IconData icon;
-  final bool isUnread;
+  @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
-const _mockNotifications = [
-  DemoAppNotification(
-    title: 'Driver assigned',
-    message: 'Marco Dela Cruz is heading to your pickup point.',
-    timeLabel: '2 min ago',
-    icon: Icons.electric_rickshaw_outlined,
-    isUnread: true,
-  ),
-  DemoAppNotification(
-    title: 'Receipt ready',
-    message: 'Your completed ride receipt is available in Trips.',
-    timeLabel: 'Yesterday',
-    icon: Icons.receipt_long_outlined,
-  ),
-  DemoAppNotification(
-    title: 'Safety reminder',
-    message: 'Confirm the tricycle body number before boarding.',
-    timeLabel: '2 days ago',
-    icon: Icons.shield_outlined,
-  ),
-];
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  late List<AppNotificationRecord> _items;
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({this.notifications, super.key});
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
 
-  final List<DemoAppNotification>? notifications;
+  void _refresh() {
+    setState(() {
+      _items = ref.read(notificationsRepositoryProvider).history();
+    });
+  }
+
+  Future<void> _open(AppNotificationRecord item) async {
+    if (!item.read) {
+      await ref.read(notificationsRepositoryProvider).markRead(item.id);
+      _refresh();
+    }
+  }
+
+  static IconData _iconFor(AppNotificationRecord item) =>
+      switch (item.data['type']) {
+        'ride_offer' => Icons.electric_rickshaw_outlined,
+        'ride_cancelled' => Icons.cancel_outlined,
+        'ride_expired' => Icons.timer_off_outlined,
+        'ride_updated' => Icons.directions_car_filled_outlined,
+        _ => Icons.notifications_outlined,
+      };
+
+  static String _relativeTime(DateTime value) {
+    final now = DateTime.now();
+    final diff = now.difference(value);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    final isYesterday =
+        now.difference(DateTime(value.year, value.month, value.day)).inDays ==
+        1;
+    if (isYesterday) return 'Yesterday';
+    return DateFormat('MMM d').format(value);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items = notifications ?? _mockNotifications;
+    final items = _items;
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: SafeArea(
@@ -75,47 +99,51 @@ class NotificationsScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final item = items[index];
-                  return SectionCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppRowIcon(item.icon),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
-                                  ),
-                                  if (item.isUnread)
-                                    const DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.danger,
-                                        shape: BoxShape.circle,
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    onTap: () => _open(item),
+                    child: SectionCard(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppRowIcon(_iconFor(item)),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
                                       ),
-                                      child: SizedBox.square(dimension: 9),
                                     ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(item.message),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                item.timeLabel,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                                    if (!item.read)
+                                      const DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.danger,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: SizedBox.square(dimension: 9),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.xxs),
+                                Text(item.body),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  _relativeTime(item.receivedAt),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },

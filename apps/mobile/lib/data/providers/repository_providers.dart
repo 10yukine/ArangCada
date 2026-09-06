@@ -17,12 +17,14 @@ import '../mock/mock_fare_repository.dart';
 import '../mock/mock_payment_repository.dart';
 import '../mock/mock_safety_repository.dart';
 import '../mock/mock_wallet_repository.dart';
+import '../remote/hive_notifications_repository.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/hybrid_auth_repository.dart';
 import '../remote/supabase_auth_repository.dart';
 import '../repositories/chat_repository.dart';
 import '../repositories/geocoding_repository.dart';
 import '../repositories/location_repository.dart';
+import '../repositories/notifications_repository.dart';
 import '../repositories/routing_repository.dart';
 import '../repositories/fare_repository.dart';
 import '../repositories/payment_repository.dart';
@@ -126,6 +128,16 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
 
 final safetyRepositoryProvider = Provider<SafetyRepository>((ref) {
   return MockSafetyRepository(ref.watch(demoStateProvider));
+});
+
+/// Real for every account, demo or not -- unlike ride/chat/safety, a
+/// notification history has no per-account server state to fake; it is
+/// just whatever this device has actually received, which is equally real
+/// (or equally empty) either way.
+final notificationsRepositoryProvider = Provider<NotificationsRepository>((
+  ref,
+) {
+  return const HiveNotificationsRepository();
 });
 
 final liveRideRepositoryProvider = Provider<SupabaseRideRepository?>((ref) {

@@ -20,6 +20,11 @@ Future<void> main() async {
 
   await Hive.initFlutter();
   await Hive.openBox<String>('arangcada_demo');
+  // Spec 16: real notification history, not the fixed mock list
+  // notifications_screen.dart used to render. Opened here, before
+  // bootstrap(), so it exists regardless of whether push itself is
+  // supported on this platform/build.
+  await Hive.openBox<String>(PushNotificationService.notificationsBoxName);
 
   // FCM push transport only -- Supabase stays the backend for every
   // business decision. Safe to call even without google-services.json;

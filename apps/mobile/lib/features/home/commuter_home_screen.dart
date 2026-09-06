@@ -109,6 +109,14 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
             .first;
         final centre = _fix?.coordinate ?? state.pickup.coordinate;
         final connected = ref.read(liveRideRepositoryProvider) != null;
+        // Read fresh on every rebuild of this ListenableBuilder, same as
+        // `connected` above -- there is no server-pushed invalidation for a
+        // local Hive cache, so "how stale can the dot be" is bounded by
+        // how often this screen already rebuilds, not by anything new.
+        final hasUnreadNotifications = ref
+            .read(notificationsRepositoryProvider)
+            .history()
+            .any((item) => !item.read);
 
         return Scaffold(
           body: SafeArea(
@@ -119,6 +127,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                 _GreetingRow(
                   name: firstName,
                   imageUrl: state.currentUser?.avatarUrl,
+                  hasUnreadNotifications: hasUnreadNotifications,
                 ),
                 const SizedBox(height: 14),
                 ArangField(
@@ -242,10 +251,15 @@ const _nearbyDriverOffsets = <(double, double)>[
 ];
 
 class _GreetingRow extends StatelessWidget {
-  const _GreetingRow({required this.name, this.imageUrl});
+  const _GreetingRow({
+    required this.name,
+    required this.hasUnreadNotifications,
+    this.imageUrl,
+  });
 
   final String name;
   final String? imageUrl;
+  final bool hasUnreadNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +291,7 @@ class _GreetingRow extends StatelessWidget {
         ArangIconButton(
           icon: Icons.notifications_outlined,
           tooltip: 'Notifications',
-          showDot: true,
+          showDot: hasUnreadNotifications,
           onPressed: () => context.push('/notifications'),
         ),
       ],
