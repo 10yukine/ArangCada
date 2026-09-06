@@ -8,6 +8,7 @@ class DemoUser {
     this.isInternalTester = false,
     this.mobileNumber,
     this.phoneVerified = false,
+    this.avatarUrl,
   });
 
   final String email;
@@ -28,11 +29,18 @@ class DemoUser {
   /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
   final bool phoneVerified;
 
-  /// Only [displayName] for now, because it is the only field a user may
-  /// change themselves: `profiles` grants UPDATE on (display_name, phone) to
-  /// authenticated and a trigger blocks role and status outright. Widen this
-  /// when the server permits more, not before -- a copyWith that can express
-  /// changes the database will reject is a trap.
+  /// A freshly minted short-lived signed URL into the `profile-photos`
+  /// bucket, or null when the account has no photo yet. Never persisted --
+  /// `profiles.avatar_path` (the Storage path) is what is stored; this is
+  /// re-minted every time the profile is (re)loaded, per Spec 15.
+  final String? avatarUrl;
+
+  /// [displayName] and [avatarUrl]/[avatarPath] are the only fields a user
+  /// may change themselves: `profiles` grants UPDATE on
+  /// (display_name, phone, avatar_path) to authenticated, and a trigger
+  /// blocks role and status outright. Widen these when the server permits
+  /// more, not before -- a copyWith that can express changes the database
+  /// will reject is a trap.
   DemoUser copyWithDisplayName(String value) => DemoUser(
     email: email,
     displayName: value,
@@ -40,6 +48,17 @@ class DemoUser {
     isInternalTester: isInternalTester,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    avatarUrl: avatarUrl,
+  );
+
+  DemoUser copyWithAvatarUrl(String? value) => DemoUser(
+    email: email,
+    displayName: displayName,
+    role: role,
+    isInternalTester: isInternalTester,
+    mobileNumber: mobileNumber,
+    phoneVerified: phoneVerified,
+    avatarUrl: value,
   );
 
   /// True when the app should hold this account on the verify screen.

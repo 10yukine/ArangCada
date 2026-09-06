@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_matrix.dart';
@@ -135,6 +136,17 @@ class DigitalReceiptScreen extends ConsumerWidget {
                       FilledButton(
                         onPressed: () => context.go('/home'),
                         child: const Text('Back to Home'),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      TextButton(
+                        onPressed: () => showReportIssueFlow(
+                          context: context,
+                          driver: false,
+                          onSubmit: ref
+                              .read(liveRideRepositoryProvider)
+                              ?.createComplaint,
+                        ),
+                        child: const Text('Report an issue with this trip'),
                       ),
                     ],
                   ),

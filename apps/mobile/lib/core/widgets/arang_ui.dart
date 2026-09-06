@@ -376,6 +376,7 @@ class ArangAvatar extends StatelessWidget {
     this.size = AppSizes.avatar,
     this.background = AppColors.primaryFill,
     this.foreground = AppColors.primaryText,
+    this.imageUrl,
     super.key,
   });
 
@@ -383,6 +384,11 @@ class ArangAvatar extends StatelessWidget {
   final double size;
   final Color background;
   final Color foreground;
+
+  /// A signed URL for an uploaded photo (see .pipeline/specs.md Spec 15).
+  /// Null renders today's initials circle unchanged -- every existing call
+  /// site keeps working without passing this.
+  final String? imageUrl;
 
   static String initialsFor(String value) {
     final parts = value
@@ -398,8 +404,7 @@ class ArangAvatar extends StatelessWidget {
         .toUpperCase();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _initials() {
     return Container(
       width: size,
       height: size,
@@ -412,6 +417,24 @@ class ArangAvatar extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: foreground,
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url == null || url.isEmpty) return _initials();
+    // A signed URL can expire or fail to load (offline, revoked); falling
+    // back to the same initials circle beats a broken-image icon or a blank
+    // space where someone's identity is meant to be.
+    return ClipOval(
+      child: Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _initials(),
       ),
     );
   }

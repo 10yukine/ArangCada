@@ -535,6 +535,33 @@ class SupabaseRideRepository extends ChangeNotifier {
     );
   }
 
+  Future<void> createComplaint(String category, String description) async {
+    final tripId = _state.liveTripId;
+    if (tripId == null) {
+      throw StateError('Complaints require an active or completed trip.');
+    }
+    await _client.rpc(
+      'create_complaint',
+      params: {
+        'p_trip_id': tripId,
+        'p_category': category,
+        'p_description': description,
+        'p_idempotency_key': _uuid.v4(),
+      },
+    );
+  }
+
+  Future<void> submitRating({required int stars, String? comment}) async {
+    final tripId = _state.liveTripId;
+    if (tripId == null) {
+      throw StateError('Ratings require a completed trip.');
+    }
+    await _client.rpc(
+      'submit_trip_rating',
+      params: {'p_trip_id': tripId, 'p_stars': stars, 'p_comment': comment},
+    );
+  }
+
   Future<void> reportTripChat({
     required String tripId,
     required String reason,

@@ -1,4 +1,5 @@
 import '../../domain/models/demo_user.dart';
+import '../../domain/models/fare_class_claim.dart';
 import '../repositories/auth_repository.dart';
 import 'demo_state.dart';
 
@@ -153,6 +154,51 @@ class MockAuthRepository implements AuthRepository {
   }) {
     throw const DemoAuthException(
       'Demo accounts are already verified and cannot receive an SMS code.',
+    );
+  }
+
+  // Demo accounts have no server-side profiles row for an admin to review, so
+  // there is nothing real a discount claim could attach to. Explicit throw
+  // rather than a silent no-op, matching the methods above.
+  @override
+  Future<String> uploadFareClassIdPhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) {
+    throw const DemoAuthException(
+      'Demo accounts cannot file a discount-eligibility claim.',
+    );
+  }
+
+  @override
+  Future<FareClassClaim> submitFareClassClaim({
+    required FareClassRequestedClass requestedClass,
+    required String idPhotoPath,
+  }) {
+    throw const DemoAuthException(
+      'Demo accounts cannot file a discount-eligibility claim.',
+    );
+  }
+
+  @override
+  Future<FareClassClaim?> latestFareClassClaim() async => null;
+
+  // Same reasoning as the fare-class claim methods above: a demo account has
+  // no server-side profiles row for avatar_path to live on.
+  @override
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) {
+    throw const DemoAuthException(
+      'Demo accounts cannot change their photo.',
+    );
+  }
+
+  @override
+  Future<DemoUser> updateAvatarPath(String path) {
+    throw const DemoAuthException(
+      'Demo accounts cannot change their photo.',
     );
   }
 }

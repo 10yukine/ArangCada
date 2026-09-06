@@ -115,6 +115,8 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('Sign out')), findsWidgets);
       semantics.dispose();
 
+      await tester.ensureVisible(find.text('Settings'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Compact table density'));
@@ -192,6 +194,45 @@ void main() {
       expect(find.text('Reported conversations · LGU only'), findsNothing);
     },
   );
+
+  testWidgets('Complaints screen shows seeded complaints, scoped by TODA', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    auth.value = const AdminSession(
+      name: 'Coordinator',
+      role: AdminRole.toda,
+      toda: 'Brgy. Real',
+    );
+    addTearDown(() async {
+      auth.value = null;
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complaints'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Driver was late'), findsWidgets);
+    expect(find.textContaining('Ana Reyes about Ramon Dela Cruz'), findsOneWidget);
+  });
+
+  testWidgets('Reviews screen shows both rating directions', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+    addTearDown(() async {
+      auth.value = null;
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reviews'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Ana Reyes rated Ramon Dela Cruz'), findsOneWidget);
+    expect(find.textContaining('Joel Mendoza rated Mika Flores'), findsOneWidget);
+    expect(find.text('Safe ride, a bit late to pick up.'), findsOneWidget);
+  });
 
   testWidgets(
     'LGU can review explicitly consented reported conversation snapshots',
@@ -275,6 +316,8 @@ void main() {
     });
     await tester.pumpWidget(const ProviderScope(child: AdminApp()));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Settings'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
@@ -327,6 +370,8 @@ void main() {
     });
 
     await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Settings'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();

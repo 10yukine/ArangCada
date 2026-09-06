@@ -8,6 +8,9 @@ class AdminSnapshot {
   const AdminSnapshot({
     required this.drivers,
     required this.reports,
+    required this.complaints,
+    required this.ratings,
+    required this.fareClassClaims,
     required this.reportedChats,
     required this.rides,
     required this.boundaries,
@@ -20,6 +23,9 @@ class AdminSnapshot {
 
   final List<Driver> drivers;
   final List<SafetyReport> reports;
+  final List<Complaint> complaints;
+  final List<TripRating> ratings;
+  final List<FareClassClaim> fareClassClaims;
   final List<ReportedTripChat> reportedChats;
   final List<Ride> rides;
   final List<Boundary> boundaries;
@@ -168,7 +174,36 @@ class SupabaseAdminRepository {
       client
           .from('driver_documents')
           .select('driver_id, document_type, status'),
+      client
+          .from('complaints')
+          .select(
+            'id, trip_id, toda_zone_id, complainant_role, '
+            'complainant_display_name, respondent_display_name, toda_name, '
+            'category, description, status, admin_note, created_at, updated_at',
+          )
+          .order('created_at', ascending: false)
+          .limit(100),
+      client
+          .from('trip_ratings')
+          .select(
+            'id, trip_id, toda_zone_id, toda_name, rater_role, '
+            'rater_display_name, ratee_display_name, stars, comment, created_at',
+          )
+          .order('created_at', ascending: false)
+          .limit(100),
       if (session.role == AdminRole.lgu) loadReportedChats(session),
+      // Always last in this list: RLS on fare_class_claims (is_admin() only,
+      // no TODA scoping -- commuters have no TODA affiliation to scope by)
+      // already returns zero rows for a TODA-scoped admin, so no client-side
+      // role branch is needed here the way reportedChats needs one above.
+      client
+          .from('fare_class_claims')
+          .select(
+            'id, claimant_display_name, requested_class, id_photo_path, '
+            'status, rejection_reason, created_at',
+          )
+          .order('created_at', ascending: false)
+          .limit(100),
     ]);
 
     final driverRows = _rows(results[0]);
@@ -180,9 +215,14 @@ class SupabaseAdminRepository {
     final settings = _row(results[6]);
     final zoneRows = _rows(results[7]);
     final documentRows = _rows(results[8]);
+    final complaintRows = _rows(results[9]);
+    final ratingRows = _rows(results[10]);
     final reportedChats = session.role == AdminRole.lgu
-        ? results[9] as List<ReportedTripChat>
+        ? results[11] as List<ReportedTripChat>
         : const <ReportedTripChat>[];
+    // Always the last element (see the comment where it is queried above),
+    // regardless of whether the conditional reportedChats entry shifted it.
+    final fareClassClaimRows = _rows(results.last);
     final zones = {
       for (final zone in zoneRows)
         zone['id'].toString(): zone['name'].toString(),
@@ -227,6 +267,11 @@ class SupabaseAdminRepository {
           }),
       ],
       reports: [for (final row in reportRows) SafetyReport.fromRow(row)],
+      complaints: [for (final row in complaintRows) Complaint.fromRow(row)],
+      ratings: [for (final row in ratingRows) TripRating.fromRow(row)],
+      fareClassClaims: [
+        for (final row in fareClassClaimRows) FareClassClaim.fromRow(row),
+      ],
       reportedChats: reportedChats,
       rides: rides,
       boundaries: _boundaries(zoneRows),
@@ -284,6 +329,8 @@ class SupabaseAdminRepository {
       'driver_profiles',
       'driver_documents',
       'sos_reports',
+      'complaints',
+      'trip_ratings',
       'driver_app_feedback',
       'app_evaluation_settings',
     ]) {
@@ -380,6 +427,52 @@ class SupabaseAdminRepository {
         'p_note': note.trim(),
       },
     );
+  }
+
+  // Unlike updateSafetyReport(), both LGU and TODA-scoped admins may act --
+  // "driver was late" is exactly the kind of thing a TODA officer should
+  // resolve locally, not escalate. update_complaint_status() (server-side)
+  // already enforces is_admin() regardless of scope.
+  Future<void> updateComplaint({
+    required String complaintId,
+    required ReportStatus status,
+    required String note,
+  }) async {
+    await client.rpc(
+      'update_complaint_status',
+      params: {
+        'p_complaint_id': complaintId,
+        'p_status': reportStatusToServer(status),
+        'p_note': note.trim(),
+      },
+    );
+  }
+
+  Future<void> reviewFareClassClaim({
+    required String claimId,
+    required bool approve,
+    String? rejectionReason,
+  }) async {
+    await client.rpc(
+      'review_fare_class_claim',
+      params: {
+        'p_claim_id': claimId,
+        'p_approve': approve,
+        'p_rejection_reason': rejectionReason?.trim(),
+      },
+    );
+  }
+
+  /// A short-lived signed URL for a submitted ID photo. Never a public read
+  /// grant -- `discount_id_select_own_or_admin`'s RLS policy on
+  /// `storage.objects` is what actually decides an admin may read this
+  /// specific path, exactly the same gate the commuter's own client-side read
+  /// of their own photo goes through. See .pipeline/specs.md Spec 14.
+  Future<String> fareClassClaimPhotoUrl(String path) async {
+    final signed = await client.storage
+        .from('discount-eligibility-ids')
+        .createSignedUrl(path, 300);
+    return signed;
   }
 
   Future<void> updateFeedbackSettings({

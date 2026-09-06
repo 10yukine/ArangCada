@@ -156,6 +156,65 @@ void main() {
     },
   );
 
+  test('complaints and reviews stay scoped to the assigned TODA', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(adminProvider.notifier);
+    const lguSession = AdminSession(
+      name: 'LGU evaluator',
+      role: AdminRole.lgu,
+    );
+    const todaSession = AdminSession(
+      name: 'Coordinator',
+      role: AdminRole.toda,
+      toda: 'Brgy. Real',
+    );
+
+    // Both seeded complaints and both seeded ratings are in Brgy. Real, so a
+    // scoped TODA administrator sees exactly the same count an unscoped LGU
+    // administrator does here -- the real proof is that a DIFFERENT TODA
+    // sees none, covered next.
+    expect(controller.visibleComplaints(lguSession), hasLength(2));
+    expect(controller.visibleComplaints(todaSession), hasLength(2));
+    expect(controller.visibleRatings(lguSession), hasLength(2));
+    expect(controller.visibleRatings(todaSession), hasLength(2));
+
+    const otherTodaSession = AdminSession(
+      name: 'Other Coordinator',
+      role: AdminRole.toda,
+      toda: 'Canlubang',
+    );
+    expect(controller.visibleComplaints(otherTodaSession), isEmpty);
+    expect(controller.visibleRatings(otherTodaSession), isEmpty);
+  });
+
+  test('transitioning a complaint updates its status and notes locally', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(adminProvider.notifier);
+    const lguSession = AdminSession(
+      name: 'LGU evaluator',
+      role: AdminRole.lgu,
+    );
+    final before = controller.visibleComplaints(lguSession).firstWhere(
+      (complaint) => complaint.id == 'CPL-2091',
+    );
+    expect(before.status, ReportStatus.newReport);
+
+    controller.transitionComplaint(
+      'CPL-2091',
+      ReportStatus.acknowledged,
+      'Spoke with the driver.',
+    );
+
+    final after = container
+        .read(adminProvider.notifier)
+        .visibleComplaints(lguSession)
+        .firstWhere((complaint) => complaint.id == 'CPL-2091');
+    expect(after.status, ReportStatus.acknowledged);
+    expect(after.notes, contains('Spoke with the driver.'));
+  });
+
   test('demo sessions cannot change an account password', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

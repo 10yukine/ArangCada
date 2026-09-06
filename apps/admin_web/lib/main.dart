@@ -75,6 +75,19 @@ class _AdminAppState extends State<AdminApp> {
             builder: (context, state) => _consolePage(const SafetyScreen()),
           ),
           GoRoute(
+            path: '/complaints',
+            builder: (context, state) =>
+                _consolePage(const ComplaintsScreen()),
+          ),
+          GoRoute(
+            path: '/reviews',
+            builder: (context, state) => _consolePage(const ReviewsScreen()),
+          ),
+          GoRoute(
+            path: '/discount-claims',
+            builder: (context, state) => _consolePage(const ClaimsScreen()),
+          ),
+          GoRoute(
             path: '/evaluation',
             builder: (context, state) => _consolePage(const EvaluationScreen()),
           ),
@@ -428,6 +441,9 @@ class AdminShell extends ConsumerWidget {
     ('/live-map', 'Live map', Icons.map_outlined),
     ('/drivers', 'Drivers', Icons.badge_outlined),
     ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
+    ('/complaints', 'Complaints', Icons.report_problem_outlined),
+    ('/reviews', 'Reviews', Icons.star_outline),
+    ('/discount-claims', 'Discount claims', Icons.percent_outlined),
     ('/evaluation', 'Evaluation', Icons.fact_check_outlined),
     ('/settings', 'Settings', Icons.settings_outlined),
   ];
@@ -476,17 +492,25 @@ class AdminShell extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 28),
-                      for (final item in destinations)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: _NavItem(
-                            path: item.$1,
-                            label: item.$2,
-                            icon: item.$3,
-                            selected: location == item.$1,
-                            expanded: expanded,
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              for (final item in destinations)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: _NavItem(
+                                    path: item.$1,
+                                    label: item.$2,
+                                    icon: item.$3,
+                                    selected: location == item.$1,
+                                    expanded: expanded,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
+                      ),
                       const Spacer(),
                       Container(
                         height: 1,

@@ -1,4 +1,5 @@
 import '../../domain/models/demo_user.dart';
+import '../../domain/models/fare_class_claim.dart';
 import '../mock/demo_state.dart';
 import '../mock/mock_auth_repository.dart';
 import 'auth_repository.dart';
@@ -131,4 +132,51 @@ class HybridAuthRepository implements AuthRepository {
       await _local.signOut();
     }
   }
+
+  // Live only, for the same reason as the OTP methods above: a local test
+  // account has no server-side profiles row for an admin to review, so
+  // routing this to the mock would silently do nothing useful for a real
+  // user whose email happened to look local.
+  @override
+  Future<String> uploadFareClassIdPhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) => _requiredLive.uploadFareClassIdPhoto(
+    bytes: bytes,
+    fileExtension: fileExtension,
+  );
+
+  @override
+  Future<FareClassClaim> submitFareClassClaim({
+    required FareClassRequestedClass requestedClass,
+    required String idPhotoPath,
+  }) => _requiredLive.submitFareClassClaim(
+    requestedClass: requestedClass,
+    idPhotoPath: idPhotoPath,
+  );
+
+  @override
+  Future<FareClassClaim?> latestFareClassClaim() {
+    final current = _state.currentUser;
+    if (current != null && current.isDemoAccount) {
+      return _local.latestFareClassClaim();
+    }
+    return _requiredLive.latestFareClassClaim();
+  }
+
+  // Live only, same reasoning as uploadFareClassIdPhoto/submitFareClassClaim
+  // above: a local test account has no server-side profiles row for
+  // avatar_path to live on.
+  @override
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) => _requiredLive.uploadProfilePhoto(
+    bytes: bytes,
+    fileExtension: fileExtension,
+  );
+
+  @override
+  Future<DemoUser> updateAvatarPath(String path) =>
+      _requiredLive.updateAvatarPath(path);
 }

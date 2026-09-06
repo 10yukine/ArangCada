@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -27,6 +28,7 @@ class DriverRatingScreen extends ConsumerStatefulWidget {
 class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
   final _commentController = TextEditingController();
   int _selectedStars = 0;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -34,12 +36,33 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_selectedStars == 0) return;
+  Future<void> _submit() async {
+    if (_selectedStars == 0 || _submitting) return;
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      setState(() => _submitting = true);
+      try {
+        await liveRides.submitRating(
+          stars: _selectedStars,
+          comment: _commentController.text,
+        );
+      } on Exception {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not send your rating. Try again.'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
     ref
         .read(demoStateProvider)
         .submitDriverTripRating(_selectedStars, _commentController.text);
-    setState(() {});
+    setState(() => _submitting = false);
   }
 
   Future<void> _done() async {
@@ -181,13 +204,27 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 if (submitted == null) ...[
                   FilledButton(
-                    onPressed: _selectedStars == 0 ? null : _submit,
-                    child: const Text('Submit Rating'),
+                    onPressed: _selectedStars == 0 || _submitting
+                        ? null
+                        : _submit,
+                    child: Text(_submitting ? 'Sending...' : 'Submit Rating'),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   TextButton(onPressed: _done, child: const Text('Skip')),
-                ] else
+                ] else ...[
                   FilledButton(onPressed: _done, child: const Text('Done')),
+                  const SizedBox(height: AppSpacing.xs),
+                  TextButton(
+                    onPressed: () => showReportIssueFlow(
+                      context: context,
+                      driver: true,
+                      onSubmit: ref
+                          .read(liveRideRepositoryProvider)
+                          ?.createComplaint,
+                    ),
+                    child: const Text('Report an issue with this trip'),
+                  ),
+                ],
               ],
             );
           },

@@ -79,6 +79,8 @@ class AdminController extends Notifier<AdminState> {
       state = state.copyWith(
         drivers: snapshot.drivers,
         reports: snapshot.reports,
+        complaints: snapshot.complaints,
+        ratings: snapshot.ratings,
         reportedChats: snapshot.reportedChats,
         rides: snapshot.rides,
         boundaries: snapshot.boundaries,
@@ -170,9 +172,31 @@ class AdminController extends Notifier<AdminState> {
       )
       .toList();
 
+  List<Complaint> visibleComplaints(AdminSession session) => state.complaints
+      .where(
+        (complaint) =>
+            session.role == AdminRole.lgu || complaint.toda == session.toda,
+      )
+      .toList();
+
+  List<TripRating> visibleRatings(AdminSession session) => state.ratings
+      .where(
+        (rating) =>
+            session.role == AdminRole.lgu || rating.toda == session.toda,
+      )
+      .toList();
+
   List<ReportedTripChat> visibleReportedChats(AdminSession session) =>
       session.role == AdminRole.lgu
       ? List.unmodifiable(state.reportedChats)
+      : const [];
+
+  /// LGU-only, same as visibleReportedChats -- commuters have no TODA
+  /// affiliation, so there is no per-TODA scope for a discount claim to
+  /// belong to. A TODA-scoped admin sees none, not an error.
+  List<FareClassClaim> visibleFareClassClaims(AdminSession session) =>
+      session.role == AdminRole.lgu
+      ? List.unmodifiable(state.fareClassClaims)
       : const [];
 
   Future<void> refreshReportedChats(AdminSession session) async {
@@ -387,6 +411,94 @@ class AdminController extends Notifier<AdminState> {
     );
   }
 
+  Future<void> transitionComplaint(
+    String id,
+    ReportStatus status,
+    String note,
+  ) async {
+    final current = state.complaints.firstWhere(
+      (complaint) => complaint.id == id,
+    );
+    final session = _connectedSession;
+    if (state.connected) {
+      if (session == null) throw StateError('Administrator session expired.');
+      await ref
+          .read(adminRepositoryProvider)!
+          .updateComplaint(complaintId: id, status: status, note: note);
+      await refresh();
+      return;
+    }
+    state = state.copyWith(
+      complaints: [
+        for (final complaint in state.complaints)
+          if (complaint.id == id)
+            complaint.copyWith(
+              status: status,
+              notes: [
+                ...complaint.notes,
+                note.trim().isEmpty
+                    ? 'Status changed to ${reportStatusLabel(status)}.'
+                    : note.trim(),
+              ],
+            )
+          else
+            complaint,
+      ],
+      audit: [
+        AuditEvent(
+          'Complaint updated',
+          '$id · ${reportStatusLabel(status)}',
+          DateTime.now(),
+          toda: current.toda,
+        ),
+        ...state.audit,
+      ],
+    );
+  }
+
+  /// A short-lived signed URL for a claim's submitted ID photo. Thin
+  /// passthrough kept here rather than read directly off the repository
+  /// provider, matching how every other screen action goes through this
+  /// controller instead of the repository.
+  Future<String> fareClassClaimPhotoUrl(String path) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      // A rejected Future, not a synchronous throw: _ClaimPhoto calls this
+      // from initState() and hands the result straight to a FutureBuilder,
+      // which can only show an error state for a Future that actually
+      // completes with one -- a synchronous throw here crashed the whole
+      // console instead (caught by a widget test, not manually).
+      return Future.error(
+        StateError('Viewing a claim photo requires the live Supabase connection.'),
+      );
+    }
+    return repository.fareClassClaimPhotoUrl(path);
+  }
+
+  /// Real-data-only, unlike transitionComplaint above: there is no seeded
+  /// demo claim to mutate (seedAdminState() carries none, matching how
+  /// reportedChats stays empty in demo mode too), so this always requires the
+  /// live Supabase connection rather than offering a local-mutation fallback.
+  Future<void> reviewFareClassClaim({
+    required String claimId,
+    required bool approve,
+    String? rejectionReason,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Discount claim review requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .reviewFareClassClaim(
+          claimId: claimId,
+          approve: approve,
+          rejectionReason: rejectionReason,
+        );
+    await refresh();
+  }
+
   Future<void> updateFeedbackSettings({
     required AdminSession session,
     required int feedbackInterval,
@@ -523,6 +635,58 @@ AdminState seedAdminState() {
           'Trip data reviewed.',
           'Rider and TODA coordinator notified of resolution.',
         ],
+      ),
+    ],
+    complaints: [
+      Complaint(
+        id: 'CPL-2091',
+        tripId: 'R-2208',
+        complainantName: 'Ana Reyes',
+        complainantRole: 'commuter',
+        respondentName: 'Ramon Dela Cruz',
+        toda: 'Brgy. Real',
+        category: 'driver_late',
+        description: 'Waited about 20 minutes past the confirmed pickup time.',
+        status: ReportStatus.newReport,
+        created: now.subtract(const Duration(hours: 1)),
+        notes: const [],
+      ),
+      Complaint(
+        id: 'CPL-2088',
+        tripId: 'R-2205',
+        complainantName: 'Joel Mendoza',
+        complainantRole: 'driver',
+        respondentName: 'Mika Flores',
+        toda: 'Brgy. Real',
+        category: 'disputed_fare',
+        description: 'Passenger disputed the fare shown on the app after arrival.',
+        status: ReportStatus.resolved,
+        created: now.subtract(const Duration(days: 2)),
+        notes: const ['Fare confirmed correct against the published matrix.'],
+      ),
+    ],
+    ratings: [
+      TripRating(
+        id: 'RTG-3301',
+        tripId: 'R-2208',
+        raterName: 'Ana Reyes',
+        raterRole: 'commuter',
+        rateeName: 'Ramon Dela Cruz',
+        toda: 'Brgy. Real',
+        stars: 4,
+        comment: 'Safe ride, a bit late to pick up.',
+        created: now.subtract(const Duration(hours: 1)),
+      ),
+      TripRating(
+        id: 'RTG-3298',
+        tripId: 'R-2205',
+        raterName: 'Joel Mendoza',
+        raterRole: 'driver',
+        rateeName: 'Mika Flores',
+        toda: 'Brgy. Real',
+        stars: 5,
+        comment: null,
+        created: now.subtract(const Duration(days: 2)),
       ),
     ],
     rides: const [

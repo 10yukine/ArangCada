@@ -200,6 +200,177 @@ class Driver {
   );
 }
 
+class Complaint {
+  const Complaint({
+    required this.id,
+    required this.tripId,
+    required this.complainantName,
+    required this.complainantRole,
+    required this.respondentName,
+    required this.toda,
+    required this.category,
+    required this.description,
+    required this.status,
+    required this.created,
+    required this.notes,
+  });
+
+  factory Complaint.fromRow(Map<String, dynamic> row) => Complaint(
+    id: row['id'].toString(),
+    tripId: row['trip_id']?.toString() ?? '',
+    complainantName: row['complainant_display_name']?.toString() ?? 'Unknown',
+    complainantRole: row['complainant_role']?.toString() ?? 'commuter',
+    respondentName: row['respondent_display_name']?.toString() ?? 'Unknown',
+    toda: row['toda_name']?.toString() ?? 'Assigned TODA',
+    category: row['category']?.toString() ?? 'other',
+    description: row['description']?.toString() ?? '',
+    status: reportStatusFromServer(row['status']?.toString()),
+    created:
+        DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+        DateTime.now(),
+    notes: [
+      if ((row['admin_note'] as String?)?.trim().isNotEmpty ?? false)
+        (row['admin_note'] as String).trim(),
+    ],
+  );
+
+  final String id;
+  final String tripId;
+  final String complainantName;
+  final String complainantRole;
+  final String respondentName;
+  final String toda;
+  final String category;
+  final String description;
+  final ReportStatus status;
+  final DateTime created;
+  final List<String> notes;
+
+  Complaint copyWith({ReportStatus? status, List<String>? notes}) => Complaint(
+    id: id,
+    tripId: tripId,
+    complainantName: complainantName,
+    complainantRole: complainantRole,
+    respondentName: respondentName,
+    toda: toda,
+    category: category,
+    description: description,
+    status: status ?? this.status,
+    created: created,
+    notes: notes ?? this.notes,
+  );
+}
+
+String complaintCategoryLabel(String value) => switch (value) {
+  'driver_late' => 'Driver was late',
+  'unsafe_driving_non_emergency' => 'Unsafe driving',
+  'rude_unprofessional' => 'Rude or unprofessional',
+  'wrong_route' => 'Wrong route taken',
+  'vehicle_condition' => 'Vehicle condition',
+  'overcharged' => 'Overcharged',
+  'passenger_late' => 'Passenger was late',
+  'damaged_vehicle_non_emergency' => 'Damaged vehicle',
+  'disputed_fare' => 'Disputed fare',
+  _ => 'Other',
+};
+
+class TripRating {
+  const TripRating({
+    required this.id,
+    required this.tripId,
+    required this.raterName,
+    required this.raterRole,
+    required this.rateeName,
+    required this.toda,
+    required this.stars,
+    required this.comment,
+    required this.created,
+  });
+
+  factory TripRating.fromRow(Map<String, dynamic> row) => TripRating(
+    id: row['id'].toString(),
+    tripId: row['trip_id']?.toString() ?? '',
+    raterName: row['rater_display_name']?.toString() ?? 'Unknown',
+    raterRole: row['rater_role']?.toString() ?? 'commuter',
+    rateeName: row['ratee_display_name']?.toString() ?? 'Unknown',
+    toda: row['toda_name']?.toString() ?? 'Assigned TODA',
+    stars: (row['stars'] as num?)?.toInt() ?? 0,
+    comment: (row['comment'] as String?)?.trim().isEmpty ?? true
+        ? null
+        : (row['comment'] as String).trim(),
+    created:
+        DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+        DateTime.now(),
+  );
+
+  final String id;
+  final String tripId;
+  final String raterName;
+  final String raterRole;
+  final String rateeName;
+  final String toda;
+  final int stars;
+  final String? comment;
+  final DateTime created;
+}
+
+/// A Student/Senior Citizen/PWD discount claim, reviewed only by an LGU-wide
+/// administrator -- commuters are not TODA-scoped (dispatch is city-wide;
+/// only a trip's pickup records a TODA), so there is no per-TODA breakdown
+/// for a claim to belong to. See .pipeline/specs.md Spec 14.
+class FareClassClaim {
+  const FareClassClaim({
+    required this.id,
+    required this.claimantName,
+    required this.requestedClass,
+    required this.idPhotoPath,
+    required this.status,
+    required this.created,
+    this.rejectionReason,
+  });
+
+  factory FareClassClaim.fromRow(Map<String, dynamic> row) => FareClassClaim(
+    id: row['id'].toString(),
+    claimantName: row['claimant_display_name']?.toString() ?? 'Unknown',
+    requestedClass: row['requested_class']?.toString() ?? 'student',
+    idPhotoPath: row['id_photo_path']?.toString() ?? '',
+    status: row['status']?.toString() ?? 'pending_review',
+    created:
+        DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+        DateTime.now(),
+    rejectionReason: (row['rejection_reason'] as String?)?.trim().isEmpty ??
+            true
+        ? null
+        : (row['rejection_reason'] as String).trim(),
+  );
+
+  final String id;
+  final String claimantName;
+  final String requestedClass;
+  final String idPhotoPath;
+  final String status;
+  final DateTime created;
+  final String? rejectionReason;
+
+  FareClassClaim copyWith({String? status, String? rejectionReason}) =>
+      FareClassClaim(
+        id: id,
+        claimantName: claimantName,
+        requestedClass: requestedClass,
+        idPhotoPath: idPhotoPath,
+        status: status ?? this.status,
+        created: created,
+        rejectionReason: rejectionReason ?? this.rejectionReason,
+      );
+}
+
+String fareClassRequestedClassLabel(String value) => switch (value) {
+  'student' => 'Student',
+  'senior_citizen' => 'Senior Citizen',
+  'pwd' => 'PWD',
+  _ => 'Unknown',
+};
+
 class SafetyReport {
   const SafetyReport({
     required this.id,
@@ -593,6 +764,9 @@ class AdminState {
     required this.boundaries,
     required this.audit,
     required this.feedbackCounts,
+    this.complaints = const [],
+    this.ratings = const [],
+    this.fareClassClaims = const [],
     this.reportedChats = const [],
     this.feedbackSummaries = const [],
     this.feedbackResponses = const [],
@@ -613,6 +787,9 @@ class AdminState {
 
   final List<Driver> drivers;
   final List<SafetyReport> reports;
+  final List<Complaint> complaints;
+  final List<TripRating> ratings;
+  final List<FareClassClaim> fareClassClaims;
   final List<Ride> rides;
   final List<Boundary> boundaries;
   final List<AuditEvent> audit;
@@ -637,6 +814,9 @@ class AdminState {
   AdminState copyWith({
     List<Driver>? drivers,
     List<SafetyReport>? reports,
+    List<Complaint>? complaints,
+    List<TripRating>? ratings,
+    List<FareClassClaim>? fareClassClaims,
     List<Ride>? rides,
     List<AuditEvent>? audit,
     List<Boundary>? boundaries,
@@ -662,6 +842,9 @@ class AdminState {
   }) => AdminState(
     drivers: drivers ?? this.drivers,
     reports: reports ?? this.reports,
+    complaints: complaints ?? this.complaints,
+    ratings: ratings ?? this.ratings,
+    fareClassClaims: fareClassClaims ?? this.fareClassClaims,
     rides: rides ?? this.rides,
     boundaries: boundaries ?? this.boundaries,
     audit: audit ?? this.audit,

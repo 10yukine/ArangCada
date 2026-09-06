@@ -308,6 +308,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       name: state.currentUser?.displayName ?? 'Driver',
                       background: AppColors.primary,
                       foreground: Colors.white,
+                      imageUrl: state.currentUser?.avatarUrl,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(

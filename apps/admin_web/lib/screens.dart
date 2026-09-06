@@ -2265,6 +2265,709 @@ class _LabelValue extends StatelessWidget {
   );
 }
 
+class ComplaintsScreen extends ConsumerStatefulWidget {
+  const ComplaintsScreen({super.key});
+  @override
+  ConsumerState<ComplaintsScreen> createState() => _ComplaintsScreenState();
+}
+
+class _ComplaintsScreenState extends ConsumerState<ComplaintsScreen> {
+  String? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = auth.value!;
+    final complaints = ref
+        .read(adminProvider.notifier)
+        .visibleComplaints(session);
+    if (complaints.isNotEmpty &&
+        !complaints.any((complaint) => complaint.id == selected)) {
+      selected = complaints.first.id;
+    }
+    final active = complaints
+        .where((complaint) => complaint.id == selected)
+        .firstOrNull;
+    final list = Panel(
+      padding: const EdgeInsets.all(10),
+      child: complaints.isEmpty
+          ? const EmptyState(message: 'No complaints in this scope.')
+          : Column(
+              children: [
+                for (final complaint in complaints)
+                  _ComplaintTile(
+                    complaint: complaint,
+                    selected: complaint.id == selected,
+                    onTap: () => setState(() => selected = complaint.id),
+                  ),
+              ],
+            ),
+    );
+    final detail = active == null
+        ? const Panel(child: EmptyState(message: 'Select a complaint.'))
+        : _ComplaintDetail(active);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PageHeading(
+          title: 'Complaints',
+          subtitle:
+              'Non-emergency issues either party filed about the other -- driver lateness, disputed fares, and similar. Not for danger; see Safety reports for that.',
+        ),
+        const SizedBox(height: 22),
+        LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth < 950
+              ? Column(children: [list, const SizedBox(height: 14), detail])
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 380, child: list),
+                    const SizedBox(width: 16),
+                    Expanded(child: detail),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ComplaintTile extends StatelessWidget {
+  const _ComplaintTile({
+    required this.complaint,
+    required this.selected,
+    required this.onTap,
+  });
+  final Complaint complaint;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    button: true,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: selected ? AdminColors.primaryTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    complaintCategoryLabel(complaint.category),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                StatusPill(
+                  reportStatusLabel(complaint.status),
+                  tone: reportTone(complaint.status),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${complaint.complainantName} about ${complaint.respondentName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${complaint.toda} · ${shortTime(complaint.created)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ComplaintDetail extends ConsumerWidget {
+  const _ComplaintDetail(this.complaint);
+  final Complaint complaint;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    complaintCategoryLabel(complaint.category),
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${complaint.toda} · submitted ${shortTime(complaint.created)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            StatusPill(
+              reportStatusLabel(complaint.status),
+              tone: reportTone(complaint.status),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text(
+          complaint.description,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 22,
+          runSpacing: 12,
+          children: [
+            _LabelValue(
+              complaint.complainantRole == 'driver' ? 'Driver' : 'Commuter',
+              complaint.complainantName,
+            ),
+            _LabelValue(
+              complaint.complainantRole == 'driver' ? 'Commuter' : 'Driver',
+              complaint.respondentName,
+            ),
+            _LabelValue('TODA', complaint.toda),
+          ],
+        ),
+        const SizedBox(height: 22),
+        Text('Response log', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 8),
+        for (final note in complaint.notes)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  size: 19,
+                  color: AdminColors.success,
+                ),
+                const SizedBox(width: 9),
+                Expanded(child: Text(note)),
+              ],
+            ),
+          ),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton(
+              onPressed: complaint.status == ReportStatus.resolved
+                  ? null
+                  : () => _updateComplaint(context, ref, ReportStatus.resolved),
+              child: const Text('Mark resolved'),
+            ),
+            OutlinedButton(
+              onPressed: () =>
+                  _updateComplaint(context, ref, ReportStatus.acknowledged),
+              child: const Text('Acknowledge'),
+            ),
+            OutlinedButton(
+              onPressed: () =>
+                  _updateComplaint(context, ref, ReportStatus.investigating),
+              child: const Text('Investigate'),
+            ),
+            OutlinedButton(
+              onPressed: () =>
+                  _updateComplaint(context, ref, ReportStatus.dismissed),
+              child: const Text('Dismiss'),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _updateComplaint(
+    BuildContext context,
+    WidgetRef ref,
+    ReportStatus status,
+  ) async {
+    final note = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Set status to ${reportStatusLabel(status)}?'),
+        content: TextField(
+          controller: note,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Response note',
+            hintText: 'Add context for the audit trail',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      try {
+        await ref
+            .read(adminProvider.notifier)
+            .transitionComplaint(complaint.id, status, note.text);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Complaint is now ${reportStatusLabel(status).toLowerCase()}.',
+            ),
+          ),
+        );
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This complaint could not be updated.')),
+        );
+      }
+    }
+    note.dispose();
+  }
+}
+
+/// Student/Senior Citizen/PWD discount claims, LGU-only: commuters have no
+/// TODA affiliation, so there is no per-TODA scope for a claim to belong to
+/// (see AdminController.visibleFareClassClaims). See .pipeline/specs.md
+/// Spec 14.
+class ClaimsScreen extends ConsumerStatefulWidget {
+  const ClaimsScreen({super.key});
+  @override
+  ConsumerState<ClaimsScreen> createState() => _ClaimsScreenState();
+}
+
+class _ClaimsScreenState extends ConsumerState<ClaimsScreen> {
+  String? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = auth.value!;
+    if (session.role != AdminRole.lgu) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeading(
+            title: 'Discount claims',
+            subtitle:
+                'Student/Senior Citizen/PWD fare-class claims are reviewed city-wide.',
+          ),
+          SizedBox(height: 22),
+          Panel(
+            child: EmptyState(
+              message:
+                  'Discount claims are reviewed by an LGU administrator, not a TODA desk -- commuters have no TODA affiliation to scope this by.',
+            ),
+          ),
+        ],
+      );
+    }
+    final claims = ref.read(adminProvider.notifier).visibleFareClassClaims(session);
+    if (claims.isNotEmpty && !claims.any((claim) => claim.id == selected)) {
+      selected = claims.first.id;
+    }
+    final active = claims.where((claim) => claim.id == selected).firstOrNull;
+    final list = Panel(
+      padding: const EdgeInsets.all(10),
+      child: claims.isEmpty
+          ? const EmptyState(message: 'No discount claims pending review.')
+          : Column(
+              children: [
+                for (final claim in claims)
+                  _ClaimTile(
+                    claim: claim,
+                    selected: claim.id == selected,
+                    onTap: () => setState(() => selected = claim.id),
+                  ),
+              ],
+            ),
+    );
+    final detail = active == null
+        ? const Panel(child: EmptyState(message: 'Select a claim.'))
+        : _ClaimDetail(active);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PageHeading(
+          title: 'Discount claims',
+          subtitle:
+              "Student/Senior Citizen/PWD fare-class claims -- manual ID review, not automatic reading. Approving flips the commuter's billing to the discounted rate on their next booking.",
+        ),
+        const SizedBox(height: 22),
+        LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth < 950
+              ? Column(children: [list, const SizedBox(height: 14), detail])
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 380, child: list),
+                    const SizedBox(width: 16),
+                    Expanded(child: detail),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ClaimTile extends StatelessWidget {
+  const _ClaimTile({
+    required this.claim,
+    required this.selected,
+    required this.onTap,
+  });
+  final FareClassClaim claim;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    button: true,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: selected ? AdminColors.primaryTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    fareClassRequestedClassLabel(claim.requestedClass),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                StatusPill(
+                  fareClassClaimStatusLabel(claim.status),
+                  tone: fareClassClaimTone(claim.status),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              claim.claimantName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              shortTime(claim.created),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ClaimDetail extends ConsumerWidget {
+  const _ClaimDetail(this.claim);
+  final FareClassClaim claim;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = claim.status == 'pending_review';
+    return Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fareClassRequestedClassLabel(claim.requestedClass),
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Submitted ${shortTime(claim.created)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              StatusPill(
+                fareClassClaimStatusLabel(claim.status),
+                tone: fareClassClaimTone(claim.status),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _LabelValue('Claimant', claim.claimantName),
+          if (claim.rejectionReason != null) ...[
+            const SizedBox(height: 18),
+            Text('Rejection reason', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            Text(claim.rejectionReason!),
+          ],
+          const SizedBox(height: 22),
+          Text('Submitted ID', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          _ClaimPhoto(claim: claim),
+          const SizedBox(height: 8),
+          Text(
+            "Only this administrator's view mints a signed link to this file -- it is never a public URL, and it expires in 5 minutes.",
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (pending) ...[
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton(
+                  onPressed: () => _decide(context, ref, claim, approve: true),
+                  child: const Text('Approve'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _decide(context, ref, claim, approve: false),
+                  child: const Text('Reject'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _decide(
+    BuildContext context,
+    WidgetRef ref,
+    FareClassClaim claim, {
+    required bool approve,
+  }) async {
+    String? reason;
+    if (!approve) {
+      final controller = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reject this claim?'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Reason',
+              hintText: 'Required -- shown to no one but the audit trail',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(context, controller.text.trim().isNotEmpty),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+      reason = controller.text.trim();
+      controller.dispose();
+      if (confirmed != true || !context.mounted) return;
+    }
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .reviewFareClassClaim(
+            claimId: claim.id,
+            approve: approve,
+            rejectionReason: reason,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve ? 'Claim approved.' : 'Claim rejected.'),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This claim could not be updated.')),
+      );
+    }
+  }
+}
+
+class _ClaimPhoto extends ConsumerStatefulWidget {
+  const _ClaimPhoto({required this.claim});
+  final FareClassClaim claim;
+  @override
+  ConsumerState<_ClaimPhoto> createState() => _ClaimPhotoState();
+}
+
+class _ClaimPhotoState extends ConsumerState<_ClaimPhoto> {
+  late Future<String> _url;
+
+  @override
+  void initState() {
+    super.initState();
+    _url = ref
+        .read(adminProvider.notifier)
+        .fareClassClaimPhotoUrl(widget.claim.idPhotoPath);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ClaimPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.claim.idPhotoPath != widget.claim.idPhotoPath) {
+      _url = ref
+          .read(adminProvider.notifier)
+          .fareClassClaimPhotoUrl(widget.claim.idPhotoPath);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _url,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox(
+            height: 80,
+            child: Center(child: Text('Could not load the submitted photo.')),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            snapshot.data!,
+            height: 260,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const SizedBox(
+              height: 80,
+              child: Center(child: Text('Could not load the submitted photo.')),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Read-only -- LGU/TODA administrators read both directions' stars and
+/// comments here, but there is no status workflow: a rating is not a case to
+/// resolve, only a record to see. See .pipeline/specs.md Spec 13.
+class ReviewsScreen extends ConsumerWidget {
+  const ReviewsScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = auth.value!;
+    final ratings = ref.read(adminProvider.notifier).visibleRatings(session);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PageHeading(
+          title: 'Reviews',
+          subtitle:
+              'Every trip rating, both directions -- commuter about driver, and driver about commuter.',
+        ),
+        const SizedBox(height: 22),
+        Panel(
+          padding: const EdgeInsets.all(10),
+          child: ratings.isEmpty
+              ? const EmptyState(message: 'No reviews in this scope.')
+              : Column(
+                  children: [for (final rating in ratings) _RatingTile(rating)],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RatingTile extends StatelessWidget {
+  const _RatingTile(this.rating);
+  final TripRating rating;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.only(bottom: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${rating.raterName} rated ${rating.rateeName}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Row(
+              children: [
+                for (var star = 1; star <= 5; star++)
+                  Icon(
+                    star <= rating.stars ? Icons.star : Icons.star_border,
+                    size: 18,
+                    color: AdminColors.primary,
+                  ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${rating.raterRole == 'driver' ? 'Driver' : 'Commuter'} · ${rating.toda} · ${shortTime(rating.created)}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (rating.comment != null) ...[
+          const SizedBox(height: 6),
+          Text(rating.comment!, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ],
+    ),
+  );
+}
+
 class _ComparisonRow extends StatelessWidget {
   const _ComparisonRow(this.measure, this.manual, this.arangcada);
   final String measure;

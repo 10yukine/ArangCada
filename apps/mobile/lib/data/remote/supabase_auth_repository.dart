@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/models/demo_user.dart';
+import '../../domain/models/fare_class_claim.dart';
 import '../mock/demo_state.dart';
 import '../repositories/auth_repository.dart';
 
@@ -23,6 +26,7 @@ class SupabaseAuthRepository implements AuthRepository {
     bool isInternalTester = false,
     String? mobileNumber,
     bool phoneVerified = false,
+    String? avatarUrl,
   }) {
     final normalizedName = displayName?.trim();
     final fallbackName = email
@@ -40,6 +44,7 @@ class SupabaseAuthRepository implements AuthRepository {
       isInternalTester: isInternalTester,
       mobileNumber: mobileNumber,
       phoneVerified: phoneVerified,
+      avatarUrl: avatarUrl,
     );
   }
 
@@ -73,7 +78,9 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<DemoUser> restoreProfile(User user) async {
     final profile = await _client
         .from('profiles')
-        .select('role, display_name, is_internal_tester, phone_verified_at')
+        .select(
+          'role, display_name, is_internal_tester, phone_verified_at, avatar_path',
+        )
         .eq('id', user.id)
         .single();
     final role = profile['role'] as String?;
@@ -93,9 +100,26 @@ class SupabaseAuthRepository implements AuthRepository {
       // that mirrors it can lag a hair behind the session, so accept either.
       phoneVerified:
           profile['phone_verified_at'] != null || user.phoneConfirmedAt != null,
+      avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );
     _state.setCurrentUser(mapped);
     return mapped;
+  }
+
+  /// A fresh signed URL for [avatarPath], or null when there is no photo or
+  /// the mint fails. Deliberately swallowed rather than thrown -- a stale or
+  /// unreadable avatar must never block the rest of profile restoration
+  /// (sign-in, name, phone-verification state); it should just fall back to
+  /// the initials `ArangAvatar` already renders for a null imageUrl.
+  Future<String?> _signedAvatarUrl(String? avatarPath) async {
+    if (avatarPath == null || avatarPath.isEmpty) return null;
+    try {
+      return await _client.storage
+          .from('profile-photos')
+          .createSignedUrl(avatarPath, 300);
+    } on StorageException {
+      return null;
+    }
   }
 
   @override
@@ -305,5 +329,141 @@ class SupabaseAuthRepository implements AuthRepository {
     } finally {
       _state.setCurrentUser(null);
     }
+  }
+
+  @override
+  Future<String> uploadFareClassIdPhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const DemoAuthException('Sign in again to submit a claim.');
+    }
+    // auth.uid()-prefixed, per discount_id_insert_own's Storage policy --
+    // anything else is rejected server-side regardless of what this writes.
+    final path =
+        '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+    try {
+      await _client.storage
+          .from('discount-eligibility-ids')
+          .uploadBinary(path, Uint8List.fromList(bytes));
+    } on StorageException catch (error) {
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not upload that photo. Try again.'
+            : error.message,
+      );
+    }
+    return path;
+  }
+
+  @override
+  Future<FareClassClaim> submitFareClassClaim({
+    required FareClassRequestedClass requestedClass,
+    required String idPhotoPath,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'submit_fare_class_claim',
+        params: {
+          'p_class': requestedClass.wireValue,
+          'p_id_photo_path': idPhotoPath,
+        },
+      );
+      return FareClassClaim.fromRow(_row(result));
+    } on PostgrestException catch (error) {
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not file your claim. Try again.'
+            : error.message,
+      );
+    }
+  }
+
+  @override
+  Future<FareClassClaim?> latestFareClassClaim() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+    try {
+      final row = await _client
+          .from('fare_class_claims')
+          .select()
+          .eq('profile_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return row == null ? null : FareClassClaim.fromRow(row);
+    } on PostgrestException catch (error) {
+      // Unlike the two methods above, this one is called from initState() on
+      // every visit to the screen, not from a button press -- an uncaught
+      // PostgrestException here doesn't just fail one action, it leaves
+      // _refresh()'s try/catch (which only matches DemoAuthException) never
+      // reaching its setState(loading = false), spinning forever instead of
+      // showing an error. Found on a physical device, 6 Sep 2026.
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not load your claim status. Try again.'
+            : error.message,
+      );
+    }
+  }
+
+  @override
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const DemoAuthException('Sign in again to change your photo.');
+    }
+    // auth.uid()-prefixed, per profile_photos_insert_own's Storage policy --
+    // anything else is rejected server-side regardless of what this writes.
+    final path =
+        '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+    try {
+      await _client.storage
+          .from('profile-photos')
+          .uploadBinary(path, Uint8List.fromList(bytes));
+    } on StorageException catch (error) {
+      throw DemoAuthException(
+        error.message.isEmpty
+            ? 'Could not upload that photo. Try again.'
+            : error.message,
+      );
+    }
+    return path;
+  }
+
+  @override
+  Future<DemoUser> updateAvatarPath(String path) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const DemoAuthException('Sign in again to change your photo.');
+    }
+    try {
+      await _client
+          .from('profiles')
+          .update({'avatar_path': path})
+          .eq('id', user.id);
+    } on PostgrestException {
+      throw const DemoAuthException('Could not save your photo. Try again.');
+    }
+    // Re-read rather than patching local state, matching updateDisplayName --
+    // this is also what mints the signed URL the UI actually displays.
+    return restoreProfile(user);
+  }
+
+  /// `rpc()` returns a bare object for a rowtype-returning function on some
+  /// PostgREST/postgrest-dart versions and a single-element list on others --
+  /// mirrors `SupabaseRideRepository._row()`'s defensive cast.
+  Map<String, dynamic> _row(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is List && value.isNotEmpty && value.first is Map) {
+      return Map<String, dynamic>.from(value.first as Map);
+    }
+    throw const FormatException('The server returned an invalid response.');
   }
 }

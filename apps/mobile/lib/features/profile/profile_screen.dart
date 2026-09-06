@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -10,6 +12,7 @@ import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/dashboard_back_button.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
 
 /// One profile screen for both roles.
@@ -56,6 +59,138 @@ class ProfileScreen extends ConsumerWidget {
     if (context.mounted) context.go('/login');
   }
 
+  /// Take a photo or choose one, crop it to a square, upload it, and point
+  /// profiles.avatar_path at it. See .pipeline/specs.md Spec 15 -- this is
+  /// the real implementation the "Change photo" button used to fake with
+  /// `'Photo change is a demo-only action.'`.
+  ///
+  /// The crop step doubles as the confirm step: image_cropper's own screen
+  /// has Cancel and Done actions, and cancelling returns null here, so
+  /// nothing uploads until the user has actually confirmed a crop. A picked
+  /// photo is never live on the account before that confirmation.
+  Future<void> _changePhoto(BuildContext context, WidgetRef ref) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !context.mounted) return;
+
+    XFile? file;
+    try {
+      // No maxWidth/imageQuality here -- image_cropper's own maxWidth/
+      // maxHeight/compressQuality below are what actually produce the
+      // uploaded file; this pick is generously capped only to keep a huge
+      // camera-native file from being loaded into the cropper's memory.
+      file = await ImagePicker().pickImage(source: source, maxWidth: 2000);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the camera or gallery.')),
+      );
+      return;
+    }
+    if (file == null || !context.mounted) return;
+
+    CroppedFile? cropped;
+    try {
+      cropped = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 85,
+        // Locked to a square, matching the circular avatar it becomes --
+        // this is not a general-purpose crop tool, so there is no ratio
+        // picker to leave enabled.
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop photo',
+            toolbarColor: AppColors.primary,
+            toolbarWidgetColor: Colors.white,
+            activeControlsWidgetColor: AppColors.primary,
+            cropStyle: CropStyle.circle,
+            lockAspectRatio: true,
+          ),
+        ],
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not crop that photo.')),
+      );
+      return;
+    }
+    // Null means the user tapped Cancel on the crop screen -- nothing
+    // uploads, exactly like tapping Cancel anywhere else in this flow.
+    if (cropped == null || !context.mounted) return;
+
+    final bytes = await cropped.readAsBytes();
+    if (!context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final auth = ref.read(authRepositoryProvider);
+    try {
+      final dotIndex = cropped.path.lastIndexOf('.');
+      final extension = dotIndex == -1
+          ? 'jpg'
+          : cropped.path.substring(dotIndex + 1).toLowerCase();
+      final path = await auth.uploadProfilePhoto(
+        bytes: bytes,
+        fileExtension: extension,
+      );
+      await auth.updateAvatarPath(path);
+      if (!context.mounted) return;
+      _dismissLoadingDialog(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on DemoAuthException catch (error) {
+      if (!context.mounted) return;
+      _dismissLoadingDialog(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
+  /// `showDialog` defaults to `useRootNavigator: true`, pushing onto the
+  /// outermost Navigator rather than go_router's own page-stack Navigator.
+  /// `Navigator.pop(context)` resolves to the *nearest* Navigator from
+  /// [context] instead -- on a physical device, that turned out to be
+  /// go_router's, so it popped this whole screen's route off the stack
+  /// instead of dismissing the dialog, crashing with "You have popped the
+  /// last page off of the stack". `rootNavigator: true` here targets the
+  /// same Navigator the dialog actually opened on. Found on a physical
+  /// device, 6 Sep 2026 -- the bare `MaterialApp(home: ...)` test harness
+  /// has only one Navigator, so this could not have been caught there.
+  void _dismissLoadingDialog(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
@@ -86,6 +221,8 @@ class ProfileScreen extends ConsumerWidget {
                         ? 'Body no. 024 · Calamba TODA'
                         : (user?.email ?? ''),
                     isDriver: isDriver,
+                    imageUrl: user?.avatarUrl,
+                    onChangePhoto: () => _changePhoto(context, ref),
                   ),
                 ),
                 if (isDriver) ...[
@@ -202,11 +339,15 @@ class _ProfileHeader extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.isDriver,
+    required this.onChangePhoto,
+    this.imageUrl,
   });
 
   final String name;
   final String subtitle;
   final bool isDriver;
+  final String? imageUrl;
+  final VoidCallback onChangePhoto;
 
   /// The pencil replaces the old "Personal Information" row on both sides.
   /// For a driver most fields are LGU-issued and read-only, so the sheet
@@ -245,11 +386,7 @@ class _ProfileHeader extends StatelessWidget {
                 variant: ArangButtonVariant.ghost,
                 onPressed: () {
                   Navigator.pop(sheetContext);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Photo change is a demo-only action.'),
-                    ),
-                  );
+                  onChangePhoto();
                 },
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -277,6 +414,7 @@ class _ProfileHeader extends StatelessWidget {
           size: 52,
           background: isDriver ? AppColors.primary : AppColors.primaryFill,
           foreground: isDriver ? Colors.white : AppColors.primaryText,
+          imageUrl: imageUrl,
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(

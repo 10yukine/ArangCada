@@ -19,6 +19,7 @@ class RatingScreen extends ConsumerStatefulWidget {
 class _RatingScreenState extends ConsumerState<RatingScreen> {
   final _commentController = TextEditingController();
   int _selectedStars = 0;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -26,8 +27,29 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_selectedStars == 0) return;
+  Future<void> _submit() async {
+    if (_selectedStars == 0 || _submitting) return;
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides != null) {
+      setState(() => _submitting = true);
+      try {
+        await liveRides.submitRating(
+          stars: _selectedStars,
+          comment: _commentController.text,
+        );
+      } on Exception {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not send your rating. Try again.'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
     ref
         .read(demoStateProvider)
         .submitTripRating(_selectedStars, _commentController.text);
@@ -138,8 +160,10 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 if (submitted == null) ...[
                   FilledButton(
-                    onPressed: _selectedStars == 0 ? null : _submit,
-                    child: const Text('Submit Rating'),
+                    onPressed: _selectedStars == 0 || _submitting
+                        ? null
+                        : _submit,
+                    child: Text(_submitting ? 'Sending...' : 'Submit Rating'),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   TextButton(

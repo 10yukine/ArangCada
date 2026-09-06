@@ -1,4 +1,5 @@
 import '../../domain/models/demo_user.dart';
+import '../../domain/models/fare_class_claim.dart';
 
 abstract interface class AuthRepository {
   DemoUser? get currentUser;
@@ -79,6 +80,43 @@ abstract interface class AuthRepository {
     required String e164Phone,
     required String token,
   });
+
+  /// Uploads an ID photo under the caller's own `auth.uid()`-prefixed path in
+  /// the `discount-eligibility-ids` bucket and returns the resulting Storage
+  /// path (not a URL) -- what [submitFareClassClaim] needs as
+  /// `p_id_photo_path`. See .pipeline/specs.md Spec 14.
+  Future<String> uploadFareClassIdPhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  });
+
+  /// Files a Student/Senior Citizen/PWD discount claim referencing an
+  /// already-uploaded ID photo. Recorded as `pending_review` only -- the
+  /// caller's fare stays `standard` until an administrator approves it
+  /// through `review_fare_class_claim()`.
+  Future<FareClassClaim> submitFareClassClaim({
+    required FareClassRequestedClass requestedClass,
+    required String idPhotoPath,
+  });
+
+  /// The caller's most recently filed discount claim, or null if none exists.
+  /// Lets the screen show pending/approved/rejected instead of assuming a
+  /// past submission is still pending.
+  Future<FareClassClaim?> latestFareClassClaim();
+
+  /// Uploads [bytes] under the caller's own `auth.uid()`-prefixed path in
+  /// the `profile-photos` bucket and returns the resulting Storage path
+  /// (not a URL) -- what [updateAvatarPath] expects. See
+  /// .pipeline/specs.md Spec 15.
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  });
+
+  /// Sets `profiles.avatar_path` to [path] (already uploaded via
+  /// [uploadProfilePhoto]) and returns the refreshed user, including a
+  /// freshly minted signed URL ([DemoUser.avatarUrl]) for immediate display.
+  Future<DemoUser> updateAvatarPath(String path);
 }
 
 class RegistrationResult {

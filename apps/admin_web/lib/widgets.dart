@@ -122,6 +122,18 @@ StatusTone reportTone(ReportStatus status) => switch (status) {
   ReportStatus.dismissed => StatusTone.neutral,
 };
 
+String fareClassClaimStatusLabel(String status) => switch (status) {
+  'approved' => 'Approved',
+  'rejected' => 'Rejected',
+  _ => 'Pending review',
+};
+
+StatusTone fareClassClaimTone(String status) => switch (status) {
+  'approved' => StatusTone.success,
+  'rejected' => StatusTone.danger,
+  _ => StatusTone.warning,
+};
+
 class MetricCard extends StatelessWidget {
   const MetricCard({
     super.key,

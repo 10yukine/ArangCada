@@ -1,6 +1,7 @@
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/repositories/auth_repository.dart';
+import 'package:arangcada/domain/models/fare_class_claim.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
 import 'package:arangcada/features/profile/change_password_screen.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +70,30 @@ class _FakeAuthRepository implements AuthRepository {
     required String e164Phone,
     required String token,
   }) => throw UnimplementedError();
+
+  @override
+  Future<String> uploadFareClassIdPhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<FareClassClaim> submitFareClassClaim({
+    required FareClassRequestedClass requestedClass,
+    required String idPhotoPath,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<FareClassClaim?> latestFareClassClaim() => throw UnimplementedError();
+
+  @override
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<DemoUser> updateAvatarPath(String path) => throw UnimplementedError();
 }
 
 void main() {

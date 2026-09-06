@@ -116,7 +116,10 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               children: [
-                _GreetingRow(name: firstName),
+                _GreetingRow(
+                  name: firstName,
+                  imageUrl: state.currentUser?.avatarUrl,
+                ),
                 const SizedBox(height: 14),
                 ArangField(
                   icon: Icons.search,
@@ -239,15 +242,16 @@ const _nearbyDriverOffsets = <(double, double)>[
 ];
 
 class _GreetingRow extends StatelessWidget {
-  const _GreetingRow({required this.name});
+  const _GreetingRow({required this.name, this.imageUrl});
 
   final String name;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        ArangAvatar(name: name),
+        ArangAvatar(name: name, imageUrl: imageUrl),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(

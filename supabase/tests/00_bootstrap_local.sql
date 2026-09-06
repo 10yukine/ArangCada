@@ -155,3 +155,68 @@ on conflict (name) do nothing;
 
 grant usage on schema vault to anon, authenticated, service_role;
 grant select on vault.decrypted_secrets to anon, authenticated, service_role;
+
+
+-- ---------------------------------------------------------------------------
+-- Storage stub (local only)
+-- ---------------------------------------------------------------------------
+-- 20260905040000_fare_class_claims.sql is the first migration in this repo
+-- to touch Supabase Storage (storage.buckets, storage.objects,
+-- storage.foldername()). Hosted Supabase provisions that schema itself; a
+-- plain PostgreSQL instance has none of it, so without this stub every
+-- Storage statement in that migration would fail with "schema storage does
+-- not exist" and abort the whole local run (unlike the pg_net/Vault stubs
+-- above, a missing schema is not something the "is not available" skip in
+-- run_db_tests.sh catches).
+--
+-- Columns and storage.foldername() are trimmed to exactly what this repo's
+-- policies use -- not a full reproduction of Supabase's real Storage schema.
+--
+-- RLS enablement lives HERE, not in the migration, reversed 6 Sep 2026: the
+-- migration's own `alter table storage.objects enable row level security`
+-- actually failed applying to the real hosted project with `must be owner of
+-- table objects` -- storage.objects there is owned by supabase_storage_admin,
+-- not the migration role, and Postgres requires ownership to attempt the
+-- ALTER even though hosted Supabase already has RLS on by default. So the
+-- migration no longer touches it at all, and this stub -- owned by the same
+-- role that creates it -- enables it itself, matching hosted's real state
+-- without needing the privilege hosted never grants.
+
+create schema if not exists storage;
+
+create table if not exists storage.buckets (
+  id     text primary key,
+  name   text not null,
+  public boolean not null default false
+);
+
+create table if not exists storage.objects (
+  id        uuid primary key default gen_random_uuid(),
+  bucket_id text references storage.buckets (id),
+  name      text,
+  owner     uuid,
+  created_at timestamptz not null default now()
+);
+
+alter table storage.objects enable row level security;
+
+-- Real Supabase's storage.foldername() returns every path segment except the
+-- filename itself, e.g. 'uid-123/id.jpg' -> ARRAY['uid-123']. Policies index
+-- [1] to get the owning user's folder.
+create or replace function storage.foldername(name text)
+returns text[]
+language sql
+immutable
+as $$
+  select case
+    when array_length(string_to_array(name, '/'), 1) <= 1 then array[]::text[]
+    else (string_to_array(name, '/'))[1 : array_length(string_to_array(name, '/'), 1) - 1]
+  end;
+$$;
+
+grant usage on schema storage to anon, authenticated, service_role;
+grant select on storage.buckets to anon, authenticated, service_role;
+-- Matches how the public schema is pre-granted above: broad table
+-- access, RLS is the real gate. Hosted Supabase's storage schema is
+-- configured the same way.
+grant select, insert on storage.objects to anon, authenticated, service_role;
