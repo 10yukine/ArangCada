@@ -219,10 +219,15 @@ select is(
 
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000075d1';
 
-select throws_ok(
-  $$select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')$$,
-  '42501', null,
-  'SECURITY: a stranger to this trip cannot look up either party''s avatar_path'
+select is(
+  (select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')),
+  null,
+  'SECURITY: a stranger to this trip gets null looking up either party''s '
+  'avatar_path -- identical to every other nothing-to-show case, not a '
+  'distinguishable exception. Fixed 6 Sep 2026 (later still, cont. VI), '
+  'see 20260906040000_trip_counterpart_avatar_no_probe.sql -- the '
+  'original raised 42501 here specifically, letting a caller distinguish '
+  'not-a-participant from trip-does-not-exist'
 );
 
 select is(
