@@ -331,6 +331,8 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 expanded: expanded,
                 eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
                 etaFallback: state.forceEtaFallback,
+                driverName: state.liveDriverName ?? 'Marco Dela Cruz',
+                driverAvatarUrl: state.liveCounterpartAvatarUrl,
                 awaitingConfirmation: _awaitingConfirmation,
                 secondsLeft: _secondsLeft,
                 canConfirmArrival:
@@ -408,6 +410,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
     required this.expanded,
     required this.eta,
     required this.etaFallback,
+    required this.driverName,
+    this.driverAvatarUrl,
     required this.awaitingConfirmation,
     required this.secondsLeft,
     required this.canConfirmArrival,
@@ -421,6 +425,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final bool expanded;
   final String eta;
   final bool etaFallback;
+  final String driverName;
+  final String? driverAvatarUrl;
   final bool awaitingConfirmation;
   final int secondsLeft;
   final bool canConfirmArrival;
@@ -447,17 +453,18 @@ class _ActiveTripSheetBody extends StatelessWidget {
         // their name, so the person carrying the ride is the first
         // thing read rather than a line of caption text under an
         // address. Matches the avatar driver_matched_screen already
-        // shows; a placeholder icon until avatar upload lands
-        // (specs.md Spec 8b), at which point only the child changes.
+        // shows -- ArangAvatar falls back to initials on its own when
+        // driverAvatarUrl is null, same as everywhere else this session
+        // wired a real photo in.
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 2, right: AppSpacing.sm),
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.primaryFill,
-                child: Icon(Icons.person, size: 26, color: AppColors.primary),
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: AppSpacing.sm),
+              child: ArangAvatar(
+                name: driverName,
+                size: 44,
+                imageUrl: driverAvatarUrl,
               ),
             ),
             Expanded(

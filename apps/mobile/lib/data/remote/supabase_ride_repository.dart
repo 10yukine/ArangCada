@@ -43,6 +43,11 @@ class SupabaseRideRepository extends ChangeNotifier {
   final LocationRepository _location;
   final FareRepository _fares;
   final Map<DemoBooking, String> _bookingKeys = {};
+  // Which trip's counterpart avatar is currently in flight or resolved, so
+  // _applyTrip (called on every realtime row update, not just once per
+  // trip) does not re-fire the RPC + signed-URL round trip on every single
+  // GPS ping. Cleared whenever the live trip id itself changes.
+  String? _counterpartAvatarTripId;
 
   StreamSubscription<List<Map<String, dynamic>>>? _tripSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _locationSubscription;
@@ -162,6 +167,11 @@ class SupabaseRideRepository extends ChangeNotifier {
     _state.liveDriverName = trip['driver_display_name'] as String?;
     _state.liveCommuterName = trip['rider_display_name'] as String?;
     _state.liveTodaName = trip['toda_name'] as String?;
+    if (_counterpartAvatarTripId != tripId) {
+      _counterpartAvatarTripId = tripId;
+      _state.liveCounterpartAvatarUrl = null;
+      unawaited(_loadCounterpartAvatar(tripId));
+    }
     final completion = trip['completion_available_at'] as String?;
     _state.completionAvailableAt = completion == null
         ? null
@@ -204,6 +214,40 @@ class SupabaseRideRepository extends ChangeNotifier {
     }
     _state.bookingChanged();
     notifyListeners();
+  }
+
+  /// Best-effort only -- an avatar is cosmetic, never load-bearing, so any
+  /// failure here (network, RLS denying an out-of-window trip that changed
+  /// status between the caller reading it and this call landing, etc.)
+  /// just leaves the initials fallback in place rather than surfacing an
+  /// error anywhere. See trip_counterpart_avatar_path() in
+  /// 20260906030000_trip_counterpart_avatar.sql for the actual scoping
+  /// rules (participant-only, active-trip-statuses-only).
+  Future<void> _loadCounterpartAvatar(String tripId) async {
+    try {
+      final path = await _client.rpc(
+        'trip_counterpart_avatar_path',
+        params: {'p_trip_id': tripId},
+      ) as String?;
+      if (_disposed || path == null || _counterpartAvatarTripId != tripId) {
+        return;
+      }
+      final url = await _client.storage
+          .from('profile-photos')
+          .createSignedUrl(path, 300);
+      if (_disposed || _counterpartAvatarTripId != tripId) return;
+      _state.liveCounterpartAvatarUrl = url;
+      // DemoState is a separate ChangeNotifier from this repository --
+      // every screen that reads liveCounterpartAvatarUrl listens to
+      // DemoState (ListenableBuilder(listenable: state, ...)), not to this
+      // repository directly, so bookingChanged() (DemoState's own
+      // notifyListeners()) is what actually triggers a rebuild here. Same
+      // reasoning _applyTrip already follows for every other live* field.
+      _state.bookingChanged();
+      notifyListeners();
+    } catch (_) {
+      // Swallow -- see the best-effort note above.
+    }
   }
 
   DemoBooking _restoreBooking(Map<String, dynamic> trip) {

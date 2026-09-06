@@ -81,6 +81,7 @@ class ChatThread {
     this.isActiveTrip = false,
     this.driverVerified = true,
     this.tripId,
+    this.counterpartAvatarUrl,
   });
 
   final String id;
@@ -90,6 +91,14 @@ class ChatThread {
   final String todaName;
   final List<ChatMessage> messages;
   final int unreadCount;
+
+  /// A signed URL for the OTHER party's photo, from the caller's own point
+  /// of view (see trip_counterpart_avatar_path() in
+  /// 20260906030000_trip_counterpart_avatar.sql). Not persisted -- resolved
+  /// live by SupabaseChatRepository and never written to toJson/read from
+  /// fromJson, so LocalChatRepository's mock threads simply stay null and
+  /// fall back to initials, same as before this field existed.
+  final String? counterpartAvatarUrl;
 
   /// A thread attached to the ride currently in progress.
   final bool isActiveTrip;
@@ -123,6 +132,7 @@ class ChatThread {
       unreadCount: unreadCount ?? this.unreadCount,
       isActiveTrip: isActiveTrip ?? this.isActiveTrip,
       driverVerified: driverVerified,
+      counterpartAvatarUrl: counterpartAvatarUrl,
       tripId: tripId,
     );
   }

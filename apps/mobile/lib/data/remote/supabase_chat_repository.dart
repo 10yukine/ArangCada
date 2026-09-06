@@ -33,6 +33,11 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   final Map<String, List<ChatMessage>> _messages = {};
   final Map<String, int> _unread = {};
   final Set<String> _initializedTrips = {};
+  // Resolved counterpart avatar URLs, keyed by trip id. Populated
+  // asynchronously (see _loadCounterpartAvatar) since Storage signed-URL
+  // minting cannot happen inside the synchronous _threadFromTrip mapping --
+  // same reasoning and shape as SupabaseRideRepository's identical cache.
+  final Map<String, String?> _counterpartAvatars = {};
   List<ChatThread> _threads = const [];
   bool _disposed = false;
 
@@ -84,6 +89,9 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
             .order('created_at', ascending: true)
             .listen((rows) => _receiveMessages(trip, rows), onError: (_) {}),
       );
+      if (!_counterpartAvatars.containsKey(id)) {
+        unawaited(_loadCounterpartAvatar(id));
+      }
     }
     _threads = visible.map(_threadFromTrip).toList(growable: false);
     _emit();
@@ -101,7 +109,37 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
       messages: List.unmodifiable(_messages[id] ?? const <ChatMessage>[]),
       unreadCount: _unread[id] ?? 0,
       isActiveTrip: _activeStatuses.contains(trip['status']),
+      counterpartAvatarUrl: _counterpartAvatars[id],
     );
+  }
+
+  /// Best-effort only -- same reasoning as
+  /// SupabaseRideRepository._loadCounterpartAvatar, which this mirrors: a
+  /// photo is cosmetic, never load-bearing, so any failure just leaves the
+  /// initials fallback in place. Re-runs _synchronizeTrips() on success
+  /// rather than emitting directly, so _threads is rebuilt from the same
+  /// single source of truth (_rides.trips) instead of patched in two places.
+  Future<void> _loadCounterpartAvatar(String tripId) async {
+    try {
+      final path = await _client.rpc(
+        'trip_counterpart_avatar_path',
+        params: {'p_trip_id': tripId},
+      ) as String?;
+      if (_disposed) return;
+      final url = path == null
+          ? null
+          : await _client.storage
+                .from('profile-photos')
+                .createSignedUrl(path, 300);
+      if (_disposed) return;
+      _counterpartAvatars[tripId] = url;
+      _synchronizeTrips();
+    } catch (_) {
+      // Swallow -- see the best-effort note above. Deliberately does not
+      // cache a failure into _counterpartAvatars, so a transient error
+      // (e.g. offline) gets retried the next time _synchronizeTrips() runs
+      // rather than permanently giving up on this trip's photo.
+    }
   }
 
   void _receiveMessages(

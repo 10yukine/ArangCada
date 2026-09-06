@@ -41,6 +41,13 @@ class DemoState extends ChangeNotifier {
   String? liveDriverName;
   String? liveCommuterName;
   String? liveTodaName;
+  // The OTHER party's photo, from the caller's own point of view -- a
+  // commuter reads their driver's, a driver reads their rider's. Populated
+  // asynchronously via trip_counterpart_avatar_path() once the trip is
+  // matched (see SupabaseRideRepository._applyTrip); null both before that
+  // resolves and whenever there is honestly nothing to show (no photo
+  // uploaded, or the trip has ended -- see that RPC's own scoping).
+  String? liveCounterpartAvatarUrl;
   GeoCoordinate? liveDriverLocation;
   DateTime? completionAvailableAt;
   bool driverFeedbackPending = false;
@@ -238,6 +245,7 @@ class DemoState extends ChangeNotifier {
     liveDriverName = null;
     liveCommuterName = null;
     liveTodaName = null;
+    liveCounterpartAvatarUrl = null;
     liveDriverLocation = null;
     completionAvailableAt = null;
     driverFeedbackPending = false;
@@ -307,6 +315,7 @@ class DemoState extends ChangeNotifier {
     liveDriverName = null;
     liveCommuterName = null;
     liveTodaName = null;
+    liveCounterpartAvatarUrl = null;
     liveDriverLocation = null;
     completionAvailableAt = null;
     driverFeedbackPending = false;

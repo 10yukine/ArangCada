@@ -338,14 +338,10 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
               children: [
                 Row(
                   children: [
-                    const CircleAvatar(
-                      radius: 26,
-                      backgroundColor: AppColors.primaryFill,
-                      child: Icon(
-                        Icons.person,
-                        size: 30,
-                        color: AppColors.primary,
-                      ),
+                    ArangAvatar(
+                      name: driverName,
+                      size: 52,
+                      imageUrl: state.liveCounterpartAvatarUrl,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(

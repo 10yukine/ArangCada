@@ -297,11 +297,24 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 onComplete: _completeTrip,
               );
             }
+            // Read fresh on every rebuild of this ListenableBuilder, same
+            // reasoning as the commuter home screen's identical read: there
+            // is no server-pushed invalidation for a local Hive cache, so
+            // "how stale can the dot be" is bounded by how often this
+            // screen already rebuilds.
+            final hasUnreadNotifications = ref
+                .read(notificationsRepositoryProvider)
+                .history()
+                .any((item) => !item.read);
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               children: [
                 // Prototype driver header: who you are, which body number and
-                // TODA you drive under, and notices from the TODA desk.
+                // TODA you drive under. The bell reads the same real
+                // PushNotificationService history the commuter side does
+                // (device-local, not per-role) -- it used to be a hardcoded
+                // "No new notices" snackbar; see .pipeline/changes.md's
+                // driver-side audit entry.
                 Row(
                   children: [
                     ArangAvatar(
@@ -337,15 +350,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     ),
                     ArangIconButton(
                       icon: Icons.notifications_outlined,
-                      tooltip: 'TODA notices',
-                      onPressed: () =>
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'No new notices from the TODA desk.',
-                              ),
-                            ),
-                          ),
+                      tooltip: 'Notifications',
+                      showDot: hasUnreadNotifications,
+                      onPressed: () => context.push('/notifications'),
                     ),
                   ],
                 ),
@@ -614,6 +621,7 @@ class _PickupModeCard extends ConsumerWidget {
                 _PassengerRow(
                   name: state.liveCommuterName ?? 'Joshua Adia',
                   detail: '${state.pickup.name} · Cash',
+                  imageUrl: state.liveCounterpartAvatarUrl,
                 ),
               ],
             ),
@@ -689,6 +697,7 @@ class _DriverTripModeCard extends ConsumerWidget {
                   name: state.liveCommuterName ?? 'Joshua Adia',
                   detail:
                       '${state.destination?.name ?? 'Calamba City Hall'} · Cash',
+                  imageUrl: state.liveCounterpartAvatarUrl,
                 ),
                 if (state.completionAvailableAt != null) ...[
                   const SizedBox(height: AppSpacing.xs),
@@ -767,10 +776,15 @@ class _DriverTripModeCard extends ConsumerWidget {
 }
 
 class _PassengerRow extends StatelessWidget {
-  const _PassengerRow({required this.name, required this.detail});
+  const _PassengerRow({
+    required this.name,
+    required this.detail,
+    this.imageUrl,
+  });
 
   final String name;
   final String detail;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -781,6 +795,7 @@ class _PassengerRow extends StatelessWidget {
           size: 40,
           background: AppColors.primaryFill,
           foreground: AppColors.primaryText,
+          imageUrl: imageUrl,
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(

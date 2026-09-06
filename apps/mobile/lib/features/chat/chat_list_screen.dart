@@ -237,6 +237,7 @@ class _ThreadRow extends ConsumerWidget {
                   foreground: thread.isActiveTrip
                       ? Colors.white
                       : AppColors.primaryText,
+                  imageUrl: thread.counterpartAvatarUrl,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(

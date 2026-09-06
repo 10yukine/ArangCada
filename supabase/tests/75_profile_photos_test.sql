@@ -7,7 +7,7 @@
 
 begin;
 
-select plan(12);
+select plan(19);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -29,6 +29,42 @@ insert into public.profiles (id, role, display_name, phone, email, status) value
    '+639170007503', 'pfp-stranger@example.test', 'active')
 on conflict (id) do update
   set role = excluded.role, status = excluded.status, phone = excluded.phone;
+
+-- Second fixture pair for trip_counterpart_avatar_path()/
+-- profile_photos_select_trip_counterpart: a rider (reuses 075a1 above) and
+-- a driver, matched on one trip.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000075b1', 'pfp-driver@example.test',
+   '{"display_name":"PFP Driver","mobile_number":"+639170007504"}'::jsonb);
+
+insert into public.profiles (id, role, display_name, phone, email, status) values
+  ('00000000-0000-0000-0000-0000000075b1', 'driver', 'PFP Driver',
+   '+639170007504', 'pfp-driver@example.test', 'active')
+on conflict (id) do update
+  set role = excluded.role, status = excluded.status, phone = excluded.phone;
+
+insert into storage.objects (bucket_id, name, owner) values (
+  'profile-photos',
+  '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg',
+  '00000000-0000-0000-0000-0000000075b1'
+);
+
+update public.profiles set avatar_path = '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg'
+ where id = '00000000-0000-0000-0000-0000000075b1';
+
+insert into public.trips
+  (id, rider_id, driver_id, toda_zone_id, ride_type, status, pickup, dropoff,
+   rider_display_name, driver_display_name)
+values (
+  '00000000-0000-0000-0000-0000000075e1',
+  '00000000-0000-0000-0000-0000000075a1',
+  '00000000-0000-0000-0000-0000000075b1',
+  (select id from public.toda_zones where code = 'CAL-POB-01'),
+  'special', 'accepted',
+  st_setsrid(st_makepoint(121.165, 14.215), 4326),
+  st_setsrid(st_makepoint(121.170, 14.220), 4326),
+  'PFP Owner', 'PFP Driver'
+);
 
 -- ---------------------------------------------------------------------------
 -- Storage RLS: own-folder write/read, admin read, stranger denied
@@ -151,6 +187,73 @@ select throws_ok(
   '42501', null,
   'guard_profiles_privileged_columns() still blocks role, unaffected by the '
   'new avatar_path grant'
+);
+
+-- ---------------------------------------------------------------------------
+-- trip_counterpart_avatar_path() and profile_photos_select_trip_counterpart
+-- -- 075a1 (rider) is now at avatar_path .../photo2.jpg, set above.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000075a1';
+
+select is(
+  (select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')),
+  '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg',
+  'a rider on an accepted trip can look up their driver''s avatar_path'
+);
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg'),
+  1,
+  'SECURITY: ...and can actually select (sign a URL for) that exact path, '
+  'not just learn it from the RPC -- the matching Storage grant is real'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000075b1';
+
+select is(
+  (select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')),
+  '00000000-0000-0000-0000-0000000075a1/photo2.jpg',
+  'and the driver can look up their rider''s avatar_path the same way'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000075d1';
+
+select throws_ok(
+  $$select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')$$,
+  '42501', null,
+  'SECURITY: a stranger to this trip cannot look up either party''s avatar_path'
+);
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg'),
+  0,
+  'SECURITY: ...and cannot select the driver''s photo object either, even '
+  'while the trip is active'
+);
+
+-- Once the ride ends, neither the RPC nor the Storage grant should keep
+-- exposing either party''s photo to the other -- see this migration''s
+-- header for why completed is deliberately excluded from the active window.
+reset role;
+update public.trips set status = 'completed' where id = '00000000-0000-0000-0000-0000000075e1';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000075a1';
+
+select is(
+  (select public.trip_counterpart_avatar_path('00000000-0000-0000-0000-0000000075e1')),
+  null,
+  'once the trip is completed, the same rider no longer gets a path back -- '
+  'not an error, just nothing to show, matching an honestly-empty avatar'
+);
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000075b1/driver-photo.jpg'),
+  0,
+  'SECURITY: ...and can no longer select the driver''s photo object either, '
+  'once the ride that justified the exception has ended'
 );
 
 select * from finish();

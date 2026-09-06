@@ -122,6 +122,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   size: 34,
                   background: AppColors.primary,
                   foreground: Colors.white,
+                  imageUrl: thread.counterpartAvatarUrl,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
@@ -290,7 +291,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ArangAvatar(name: thread.driverName, size: 64),
+              ArangAvatar(
+                name: thread.driverName,
+                size: 64,
+                imageUrl: thread.counterpartAvatarUrl,
+              ),
               const SizedBox(height: AppSpacing.sm),
               Text(thread.driverName, style: AppTypography.displaySm),
               const SizedBox(height: 4),
