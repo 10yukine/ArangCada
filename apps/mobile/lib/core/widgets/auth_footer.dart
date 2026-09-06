@@ -53,10 +53,13 @@ class AuthSwitchLink extends StatelessWidget {
   }
 }
 
-/// Placeholder legal notice for the bottom of an auth screen.
+/// Legal notice for the bottom of an auth screen.
 ///
-/// Temporarily launches placeholder URLs (e.g. arangcada.ph/tos) until the 
-/// legal pages are fully integrated into the app.
+/// Links to the real Terms/Privacy pages served by apps/web
+/// (arangcada.app/terms, arangcada.app/policy) -- these used to point at a
+/// placeholder arangcada.ph/tos + /privacy that predated apps/web existing
+/// and was never updated once it did (found during a gap audit, 6 Sep
+/// 2026). See .pipeline/changes.md.
 class AuthLegalNotice extends StatelessWidget {
   const AuthLegalNotice({
     this.actionVerb,
@@ -111,7 +114,7 @@ class AuthLegalNotice extends StatelessWidget {
               ),
               recognizer:
                   (TapGestureRecognizer()
-                    ..onTap = () => _launchURL(context, 'https://arangcada.ph/tos')),
+                    ..onTap = () => _launchURL(context, 'https://arangcada.app/terms')),
             ),
             const TextSpan(text: ' and '),
             TextSpan(
@@ -122,7 +125,7 @@ class AuthLegalNotice extends StatelessWidget {
               ),
               recognizer:
                   (TapGestureRecognizer()
-                    ..onTap = () => _launchURL(context, 'https://arangcada.ph/privacy')),
+                    ..onTap = () => _launchURL(context, 'https://arangcada.app/policy')),
             ),
             const TextSpan(text: '.'),
           ],
