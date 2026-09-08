@@ -16,11 +16,18 @@
 //   * Creates the auth user via the Auth Admin API -- only that API can do
 //     this outside a public signUp() call, and signUp() would produce a
 //     phone-required, non-admin commuter account instead.
-//   * Sets app_metadata (not user_metadata) with invited_admin: true.
-//     app_metadata can only be set through the Auth Admin API (service
-//     role), never by a client's own signUp() call, which is what makes
-//     handle_new_user()'s phone exemption unspoofable -- see the migration
-//     comment (20260908020000).
+//   * Sets invited_admin: true in user_metadata (raw_user_meta_data), NOT
+//     app_metadata. An earlier version used app_metadata, reasoning that
+//     only the Admin API can set it. That was true but irrelevant: live
+//     verification proved GoTrue writes the auth.users row with only its
+//     own default app_metadata first and merges in the caller-supplied
+//     app_metadata as a separate follow-up step, by which point
+//     handle_new_user()'s AFTER INSERT trigger has already fired and
+//     already raised for a missing phone. user_metadata does not have this
+//     problem -- confirmed present on the very first insert. This is safe,
+//     not a spoofing risk reopened: the flag only ever waives the phone
+//     requirement, never admin status -- see the migration comment
+//     (20260908030000) for why that distinction matters.
 //   * Calls admin_finalize_invited_account() to promote the new profile to
 //     admin (and TODA scope, if any) and mark the invite accepted. If that
 //     call fails, the auth user now exists but was never promoted -- logged
@@ -96,8 +103,7 @@ Deno.serve(async (req: Request) => {
     email,
     password,
     email_confirm: true,
-    app_metadata: { invited_admin: true },
-    user_metadata: { display_name: displayName },
+    user_metadata: { display_name: displayName, invited_admin: true },
   });
   if (createError || !created?.user) {
     // Most likely cause: this email already has an auth.users account (e.g.

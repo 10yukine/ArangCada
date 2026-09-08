@@ -574,10 +574,11 @@ class SupabaseAdminRepository {
   /// not part of the main snapshot (see AdminAccountsSnapshot above).
   Future<AdminAccountsSnapshot> loadAdminAccounts() async {
     final results = await Future.wait<dynamic>([
-      client.from('profiles').select('id, first_name, last_name, email').eq(
-        'role',
-        'admin',
-      ),
+      client
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .eq('role', 'admin')
+          .eq('status', 'active'),
       client
           .from('admin_scopes')
           .select('admin_id, scope, toda_zone_id, toda_zones(name)'),

@@ -34,15 +34,6 @@ alter table auth.users add column if not exists phone_confirmed_at timestamptz;
 -- all. A function that deletes users in bulk is the last thing that should be
 -- untestable, so the shim gained the column.
 alter table auth.users add column if not exists created_at timestamptz not null default now();
-
--- LGU/TODA admin invites (Spec 19). Real auth.users carries raw_app_meta_data
--- separately from raw_user_meta_data -- only the Auth Admin API (service_role)
--- can set it, never a client signUp() call. handle_new_user() reads the
--- invited_admin flag out of it to exempt an invited admin account from the
--- phone-number requirement, so the shim needs the column for that branch to
--- be testable at all.
-alter table auth.users add column if not exists raw_app_meta_data jsonb not null default '{}'::jsonb;
-
 -- Supabase reads the caller's user id from a request-scoped JWT claim.
 -- Tests impersonate a user with:  set local request.jwt.claim.sub = '<uuid>';
 create or replace function auth.uid()

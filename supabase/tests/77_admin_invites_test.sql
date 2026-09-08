@@ -58,10 +58,12 @@ select throws_ok(
 );
 
 select lives_ok(
-  $$insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data)
+  $$insert into auth.users (id, email, raw_user_meta_data)
     values ('00000000-0000-0000-0000-0000000077e2', 'ai-invited@example.test',
-            '{"display_name":"Invited Admin"}'::jsonb, '{"invited_admin":true}'::jsonb)$$,
-  'an invited_admin account is exempt from the phone requirement'
+            '{"display_name":"Invited Admin","invited_admin":true}'::jsonb)$$,
+  'an invited_admin account is exempt from the phone requirement -- the flag '
+  'lives in raw_user_meta_data, confirmed present at insert time against the '
+  'hosted project (raw_app_meta_data is not, see 20260908030000)'
 );
 
 select is(
