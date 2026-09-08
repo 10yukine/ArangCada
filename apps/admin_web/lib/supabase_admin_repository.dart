@@ -36,6 +36,21 @@ class AdminSnapshot {
   final bool repeatFeedback;
 }
 
+/// LGU-only, loaded on demand by AdminsScreen -- see AdminSnapshot's own
+/// docstring precedent (reportedChats) for why this is not folded into the
+/// main snapshot. See .pipeline/specs.md Spec 19.
+class AdminAccountsSnapshot {
+  const AdminAccountsSnapshot({
+    required this.accounts,
+    required this.invites,
+    required this.todaZoneOptions,
+  });
+
+  final List<AdminAccount> accounts;
+  final List<AdminInvite> invites;
+  final List<(String id, String name)> todaZoneOptions;
+}
+
 class SupabaseAdminRepository {
   SupabaseAdminRepository(this.client);
 
@@ -552,6 +567,127 @@ class SupabaseAdminRepository {
         'p_repeat_feedback': repeatFeedback,
       },
     );
+  }
+
+  /// LGU admin accounts, TODA admin accounts, pending invites, and the
+  /// TODA-zone picker options for the invite dialog -- one on-demand load,
+  /// not part of the main snapshot (see AdminAccountsSnapshot above).
+  Future<AdminAccountsSnapshot> loadAdminAccounts() async {
+    final results = await Future.wait<dynamic>([
+      client.from('profiles').select('id, first_name, last_name, email').eq(
+        'role',
+        'admin',
+      ),
+      client
+          .from('admin_scopes')
+          .select('admin_id, scope, toda_zone_id, toda_zones(name)'),
+      client
+          .from('admin_invites')
+          .select(
+            'id, email, scope, toda_zone_id, status, created_at, toda_zones(name)',
+          )
+          .eq('status', 'pending')
+          .order('created_at', ascending: false),
+      client.from('toda_zones').select('id, name').order('name'),
+    ]);
+
+    final profileRows = _rows(results[0]);
+    final scopeRows = _rows(results[1]);
+    final inviteRows = _rows(results[2]);
+    final zoneRows = _rows(results[3]);
+
+    final scopeByAdmin = <String, Map<String, dynamic>>{
+      for (final row in scopeRows) row['admin_id'].toString(): row,
+    };
+
+    return AdminAccountsSnapshot(
+      accounts: [
+        for (final row in profileRows)
+          AdminAccount.fromRow(
+            {...row, 'scope': scopeByAdmin[row['id'].toString()]?['scope']},
+            toda: (scopeByAdmin[row['id'].toString()]?['toda_zones'] as Map?)?['name']
+                ?.toString(),
+          ),
+      ],
+      invites: [
+        for (final row in inviteRows)
+          AdminInvite.fromRow(
+            row,
+            toda: (row['toda_zones'] as Map?)?['name']?.toString(),
+          ),
+      ],
+      todaZoneOptions: [
+        for (final row in zoneRows)
+          (row['id'].toString(), row['name'].toString()),
+      ],
+    );
+  }
+
+  /// Sends an LGU or TODA admin invite by email. Calls the send-admin-invite
+  /// Edge Function -- the RPC it wraps (admin_create_invite) cannot send
+  /// email itself, and the Resend API key must never reach this client (see
+  /// .pipeline/specs.md Spec 19).
+  Future<void> sendAdminInvite({
+    required String email,
+    required String scope,
+    String? todaZoneId,
+  }) async {
+    try {
+      await client.functions.invoke(
+        'send-admin-invite',
+        body: {'email': email, 'scope': scope, 'toda_zone_id': todaZoneId},
+      );
+    } on FunctionException catch (error) {
+      throw StateError(_functionErrorMessage(error) ?? 'The invite could not be sent.');
+    }
+  }
+
+  Future<void> revokeAdminInvite(String inviteId) async {
+    await client.rpc('admin_revoke_invite', params: {'p_invite_id': inviteId});
+  }
+
+  /// Resolves an invite token to its locked email for the public accept
+  /// page. Called with the anon key -- no session exists yet.
+  Future<String> lookupAdminInvite(String token) async {
+    final rows = _rows(
+      await client.rpc('admin_invite_lookup', params: {'p_token': token}),
+    );
+    final email = rows.isEmpty ? null : rows.first['email']?.toString();
+    if (email == null || email.isEmpty) {
+      throw StateError('This invite is invalid or has expired.');
+    }
+    return email;
+  }
+
+  /// Creates the invited administrator's account. Calls the
+  /// accept-admin-invite Edge Function -- only the Auth Admin API can create
+  /// this account, and it requires the service-role key this client never
+  /// holds. Does not sign the caller in; the accept-invite screen does that
+  /// itself afterwards via signIn(), the same one the login screen uses.
+  Future<void> acceptAdminInvite({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) async {
+    try {
+      await client.functions.invoke(
+        'accept-admin-invite',
+        body: {
+          'token': token,
+          'first_name': firstName,
+          'last_name': lastName,
+          'password': password,
+        },
+      );
+    } on FunctionException catch (error) {
+      throw StateError(_functionErrorMessage(error) ?? 'The account could not be created.');
+    }
+  }
+
+  static String? _functionErrorMessage(FunctionException error) {
+    final details = error.details;
+    return details is Map ? details['error']?.toString() : null;
   }
 
   Future<void> signOut() async {

@@ -594,6 +594,90 @@ class AdminController extends Notifier<AdminState> {
       repeatFeedback: repeat,
     );
   }
+  /// LGU-only. Loaded on demand by AdminsScreen, not part of the main
+  /// refresh() snapshot -- same reasoning refreshReportedChats already
+  /// establishes for its own LGU-only, low-frequency data.
+  Future<void> refreshAdminAccounts(AdminSession session) async {
+    if (session.role != AdminRole.lgu) {
+      throw StateError(
+        'Administrator accounts are managed by an LGU administrator.',
+      );
+    }
+    if (!state.connected || _connectedSession != session) return;
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) throw StateError('Administrator session expired.');
+    final snapshot = await repository.loadAdminAccounts();
+    if (_connectedSession == session) {
+      state = state.copyWith(
+        adminAccounts: snapshot.accounts,
+        adminInvites: snapshot.invites,
+        todaZoneOptions: snapshot.todaZoneOptions,
+      );
+    }
+  }
+
+  /// Real-data-only, matching reviewFareClassClaim/reviewDriverDocument
+  /// above -- there is no seeded demo admin roster to mutate.
+  Future<void> sendAdminInvite({
+    required String email,
+    required String scope,
+    String? todaZoneId,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Sending an admin invite requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .sendAdminInvite(email: email, scope: scope, todaZoneId: todaZoneId);
+    final session = _connectedSession;
+    if (session != null) await refreshAdminAccounts(session);
+  }
+
+  Future<void> revokeAdminInvite(String inviteId) async {
+    if (!state.connected) {
+      throw StateError(
+        'Revoking an admin invite requires the live Supabase connection.',
+      );
+    }
+    await ref.read(adminRepositoryProvider)!.revokeAdminInvite(inviteId);
+    final session = _connectedSession;
+    if (session != null) await refreshAdminAccounts(session);
+  }
+
+  /// Thin pass-throughs for the public accept-invite screen, which runs
+  /// before any admin session exists -- no state to refresh, same
+  /// rejected-Future-not-a-throw shape as driverDocumentPhotoUrl above.
+  Future<String> lookupAdminInvite(String token) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      return Future.error(
+        StateError('This invite page requires the live Supabase connection.'),
+      );
+    }
+    return repository.lookupAdminInvite(token);
+  }
+
+  Future<void> acceptAdminInvite({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      return Future.error(
+        StateError('This invite page requires the live Supabase connection.'),
+      );
+    }
+    return repository.acceptAdminInvite(
+      token: token,
+      firstName: firstName,
+      lastName: lastName,
+      password: password,
+    );
+  }
 }
 
 AdminState seedAdminState() {

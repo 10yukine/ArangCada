@@ -40,3 +40,20 @@ enabled = true
 # it belongs to an administrator. This is defence in depth, not a substitute.
 verify_jwt = true
 entrypoint = "./functions/admin-onboard-driver/index.ts"
+
+[functions.send-admin-invite]
+enabled = true
+# True -- called from apps/admin_web with a signed-in LGU administrator's
+# session, same reasoning as admin-onboard-driver above.
+verify_jwt = true
+entrypoint = "./functions/send-admin-invite/index.ts"
+
+[functions.accept-admin-invite]
+enabled = true
+# MUST stay false. The recipient of an invite has no ArangCada session at
+# all -- the token in the link is the only credential, checked inside the
+# function itself (admin_invite_lookup / admin_finalize_invited_account).
+# With verify_jwt = true the gateway would reject every legitimate call
+# before the function ever ran.
+verify_jwt = false
+entrypoint = "./functions/accept-admin-invite/index.ts"

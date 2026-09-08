@@ -807,6 +807,9 @@ class AdminState {
     this.desktopAlerts = true,
     this.unreadSafetyAlerts = 0,
     this.selectedRide,
+    this.adminAccounts = const [],
+    this.adminInvites = const [],
+    this.todaZoneOptions = const [],
   });
 
   final List<Driver> drivers;
@@ -834,6 +837,13 @@ class AdminState {
   final bool desktopAlerts;
   final int unreadSafetyAlerts;
   final String? selectedRide;
+  // LGU-only, loaded on demand by AdminsScreen (Spec 19) -- not part of the
+  // main refresh()/AdminSnapshot, same reasoning reportedChats already
+  // establishes: low-frequency, LGU-scoped data does not belong in the
+  // snapshot every session polls on every table change.
+  final List<AdminAccount> adminAccounts;
+  final List<AdminInvite> adminInvites;
+  final List<(String id, String name)> todaZoneOptions;
 
   AdminState copyWith({
     List<Driver>? drivers,
@@ -863,6 +873,9 @@ class AdminState {
     int? unreadSafetyAlerts,
     String? selectedRide,
     bool clearSelectedRide = false,
+    List<AdminAccount>? adminAccounts,
+    List<AdminInvite>? adminInvites,
+    List<(String id, String name)>? todaZoneOptions,
   }) => AdminState(
     drivers: drivers ?? this.drivers,
     reports: reports ?? this.reports,
@@ -891,6 +904,9 @@ class AdminState {
     desktopAlerts: desktopAlerts ?? this.desktopAlerts,
     unreadSafetyAlerts: unreadSafetyAlerts ?? this.unreadSafetyAlerts,
     selectedRide: clearSelectedRide ? null : selectedRide ?? this.selectedRide,
+    adminAccounts: adminAccounts ?? this.adminAccounts,
+    adminInvites: adminInvites ?? this.adminInvites,
+    todaZoneOptions: todaZoneOptions ?? this.todaZoneOptions,
   );
 }
 
@@ -959,3 +975,72 @@ bool isActiveTripStatus(String? value) => const {
   'in_progress',
   'emergency_reported',
 }.contains(value);
+
+/// One LGU or TODA admin account, for the Admins screen (Spec 19).
+class AdminAccount {
+  const AdminAccount({
+    required this.id,
+    required this.email,
+    required this.role,
+    this.firstName,
+    this.lastName,
+    this.toda,
+  });
+
+  factory AdminAccount.fromRow(Map<String, dynamic> row, {String? toda}) =>
+      AdminAccount(
+        id: row['id'].toString(),
+        email: row['email']?.toString() ?? '',
+        role: row['scope'] == 'toda' ? AdminRole.toda : AdminRole.lgu,
+        firstName: (row['first_name'] as String?)?.trim(),
+        lastName: (row['last_name'] as String?)?.trim(),
+        toda: toda,
+      );
+
+  final String id;
+  final String email;
+  final AdminRole role;
+  final String? firstName;
+  final String? lastName;
+  final String? toda;
+
+  String get name {
+    final parts = [
+      firstName,
+      lastName,
+    ].where((part) => part != null && part.isNotEmpty);
+    return parts.isEmpty ? 'Unnamed administrator' : parts.join(' ');
+  }
+}
+
+/// A pending or recently-decided LGU/TODA admin invite, for the Admins
+/// screen's "Pending invites" list (Spec 19).
+class AdminInvite {
+  const AdminInvite({
+    required this.id,
+    required this.email,
+    required this.scope,
+    required this.status,
+    required this.created,
+    this.toda,
+  });
+
+  factory AdminInvite.fromRow(Map<String, dynamic> row, {String? toda}) =>
+      AdminInvite(
+        id: row['id'].toString(),
+        email: row['email']?.toString() ?? '',
+        scope: row['scope'] == 'toda' ? AdminRole.toda : AdminRole.lgu,
+        status: row['status']?.toString() ?? 'pending',
+        created:
+            DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+            DateTime.now(),
+        toda: toda,
+      );
+
+  final String id;
+  final String email;
+  final AdminRole scope;
+  final String status;
+  final DateTime created;
+  final String? toda;
+}

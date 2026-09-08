@@ -48,12 +48,21 @@ class _AdminAppState extends State<AdminApp> {
     refreshListenable: auth,
     redirect: (context, state) {
       final loggingIn = state.matchedLocation == '/login';
-      if (auth.value == null && !loggingIn) return '/login';
+      // A recipient opening an invite link has no session at all -- this
+      // route is public by design, same as /login, and must not bounce them
+      // there. See .pipeline/specs.md Spec 19.
+      final acceptingInvite = state.matchedLocation == '/accept-invite';
+      if (auth.value == null && !loggingIn && !acceptingInvite) return '/login';
       if (auth.value != null && loggingIn) return '/dashboard';
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/accept-invite',
+        builder: (context, state) =>
+            AcceptInviteScreen(token: state.uri.queryParameters['token']),
+      ),
       ShellRoute(
         builder: (context, state, child) =>
             AdminShell(location: state.uri.path, child: child),
@@ -69,6 +78,10 @@ class _AdminAppState extends State<AdminApp> {
           GoRoute(
             path: '/drivers',
             builder: (context, state) => _consolePage(const DriversScreen()),
+          ),
+          GoRoute(
+            path: '/admins',
+            builder: (context, state) => _consolePage(const AdminsScreen()),
           ),
           GoRoute(
             path: '/safety',
@@ -440,6 +453,7 @@ class AdminShell extends ConsumerWidget {
     ('/dashboard', 'Dashboard', Icons.dashboard_outlined),
     ('/live-map', 'Live map', Icons.map_outlined),
     ('/drivers', 'Drivers', Icons.badge_outlined),
+    ('/admins', 'Admins', Icons.admin_panel_settings_outlined),
     ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
     ('/complaints', 'Complaints', Icons.report_problem_outlined),
     ('/reviews', 'Reviews', Icons.star_outline),
@@ -452,6 +466,13 @@ class AdminShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = auth.value!;
     final state = ref.watch(adminProvider);
+    // /admins is LGU-only (Spec 19) -- RLS backs this up server-side
+    // regardless, this just keeps a TODA-scoped admin from seeing a tab
+    // that would refuse every action on it anyway.
+    final destinations = [
+      for (final item in AdminShell.destinations)
+        if (item.$1 != '/admins' || session.role == AdminRole.lgu) item,
+    ];
     return LayoutBuilder(
       builder: (context, constraints) {
         final expanded = constraints.maxWidth >= 960;

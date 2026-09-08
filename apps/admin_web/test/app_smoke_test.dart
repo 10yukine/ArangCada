@@ -121,6 +121,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Compact table density'));
       await tester.pumpAndSettle();
+      // Scrolling to reveal Settings (the last rail item) can scroll Drivers
+      // (a much earlier item) out of view once the rail has more items than
+      // fit the test surface -- true since Admins (Spec 19) was added.
+      await tester.ensureVisible(find.text('Drivers'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Drivers'));
       await tester.pumpAndSettle();
 
