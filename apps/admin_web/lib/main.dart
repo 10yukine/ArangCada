@@ -388,6 +388,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : const Icon(Icons.arrow_forward),
                       label: Text(submitting ? 'Signing in…' : 'Open console'),
                     ),
+                    if (!demoMode && AdminAppConfig.isSupabaseConfigured) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.center,
+                        child: TextButton(
+                          onPressed: submitting
+                              ? null
+                              : () => _showForgotPassword(context, ref),
+                          child: const Text('Forgot password?'),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     Text(
                       demoMode
@@ -442,6 +454,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     ),
   );
+}
+
+Future<void> _showForgotPassword(BuildContext context, WidgetRef ref) async {
+  final formKey = GlobalKey<FormState>();
+  final resetEmail = TextEditingController();
+  bool sending = false;
+  bool sent = false;
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('Reset your password'),
+        content: sent
+            ? const Text(
+                'If that address matches an account, a reset link has been sent.',
+              )
+            : SizedBox(
+                width: 380,
+                child: Form(
+                  key: formKey,
+                  child: TextFormField(
+                    controller: resetEmail,
+                    autofocus: true,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                    ),
+                    validator: (value) => (value?.contains('@') ?? false)
+                        ? null
+                        : 'Enter a valid email address.',
+                  ),
+                ),
+              ),
+        actions: sent
+            ? [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Close'),
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: sending
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: sending
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => sending = true);
+                          try {
+                            await ref
+                                .read(adminRepositoryProvider)!
+                                .sendPasswordReset(resetEmail.text);
+                            setDialogState(() {
+                              sending = false;
+                              sent = true;
+                            });
+                          } catch (_) {
+                            setDialogState(() => sending = false);
+                            if (dialogContext.mounted) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'The reset email could not be sent. Try again.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: sending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Send reset link'),
+                ),
+              ],
+      ),
+    ),
+  );
+  resetEmail.dispose();
 }
 
 class AdminShell extends ConsumerWidget {
@@ -513,7 +613,18 @@ class AdminShell extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 28),
-                      Flexible(
+                      // Expanded, not Flexible -- a loose Flexible sharing
+                      // this Column with a Spacer (also flex: 1) only ever
+                      // got HALF the remaining height, the other half wasted
+                      // as blank space before the footer. Ten items (nine
+                      // plus Admins, Spec 19) no longer fit in that half on
+                      // an ordinary window, silently hiding Discount claims,
+                      // Evaluation, and Settings below the visible list with
+                      // no scroll affordance shown. Expanded takes the whole
+                      // remaining space instead, so the list scrolls only
+                      // when it genuinely needs to and the footer still ends
+                      // up flush at the bottom -- no separate Spacer needed.
+                      Expanded(
                         child: SingleChildScrollView(
                           child: Column(
                             children: [
@@ -532,7 +643,6 @@ class AdminShell extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const Spacer(),
                       Container(
                         height: 1,
                         color: AdminColors.railText.withValues(alpha: .2),

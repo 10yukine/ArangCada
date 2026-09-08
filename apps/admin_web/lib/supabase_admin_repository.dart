@@ -60,6 +60,16 @@ class SupabaseAdminRepository {
 
   bool get hasSession => client.auth.currentSession != null;
 
+  /// Self-service email password reset -- staff are always email-bound now
+  /// (direct promotion and the invite flow, Spec 19, both require a real
+  /// address), so a server-verified admin-to-admin reset workflow is no
+  /// longer needed for this. Supabase does not reveal whether the address
+  /// belongs to an account either way, matching how every other auth
+  /// surface in this project avoids account-enumeration.
+  Future<void> sendPasswordReset(String email) async {
+    await client.auth.resetPasswordForEmail(email.trim());
+  }
+
   Future<AdminSession> signIn({
     required String email,
     required String password,
@@ -590,24 +600,53 @@ class SupabaseAdminRepository {
           .eq('status', 'pending')
           .order('created_at', ascending: false),
       client.from('toda_zones').select('id, name').order('name'),
+      // Traces each existing admin back to whoever invited them, for the
+      // Admins screen's own accountability trail -- an account that
+      // predates the invite system (e.g. a direct database promotion)
+      // simply has no row here, which is correct, not a data gap.
+      client
+          .from('admin_invites')
+          .select('accepted_user_id, invited_by')
+          .eq('status', 'accepted'),
     ]);
 
     final profileRows = _rows(results[0]);
     final scopeRows = _rows(results[1]);
     final inviteRows = _rows(results[2]);
     final zoneRows = _rows(results[3]);
+    final acceptedRows = _rows(results[4]);
 
     final scopeByAdmin = <String, Map<String, dynamic>>{
       for (final row in scopeRows) row['admin_id'].toString(): row,
     };
+    final invitedByAdminId = <String, String>{
+      for (final row in acceptedRows)
+        if (row['accepted_user_id'] != null && row['invited_by'] != null)
+          row['accepted_user_id'].toString(): row['invited_by'].toString(),
+    };
+
+    final accounts = [
+      for (final row in profileRows)
+        AdminAccount.fromRow(
+          {...row, 'scope': scopeByAdmin[row['id'].toString()]?['scope']},
+          toda: (scopeByAdmin[row['id'].toString()]?['toda_zones'] as Map?)?['name']
+              ?.toString(),
+        ),
+    ];
+    final accountsById = {for (final account in accounts) account.id: account};
 
     return AdminAccountsSnapshot(
       accounts: [
-        for (final row in profileRows)
-          AdminAccount.fromRow(
-            {...row, 'scope': scopeByAdmin[row['id'].toString()]?['scope']},
-            toda: (scopeByAdmin[row['id'].toString()]?['toda_zones'] as Map?)?['name']
-                ?.toString(),
+        for (final account in accounts)
+          AdminAccount(
+            id: account.id,
+            email: account.email,
+            role: account.role,
+            firstName: account.firstName,
+            lastName: account.lastName,
+            toda: account.toda,
+            invitedByName:
+                accountsById[invitedByAdminId[account.id]]?.name,
           ),
       ],
       invites: [

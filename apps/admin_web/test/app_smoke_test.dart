@@ -386,16 +386,15 @@ void main() {
     expect(find.text('m.robles@calamba.gov.ph'), findsOneWidget);
     expect(find.text('LGU administrator'), findsOneWidget);
     expect(find.text('Change password'), findsOneWidget);
-    expect(find.text('Console access'), findsOneWidget);
     expect(find.text('Console preferences'), findsOneWidget);
     expect(
       find.widgetWithText(FilledButton, 'Update password'),
       findsOneWidget,
     );
-    expect(
-      find.widgetWithText(OutlinedButton, 'Reset staff password'),
-      findsOneWidget,
-    );
+    // The old stub 'Reset staff password' console-access panel is gone
+    // (Spec 19 follow-up) -- staff are always email-bound now (direct
+    // promotion and the invite flow both require a real address), so
+    // self-service Forgot password on the login screen replaces it.
 
     await tester.tap(find.text('Update password'));
     await tester.pumpAndSettle();
@@ -403,16 +402,6 @@ void main() {
     expect(find.text('Enter at least 8 characters.'), findsOneWidget);
     expect(find.text('Confirm the new password.'), findsOneWidget);
 
-    await tester.tap(find.text('Reset staff password'));
-    await tester.pumpAndSettle();
-    expect(find.text('Staff password reset'), findsOneWidget);
-    expect(
-      find.textContaining('requires a reviewed server-side LGU workflow'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.text('Close'));
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Current password'),
       'current-secret',

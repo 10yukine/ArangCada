@@ -1271,8 +1271,6 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _PasswordSettingsPanel(session: session),
             const SizedBox(height: 16),
-            _ConsoleAccessPanel(session: session),
-            const SizedBox(height: 16),
             Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1610,72 +1608,6 @@ class _PasswordSettingsPanelState
           ),
         ],
       ),
-    ),
-  );
-}
-
-class _ConsoleAccessPanel extends StatelessWidget {
-  const _ConsoleAccessPanel({required this.session});
-
-  final AdminSession session;
-
-  @override
-  Widget build(BuildContext context) => Panel(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final copy = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Console access',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            const Text('Reset a staff password'),
-            const SizedBox(height: 2),
-            Text(
-              session.role == AdminRole.lgu
-                  ? 'Issue a temporary password to another LGU/TODA desk officer.'
-                  : 'Only an LGU administrator can reset another staff account.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        );
-        final button = OutlinedButton(
-          onPressed: session.role == AdminRole.lgu
-              ? () => showDialog<void>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Staff password reset'),
-                    content: const Text(
-                      'Resetting another staff account requires a reviewed server-side LGU workflow. It is not available from this public web client yet.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
-          child: const Text('Reset staff password'),
-        );
-        if (constraints.maxWidth < 600) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [copy, const SizedBox(height: 16), button],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(child: copy),
-            const SizedBox(width: 16),
-            button,
-          ],
-        );
-      },
     ),
   );
 }
@@ -3774,6 +3706,14 @@ class _AdminAccountList extends StatelessWidget {
                         ? account.email
                         : '${account.email} -- ${account.toda}',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    account.invitedByName == null
+                        ? 'Pre-existing account (not invited)'
+                        : 'Invited by ${account.invitedByName}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AdminColors.muted,
+                    ),
                   ),
                 ],
               ),

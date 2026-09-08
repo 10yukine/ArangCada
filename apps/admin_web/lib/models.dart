@@ -985,17 +985,22 @@ class AdminAccount {
     this.firstName,
     this.lastName,
     this.toda,
+    this.invitedByName,
   });
 
-  factory AdminAccount.fromRow(Map<String, dynamic> row, {String? toda}) =>
-      AdminAccount(
-        id: row['id'].toString(),
-        email: row['email']?.toString() ?? '',
-        role: row['scope'] == 'toda' ? AdminRole.toda : AdminRole.lgu,
-        firstName: (row['first_name'] as String?)?.trim(),
-        lastName: (row['last_name'] as String?)?.trim(),
-        toda: toda,
-      );
+  factory AdminAccount.fromRow(
+    Map<String, dynamic> row, {
+    String? toda,
+    String? invitedByName,
+  }) => AdminAccount(
+    id: row['id'].toString(),
+    email: row['email']?.toString() ?? '',
+    role: row['scope'] == 'toda' ? AdminRole.toda : AdminRole.lgu,
+    firstName: (row['first_name'] as String?)?.trim(),
+    lastName: (row['last_name'] as String?)?.trim(),
+    toda: toda,
+    invitedByName: invitedByName,
+  );
 
   final String id;
   final String email;
@@ -1003,6 +1008,10 @@ class AdminAccount {
   final String? firstName;
   final String? lastName;
   final String? toda;
+  // Name of the LGU admin who sent the invite this account was created
+  // from -- null for an account that predates the invite system (Spec 19),
+  // e.g. one promoted directly in the database, not a data gap.
+  final String? invitedByName;
 
   String get name {
     final parts = [
