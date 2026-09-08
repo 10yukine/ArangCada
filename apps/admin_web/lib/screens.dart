@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'admin_controller.dart';
 import 'map_screen.dart';
@@ -3217,6 +3218,8 @@ Future<void> _showDriver(
                 ('mtop_franchise', 'MTOP / franchise permit'),
                 ('toda_membership', 'TODA membership endorsement'),
                 ('or_cr', 'Vehicle OR / CR registration'),
+                ('barangay_clearance', 'Barangay clearance (optional)'),
+                ('vehicle_photo', 'Vehicle photo (optional)'),
               ].indexed)
                 _DriverDocumentRow(
                   driver: driver,
@@ -3228,8 +3231,8 @@ Future<void> _showDriver(
               const SizedBox(height: 12),
               Text(
                 auth.value?.connected ?? false
-                    ? 'Only document review status is shown. Files remain private; driver approval is checked and audited by the server.'
-                    : 'Local demo actions create illustrative audit events.',
+                    ? 'Uploaded on the driver’s behalf after their paper submission is checked in person. Only this administrator’s view mints a signed link to a file -- never a public URL, and it expires in 5 minutes.'
+                    : 'Local demo mode has no Storage bucket or RPC to call -- upload, view, and review are disabled here.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -3292,7 +3295,7 @@ Future<void> _showDriver(
   );
 }
 
-class _DriverDocumentRow extends StatelessWidget {
+class _DriverDocumentRow extends ConsumerStatefulWidget {
   const _DriverDocumentRow({
     required this.driver,
     required this.documentType,
@@ -3308,27 +3311,255 @@ class _DriverDocumentRow extends StatelessWidget {
   final bool connected;
 
   @override
+  ConsumerState<_DriverDocumentRow> createState() => _DriverDocumentRowState();
+}
+
+class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
+  bool _busy = false;
+
+  String? get _status => widget.connected
+      ? widget.driver.documentStatuses[widget.documentType]
+      : widget.demoIndex < widget.driver.documents
+      ? 'approved'
+      : null;
+
+  Future<void> _upload() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2000,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final dotIndex = picked.name.lastIndexOf('.');
+      final extension = dotIndex == -1
+          ? 'jpg'
+          : picked.name.substring(dotIndex + 1).toLowerCase();
+      await ref
+          .read(adminProvider.notifier)
+          .uploadDriverDocument(
+            driverId: widget.driver.id,
+            documentType: widget.documentType,
+            bytes: bytes,
+            fileExtension: extension,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Document uploaded.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload that document.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _review({required bool approve}) async {
+    final documentId = widget.driver.documentIds[widget.documentType];
+    if (documentId == null) return;
+    String? reason;
+    if (!approve) {
+      final controller = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reject this document?'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Reason',
+              hintText: 'Required -- shown to no one but the audit trail',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(context, controller.text.trim().isNotEmpty),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+      reason = controller.text.trim();
+      controller.dispose();
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .reviewDriverDocument(
+            documentId: documentId,
+            approve: approve,
+            rejectionReason: reason,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve ? 'Document approved.' : 'Document rejected.'),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This document could not be updated.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final status = connected
-        ? driver.documentStatuses[documentType]
-        : demoIndex < driver.documents
-        ? 'approved'
+    final status = _status;
+    final path = widget.connected
+        ? widget.driver.documentPaths[widget.documentType]
         : null;
     final approved = status == 'approved';
+    final rejected = status == 'rejected';
     final description = switch (status) {
       'approved' => 'Approved',
       'pending' => 'Pending review',
       'rejected' => 'Rejected',
       _ => 'Missing',
     };
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        approved ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: approved ? AdminColors.success : AdminColors.muted,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                approved
+                    ? Icons.check_circle
+                    : rejected
+                    ? Icons.cancel
+                    : Icons.radio_button_unchecked,
+                color: approved
+                    ? AdminColors.success
+                    : rejected
+                    ? AdminColors.danger
+                    : AdminColors.muted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text(description, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+          if (path != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: _DriverDocumentPhoto(path: path),
+            ),
+          ],
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 32),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _busy || !widget.connected ? null : _upload,
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text(path == null ? 'Upload' : 'Replace'),
+                ),
+                if (widget.connected && status == 'pending' && path != null) ...[
+                  FilledButton(
+                    onPressed: _busy ? null : () => _review(approve: true),
+                    child: const Text('Approve'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _review(approve: false),
+                    child: const Text('Reject'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
-      title: Text(label),
-      trailing: Text(description),
+    );
+  }
+}
+
+class _DriverDocumentPhoto extends ConsumerStatefulWidget {
+  const _DriverDocumentPhoto({required this.path});
+  final String path;
+  @override
+  ConsumerState<_DriverDocumentPhoto> createState() =>
+      _DriverDocumentPhotoState();
+}
+
+class _DriverDocumentPhotoState extends ConsumerState<_DriverDocumentPhoto> {
+  late Future<String> _url;
+
+  @override
+  void initState() {
+    super.initState();
+    _url = ref.read(adminProvider.notifier).driverDocumentPhotoUrl(widget.path);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverDocumentPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      _url = ref
+          .read(adminProvider.notifier)
+          .driverDocumentPhotoUrl(widget.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _url,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox(
+            height: 100,
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox(
+            height: 40,
+            child: Center(child: Text('Could not load this document.')),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            snapshot.data!,
+            height: 160,
+            fit: BoxFit.contain,
+            alignment: Alignment.centerLeft,
+          ),
+        );
+      },
     );
   }
 }

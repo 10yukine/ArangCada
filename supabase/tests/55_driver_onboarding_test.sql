@@ -261,10 +261,30 @@ select ok(
 );
 
 -- Documents arrive one at a time; the trigger watches for completion.
-insert into public.driver_documents (driver_id, document_type, storage_path, status) values
-  ('00000000-0000-0000-0000-0000000055a1', 'drivers_license', 'd/a1/lic.jpg', 'approved'),
-  ('00000000-0000-0000-0000-0000000055a1', 'mtop_franchise',  'd/a1/mtop.jpg', 'approved'),
-  ('00000000-0000-0000-0000-0000000055a1', 'toda_membership', 'd/a1/toda.jpg', 'approved');
+-- Written through admin_upsert_driver_document()/admin_review_driver_document()
+-- rather than a raw insert/update -- driver_documents_admin_all no longer
+-- grants direct writes as of 20260908010000_driver_document_review.sql,
+-- exactly so a write like this cannot happen without the audit trail those
+-- two RPCs guarantee. The active identity here is still the admin fixture
+-- (055c1, set above, unscoped -- has_admin_scope() passes for any zone).
+select public.admin_upsert_driver_document('00000000-0000-0000-0000-0000000055a1', 'drivers_license', 'd/a1/lic.jpg');
+select public.admin_review_driver_document(
+  (select id from public.driver_documents
+    where driver_id = '00000000-0000-0000-0000-0000000055a1' and document_type = 'drivers_license'),
+  true, null
+);
+select public.admin_upsert_driver_document('00000000-0000-0000-0000-0000000055a1', 'mtop_franchise', 'd/a1/mtop.jpg');
+select public.admin_review_driver_document(
+  (select id from public.driver_documents
+    where driver_id = '00000000-0000-0000-0000-0000000055a1' and document_type = 'mtop_franchise'),
+  true, null
+);
+select public.admin_upsert_driver_document('00000000-0000-0000-0000-0000000055a1', 'toda_membership', 'd/a1/toda.jpg');
+select public.admin_review_driver_document(
+  (select id from public.driver_documents
+    where driver_id = '00000000-0000-0000-0000-0000000055a1' and document_type = 'toda_membership'),
+  true, null
+);
 
 select is(
   (select verification_status::text from public.driver_profiles
@@ -279,8 +299,10 @@ select throws_ok(
   'approval is refused while a required document is missing -- the RPC checks, it does not trust the reviewer'
 );
 
-insert into public.driver_documents (driver_id, document_type, storage_path, status)
-values ('00000000-0000-0000-0000-0000000055a1', 'or_cr', 'd/a1/orcr.jpg', 'pending');
+select public.admin_upsert_driver_document('00000000-0000-0000-0000-0000000055a1', 'or_cr', 'd/a1/orcr.jpg');
+-- admin_upsert_driver_document() always lands as 'pending' (a fresh
+-- upload always needs a fresh review) -- which is exactly the state this
+-- fixture wants for the fourth document at this point in the test.
 
 select is(
   (select verification_status::text from public.driver_profiles
@@ -295,8 +317,11 @@ select throws_ok(
   'all four present is still not enough -- each must itself be approved'
 );
 
-update public.driver_documents set status = 'approved'
- where driver_id = '00000000-0000-0000-0000-0000000055a1';
+select public.admin_review_driver_document(
+  (select id from public.driver_documents
+    where driver_id = '00000000-0000-0000-0000-0000000055a1' and document_type = 'or_cr'),
+  true, null
+);
 
 select throws_ok(
   $$select public.admin_review_driver('00000000-0000-0000-0000-0000000055a1', 'reject', null)$$,

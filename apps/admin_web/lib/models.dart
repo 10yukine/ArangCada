@@ -98,6 +98,8 @@ class Driver {
     this.longitude,
     this.todaZoneId,
     this.documentStatuses = const {},
+    this.documentIds = const {},
+    this.documentPaths = const {},
   });
 
   factory Driver.fromRow(Map<String, dynamic> row) {
@@ -132,6 +134,22 @@ class Driver {
               entry.key: entry.value.toString(),
           }
         : const <String, String>{};
+    final documentIds = row['document_ids'] is Map
+        ? <String, String>{
+            for (final entry in Map<String, dynamic>.from(
+              row['document_ids'] as Map,
+            ).entries)
+              entry.key: entry.value.toString(),
+          }
+        : const <String, String>{};
+    final documentPaths = row['document_paths'] is Map
+        ? <String, String>{
+            for (final entry in Map<String, dynamic>.from(
+              row['document_paths'] as Map,
+            ).entries)
+              entry.key: entry.value.toString(),
+          }
+        : const <String, String>{};
     return Driver(
       id: id,
       name:
@@ -160,6 +178,8 @@ class Driver {
       longitude: (row['longitude'] as num?)?.toDouble(),
       todaZoneId: row['toda_zone_id']?.toString(),
       documentStatuses: documentStatuses,
+      documentIds: documentIds,
+      documentPaths: documentPaths,
     );
   }
 
@@ -177,6 +197,8 @@ class Driver {
   final double? longitude;
   final String? todaZoneId;
   final Map<String, String> documentStatuses;
+  final Map<String, String> documentIds;
+  final Map<String, String> documentPaths;
 
   int get approvedDocuments => documentStatuses.isEmpty
       ? documents
@@ -197,6 +219,8 @@ class Driver {
     longitude: longitude,
     todaZoneId: todaZoneId,
     documentStatuses: documentStatuses,
+    documentIds: documentIds,
+    documentPaths: documentPaths,
   );
 }
 

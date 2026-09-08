@@ -173,7 +173,7 @@ class SupabaseAdminRepository {
       client.from('toda_zones').select('id, name, boundary'),
       client
           .from('driver_documents')
-          .select('driver_id, document_type, status'),
+          .select('id, driver_id, document_type, status, storage_path'),
       client
           .from('complaints')
           .select(
@@ -231,12 +231,18 @@ class SupabaseAdminRepository {
       for (final row in availabilityRows) row['driver_id'].toString(): row,
     };
     final documentStatuses = <String, Map<String, String>>{};
+    final documentIds = <String, Map<String, String>>{};
+    final documentPaths = <String, Map<String, String>>{};
     for (final row in documentRows) {
       final driverId = row['driver_id']?.toString();
       final type = row['document_type']?.toString();
       if (driverId == null || type == null) continue;
       (documentStatuses[driverId] ??= {})[type] =
           row['status']?.toString() ?? 'pending';
+      final documentId = row['id']?.toString();
+      if (documentId != null) (documentIds[driverId] ??= {})[type] = documentId;
+      final path = row['storage_path']?.toString();
+      if (path != null) (documentPaths[driverId] ??= {})[type] = path;
     }
 
     final rides = <Ride>[];
@@ -263,6 +269,12 @@ class SupabaseAdminRepository {
             ...row,
             'document_statuses':
                 documentStatuses[row['driver_id']?.toString()] ??
+                const <String, String>{},
+            'document_ids':
+                documentIds[row['driver_id']?.toString()] ??
+                const <String, String>{},
+            'document_paths':
+                documentPaths[row['driver_id']?.toString()] ??
                 const <String, String>{},
           }),
       ],
@@ -473,6 +485,58 @@ class SupabaseAdminRepository {
         .from('discount-eligibility-ids')
         .createSignedUrl(path, 300);
     return signed;
+  }
+
+  /// A short-lived signed URL for a driver's uploaded document -- same
+  /// shape as fareClassClaimPhotoUrl, gated by
+  /// driver_documents_photos_select_own_or_admin instead. See
+  /// .pipeline/specs.md Spec 18.
+  Future<String> driverDocumentPhotoUrl(String path) async {
+    final signed = await client.storage
+        .from('driver-documents')
+        .createSignedUrl(path, 300);
+    return signed;
+  }
+
+  /// Uploads (or replaces) a driver's document on their behalf: the file
+  /// goes to Storage first, then admin_upsert_driver_document() records
+  /// the path -- that RPC is what actually resets status to pending and
+  /// writes the audit row, not this method. Path convention matches
+  /// profile-photos: {driver_id}/{document_type}-{timestamp}.{ext}.
+  Future<void> uploadDriverDocument({
+    required String driverId,
+    required String documentType,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    final path =
+        '$driverId/$documentType-${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+    await client.storage
+        .from('driver-documents')
+        .uploadBinary(path, bytes);
+    await client.rpc(
+      'admin_upsert_driver_document',
+      params: {
+        'p_driver_id': driverId,
+        'p_document_type': documentType,
+        'p_storage_path': path,
+      },
+    );
+  }
+
+  Future<void> reviewDriverDocument({
+    required String documentId,
+    required bool approve,
+    String? rejectionReason,
+  }) async {
+    await client.rpc(
+      'admin_review_driver_document',
+      params: {
+        'p_document_id': documentId,
+        'p_approve': approve,
+        'p_rejection_reason': rejectionReason?.trim(),
+      },
+    );
   }
 
   Future<void> updateFeedbackSettings({

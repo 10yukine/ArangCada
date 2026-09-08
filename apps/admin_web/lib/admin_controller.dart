@@ -499,6 +499,64 @@ class AdminController extends Notifier<AdminState> {
     await refresh();
   }
 
+  /// A short-lived signed URL for a driver's uploaded document. Same
+  /// rejected-Future-not-a-throw shape as fareClassClaimPhotoUrl above, and
+  /// for the same reason.
+  Future<String> driverDocumentPhotoUrl(String path) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      return Future.error(
+        StateError('Viewing a driver document requires the live Supabase connection.'),
+      );
+    }
+    return repository.driverDocumentPhotoUrl(path);
+  }
+
+  /// Real-data-only, matching reviewFareClassClaim above -- local demo mode
+  /// has no Storage bucket and no RPC to call, so this always requires the
+  /// live Supabase connection rather than a local-mutation fallback.
+  Future<void> uploadDriverDocument({
+    required String driverId,
+    required String documentType,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Uploading a driver document requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .uploadDriverDocument(
+          driverId: driverId,
+          documentType: documentType,
+          bytes: bytes,
+          fileExtension: fileExtension,
+        );
+    await refresh();
+  }
+
+  Future<void> reviewDriverDocument({
+    required String documentId,
+    required bool approve,
+    String? rejectionReason,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Driver document review requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .reviewDriverDocument(
+          documentId: documentId,
+          approve: approve,
+          rejectionReason: rejectionReason,
+        );
+    await refresh();
+  }
+
   Future<void> updateFeedbackSettings({
     required AdminSession session,
     required int feedbackInterval,
