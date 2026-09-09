@@ -1442,6 +1442,24 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
 
   Future<void> _changePhoto() async {
     if (!_canChange || _uploading) return;
+    // Owner report, 9 Sep 2026: "damn i still cant click the pencil icon"
+    // -- after the hit-test-geometry fix (the badge no longer painting
+    // outside its own tappable bounds) still didn't fix it live, which
+    // means the geometry was never actually the whole story. This message
+    // fires the instant the tap is registered, before anything async --
+    // if it never appears, the tap itself still is not landing (a Flutter/
+    // browser-level problem); if it appears but no file dialog follows,
+    // the problem is downstream in image_picker/the browser's own
+    // same-gesture requirement for opening a file chooser, not this
+    // widget's hit-testing.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opening photo picker...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1200,
@@ -1486,28 +1504,30 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
           Semantics(
             label: _canChange ? 'Change profile photo' : null,
             button: _canChange,
-            child: GestureDetector(
-              onTap: _canChange ? _changePhoto : null,
-              // Explicit opaque + a fixed box a touch larger than the
-              // circle itself -- the edit badge below used to sit at a
-              // negative Positioned offset so it could poke past the
-              // circle's edge, which also put it past the Stack's own
-              // hit-test bounds (Positioned children with Clip.none paint
-              // outside those bounds but do not extend them). The owner
-              // could see the pencil but not tap it. Now nothing is
-              // positioned outside this box's own bounds, so the whole
-              // 56x56 area -- including the badge -- is reliably tappable.
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
+            // Rebuilt on Material + InkWell rather than a bare
+            // GestureDetector -- InkWell is the framework's own
+            // battle-tested tap-target implementation (used for every
+            // other clickable surface in this app, e.g. Panel's own onTap)
+            // instead of a hand-rolled Stack/Positioned combination that
+            // already hid one hit-test bug. The ripple is also a real,
+            // visible confirmation that a tap landed at all, which the
+            // silent GestureDetector version never gave anyone -- owner
+            // included -- a way to tell apart from "did nothing."
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
                 key: const ValueKey('avatarHitTestBox'),
-                width: 56,
-                height: 56,
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 2,
-                      top: 2,
-                      child: CircleAvatar(
+                customBorder: const CircleBorder(),
+                onTap: _canChange ? _changePhoto : null,
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircleAvatar(
                         radius: 26,
                         backgroundColor: AdminColors.primaryTint,
                         foregroundColor: AdminColors.primaryPress,
@@ -1518,12 +1538,8 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
                             ? Text(session.initials)
                             : null,
                       ),
-                    ),
-                    if (_uploading)
-                      const Positioned(
-                        left: 2,
-                        top: 2,
-                        child: CircleAvatar(
+                      if (_uploading)
+                        const CircleAvatar(
                           radius: 26,
                           backgroundColor: Colors.black45,
                           child: SizedBox(
@@ -1534,27 +1550,29 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
                               valueColor: AlwaysStoppedAnimation(Colors.white),
                             ),
                           ),
-                        ),
-                      )
-                    else if (_canChange)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: AdminColors.rail,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
+                        )
+                      else if (_canChange)
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: AdminColors.rail,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.edit,
+                              size: 12,
+                              color: Colors.white,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 12,
-                            color: Colors.white,
-                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

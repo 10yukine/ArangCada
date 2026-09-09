@@ -84,6 +84,41 @@ void main() {
   );
 
   testWidgets(
+    'a real tap on the edit badge actually reaches the handler',
+    (tester) async {
+      // The geometry test above proves nothing paints outside the
+      // tappable area; this proves a tap dispatched at the badge's own
+      // rendered position is actually delivered. tester.tap() hit-tests
+      // for real, the same way a mouse click does -- catching this class
+      // of bug is exactly why this test exists: an earlier, geometrically
+      // "correct" version of this control still was not clickable live,
+      // and only a real tap-and-observe check like this one would have
+      // caught it before deploy.
+      await openSettings(
+        tester,
+        const AdminSession(
+          name: 'Maria Robles',
+          email: 'm.robles@calamba.gov.ph',
+          role: AdminRole.lgu,
+          userId: 'admin-1',
+          connected: true,
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.edit), warnIfMissed: true);
+      await tester.pump();
+
+      // _changePhoto() shows this SnackBar synchronously, before ever
+      // awaiting image_picker -- its appearance is direct proof the tap
+      // was delivered to the handler, independent of anything
+      // image_picker itself does afterward (untestable here -- no
+      // platform channel implementation is registered in a plain widget
+      // test).
+      expect(find.text('Opening photo picker...'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'a disconnected local-demo session cannot change its photo',
     (tester) async {
       await openSettings(
