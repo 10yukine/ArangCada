@@ -48,6 +48,42 @@ void main() {
   );
 
   testWidgets(
+    'the edit badge renders fully inside its own tappable area, not '
+    'poking outside it',
+    (tester) async {
+      // Regression test for a real bug: the badge used to sit at a
+      // negative Positioned offset (right: -2, bottom: -2) so it could
+      // visually poke past the avatar's edge -- painted there via
+      // Clip.none, but *outside* the GestureDetector's own hit-test
+      // bounds (a Positioned child painting outside a Stack's bounds does
+      // not extend what that Stack -- or its ancestor GestureDetector --
+      // will hit-test). It was visible and looked tappable but a real
+      // click on it silently did nothing. A presence-only check
+      // (find.bySemanticsLabel, the test above) cannot catch this class
+      // of bug; this asserts the actual geometry instead -- everything
+      // that paints must stay within the one Rect that is tappable.
+      await openSettings(
+        tester,
+        const AdminSession(
+          name: 'Maria Robles',
+          email: 'm.robles@calamba.gov.ph',
+          role: AdminRole.lgu,
+          userId: 'admin-1',
+          connected: true,
+        ),
+      );
+
+      final hitTestArea = tester.getRect(
+        find.byKey(const ValueKey('avatarHitTestBox')),
+      );
+      final badge = tester.getRect(find.byIcon(Icons.edit));
+
+      expect(hitTestArea.contains(badge.topLeft), isTrue);
+      expect(hitTestArea.contains(badge.bottomRight), isTrue);
+    },
+  );
+
+  testWidgets(
     'a disconnected local-demo session cannot change its photo',
     (tester) async {
       await openSettings(

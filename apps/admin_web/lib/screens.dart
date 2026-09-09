@@ -1488,52 +1488,74 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
             button: _canChange,
             child: GestureDetector(
               onTap: _canChange ? _changePhoto : null,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AdminColors.primaryTint,
-                    foregroundColor: AdminColors.primaryPress,
-                    backgroundImage: avatarUrl == null
-                        ? null
-                        : NetworkImage(avatarUrl),
-                    child: avatarUrl == null ? Text(session.initials) : null,
-                  ),
-                  if (_uploading)
-                    const Positioned.fill(
+              // Explicit opaque + a fixed box a touch larger than the
+              // circle itself -- the edit badge below used to sit at a
+              // negative Positioned offset so it could poke past the
+              // circle's edge, which also put it past the Stack's own
+              // hit-test bounds (Positioned children with Clip.none paint
+              // outside those bounds but do not extend them). The owner
+              // could see the pencil but not tap it. Now nothing is
+              // positioned outside this box's own bounds, so the whole
+              // 56x56 area -- including the badge -- is reliably tappable.
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                key: const ValueKey('avatarHitTestBox'),
+                width: 56,
+                height: 56,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 2,
+                      top: 2,
                       child: CircleAvatar(
                         radius: 26,
-                        backgroundColor: Colors.black45,
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                        backgroundColor: AdminColors.primaryTint,
+                        foregroundColor: AdminColors.primaryPress,
+                        backgroundImage: avatarUrl == null
+                            ? null
+                            : NetworkImage(avatarUrl),
+                        child: avatarUrl == null
+                            ? Text(session.initials)
+                            : null,
+                      ),
+                    ),
+                    if (_uploading)
+                      const Positioned(
+                        left: 2,
+                        top: 2,
+                        child: CircleAvatar(
+                          radius: 26,
+                          backgroundColor: Colors.black45,
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (_canChange)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AdminColors.rail,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            size: 12,
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                    )
-                  else if (_canChange)
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: AdminColors.rail,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          size: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
