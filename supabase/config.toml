@@ -57,3 +57,18 @@ enabled = true
 # before the function ever ran.
 verify_jwt = false
 entrypoint = "./functions/accept-admin-invite/index.ts"
+
+[functions.send-driver-invite]
+enabled = true
+# True -- called from apps/admin_web with a signed-in LGU administrator's
+# session, same reasoning as send-admin-invite.
+verify_jwt = true
+entrypoint = "./functions/send-driver-invite/index.ts"
+
+[functions.accept-driver-invite]
+enabled = true
+# MUST stay false. The invited driver has no ArangCada session at all --
+# the token in the link is the only credential, checked inside the
+# function itself (driver_invite_lookup / driver_finalize_invited_account).
+verify_jwt = false
+entrypoint = "./functions/accept-driver-invite/index.ts"

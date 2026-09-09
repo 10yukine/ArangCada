@@ -678,6 +678,124 @@ class AdminController extends Notifier<AdminState> {
       password: password,
     );
   }
+
+  /// Existing-account candidates for an email, for the enroll-driver
+  /// dialog's first step. Real-data-only -- there is no seeded demo
+  /// candidate list to fake, same reasoning reviewFareClassClaim/
+  /// reviewDriverDocument already establish.
+  Future<List<DriverCandidate>> previewDriverCandidate(String email) async {
+    if (!state.connected) {
+      throw StateError(
+        'Looking up an existing account requires the live Supabase connection.',
+      );
+    }
+    return ref.read(adminRepositoryProvider)!.previewDriverCandidate(email);
+  }
+
+  Future<void> promoteCommuterToDriver({
+    required String email,
+    required String confirmValue,
+    required String todaZoneId,
+    String? bodyNumber,
+    String? reason,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Promoting a driver requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .promoteCommuterToDriver(
+          email: email,
+          confirmValue: confirmValue,
+          todaZoneId: todaZoneId,
+          bodyNumber: bodyNumber,
+          reason: reason,
+        );
+    await refresh();
+  }
+
+  Future<void> sendDriverInvite({
+    required String email,
+    required String todaZoneId,
+    String? bodyNumber,
+  }) async {
+    if (!state.connected) {
+      throw StateError(
+        'Sending a driver invite requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .sendDriverInvite(
+          email: email,
+          todaZoneId: todaZoneId,
+          bodyNumber: bodyNumber,
+        );
+    final session = _connectedSession;
+    if (session != null) await refreshDriverInvites();
+  }
+
+  Future<void> revokeDriverInvite(String inviteId) async {
+    if (!state.connected) {
+      throw StateError(
+        'Revoking a driver invite requires the live Supabase connection.',
+      );
+    }
+    await ref.read(adminRepositoryProvider)!.revokeDriverInvite(inviteId);
+    await refreshDriverInvites();
+  }
+
+  /// LGU-only, loaded on demand by DriversScreen -- not part of the main
+  /// refresh() snapshot, same reasoning refreshAdminAccounts (Spec 19)
+  /// establishes for its own LGU-only, low-frequency data.
+  Future<void> refreshDriverInvites() async {
+    if (!state.connected) return;
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) throw StateError('Administrator session expired.');
+    final result = await repository.loadDriverInvites();
+    state = state.copyWith(
+      driverInvites: result.invites,
+      todaZoneOptions: result.zones,
+    );
+  }
+
+
+  /// Thin pass-throughs for the public accept-driver-invite screen, which
+  /// runs before any admin session exists -- no state to refresh, same
+  /// rejected-Future-not-a-throw shape lookupAdminInvite (Spec 19) uses.
+  Future<({String email, String todaZoneName})> lookupDriverInvite(
+    String token,
+  ) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      return Future.error(
+        StateError('This invite page requires the live Supabase connection.'),
+      );
+    }
+    return repository.lookupDriverInvite(token);
+  }
+
+  Future<void> acceptDriverInvite({
+    required String token,
+    required String displayName,
+    required String mobileNumber,
+    required String password,
+  }) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) {
+      return Future.error(
+        StateError('This invite page requires the live Supabase connection.'),
+      );
+    }
+    return repository.acceptDriverInvite(
+      token: token,
+      displayName: displayName,
+      mobileNumber: mobileNumber,
+      password: password,
+    );
+  }
 }
 
 AdminState seedAdminState() {

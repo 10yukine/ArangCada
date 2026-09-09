@@ -810,6 +810,7 @@ class AdminState {
     this.adminAccounts = const [],
     this.adminInvites = const [],
     this.todaZoneOptions = const [],
+    this.driverInvites = const [],
   });
 
   final List<Driver> drivers;
@@ -844,6 +845,11 @@ class AdminState {
   final List<AdminAccount> adminAccounts;
   final List<AdminInvite> adminInvites;
   final List<(String id, String name)> todaZoneOptions;
+  // LGU-only, loaded on demand by DriversScreen (Spec 20) -- same
+  // on-demand-not-in-the-snapshot reasoning adminInvites above already
+  // establishes. todaZoneOptions is shared with the Admins screen's own
+  // invite dialog; either on-demand load populates the same field.
+  final List<DriverInvite> driverInvites;
 
   AdminState copyWith({
     List<Driver>? drivers,
@@ -876,6 +882,7 @@ class AdminState {
     List<AdminAccount>? adminAccounts,
     List<AdminInvite>? adminInvites,
     List<(String id, String name)>? todaZoneOptions,
+    List<DriverInvite>? driverInvites,
   }) => AdminState(
     drivers: drivers ?? this.drivers,
     reports: reports ?? this.reports,
@@ -907,6 +914,7 @@ class AdminState {
     adminAccounts: adminAccounts ?? this.adminAccounts,
     adminInvites: adminInvites ?? this.adminInvites,
     todaZoneOptions: todaZoneOptions ?? this.todaZoneOptions,
+    driverInvites: driverInvites ?? this.driverInvites,
   );
 }
 
@@ -1052,4 +1060,65 @@ class AdminInvite {
   final String status;
   final DateTime created;
   final String? toda;
+}
+
+/// A pending driver enrollment invite, for the Drivers screen's own
+/// "Pending driver invites" panel (Spec 20). Same shape as AdminInvite
+/// (Spec 19), minus the scope concept a driver invite has no use for.
+class DriverInvite {
+  const DriverInvite({
+    required this.id,
+    required this.email,
+    required this.toda,
+    required this.status,
+    required this.created,
+    this.bodyNumber,
+  });
+
+  factory DriverInvite.fromRow(Map<String, dynamic> row, {String? toda}) =>
+      DriverInvite(
+        id: row['id'].toString(),
+        email: row['email']?.toString() ?? '',
+        toda: toda,
+        status: row['status']?.toString() ?? 'pending',
+        created:
+            DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
+            DateTime.now(),
+        bodyNumber: (row['body_number'] as String?)?.trim(),
+      );
+
+  final String id;
+  final String email;
+  final String? toda;
+  final String status;
+  final DateTime created;
+  final String? bodyNumber;
+}
+
+/// One row from admin_preview_driver_candidate() -- an existing account
+/// that already matches the email an LGU admin is trying to enroll as a
+/// driver. Deliberately carries no id (the RPC itself returns none, by
+/// design -- see the migration comment) and only a masked name.
+class DriverCandidate {
+  const DriverCandidate({
+    required this.maskedName,
+    required this.accountRole,
+    required this.accountStatus,
+    required this.joinedOn,
+    required this.tripCount,
+  });
+
+  factory DriverCandidate.fromRow(Map<String, dynamic> row) => DriverCandidate(
+    maskedName: row['masked_name']?.toString() ?? '',
+    accountRole: row['account_role']?.toString() ?? '',
+    accountStatus: row['account_status']?.toString() ?? '',
+    joinedOn: row['joined_on']?.toString() ?? '',
+    tripCount: (row['trip_count'] as num?)?.toInt() ?? 0,
+  );
+
+  final String maskedName;
+  final String accountRole;
+  final String accountStatus;
+  final String joinedOn;
+  final int tripCount;
 }

@@ -730,6 +730,154 @@ class SupabaseAdminRepository {
     return details is Map ? details['error']?.toString() : null;
   }
 
+  /// Existing-account candidates matching an email, for the "enroll driver"
+  /// dialog's first step (Spec 20). Deliberately returns whatever
+  /// admin_preview_driver_candidate() returns -- no uuid, a masked name --
+  /// and does not decide anything; the caller (the dialog) shows this to
+  /// the admin and asks them to confirm before promoting.
+  Future<List<DriverCandidate>> previewDriverCandidate(String email) async {
+    final rows = _rows(
+      await client.rpc(
+        'admin_preview_driver_candidate',
+        params: {'p_email': email},
+      ),
+    );
+    return [for (final row in rows) DriverCandidate.fromRow(row)];
+  }
+
+  /// Promotes an existing account to driver. p_confirm_value is the email
+  /// re-typed by hand -- the RPC's own safeguard against a mistyped
+  /// identifier silently promoting an uninvolved commuter, not something
+  /// this method adds on top.
+  Future<void> promoteCommuterToDriver({
+    required String email,
+    required String confirmValue,
+    required String todaZoneId,
+    String? bodyNumber,
+    String? reason,
+  }) async {
+    await client.rpc(
+      'admin_promote_commuter_to_driver',
+      params: {
+        'p_match_by': 'email',
+        'p_email': email,
+        'p_confirm_value': confirmValue,
+        'p_toda_zone_id': todaZoneId,
+        'p_body_number': bodyNumber,
+        'p_reason': reason,
+      },
+    );
+  }
+
+  /// Sends a driver enrollment invite by email. Calls the
+  /// send-driver-invite Edge Function -- the RPC it wraps
+  /// (admin_create_driver_invite) cannot send email itself, and the Resend
+  /// API key must never reach this client. See .pipeline/specs.md Spec 20.
+  Future<void> sendDriverInvite({
+    required String email,
+    required String todaZoneId,
+    String? bodyNumber,
+  }) async {
+    try {
+      await client.functions.invoke(
+        'send-driver-invite',
+        body: {
+          'email': email,
+          'toda_zone_id': todaZoneId,
+          'body_number': bodyNumber,
+        },
+      );
+    } on FunctionException catch (error) {
+      throw StateError(
+        _functionErrorMessage(error) ?? 'The invite could not be sent.',
+      );
+    }
+  }
+
+  Future<void> revokeDriverInvite(String inviteId) async {
+    await client.rpc(
+      'admin_revoke_driver_invite',
+      params: {'p_invite_id': inviteId},
+    );
+  }
+
+  /// Pending driver invites and the TODA-zone picker options for the
+  /// enroll-driver dialog -- one on-demand load, not part of the main
+  /// snapshot, same reasoning loadAdminAccounts() (Spec 19) establishes.
+  Future<({List<DriverInvite> invites, List<(String id, String name)> zones})>
+  loadDriverInvites() async {
+    final results = await Future.wait<dynamic>([
+      client
+          .from('driver_invites')
+          .select('id, email, toda_zone_id, body_number, status, created_at, toda_zones(name)')
+          .eq('status', 'pending')
+          .order('created_at', ascending: false),
+      client.from('toda_zones').select('id, name').order('name'),
+    ]);
+
+    final inviteRows = _rows(results[0]);
+    final zoneRows = _rows(results[1]);
+
+    return (
+      invites: [
+        for (final row in inviteRows)
+          DriverInvite.fromRow(
+            row,
+            toda: (row['toda_zones'] as Map?)?['name']?.toString(),
+          ),
+      ],
+      zones: [
+        for (final row in zoneRows)
+          (row['id'].toString(), row['name'].toString()),
+      ],
+    );
+  }
+
+  /// Resolves a driver invite token to its locked email and TODA zone
+  /// name, for the public accept page. Called with the anon key -- no
+  /// session exists yet.
+  Future<({String email, String todaZoneName})> lookupDriverInvite(
+    String token,
+  ) async {
+    final rows = _rows(
+      await client.rpc('driver_invite_lookup', params: {'p_token': token}),
+    );
+    final email = rows.isEmpty ? null : rows.first['email']?.toString();
+    final zone = rows.isEmpty ? null : rows.first['toda_zone_name']?.toString();
+    if (email == null || email.isEmpty) {
+      throw StateError('This invite is invalid or has expired.');
+    }
+    return (email: email, todaZoneName: zone ?? 'your TODA');
+  }
+
+  /// Creates the invited driver's account. Calls the accept-driver-invite
+  /// Edge Function -- only the Auth Admin API can create this account, and
+  /// it requires the service-role key this client never holds. Does not
+  /// sign the driver in anywhere -- a driver account cannot open an
+  /// admin_web session at all (see AcceptDriverInviteScreen).
+  Future<void> acceptDriverInvite({
+    required String token,
+    required String displayName,
+    required String mobileNumber,
+    required String password,
+  }) async {
+    try {
+      await client.functions.invoke(
+        'accept-driver-invite',
+        body: {
+          'token': token,
+          'display_name': displayName,
+          'mobile_number': mobileNumber,
+          'password': password,
+        },
+      );
+    } on FunctionException catch (error) {
+      throw StateError(
+        _functionErrorMessage(error) ?? 'The account could not be created.',
+      );
+    }
+  }
+
   Future<void> signOut() async {
     _removeChannel();
     await client.auth.signOut();

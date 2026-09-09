@@ -64,7 +64,8 @@ class _AdminAppState extends State<AdminApp> {
       // A recipient opening an invite link has no session at all -- this
       // route is public by design, same as /login, and must not bounce them
       // there. See .pipeline/specs.md Spec 19.
-      final acceptingInvite = state.matchedLocation == '/accept-invite';
+      final acceptingInvite = state.matchedLocation == '/accept-invite' ||
+          state.matchedLocation == '/accept-driver-invite';
       if (auth.value == null && !loggingIn && !acceptingInvite) return '/login';
       if (auth.value != null && loggingIn) return '/dashboard';
       return null;
@@ -75,6 +76,13 @@ class _AdminAppState extends State<AdminApp> {
         path: '/accept-invite',
         builder: (context, state) =>
             AcceptInviteScreen(token: state.uri.queryParameters['token']),
+      ),
+      // Driver enrollment (Spec 20) -- same public, no-session shape as
+      // /accept-invite above.
+      GoRoute(
+        path: '/accept-driver-invite',
+        builder: (context, state) =>
+            AcceptDriverInviteScreen(token: state.uri.queryParameters['token']),
       ),
       ShellRoute(
         builder: (context, state, child) =>

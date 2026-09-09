@@ -371,15 +371,35 @@ class DriversScreen extends ConsumerWidget {
           title: 'Driver verification',
           subtitle:
               'Enroll drivers, review submitted records, and preserve an auditable lifecycle.',
-          action: state.connected
-              ? const StatusPill('Applications submitted in the driver app')
-              : FilledButton.icon(
+          // LGU-initiated enrollment (Spec 20) -- the LGU inputs the
+          // driver's email; the flow itself decides whether that email
+          // gets an invite or promotes an existing account. Replaces the
+          // old passive "Applications submitted in the driver app" pill,
+          // which encoded the wrong model: nothing in this app has ever
+          // let a driver self-apply.
+          action: !state.connected
+              ? FilledButton.icon(
                   onPressed: () => _showEnrollment(context, ref),
                   icon: const Icon(Icons.person_add_alt_1),
                   label: const Text('Enroll driver'),
-                ),
+                )
+              : auth.value!.role == AdminRole.lgu
+              ? FilledButton.icon(
+                  onPressed: () => _showDriverEnrollment(
+                    context,
+                    ref,
+                    state.todaZoneOptions,
+                  ),
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Enroll driver'),
+                )
+              : const StatusPill('Enrollment is managed by an LGU administrator'),
         ),
         const SizedBox(height: 22),
+        if (state.connected && auth.value!.role == AdminRole.lgu) ...[
+          const _PendingDriverInvitesPanel(),
+          const SizedBox(height: 18),
+        ],
         Panel(
           child: Column(
             children: [
@@ -2993,6 +3013,377 @@ class _SettingRow extends StatelessWidget {
   );
 }
 
+// =============================================================================
+// Driver enrollment by email (Spec 20) -- LGU-initiated, mirrors the admin
+// invite system (Spec 19) closely.
+// =============================================================================
+
+class _PendingDriverInvitesPanel extends ConsumerStatefulWidget {
+  const _PendingDriverInvitesPanel();
+  @override
+  ConsumerState<_PendingDriverInvitesPanel> createState() =>
+      _PendingDriverInvitesPanelState();
+}
+
+class _PendingDriverInvitesPanelState
+    extends ConsumerState<_PendingDriverInvitesPanel> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_refresh()));
+  }
+
+  Future<void> _refresh() async {
+    final session = auth.value;
+    if (!mounted ||
+        session == null ||
+        session.role != AdminRole.lgu ||
+        !session.connected) {
+      return;
+    }
+    try {
+      await ref.read(adminProvider.notifier).refreshDriverInvites();
+    } catch (_) {
+      // Stays empty -- nothing more specific to show here, same swallow-
+      // and-retry-next-visit shape SafetyScreen's own poll already uses.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final invites = ref.watch(adminProvider).driverInvites;
+    if (invites.isEmpty) return const SizedBox.shrink();
+    return Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pending driver invites',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Not yet accepted. Inviting the same email again supersedes the link below.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          for (final invite in invites)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          invite.email,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          '${invite.toda ?? 'Unknown TODA'} -- sent ${shortTime(invite.created)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _revoke(context, ref, invite),
+                    child: const Text('Revoke'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _revoke(
+    BuildContext context,
+    WidgetRef ref,
+    DriverInvite invite,
+  ) async {
+    try {
+      await ref.read(adminProvider.notifier).revokeDriverInvite(invite.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Invite to ${invite.email} revoked.')));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This invite could not be revoked.')),
+      );
+    }
+  }
+}
+
+Future<void> _showDriverEnrollment(
+  BuildContext context,
+  WidgetRef ref,
+  List<(String id, String name)> todaZoneOptions,
+) async {
+  final enrolled = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) =>
+        _DriverEnrollmentDialog(todaZoneOptions: todaZoneOptions),
+  );
+  if (enrolled == true && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Driver enrolled.')));
+  }
+}
+
+class _DriverEnrollmentDialog extends ConsumerStatefulWidget {
+  const _DriverEnrollmentDialog({required this.todaZoneOptions});
+  final List<(String id, String name)> todaZoneOptions;
+
+  @override
+  ConsumerState<_DriverEnrollmentDialog> createState() =>
+      _DriverEnrollmentDialogState();
+}
+
+class _DriverEnrollmentDialogState
+    extends ConsumerState<_DriverEnrollmentDialog> {
+  final _emailFormKey = GlobalKey<FormState>();
+  final _detailFormKey = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _confirmEmail = TextEditingController();
+  final _bodyNumber = TextEditingController();
+  bool _checking = false;
+  bool _submitting = false;
+  // null = step 1 (email not checked yet). Non-null = step 2, and whether
+  // it is empty decides which of the two branches step 2 shows.
+  List<DriverCandidate>? _candidates;
+  String? _todaZoneId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.todaZoneOptions.isNotEmpty) {
+      _todaZoneId = widget.todaZoneOptions.first.$1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _confirmEmail.dispose();
+    _bodyNumber.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkEmail() async {
+    if (!_emailFormKey.currentState!.validate()) return;
+    setState(() => _checking = true);
+    try {
+      final candidates = await ref
+          .read(adminProvider.notifier)
+          .previewDriverCandidate(_email.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _candidates = candidates;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _checking = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is StateError ? error.message : 'Could not check this email.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_detailFormKey.currentState!.validate()) return;
+    final todaZoneId = _todaZoneId;
+    if (todaZoneId == null) return;
+    final found = _candidates!.isNotEmpty;
+    setState(() => _submitting = true);
+    try {
+      if (found) {
+        await ref
+            .read(adminProvider.notifier)
+            .promoteCommuterToDriver(
+              email: _email.text.trim(),
+              confirmValue: _confirmEmail.text.trim(),
+              todaZoneId: todaZoneId,
+              bodyNumber: _bodyNumber.text.trim().isEmpty
+                  ? null
+                  : _bodyNumber.text.trim(),
+            );
+      } else {
+        await ref
+            .read(adminProvider.notifier)
+            .sendDriverInvite(
+              email: _email.text.trim(),
+              todaZoneId: todaZoneId,
+              bodyNumber: _bodyNumber.text.trim().isEmpty
+                  ? null
+                  : _bodyNumber.text.trim(),
+            );
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is StateError
+                ? error.message
+                : found
+                ? 'This driver could not be enrolled.'
+                : 'The invite could not be sent.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_candidates == null) {
+      return AlertDialog(
+        title: const Text('Enroll a driver'),
+        content: SizedBox(
+          width: 420,
+          child: Form(
+            key: _emailFormKey,
+            child: TextFormField(
+              controller: _email,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: "Driver's email address",
+              ),
+              validator: (value) => (value?.trim().contains('@') ?? false)
+                  ? null
+                  : 'Enter a valid email address.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _checking ? null : () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _checking ? null : _checkEmail,
+            child: _checking
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Continue'),
+          ),
+        ],
+      );
+    }
+
+    final found = _candidates!.isNotEmpty;
+    return AlertDialog(
+      title: Text(found ? 'This email already has an account' : 'Enroll a new driver'),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _detailFormKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (found) ...[
+                  for (final candidate in _candidates!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '${candidate.maskedName} -- ${candidate.accountRole}, '
+                        'joined ${candidate.joinedOn}, ${candidate.tripCount} trip(s)',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  Text(
+                    'Re-type the email to confirm this is the right account -- '
+                    'promoting the wrong one cannot be undone from here.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _confirmEmail,
+                    autofocus: true,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'Confirm email'),
+                    validator: (value) =>
+                        value?.trim().toLowerCase() == _email.text.trim().toLowerCase()
+                        ? null
+                        : 'Must match the email above exactly.',
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Text(
+                    'No account exists for ${_email.text.trim()} yet -- an invite '
+                    'will be emailed to create one.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                DropdownButtonFormField<String>(
+                  initialValue: _todaZoneId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'TODA'),
+                  items: [
+                    for (final zone in widget.todaZoneOptions)
+                      DropdownMenuItem(value: zone.$1, child: Text(zone.$2)),
+                  ],
+                  onChanged: (value) => setState(() => _todaZoneId = value),
+                  validator: (value) => value == null ? 'Select a TODA.' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _bodyNumber,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Body number (optional)',
+                    hintText: 'Matched against the TODA roster if given',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting
+              ? null
+              : () => setState(() => _candidates = null),
+          child: const Text('Back'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(found ? 'Promote to driver' : 'Send invite'),
+        ),
+      ],
+    );
+  }
+}
+
 Future<void> _showEnrollment(BuildContext context, WidgetRef ref) async {
   final formKey = GlobalKey<FormState>();
   final name = TextEditingController();
@@ -4169,6 +4560,310 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
                 // dark surface (the login screen's own navy hero) -- this
                 // page's background is light, so they would be invisible
                 // without a dark chip of their own behind them.
+                Container(
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AdminColors.rail,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: SvgPicture.asset(
+                    'assets/branding/arangcada-mark-dark.svg',
+                    width: 32,
+                    height: 32,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'ArangCada',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 24),
+                body,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Accept driver invite (Spec 20) -- public route, no session required
+// =============================================================================
+
+class AcceptDriverInviteScreen extends ConsumerStatefulWidget {
+  const AcceptDriverInviteScreen({super.key, required this.token});
+  final String? token;
+
+  @override
+  ConsumerState<AcceptDriverInviteScreen> createState() =>
+      _AcceptDriverInviteScreenState();
+}
+
+class _AcceptDriverInviteScreenState
+    extends ConsumerState<AcceptDriverInviteScreen> {
+  final formKey = GlobalKey<FormState>();
+  final fullName = TextEditingController();
+  final mobileNumber = TextEditingController();
+  final password = TextEditingController();
+  final confirmPassword = TextEditingController();
+  bool passwordHidden = true;
+  bool confirmHidden = true;
+  bool loading = true;
+  bool submitting = false;
+  bool done = false;
+  String? email;
+  String? todaZoneName;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_lookup()));
+  }
+
+  @override
+  void dispose() {
+    fullName.dispose();
+    mobileNumber.dispose();
+    password.dispose();
+    confirmPassword.dispose();
+    super.dispose();
+  }
+
+  Future<void> _lookup() async {
+    final token = widget.token;
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = 'This invite link is missing its token.';
+        });
+      }
+      return;
+    }
+    try {
+      final resolved = await ref
+          .read(adminProvider.notifier)
+          .lookupDriverInvite(token);
+      if (!mounted) return;
+      setState(() {
+        email = resolved.email;
+        todaZoneName = resolved.todaZoneName;
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error =
+            'This invite is invalid or has expired. Ask an LGU administrator to send a new one.';
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final token = widget.token;
+    if (token == null || email == null) return;
+    if (!formKey.currentState!.validate()) return;
+    setState(() {
+      submitting = true;
+      error = null;
+    });
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .acceptDriverInvite(
+            token: token,
+            displayName: fullName.text,
+            mobileNumber: mobileNumber.text,
+            password: password.text,
+          );
+      if (!mounted) return;
+      // Unlike the admin accept flow, a driver account cannot open an
+      // admin_web session at all -- AdminSession.fromProfile requires
+      // role = 'admin' -- and this app has no session of its own to offer
+      // a driver. The confirmation below is the entire rest of this flow.
+      setState(() {
+        submitting = false;
+        done = true;
+      });
+    } catch (caught) {
+      if (!mounted) return;
+      setState(() {
+        submitting = false;
+        error = caught is StateError
+            ? caught.message
+            : 'The account could not be created. Try again.';
+      });
+    }
+  }
+
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String label,
+    required String? hint,
+    required bool hidden,
+    required VoidCallback toggle,
+    required String? Function(String?) validator,
+  }) => TextFormField(
+    controller: controller,
+    obscureText: hidden,
+    validator: validator,
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      suffixIcon: IconButton(
+        tooltip: hidden ? 'Show password' : 'Hide password',
+        onPressed: toggle,
+        icon: Icon(
+          hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget body;
+    final resolvedEmail = email;
+    if (loading) {
+      body = const Padding(
+        padding: EdgeInsets.all(40),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (resolvedEmail == null) {
+      body = Panel(
+        child: EmptyState(
+          message: error ?? 'This invite is invalid or has expired.',
+        ),
+      );
+    } else if (done) {
+      body = Panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Account created',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Open the ArangCada mobile app and sign in with $resolvedEmail '
+              'and the password you just set to start receiving dispatch '
+              'requests for ${todaZoneName ?? 'your TODA'}.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      );
+    } else {
+      body = Panel(
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Create your driver account',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'for $resolvedEmail -- joining ${todaZoneName ?? 'your TODA'}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: fullName,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Full name'),
+                validator: (value) => (value?.trim().isNotEmpty ?? false)
+                    ? null
+                    : 'Enter your full name.',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: mobileNumber,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Mobile number',
+                  hintText: '09XXXXXXXXX',
+                ),
+                validator: (value) =>
+                    (value?.replaceAll(RegExp(r'\D'), '').length ?? 0) >= 10
+                    ? null
+                    : 'Enter a valid mobile number.',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: resolvedEmail,
+                enabled: false,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 12),
+              _passwordField(
+                controller: password,
+                label: 'Password',
+                hint: 'At least 8 characters',
+                hidden: passwordHidden,
+                toggle: () => setState(() => passwordHidden = !passwordHidden),
+                validator: (value) => (value?.length ?? 0) < 8
+                    ? 'Enter at least 8 characters.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              _passwordField(
+                controller: confirmPassword,
+                label: 'Repeat password',
+                hint: null,
+                hidden: confirmHidden,
+                toggle: () => setState(() => confirmHidden = !confirmHidden),
+                validator: (value) =>
+                    value == password.text ? null : 'Passwords do not match.',
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: submitting ? null : _submit,
+                  child: submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create account'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AdminColors.background,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Container(
                   width: 56,
                   height: 56,
