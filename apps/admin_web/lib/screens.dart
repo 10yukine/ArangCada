@@ -1471,6 +1471,17 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
     // console, not a phone. image_cropper_for_web works directly against
     // the blob: URL image_picker_for_web's XFile.path already is, no
     // extra plumbing needed for either package to interoperate.
+    //
+    // dragMode: move -- cropperjs's own default (crop) draws a NEW
+    // selection box wherever you drag, which fights a fixed 1:1
+    // aspectRatio and made the box feel stuck in place. move drags the
+    // *photo* under a fixed-size box instead -- the same pan/zoom-the-
+    // photo-under-a-frame model apps/mobile's own cropper already uses,
+    // and it also fixes "can't zoom out far enough to fit the whole
+    // photo": with the box no longer resizable/movable itself, zooming
+    // the photo out and panning it is the only way to choose what's
+    // inside, exactly as expected. Confirmed live, 9 Sep 2026 -- zoom
+    // and rotate already worked; only repositioning did not.
     final cropped = await ImageCropper().cropImage(
       sourcePath: picked.path,
       maxWidth: 1200,
@@ -1479,7 +1490,13 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
       compressQuality: 85,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       uiSettings: [
-        if (mounted) WebUiSettings(context: context),
+        if (mounted)
+          WebUiSettings(
+            context: context,
+            dragMode: WebDragMode.move,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+          ),
       ],
     );
     // Null means Cancel on the crop dialog -- nothing uploads, same as
