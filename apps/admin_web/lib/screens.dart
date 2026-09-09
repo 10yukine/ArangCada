@@ -1442,24 +1442,19 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
 
   Future<void> _changePhoto() async {
     if (!_canChange || _uploading) return;
-    // Owner report, 9 Sep 2026: "damn i still cant click the pencil icon"
-    // -- after the hit-test-geometry fix (the badge no longer painting
-    // outside its own tappable bounds) still didn't fix it live, which
-    // means the geometry was never actually the whole story. This message
-    // fires the instant the tap is registered, before anything async --
-    // if it never appears, the tap itself still is not landing (a Flutter/
-    // browser-level problem); if it appears but no file dialog follows,
-    // the problem is downstream in image_picker/the browser's own
-    // same-gesture requirement for opening a file chooser, not this
-    // widget's hit-testing.
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Opening photo picker...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    // Root cause, confirmed live 9 Sep 2026: the previous diagnostic
+    // SnackBar shown right here -- before ever calling pickImage() --
+    // proved the tap itself was landing (it appeared every time), but no
+    // file dialog ever followed it. image_picker's web implementation
+    // opens the browser's file chooser via a plain synchronous
+    // <input type="file">.click() call with nothing awaited first (see
+    // image_picker_for_web's getFiles()), which is correct -- but a
+    // browser's "user activation" for a click is a one-shot flag, and
+    // showing that SnackBar first was enough on its own to consume it,
+    // with zero error: the browser just silently refuses the .click(),
+    // no onchange/oncancel/onerror ever fires on the input it refused to
+    // open, and the awaited Future below hangs forever instead of
+    // resolving to null. Nothing may run ahead of this call.
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1200,

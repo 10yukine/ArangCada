@@ -84,16 +84,27 @@ void main() {
   );
 
   testWidgets(
-    'a real tap on the edit badge actually reaches the handler',
+    'a real tap on the edit badge does not throw',
     (tester) async {
       // The geometry test above proves nothing paints outside the
-      // tappable area; this proves a tap dispatched at the badge's own
-      // rendered position is actually delivered. tester.tap() hit-tests
-      // for real, the same way a mouse click does -- catching this class
-      // of bug is exactly why this test exists: an earlier, geometrically
-      // "correct" version of this control still was not clickable live,
-      // and only a real tap-and-observe check like this one would have
-      // caught it before deploy.
+      // tappable area; this exercises a real tester.tap() (hit-tests for
+      // real, the same way a mouse click does) at the badge's own
+      // rendered position. Deliberately weaker than the check this
+      // replaced: _changePhoto() used to show a SnackBar synchronously,
+      // before ever awaiting image_picker, specifically so this test
+      // could prove tap delivery independent of image_picker itself --
+      // but that same SnackBar turned out to be a real live bug (it
+      // silently consumed the browser's one-shot "user activation" for
+      // the click, so image_picker's file dialog never opened -- see the
+      // header comment on _changePhoto). Nothing may run ahead of
+      // pickImage() in real code, which also means nothing here can
+      // observe tap delivery without also reintroducing that bug. Left
+      // as a smoke test -- a genuinely broken hit-test region (the class
+      // of bug the geometry test above targets) would still throw or
+      // warn here; the actual browser-activation timing this bug turned
+      // out to hinge on is not something `flutter test`'s Dart-VM
+      // environment can exercise at all, same limitation this repo has
+      // hit before for other browser-specific interactions.
       await openSettings(
         tester,
         const AdminSession(
@@ -108,13 +119,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.edit), warnIfMissed: true);
       await tester.pump();
 
-      // _changePhoto() shows this SnackBar synchronously, before ever
-      // awaiting image_picker -- its appearance is direct proof the tap
-      // was delivered to the handler, independent of anything
-      // image_picker itself does afterward (untestable here -- no
-      // platform channel implementation is registered in a plain widget
-      // test).
-      expect(find.text('Opening photo picker...'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
