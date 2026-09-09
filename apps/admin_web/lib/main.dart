@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,6 +16,18 @@ import 'widgets.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   WidgetsBinding.instance.ensureSemantics();
+  // Flutter Web defaults to hash-based URLs (/#/dashboard). Every route
+  // before /accept-invite (Spec 19) was only ever reached by clicking
+  // around *inside* the already-loaded app, where that default is
+  // invisible -- client-side navigation works the same either way.
+  // /accept-invite is the first route ever opened as a fresh page load
+  // from an external link (the invite email), and that is exactly where
+  // hash-routing breaks: the router only reads the # fragment, which is
+  // empty for a plain https://admin.arangcada.app/accept-invite?token=...
+  // URL, so it silently fell back to /login and the token was never read.
+  // wrangler.jsonc's own not_found_handling: "single-page-application"
+  // already anticipated clean-path URLs; this is what actually turns it on.
+  usePathUrlStrategy();
   if (AdminAppConfig.isSupabaseConfigured) {
     await Supabase.initialize(
       url: AdminAppConfig.supabaseUrl,

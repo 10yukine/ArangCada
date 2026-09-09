@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   flutter_riverpod: ^3.0.3
   flutter_svg: ^2.2.4
+  flutter_web_plugins:
+    sdk: flutter
   go_router: ^17.1.0
   image_picker: ^1.2.3
   maplibre_gl: ^0.26.2
