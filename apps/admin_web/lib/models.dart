@@ -28,6 +28,7 @@ class AdminSession {
     this.todaZoneId,
     this.userId,
     this.connected = false,
+    this.avatarUrl,
   });
 
   factory AdminSession.fromProfile(
@@ -36,6 +37,7 @@ class AdminSession {
     String? toda,
     String? adminRole,
     String? email,
+    String? avatarUrl,
   }) {
     if (profile['role'] != 'admin' || profile['status'] != 'active') {
       throw StateError('An active administrator profile is required.');
@@ -52,6 +54,7 @@ class AdminSession {
       todaZoneId: scoped ? todaZoneId : null,
       userId: profile['id']?.toString(),
       connected: true,
+      avatarUrl: avatarUrl,
     );
   }
 
@@ -62,6 +65,13 @@ class AdminSession {
   final String? todaZoneId;
   final String? userId;
   final bool connected;
+  // Short-lived signed URL into the shared profile-photos bucket (same
+  // bucket/RLS the mobile app's own profile photo, Spec 15, already
+  // established -- profiles.avatar_path and its Storage policies are
+  // role-agnostic, so an admin account needed no new migration here).
+  // Re-minted on every sign-in/session-restore/photo change, never cached
+  // longer than that.
+  final String? avatarUrl;
 
   String get scope =>
       role == AdminRole.lgu ? 'LGU · All TODAs' : 'TODA · $toda';

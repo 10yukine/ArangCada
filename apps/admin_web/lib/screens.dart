@@ -1425,49 +1425,147 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _AccountProfilePanel extends StatelessWidget {
+class _AccountProfilePanel extends ConsumerStatefulWidget {
   const _AccountProfilePanel({required this.session});
 
   final AdminSession session;
 
   @override
-  Widget build(BuildContext context) => Panel(
-    child: Row(
-      children: [
-        CircleAvatar(
-          radius: 26,
-          backgroundColor: AdminColors.primaryTint,
-          foregroundColor: AdminColors.primaryPress,
-          child: Text(session.initials),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(session.name, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 3),
-              Wrap(
-                spacing: 4,
+  ConsumerState<_AccountProfilePanel> createState() =>
+      _AccountProfilePanelState();
+}
+
+class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
+  bool _uploading = false;
+
+  bool get _canChange => widget.session.connected;
+
+  Future<void> _changePhoto() async {
+    if (!_canChange || _uploading) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final dotIndex = picked.name.lastIndexOf('.');
+      final extension = dotIndex == -1
+          ? 'jpg'
+          : picked.name.substring(dotIndex + 1).toLowerCase();
+      final session = await ref
+          .read(adminProvider.notifier)
+          .changeProfilePhoto(bytes: bytes, fileExtension: extension);
+      if (!mounted) return;
+      // AdminSession lives outside AdminController's own AdminState (see
+      // main.dart's LoginScreen/session restore), so the fresh session with
+      // its new avatarUrl is applied the same way sign-in already does.
+      auth.value = session;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update your photo. Try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.session;
+    final avatarUrl = session.avatarUrl;
+    return Panel(
+      child: Row(
+        children: [
+          Semantics(
+            label: _canChange ? 'Change profile photo' : null,
+            button: _canChange,
+            child: GestureDetector(
+              onTap: _canChange ? _changePhoto : null,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Text(
-                    '${session.deskLabel} ·',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AdminColors.primaryTint,
+                    foregroundColor: AdminColors.primaryPress,
+                    backgroundImage: avatarUrl == null
+                        ? null
+                        : NetworkImage(avatarUrl),
+                    child: avatarUrl == null ? Text(session.initials) : null,
                   ),
-                  Text(
-                    session.email ?? 'Local demo account',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  if (_uploading)
+                    const Positioned.fill(
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.black45,
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_canChange)
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: AdminColors.rail,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        StatusPill(session.roleLabel, tone: StatusTone.brand),
-      ],
-    ),
-  );
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(session.name, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 3),
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    Text(
+                      '${session.deskLabel} ·',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      session.email ?? 'Local demo account',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          StatusPill(session.roleLabel, tone: StatusTone.brand),
+        ],
+      ),
+    );
+  }
 }
 
 class _PasswordSettingsPanel extends ConsumerStatefulWidget {

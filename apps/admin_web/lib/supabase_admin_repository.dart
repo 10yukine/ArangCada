@@ -99,7 +99,7 @@ class SupabaseAdminRepository {
   Future<AdminSession> _resolveSession(User user) async {
     final profile = await client
         .from('profiles')
-        .select('id, role, display_name, status')
+        .select('id, role, display_name, status, avatar_path')
         .eq('id', user.id)
         .single();
     final result = await client.rpc('get_admin_scope');
@@ -133,7 +133,71 @@ class SupabaseAdminRepository {
       adminRole: adminRole,
       todaZoneId: todaZoneId,
       toda: toda,
+      avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );
+  }
+
+  /// A fresh signed URL for [avatarPath], or null when there is no photo or
+  /// minting one fails -- mirrors apps/mobile's own
+  /// SupabaseAuthRepository._signedAvatarUrl exactly: an unreadable avatar
+  /// must never block the rest of session resolution.
+  Future<String?> _signedAvatarUrl(String? avatarPath) async {
+    if (avatarPath == null || avatarPath.isEmpty) return null;
+    try {
+      return await client.storage
+          .from('profile-photos')
+          .createSignedUrl(avatarPath, 300);
+    } on StorageException {
+      return null;
+    }
+  }
+
+  /// Uploads a new profile photo for the signed-in admin. Same bucket/path
+  /// shape as apps/mobile's own uploadProfilePhoto -- profile-photos'
+  /// Storage RLS is role-agnostic (any authenticated user owns their own
+  /// auth.uid() folder), so nothing new was needed server-side for this.
+  Future<String> uploadProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) async {
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in again to change your photo.');
+    }
+    final path =
+        '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+    try {
+      await client.storage
+          .from('profile-photos')
+          .uploadBinary(path, Uint8List.fromList(bytes));
+    } on StorageException catch (error) {
+      throw StateError(
+        error.message.isEmpty
+            ? 'Could not upload that photo. Try again.'
+            : error.message,
+      );
+    }
+    return path;
+  }
+
+  /// Points profiles.avatar_path at the newly uploaded photo and returns a
+  /// freshly resolved session (mints the new signed URL the UI displays) --
+  /// same re-read-rather-than-patch shape apps/mobile's own
+  /// updateAvatarPath uses.
+  Future<AdminSession> updateAvatarPath(String path) async {
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in again to change your photo.');
+    }
+    try {
+      await client.from('profiles').update({'avatar_path': path}).eq(
+        'id',
+        user.id,
+      );
+    } on PostgrestException {
+      throw StateError('Could not save your photo. Try again.');
+    }
+    return _resolveSession(user);
   }
 
   Future<void> updateOwnPassword({

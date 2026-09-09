@@ -268,6 +268,26 @@ class AdminController extends Notifier<AdminState> {
     );
   }
 
+  /// Uploads a new profile photo and returns the freshly resolved session
+  /// (new avatarUrl included) -- the caller sets auth.value from it, same
+  /// pattern sign-in/session-restore already use, since AdminSession lives
+  /// outside this controller's own AdminState.
+  Future<AdminSession> changeProfilePhoto({
+    required List<int> bytes,
+    required String fileExtension,
+  }) async {
+    final repository = ref.read(adminRepositoryProvider);
+    final session = _connectedSession;
+    if (session == null || !session.connected || repository == null) {
+      throw StateError('Photo changes require a connected account.');
+    }
+    final path = await repository.uploadProfilePhoto(
+      bytes: bytes,
+      fileExtension: fileExtension,
+    );
+    return repository.updateAvatarPath(path);
+  }
+
   void recordDemoFeedbackResponse(AdminSession session, String toda) {
     if (state.connected) {
       throw StateError('Connected feedback can only be submitted by drivers.');

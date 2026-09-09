@@ -771,16 +771,20 @@ class _RailAccountFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final avatarUrl = session.avatarUrl;
     final avatar = CircleAvatar(
       radius: 20,
       backgroundColor: AdminColors.primaryTint,
       foregroundColor: AdminColors.primaryPress,
-      child: Text(
-        session.initials,
-        style: Theme.of(
-          context,
-        ).textTheme.labelLarge?.copyWith(color: AdminColors.primaryPress),
-      ),
+      backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+      child: avatarUrl != null
+          ? null
+          : Text(
+              session.initials,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: AdminColors.primaryPress),
+            ),
     );
     final signOut = Semantics(
       label: 'Sign out',
