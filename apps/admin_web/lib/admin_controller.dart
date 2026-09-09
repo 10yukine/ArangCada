@@ -59,7 +59,16 @@ class AdminController extends Notifier<AdminState> {
         .read(adminRepositoryProvider)!
         .subscribe(
           session: session,
-          onDataChanged: () => unawaited(refresh()),
+          onDataChanged: () {
+            unawaited(refresh());
+            // driver_invites is LGU-only and not part of refresh()'s main
+            // snapshot (see refreshDriverInvites()'s own header comment) --
+            // needs its own call so the pending-invites panel live-updates
+            // too, matching the fix for state.drivers/fareClassClaims above.
+            if (session.role == AdminRole.lgu) {
+              unawaited(refreshDriverInvites());
+            }
+          },
           onSafetyInserted: _notifyNewSafetyReport,
         );
   }
@@ -81,6 +90,13 @@ class AdminController extends Notifier<AdminState> {
         reports: snapshot.reports,
         complaints: snapshot.complaints,
         ratings: snapshot.ratings,
+        // Bug found by the owner, 9 Sep 2026: a real discount claim never
+        // appeared on the Claims screen even after a page reload.
+        // fareClassClaims was fetched into every AdminSnapshot from the
+        // start, but never actually wired into state here -- ClaimsScreen
+        // read state.fareClassClaims forever, which stayed at its
+        // seedAdminState() default (empty).
+        fareClassClaims: snapshot.fareClassClaims,
         reportedChats: snapshot.reportedChats,
         rides: snapshot.rides,
         boundaries: snapshot.boundaries,

@@ -216,7 +216,15 @@ class _DiscountEligibilityScreenState
     BuildContext context,
     FareClassRequestedClass option,
   ) async {
-    final result = await showModalBottomSheet<bool>(
+    // The sheet pops the claim submit_fare_class_claim() already returned,
+    // rather than just `true` -- setting it directly below skips a second
+    // network round trip through _refresh()/latestFareClassClaim() for the
+    // status this screen already has in hand. Owner report, 9 Sep 2026: the
+    // screen kept showing the pre-submission state until backing out and
+    // back in, which a slow or delayed _refresh() round trip explains --
+    // this removes that round trip from the critical path entirely instead
+    // of chasing the exact cause of the delay.
+    final claim = await showModalBottomSheet<FareClassClaim>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -227,7 +235,8 @@ class _DiscountEligibilityScreenState
       ),
     );
 
-    if (result != true || !context.mounted) return;
+    if (claim == null || !context.mounted) return;
+    setState(() => _claim = claim);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -235,7 +244,6 @@ class _DiscountEligibilityScreenState
         ),
       ),
     );
-    await _refresh();
   }
 }
 
@@ -299,12 +307,12 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
         bytes: bytes,
         fileExtension: extension,
       );
-      await auth.submitFareClassClaim(
+      final claim = await auth.submitFareClassClaim(
         requestedClass: widget.option,
         idPhotoPath: path,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(claim);
     } on DemoAuthException catch (error) {
       if (!mounted) return;
       setState(() => _error = error.message);

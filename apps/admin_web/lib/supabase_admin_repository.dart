@@ -368,6 +368,12 @@ class SupabaseAdminRepository {
       'sos_reports',
       'complaints',
       'trip_ratings',
+      // fare_class_claims/driver_invites added 9 Sep 2026 -- the owner
+      // reported a driver's enrolled status and a submitted discount claim
+      // both needing a manual page reload to appear. driver_profiles was
+      // already covered; these two were not.
+      'fare_class_claims',
+      'driver_invites',
       'driver_app_feedback',
       'app_evaluation_settings',
     ]) {

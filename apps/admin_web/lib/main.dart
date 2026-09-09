@@ -164,6 +164,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool demoMode = !AdminAppConfig.isSupabaseConfigured;
   bool submitting = false;
   String? signInError;
+  // Supabase.initialize() (in main(), awaited before runApp()) restores any
+  // persisted session synchronously, so repository.hasSession is already
+  // correct on this very first build -- true here means _restoreSession()
+  // below WILL run and is expected to succeed. Rendering the actual login
+  // form for that brief async window (a real network round trip to reload
+  // the admin's profile/scope) is what produced the reported "reload lands
+  // on /login, then jumps to the dashboard a moment later" flash. Gate the
+  // form behind this instead of ever showing it mid-restore.
+  late bool restoring =
+      (ref.read(adminRepositoryProvider)?.hasSession ?? false) &&
+      auth.value == null;
 
   @override
   void initState() {
@@ -174,6 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _restoreSession() async {
     final repository = ref.read(adminRepositoryProvider);
     if (repository == null || !repository.hasSession || auth.value != null) {
+      if (mounted && restoring) setState(() => restoring = false);
       return;
     }
     try {
@@ -182,10 +194,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) auth.value = session;
     } catch (_) {
       if (mounted) {
-        setState(
-          () => signInError =
-              'Your administrator session expired. Sign in again.',
-        );
+        setState(() {
+          restoring = false;
+          signInError = 'Your administrator session expired. Sign in again.';
+        });
       }
     }
   }
@@ -252,7 +264,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    if (restoring) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return Scaffold(
     body: LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
@@ -474,6 +490,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     ),
   );
+  }
 }
 
 Future<void> _showForgotPassword(BuildContext context, WidgetRef ref) async {
