@@ -34,6 +34,16 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js"></script>
   <link href="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.css" rel="stylesheet">
+
+  <!-- cropperjs -- image_cropper's web implementation wraps this JS
+       library directly (package:image_cropper_for_web); it is not
+       bundled by the Dart package itself and must be loaded here, per
+       that package's own README (Web installation section). Without
+       this, the crop dialog still opens (it is a plain Flutter
+       AlertDialog) but the actual crop surface inside it has nothing to
+       run on -- confirmed live, 9 Sep 2026. -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 </head>
 <body>
   <!--
