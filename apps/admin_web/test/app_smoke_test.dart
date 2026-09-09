@@ -200,26 +200,45 @@ void main() {
     },
   );
 
-  testWidgets('Complaints screen shows seeded complaints, scoped by TODA', (
+  testWidgets(
+    'Safety reports screen shows seeded complaints in their own compact '
+    'section, scoped by TODA',
+    (tester) async {
+      // Complaints no longer has its own nav tab -- folded into Safety
+      // reports as a secondary panel (Spec 19 follow-up, owner's call).
+      await tester.binding.setSurfaceSize(const Size(1440, 1400));
+      auth.value = const AdminSession(
+        name: 'Coordinator',
+        role: AdminRole.toda,
+        toda: 'Brgy. Real',
+      );
+      addTearDown(() async {
+        auth.value = null;
+        await tester.binding.setSurfaceSize(null);
+      });
+      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Safety reports'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Complaints'), findsOneWidget);
+      expect(find.text('Driver was late'), findsWidgets);
+      expect(
+        find.textContaining('Ana Reyes about Ramon Dela Cruz'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('the old /complaints nav item is gone; the route redirects', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 1000));
-    auth.value = const AdminSession(
-      name: 'Coordinator',
-      role: AdminRole.toda,
-      toda: 'Brgy. Real',
-    );
-    addTearDown(() async {
-      auth.value = null;
-      await tester.binding.setSurfaceSize(null);
-    });
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+    addTearDown(() => auth.value = null);
     await tester.pumpWidget(const ProviderScope(child: AdminApp()));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Complaints'));
-    await tester.pumpAndSettle();
 
-    expect(find.text('Driver was late'), findsWidgets);
-    expect(find.textContaining('Ana Reyes about Ramon Dela Cruz'), findsOneWidget);
+    expect(find.text('Complaints'), findsNothing);
   });
 
   testWidgets('Reviews screen shows both rating directions', (tester) async {

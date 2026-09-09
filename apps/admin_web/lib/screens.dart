@@ -606,6 +606,9 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
     final state = ref.watch(adminProvider);
     final session = auth.value!;
     final reports = ref.read(adminProvider.notifier).visibleReports(session);
+    final complaints = ref
+        .read(adminProvider.notifier)
+        .visibleComplaints(session);
     final reportedChats = ref
         .read(adminProvider.notifier)
         .visibleReportedChats(session);
@@ -652,6 +655,13 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
                   ],
                 ),
         ),
+        const SizedBox(height: 18),
+        // Its own nav tab felt like too much weight for a non-emergency
+        // channel -- owner's call, folded in here as a compact secondary
+        // panel instead. Visible to both LGU and TODA (visibleComplaints()
+        // already scopes it, same as the reports above) -- unlike reported
+        // conversations, which stays LGU-only just below.
+        _ComplaintsSection(complaints: complaints),
         if (session.role == AdminRole.lgu) ...[
           const SizedBox(height: 18),
           _ReportedConversationSection(
@@ -2198,70 +2208,49 @@ class _LabelValue extends StatelessWidget {
   );
 }
 
-class ComplaintsScreen extends ConsumerStatefulWidget {
-  const ComplaintsScreen({super.key});
-  @override
-  ConsumerState<ComplaintsScreen> createState() => _ComplaintsScreenState();
-}
-
-class _ComplaintsScreenState extends ConsumerState<ComplaintsScreen> {
-  String? selected;
+// Folded into Safety reports as a compact secondary panel (owner's call,
+// Spec 19 follow-up) -- see _ComplaintsSection below. _ComplaintTile and
+// _ComplaintDetail stay, reused there unchanged.
+class _ComplaintsSection extends StatelessWidget {
+  const _ComplaintsSection({required this.complaints});
+  final List<Complaint> complaints;
 
   @override
-  Widget build(BuildContext context) {
-    final session = auth.value!;
-    final complaints = ref
-        .read(adminProvider.notifier)
-        .visibleComplaints(session);
-    if (complaints.isNotEmpty &&
-        !complaints.any((complaint) => complaint.id == selected)) {
-      selected = complaints.first.id;
-    }
-    final active = complaints
-        .where((complaint) => complaint.id == selected)
-        .firstOrNull;
-    final list = Panel(
-      padding: const EdgeInsets.all(10),
-      child: complaints.isEmpty
-          ? const EmptyState(message: 'No complaints in this scope.')
-          : Column(
-              children: [
-                for (final complaint in complaints)
-                  _ComplaintTile(
-                    complaint: complaint,
-                    selected: complaint.id == selected,
-                    onTap: () => setState(() => selected = complaint.id),
-                  ),
-              ],
-            ),
-    );
-    final detail = active == null
-        ? const Panel(child: EmptyState(message: 'Select a complaint.'))
-        : _ComplaintDetail(active);
-    return Column(
+  Widget build(BuildContext context) => Panel(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading(
-          title: 'Complaints',
-          subtitle:
-              'Non-emergency issues either party filed about the other -- driver lateness, disputed fares, and similar. Not for danger; see Safety reports for that.',
+        Text('Complaints', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 6),
+        Text(
+          'Non-emergency issues either party filed about the other -- '
+          'driver lateness, disputed fares, and similar. Not for danger; '
+          'see the reports above for that.',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
-        const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth < 950
-              ? Column(children: [list, const SizedBox(height: 14), detail])
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 380, child: list),
-                    const SizedBox(width: 16),
-                    Expanded(child: detail),
-                  ],
+        const SizedBox(height: 12),
+        if (complaints.isEmpty)
+          const EmptyState(message: 'No complaints in this scope.')
+        else
+          for (final complaint in complaints)
+            _ComplaintTile(
+              complaint: complaint,
+              selected: false,
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (context) => Dialog(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SingleChildScrollView(
+                      child: _ComplaintDetail(complaint),
+                    ),
+                  ),
                 ),
-        ),
+              ),
+            ),
       ],
-    );
-  }
+    ),
+  );
 }
 
 class _ComplaintTile extends StatelessWidget {

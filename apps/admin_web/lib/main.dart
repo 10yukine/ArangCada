@@ -87,11 +87,10 @@ class _AdminAppState extends State<AdminApp> {
             path: '/safety',
             builder: (context, state) => _consolePage(const SafetyScreen()),
           ),
-          GoRoute(
-            path: '/complaints',
-            builder: (context, state) =>
-                _consolePage(const ComplaintsScreen()),
-          ),
+          // Folded into Safety reports as a compact panel (Spec 19
+          // follow-up) -- redirect rather than delete, so an old bookmark
+          // or link still lands somewhere real instead of 404ing.
+          GoRoute(path: '/complaints', redirect: (context, state) => '/safety'),
           GoRoute(
             path: '/reviews',
             builder: (context, state) => _consolePage(const ReviewsScreen()),
@@ -555,7 +554,6 @@ class AdminShell extends ConsumerWidget {
     ('/drivers', 'Drivers', Icons.badge_outlined),
     ('/admins', 'Admins', Icons.admin_panel_settings_outlined),
     ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
-    ('/complaints', 'Complaints', Icons.report_problem_outlined),
     ('/reviews', 'Reviews', Icons.star_outline),
     ('/discount-claims', 'Discount claims', Icons.percent_outlined),
     ('/evaluation', 'Evaluation', Icons.fact_check_outlined),
