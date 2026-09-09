@@ -24,10 +24,29 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_ADDRESS = "ArangCada <services@info.arangcada.app>";
 const ADMIN_WEB_BASE_URL = "https://admin.arangcada.app";
 
+// Never actually invoked from a browser until this feature -- see
+// admin-onboard-driver, which has this exact same gap and went undetected
+// for the same reason (zero real callers). Supabase Edge Functions do not
+// add CORS headers on their own; without these, the browser blocks the
+// response before Flutter ever sees it, even though the function itself
+// ran successfully server-side -- which is exactly what made this
+// confusing to diagnose (a direct API call with no browser involved
+// worked fine the whole time). "*" rather than a specific origin because
+// this function's own JWT/RPC checks are the real authorization boundary,
+// not CORS -- a wildcard here does not widen who can actually act, only
+// who can read the response in a browser tab, and locking it to
+// admin.arangcada.app would also break local `flutter run -d chrome`
+// development against the hosted project.
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...CORS_HEADERS },
   });
 }
 
@@ -66,6 +85,12 @@ async function sendInviteEmail(email: string, link: string): Promise<void> {
 }
 
 Deno.serve(async (req: Request) => {
+  // The browser's CORS preflight -- must return before any auth/config
+  // check below, or the preflight itself gets rejected and the real
+  // request is never even sent.
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
     return jsonResponse(405, { error: "method not allowed" });
   }
