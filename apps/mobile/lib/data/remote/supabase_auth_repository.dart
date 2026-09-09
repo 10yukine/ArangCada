@@ -84,9 +84,17 @@ class SupabaseAuthRepository implements AuthRepository {
         .eq('id', user.id)
         .single();
     final role = profile['role'] as String?;
-    if (role != 'commuter' && role != 'driver') {
+    // An LGU/TODA admin account is still a real person who commutes --
+    // owner's explicit call. It maps to DemoRole.commuter below exactly
+    // like a plain commuter account does (mapIdentity() already treats
+    // anything that is not 'driver' as commuter); admin grants nothing
+    // extra here, this app has no admin-specific UI or capability at all.
+    // An invite-created admin has no phone on record (Spec 19 exemption),
+    // so it still cannot book a ride until one is added and verified via
+    // Account & Security, same requirement every commuter already has.
+    if (role != 'commuter' && role != 'driver' && role != 'admin') {
       throw const DemoAuthException(
-        'This account belongs in the LGU/TODA admin console.',
+        'This account could not be loaded. Contact a developer.',
       );
     }
     final mapped = mapIdentity(
