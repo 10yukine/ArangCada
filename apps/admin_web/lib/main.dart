@@ -771,68 +771,82 @@ class _RailAccountFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarUrl = session.avatarUrl;
-    final avatar = CircleAvatar(
-      radius: 20,
-      backgroundColor: AdminColors.primaryTint,
-      foregroundColor: AdminColors.primaryPress,
-      backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
-      child: avatarUrl != null
-          ? null
-          : Text(
-              session.initials,
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(color: AdminColors.primaryPress),
-            ),
-    );
-    final signOut = Semantics(
-      label: 'Sign out',
-      button: true,
-      child: IconButton(
-        tooltip: 'Sign out',
-        onPressed: onSignOut,
-        color: AdminColors.railText,
-        icon: const Icon(Icons.logout),
-      ),
-    );
-    if (!expanded) {
-      return Column(children: [avatar, const SizedBox(height: 8), signOut]);
-    }
-    return Semantics(
-      container: true,
-      label: 'Signed in as ${session.name}, ${session.deskLabel}',
-      child: Row(
-        children: [
-          avatar,
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  session.deskLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AdminColors.railTextMuted,
+    // Same reactive gap as _AccountProfilePanel -- this footer's own
+    // `session` prop is captured once by AdminShell.build(), which does
+    // not re-run just because a photo change updates auth.value on the
+    // *same* route. Read auth live instead of trusting the prop to still
+    // be current, so the rail avatar (visible on every screen) actually
+    // picks up a new photo without needing an unrelated navigation first.
+    return ValueListenableBuilder<AdminSession?>(
+      valueListenable: auth,
+      builder: (context, liveSession, _) {
+        final session = liveSession ?? this.session;
+        final avatarUrl = session.avatarUrl;
+        final avatar = CircleAvatar(
+          radius: 20,
+          backgroundColor: AdminColors.primaryTint,
+          foregroundColor: AdminColors.primaryPress,
+          backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+          child: avatarUrl != null
+              ? null
+              : Text(
+                  session.initials,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AdminColors.primaryPress,
                   ),
                 ),
-              ],
-            ),
+        );
+        final signOut = Semantics(
+          label: 'Sign out',
+          button: true,
+          child: IconButton(
+            tooltip: 'Sign out',
+            onPressed: onSignOut,
+            color: AdminColors.railText,
+            icon: const Icon(Icons.logout),
           ),
-          signOut,
-        ],
-      ),
+        );
+        if (!expanded) {
+          return Column(
+            children: [avatar, const SizedBox(height: 8), signOut],
+          );
+        }
+        return Semantics(
+          container: true,
+          label: 'Signed in as ${session.name}, ${session.deskLabel}',
+          child: Row(
+            children: [
+              avatar,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      session.deskLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AdminColors.railTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              signOut,
+            ],
+          ),
+        );
+      },
     );
   }
 }

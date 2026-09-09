@@ -124,6 +124,57 @@ void main() {
   );
 
   testWidgets(
+    'both avatars (Settings panel and nav rail) pick up a new photo '
+    'without navigating away first',
+    (tester) async {
+      // Regression test for a real bug, confirmed live 9 Sep 2026: a
+      // real photo upload succeeded end to end (verified directly
+      // against the hosted project -- the Storage object and
+      // profiles.avatar_path both existed with the correct value), but
+      // the console kept showing initials, not the new photo. Root
+      // cause: _changePhoto() updates auth.value in place, on the *same*
+      // route -- unlike every other write to auth.value in this app
+      // (sign-in, session restore), which always immediately navigates
+      // to a different route and so always gets a fresh build for free.
+      // _AccountProfilePanel and _RailAccountFooter each captured
+      // `session` once from their parent and never asked auth.value
+      // again. This simulates exactly that in-place update -- no
+      // navigation -- and checks that a screen already on Settings still
+      // picks up the change.
+      const before = AdminSession(
+        name: 'Maria Robles',
+        email: 'm.robles@calamba.gov.ph',
+        role: AdminRole.lgu,
+        userId: 'admin-1',
+        connected: true,
+      );
+      await openSettings(tester, before);
+
+      expect(find.text('MR'), findsWidgets);
+
+      auth.value = const AdminSession(
+        name: 'Maria Robles',
+        email: 'm.robles@calamba.gov.ph',
+        role: AdminRole.lgu,
+        userId: 'admin-1',
+        connected: true,
+        avatarUrl: 'https://example.test/signed/photo.jpg',
+      );
+      await tester.pump();
+
+      // Initials were the CircleAvatar's only child when there was no
+      // photo; with avatarUrl set, that child becomes null everywhere,
+      // in both the Settings panel and the rail footer -- checking the
+      // widgets' own properties rather than rendering the image itself,
+      // which would attempt a real network fetch in this environment.
+      final avatars = tester.widgetList<CircleAvatar>(find.byType(CircleAvatar));
+      expect(avatars, isNotEmpty);
+      expect(avatars.every((avatar) => avatar.backgroundImage != null), isTrue);
+      expect(find.text('MR'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'a disconnected local-demo session cannot change its photo',
     (tester) async {
       await openSettings(

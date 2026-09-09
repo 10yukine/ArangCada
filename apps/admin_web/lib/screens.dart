@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'admin_controller.dart';
@@ -1442,7 +1443,7 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
 
   Future<void> _changePhoto() async {
     if (!_canChange || _uploading) return;
-    // Root cause, confirmed live 9 Sep 2026: the previous diagnostic
+    // Root cause, confirmed live 9 Sep 2026: an earlier diagnostic
     // SnackBar shown right here -- before ever calling pickImage() --
     // proved the tap itself was landing (it appeared every time), but no
     // file dialog ever followed it. image_picker's web implementation
@@ -1454,23 +1455,45 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
     // with zero error: the browser just silently refuses the .click(),
     // no onchange/oncancel/onerror ever fires on the input it refused to
     // open, and the awaited Future below hangs forever instead of
-    // resolving to null. Nothing may run ahead of this call.
+    // resolving to null. Nothing may run ahead of this call. Picked
+    // generously (maxWidth 2000, no compression) -- the cropper below,
+    // not this pick step, does the real sizing/compression, same split
+    // apps/mobile's own profile_screen.dart already uses.
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      maxWidth: 1200,
-      imageQuality: 85,
+      maxWidth: 2000,
     );
     if (picked == null || !mounted) return;
+
+    // Square/circle crop before upload, matching apps/mobile's own
+    // profile photo flow exactly (image_cropper, same version) --
+    // WebUiSettings instead of AndroidUiSettings since this is a browser
+    // console, not a phone. image_cropper_for_web works directly against
+    // the blob: URL image_picker_for_web's XFile.path already is, no
+    // extra plumbing needed for either package to interoperate.
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 85,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        if (mounted) WebUiSettings(context: context),
+      ],
+    );
+    // Null means Cancel on the crop dialog -- nothing uploads, same as
+    // tapping Cancel anywhere else in this flow.
+    if (cropped == null || !mounted) return;
+
     setState(() => _uploading = true);
     try {
-      final bytes = await picked.readAsBytes();
-      final dotIndex = picked.name.lastIndexOf('.');
-      final extension = dotIndex == -1
-          ? 'jpg'
-          : picked.name.substring(dotIndex + 1).toLowerCase();
+      final bytes = await cropped.readAsBytes();
+      // Always a jpg -- compressFormat above fixes it, regardless of what
+      // the originally picked file's own extension was.
       final session = await ref
           .read(adminProvider.notifier)
-          .changeProfilePhoto(bytes: bytes, fileExtension: extension);
+          .changeProfilePhoto(bytes: bytes, fileExtension: 'jpg');
       if (!mounted) return;
       // AdminSession lives outside AdminController's own AdminState (see
       // main.dart's LoginScreen/session restore), so the fresh session with
@@ -1491,114 +1514,140 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.session;
-    final avatarUrl = session.avatarUrl;
-    return Panel(
-      child: Row(
-        children: [
-          Semantics(
-            label: _canChange ? 'Change profile photo' : null,
-            button: _canChange,
-            // Rebuilt on Material + InkWell rather than a bare
-            // GestureDetector -- InkWell is the framework's own
-            // battle-tested tap-target implementation (used for every
-            // other clickable surface in this app, e.g. Panel's own onTap)
-            // instead of a hand-rolled Stack/Positioned combination that
-            // already hid one hit-test bug. The ripple is also a real,
-            // visible confirmation that a tap landed at all, which the
-            // silent GestureDetector version never gave anyone -- owner
-            // included -- a way to tell apart from "did nothing."
-            child: Material(
-              color: Colors.transparent,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const ValueKey('avatarHitTestBox'),
-                customBorder: const CircleBorder(),
-                onTap: _canChange ? _changePhoto : null,
-                child: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: AdminColors.primaryTint,
-                        foregroundColor: AdminColors.primaryPress,
-                        backgroundImage: avatarUrl == null
-                            ? null
-                            : NetworkImage(avatarUrl),
-                        child: avatarUrl == null
-                            ? Text(session.initials)
-                            : null,
-                      ),
-                      if (_uploading)
-                        const CircleAvatar(
-                          radius: 26,
-                          backgroundColor: Colors.black45,
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
+    // A photo change updates auth.value in place, on the *same* route --
+    // unlike every other place auth.value is set (sign-in, session
+    // restore), which always immediately navigates to a different route
+    // and so always gets a fresh build for free. Reading widget.session
+    // directly (captured once by SettingsScreen's own build) left this
+    // panel showing the pre-change session forever after a real,
+    // successfully saved photo change -- the write succeeded (confirmed
+    // directly against the hosted project), the screen just never asked
+    // auth for its current value again. ValueListenableBuilder makes this
+    // panel its own listener instead of trusting a parent to have one.
+    return ValueListenableBuilder<AdminSession?>(
+      valueListenable: auth,
+      builder: (context, liveSession, _) {
+        final session = liveSession ?? widget.session;
+        final avatarUrl = session.avatarUrl;
+        return Panel(
+          child: Row(
+            children: [
+              Semantics(
+                label: _canChange ? 'Change profile photo' : null,
+                button: _canChange,
+                // Rebuilt on Material + InkWell rather than a bare
+                // GestureDetector -- InkWell is the framework's own
+                // battle-tested tap-target implementation (used for every
+                // other clickable surface in this app, e.g. Panel's own
+                // onTap) instead of a hand-rolled Stack/Positioned
+                // combination that already hid one hit-test bug. The
+                // ripple is also a real, visible confirmation that a tap
+                // landed at all, which the silent GestureDetector version
+                // never gave anyone -- owner included -- a way to tell
+                // apart from "did nothing."
+                //
+                // No shape/clipBehavior on this Material -- a CircleBorder
+                // clip here clips to the circle *inscribed* in the 56x56
+                // box, which cut the corner-positioned edit badge off
+                // (it renders outside that inscribed circle by design).
+                // customBorder below still gives the ripple itself a
+                // circular shape; it just doesn't also clip the child.
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    key: const ValueKey('avatarHitTestBox'),
+                    customBorder: const CircleBorder(),
+                    onTap: _canChange ? _changePhoto : null,
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: AdminColors.primaryTint,
+                            foregroundColor: AdminColors.primaryPress,
+                            backgroundImage: avatarUrl == null
+                                ? null
+                                : NetworkImage(avatarUrl),
+                            child: avatarUrl == null
+                                ? Text(session.initials)
+                                : null,
                           ),
-                        )
-                      else if (_canChange)
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: AdminColors.rail,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
+                          if (_uploading)
+                            const CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.black45,
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else if (_canChange)
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: AdminColors.rail,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.edit,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                            child: const Icon(
-                              Icons.edit,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(session.name, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 3),
-                Wrap(
-                  spacing: 4,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${session.deskLabel} ·',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      session.name,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    Text(
-                      session.email ?? 'Local demo account',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        Text(
+                          '${session.deskLabel} ·',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          session.email ?? 'Local demo account',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              StatusPill(session.roleLabel, tone: StatusTone.brand),
+            ],
           ),
-          const SizedBox(width: 12),
-          StatusPill(session.roleLabel, tone: StatusTone.brand),
-        ],
-      ),
+        );
+      },
     );
   }
 }
