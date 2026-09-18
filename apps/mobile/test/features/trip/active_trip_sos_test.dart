@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:arangcada/core/widgets/sos_hold_button.dart';
 import 'package:arangcada/demo/demo_simulation.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
+import 'package:arangcada/data/remote/supabase_ride_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/domain/fare/fare_calculator.dart';
 import 'package:arangcada/domain/fare/fare_matrix.dart';
@@ -12,6 +14,7 @@ import 'package:arangcada/features/trip/active_trip_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 /// SOS must be reachable without a gesture.
 ///
@@ -48,6 +51,67 @@ void main() {
     overrides: [demoStateProvider.overrideWithValue(state)],
     child: const MaterialApp(home: ActiveTripScreen()),
   );
+
+  testWidgets('failed live completion remains retryable without another update', (
+    tester,
+  ) async {
+    final state = DemoState();
+    final rides = _CompletionRepository();
+    addTearDown(state.dispose);
+    state.setDestination(DemoData.places[1]);
+    state.setActiveBooking(inProgressBooking());
+    state.completionAvailableAt = DateTime.now().subtract(
+      const Duration(minutes: 1),
+    );
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const ActiveTripScreen()),
+        GoRoute(
+          path: '/rating',
+          builder: (_, _) => const Scaffold(body: Text('Rating destination')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          demoStateProvider.overrideWithValue(state),
+          liveRideRepositoryProvider.overrideWithValue(rides),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+    for (final error in [
+      Exception('offline'),
+      StateError('trip unavailable'),
+    ]) {
+      await tester.tap(find.textContaining("I've arrived"));
+      await tester.pump();
+      final calls = rides.calls;
+      // Realtime updates while the request is pending must not arm another timer.
+      if (calls > 1) state.bookingChanged();
+      await tester.pump(const Duration(seconds: 2));
+      expect(rides.calls, calls);
+      rides.pending.completeError(error);
+      await tester.pumpAndSettle();
+      expect(find.textContaining("I've arrived"), findsOneWidget);
+      expect(
+        find.textContaining('Check your connection and try again'),
+        findsOneWidget,
+      );
+      expect(state.activeBooking!.status, BookingStatus.inProgress);
+      expect(find.text('Rating destination'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.tap(find.textContaining("I've arrived"));
+    await tester.pump();
+    expect(rides.calls, 3);
+    rides.pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Rating destination'), findsOneWidget);
+  });
 
   testWidgets('SOS, Chat and Call are reachable without expanding the sheet', (
     tester,
@@ -158,4 +222,19 @@ void main() {
       reason: 'the safety control must not disappear on arrival',
     );
   });
+}
+
+class _CompletionRepository implements SupabaseRideRepository {
+  int calls = 0;
+  late Completer<void> pending;
+
+  @override
+  Future<void> completeTrip() {
+    calls++;
+    pending = Completer<void>();
+    return pending.future;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_config.dart';
@@ -30,6 +32,35 @@ import '../repositories/fare_repository.dart';
 import '../repositories/payment_repository.dart';
 import '../repositories/safety_repository.dart';
 import '../repositories/wallet_repository.dart';
+import '../repositories/saved_places_repository.dart';
+import '../repositories/driver_documents_repository.dart';
+import '../remote/supabase_driver_documents_repository.dart';
+
+final driverDocumentsRepositoryProvider =
+    Provider.autoDispose<DriverDocumentsRepository?>((ref) {
+      final user = ref.watch(demoStateProvider).currentUser;
+      final client = _supabaseClient();
+      if (user == null || user.isDemoAccount || client == null) return null;
+      final transport = http.Client();
+      ref.onDispose(transport.close);
+      return SupabaseDriverDocumentsRepository(client, transport);
+    });
+
+final savedPlacesRepositoryProvider =
+    Provider.autoDispose<SavedPlacesRepository>((ref) {
+      final user = ref.watch(demoStateProvider).currentUser;
+      final accountId = user == null
+          ? null
+          : user.isDemoAccount
+          ? 'demo:${user.email}'
+          : _supabaseClient()?.auth.currentUser?.id;
+      return SavedPlacesRepository(
+        Hive.isBoxOpen('arangcada_demo')
+            ? Hive.box<String>('arangcada_demo')
+            : null,
+        accountId,
+      );
+    });
 
 SupabaseClient? _supabaseClient() {
   if (!AppConfig.isSupabaseConfigured) return null;

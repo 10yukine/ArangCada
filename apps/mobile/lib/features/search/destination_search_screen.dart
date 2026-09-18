@@ -24,7 +24,14 @@ import '../../domain/geo/service_area.dart';
 /// both slow and wasteful. Saved and popular places are local accelerators,
 /// not a substitute for search.
 class DestinationSearchScreen extends ConsumerStatefulWidget {
-  const DestinationSearchScreen({this.pickingPickup = false, super.key});
+  const DestinationSearchScreen({
+    this.pickingPickup = false,
+    this.selectOnly = false,
+    super.key,
+  });
+
+  /// Return a place to the caller without changing the current booking.
+  final bool selectOnly;
 
   /// When true the screen sets the PICKUP instead of the destination.
   final bool pickingPickup;
@@ -99,6 +106,10 @@ class _DestinationSearchScreenState
       address: address,
       coordinate: coordinate,
     );
+    if (widget.selectOnly) {
+      Navigator.of(context).pop(place);
+      return;
+    }
     final state = ref.read(demoStateProvider);
     if (widget.pickingPickup) {
       state.setPickup(place);
@@ -164,7 +175,11 @@ class _DestinationSearchScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.pickingPickup ? 'Choose pickup' : 'Choose destination',
+          widget.selectOnly
+              ? 'Save a place'
+              : widget.pickingPickup
+              ? 'Choose pickup'
+              : 'Choose destination',
         ),
       ),
       body: SafeArea(
@@ -177,20 +192,21 @@ class _DestinationSearchScreenState
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    ArangRow(
-                      icon: Icons.my_location,
-                      title: state.pickup.name,
-                      subtitle: canChoosePickup && !widget.pickingPickup
-                          ? 'Pickup · tap to change'
-                          : 'Pickup',
-                      iconBackground: AppColors.greenFill,
-                      iconForeground: AppColors.green,
-                      showChevron: canChoosePickup && !widget.pickingPickup,
-                      showDivider: true,
-                      onTap: canChoosePickup && !widget.pickingPickup
-                          ? () => context.push('/home/choose-pickup')
-                          : null,
-                    ),
+                    if (!widget.selectOnly)
+                      ArangRow(
+                        icon: Icons.my_location,
+                        title: state.pickup.name,
+                        subtitle: canChoosePickup && !widget.pickingPickup
+                            ? 'Pickup · tap to change'
+                            : 'Pickup',
+                        iconBackground: AppColors.greenFill,
+                        iconForeground: AppColors.green,
+                        showChevron: canChoosePickup && !widget.pickingPickup,
+                        showDivider: true,
+                        onTap: canChoosePickup && !widget.pickingPickup
+                            ? () => context.push('/home/choose-pickup')
+                            : null,
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                       child: TextField(
@@ -218,30 +234,31 @@ class _DestinationSearchScreenState
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ArangButton(
-                      label: _locating ? 'Locating…' : 'Use current location',
-                      icon: Icons.gps_fixed,
-                      variant: ArangButtonVariant.ghost,
-                      onPressed: _locating ? null : _useCurrentLocation,
+            if (!widget.selectOnly)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ArangButton(
+                        label: _locating ? 'Locating…' : 'Use current location',
+                        icon: Icons.gps_fixed,
+                        variant: ArangButtonVariant.ghost,
+                        onPressed: _locating ? null : _useCurrentLocation,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: ArangButton(
-                      label: 'Pin on map',
-                      icon: Icons.place_outlined,
-                      variant: ArangButtonVariant.ghost,
-                      onPressed: () => context.push('/home/pin-on-map'),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: ArangButton(
+                        label: 'Pin on map',
+                        icon: Icons.place_outlined,
+                        variant: ArangButtonVariant.ghost,
+                        onPressed: () => context.push('/home/pin-on-map'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: AppSpacing.sm),
             Expanded(
               child: hasQuery
@@ -252,6 +269,9 @@ class _DestinationSearchScreenState
                       onSelect: (p) => _choose(p.name, p.context, p.coordinate),
                     )
                   : _Accelerators(
+                      savedPlaces: ref
+                          .watch(savedPlacesRepositoryProvider)
+                          .places,
                       onSelect: (place) =>
                           _choose(place.name, place.address, place.coordinate),
                     ),
@@ -315,15 +335,30 @@ class _ResultsList extends StatelessWidget {
 }
 
 class _Accelerators extends StatelessWidget {
-  const _Accelerators({required this.onSelect});
+  const _Accelerators({required this.onSelect, required this.savedPlaces});
 
   final ValueChanged<DemoPlace> onSelect;
+  final List<DemoPlace> savedPlaces;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
+        if (savedPlaces.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: ArangSectionHead('Saved places'),
+          ),
+          for (final place in savedPlaces)
+            ArangRow(
+              icon: Icons.bookmark_border,
+              title: place.name,
+              subtitle: place.address,
+              showChevron: false,
+              onTap: () => onSelect(place),
+            ),
+        ],
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
           child: ArangSectionHead('Popular in Calamba'),

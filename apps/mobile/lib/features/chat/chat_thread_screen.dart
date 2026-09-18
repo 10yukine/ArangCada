@@ -175,13 +175,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               ),
               PopupMenuButton<String>(
                 tooltip: 'More options',
-                onSelected: (value) => _onMenu(context, value, thread),
+                onSelected: (value) => _onMenu(
+                  context,
+                  value,
+                  thread,
+                  viewerIsDriver: viewerIsDriver,
+                ),
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: 'profile', child: Text('View profile')),
                   PopupMenuItem(
                     value: 'report',
                     child: Text(
-                      'Report driver',
+                      'Report conversation',
                       style: TextStyle(color: AppColors.danger),
                     ),
                   ),
@@ -275,9 +280,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _onMenu(
     BuildContext context,
     String value,
-    ChatThread thread,
-  ) async {
+    ChatThread thread, {
+    required bool viewerIsDriver,
+  }) async {
     if (value == 'profile') {
+      final counterparty = viewerIsDriver
+          ? thread.commuterName
+          : thread.driverName;
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
@@ -292,15 +301,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ArangAvatar(
-                name: thread.driverName,
+                name: counterparty,
                 size: 64,
                 imageUrl: thread.counterpartAvatarUrl,
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(thread.driverName, style: AppTypography.displaySm),
+              Text(counterparty, style: AppTypography.displaySm),
               const SizedBox(height: 4),
               Text(
-                'Body no. ${thread.bodyNumber} · ${thread.todaName}',
+                viewerIsDriver
+                    ? 'Commuter'
+                    : 'Body no. ${thread.bodyNumber} · ${thread.todaName}',
                 style: AppTypography.caption,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -397,28 +408,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => ArangDialog(
-        title: 'Report driver',
-        content: Text(
-          'Submit a safety concern about ${thread.driverName} to ArangCada '
-          'administrators for review.',
+        title: 'Reporting unavailable in demo',
+        content: const Text(
+          'This conversation stays on this device. No report will be sent or '
+          'recorded for administrators. Reporting is available for connected '
+          'trip conversations.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Report recorded for ArangCada administrators.',
-                  ),
-                ),
-              );
-            },
-            child: const Text('Submit report'),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -664,7 +663,9 @@ class _ComposerState extends State<_Composer> {
                     label: 'Send message',
                     enabled: hasText,
                     child: Material(
-                      color: hasText ? AppColors.primary : AppColors.dividerLight,
+                      color: hasText
+                          ? AppColors.primary
+                          : AppColors.dividerLight,
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
@@ -677,9 +678,7 @@ class _ComposerState extends State<_Composer> {
                           child: Icon(
                             Icons.send_rounded,
                             size: 20,
-                            color: hasText
-                                ? Colors.white
-                                : AppColors.textMuted,
+                            color: hasText ? Colors.white : AppColors.textMuted,
                           ),
                         ),
                       ),

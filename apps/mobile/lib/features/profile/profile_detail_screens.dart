@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -9,28 +10,93 @@ import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../core/widgets/arang_dialog.dart';
+import '../../demo/demo_data.dart';
+import '../search/destination_search_screen.dart';
+import 'notification_settings_tile.dart';
 
-class SavedPlacesScreen extends StatelessWidget {
+class SavedPlacesScreen extends ConsumerStatefulWidget {
   const SavedPlacesScreen({super.key});
 
   @override
+  ConsumerState<SavedPlacesScreen> createState() => _SavedPlacesScreenState();
+}
+
+class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _add() async {
+    final place = await Navigator.of(context).push<DemoPlace>(
+      MaterialPageRoute(
+        builder: (_) => const DestinationSearchScreen(selectOnly: true),
+      ),
+    );
+    if (place == null || !mounted) return;
+    await _update(() => ref.read(savedPlacesRepositoryProvider).save(place));
+  }
+
+  Future<void> _update(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not update saved places. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final places = ref.watch(savedPlacesRepositoryProvider).places;
     return _DetailScaffold(
       title: 'Saved Places',
       children: [
-        EmptyStateCard(
-          icon: Icons.bookmark_border,
-          title: 'No saved places',
-          message: 'Save a frequent pickup or destination for quicker booking.',
-          actionLabel: 'Add a Saved Place',
-          onAction: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Saved places are stored locally in this prototype.',
-              ),
-            ),
+        const Text('Saved on this device for your account.'),
+        const SizedBox(height: AppSpacing.sm),
+        if (_error != null)
+          Text(_error!, style: const TextStyle(color: AppColors.danger)),
+        if (_busy) const LinearProgressIndicator(),
+        if (places.isEmpty)
+          EmptyStateCard(
+            icon: Icons.bookmark_border,
+            title: 'No saved places',
+            message: 'Save a frequent pickup or destination for quicker booking.',
+            actionLabel: 'Add a Saved Place',
+            onAction: _busy ? null : _add,
           ),
-        ),
+        for (final place in places)
+          ListTile(
+            leading: const Icon(Icons.bookmark_border),
+            title: Text(place.name),
+            subtitle: Text(place.address),
+            trailing: IconButton(
+              tooltip: 'Remove ${place.name}',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy
+                  ? null
+                  : () => _update(
+                      () => ref.read(savedPlacesRepositoryProvider).remove(place.id),
+                    ),
+            ),
+            onTap: _busy
+                ? null
+                : () {
+                    ref.read(demoStateProvider).setDestination(place);
+                    context.go('/home/ride-options');
+                  },
+          ),
+        if (places.isNotEmpty)
+          FilledButton.icon(
+            onPressed: _busy ? null : _add,
+            icon: const Icon(Icons.add),
+            label: const Text('Add a Saved Place'),
+          ),
       ],
     );
   }
@@ -65,6 +131,12 @@ class AppSettingsScreen extends ConsumerWidget {
     await ref.read(authRepositoryProvider).signOut();
     ref.read(chatRepositoryProvider).clearSession();
     ref.read(demoStateProvider).reset();
+    final box = Hive.isBoxOpen('arangcada_demo')
+        ? Hive.box<String>('arangcada_demo')
+        : null;
+    await box?.delete('pref_notif_ride_updates');
+    await box?.delete('pref_notif_chat_messages');
+    await box?.delete('pref_notif_announcements');
     if (context.mounted) context.go('/login');
   }
 
@@ -78,32 +150,14 @@ class AppSettingsScreen extends ConsumerWidget {
         // notifications row.
         Text('Notifications', style: AppTypography.h2),
         const SizedBox(height: AppSpacing.xs),
-        SectionCard(
+        const SectionCard(
           padding: EdgeInsets.zero,
-          child: const Column(children: [
-            _NotificationToggle(
-              title: 'Ride updates',
-              subtitle: 'Driver assigned, arrival, and trip completion.',
-              initial: true,
-            ),
-            Divider(height: 1, color: AppColors.dividerLight),
-            _NotificationToggle(
-              title: 'Chat messages',
-              subtitle: 'New messages during an active ride.',
-              initial: true,
-            ),
-            Divider(height: 1, color: AppColors.dividerLight),
-            _NotificationToggle(
-              title: 'Announcements',
-              subtitle: 'Fare matrix changes and TODA advisories.',
-              initial: false,
-            ),
-          ]),
+          child: NotificationSettingsTile(),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Preferences are stored on this device only; the prototype does not '
-          'send push notifications.',
+          'Manage alerts and sounds in your phone’s notification settings. '
+          'These settings apply to this device.',
           style: AppTypography.caption,
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -208,43 +262,6 @@ class AppSettingsScreen extends ConsumerWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// Device-local notification preference. Deliberately not persisted: the
-/// prototype sends no push notifications, so storing the value would imply
-/// an effect it does not have.
-class _NotificationToggle extends StatefulWidget {
-  const _NotificationToggle({
-    required this.title,
-    required this.subtitle,
-    required this.initial,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool initial;
-
-  @override
-  State<_NotificationToggle> createState() => _NotificationToggleState();
-}
-
-class _NotificationToggleState extends State<_NotificationToggle> {
-  late bool _value = widget.initial;
-
-  @override
-  Widget build(BuildContext context) {
-    return SwitchListTile(
-      value: _value,
-      onChanged: (next) => setState(() => _value = next),
-      title: Text(widget.title),
-      subtitle: Text(widget.subtitle, style: AppTypography.caption),
-      activeThumbColor: AppColors.primary,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xxs,
-      ),
     );
   }
 }

@@ -1,214 +1,142 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
+import '../../data/providers/repository_providers.dart';
+import 'support_topics.dart';
 
-/// Support contacts, with a chatbot placeholder beneath them.
-///
-/// The contact details sit **above** the assistant on purpose: the working
-/// route to a human is the one that must be reachable first, and the
-/// assistant below it does not work yet. Nothing here claims a reply.
-class SupportScreen extends StatelessWidget {
+class SupportScreen extends ConsumerStatefulWidget {
   const SupportScreen({super.key});
 
-  static const supportEmail = 'support@arangcada.example';
-  static const supportPhone = '+63 900 000 0000';
+  @override
+  ConsumerState<SupportScreen> createState() => _SupportScreenState();
+}
+
+class _SupportScreenState extends ConsumerState<SupportScreen> {
+  final _query = TextEditingController();
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch() {
+    _query.clear();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(demoStateProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Support')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            const Text('Contact ArangCada support', style: AppTypography.h2),
-            const SizedBox(height: AppSpacing.xs),
-            SectionCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: const [
-                  _ContactRow(
-                    icon: Icons.mail_outline,
-                    label: 'Support email',
-                    value: supportEmail,
-                  ),
-                  Divider(height: 1, color: AppColors.dividerLight),
-                  _ContactRow(
-                    icon: Icons.call_outlined,
-                    label: 'Support contact number',
-                    value: supportPhone,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Placeholder contact details for the academic prototype. They do '
-              'not reach a staffed support desk.',
-              style: AppTypography.caption,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const Text('Ask the assistant', style: AppTypography.h2),
-            const SizedBox(height: AppSpacing.xs),
-            const _ChatbotPlaceholder(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListenableBuilder(
+          listenable: state,
+          builder: (context, _) {
+            final topics = findSupportTopics(
+              _query.text,
+              state.currentUser?.role,
+            );
+            return ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
-                Text(label, style: AppTypography.caption),
-                const SizedBox(height: 2),
-                SelectableText(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                const Text('Help guide', style: AppTypography.h2),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'Search the guides below or tap a topic. These answers work '
+                  'offline. No message is sent to a support agent.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _query,
+                  maxLength: 160,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                  decoration: InputDecoration(
+                    labelText: 'Search help',
+                    hintText: 'Try “notifications” or “password”',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            icon: const Icon(Icons.close),
+                            onPressed: _clearSearch,
+                          ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (topics.isEmpty)
+                  EmptyStateCard(
+                    icon: Icons.search_off,
+                    title: 'No matching help topics',
+                    message: 'Try another word, or browse all topics below.',
+                    actionLabel: 'Show all topics',
+                    onAction: _clearSearch,
+                  )
+                else ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      '${topics.length} ${topics.length == 1 ? 'topic' : 'topics'}',
+                      style: AppTypography.caption,
+                    ),
+                  ),
+                  for (final topic in topics)
+                    ExpansionTile(
+                      key: ValueKey(topic.id),
+                      tilePadding: EdgeInsets.zero,
+                      title: Text(topic.title),
+                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                      childrenPadding: const EdgeInsets.only(
+                        bottom: AppSpacing.sm,
+                      ),
+                      children: [
+                        Text(topic.answer),
+                        if (topic.route != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          TextButton.icon(
+                            onPressed: () {
+                              FocusScope.of(context).unfocus();
+                              context.push(topic.route!);
+                            },
+                            icon: const Icon(Icons.arrow_forward),
+                            label: Text(topic.actionLabel!),
+                          ),
+                        ],
+                      ],
+                    ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                const SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Need account-specific help?',
+                        style: AppTypography.h2,
+                      ),
+                      SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Contact your LGU/TODA office for registration or '
+                        'document corrections. A staffed in-app support desk '
+                        'is not configured in this build.',
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Inert on purpose. A support assistant that invents answers about fares,
-/// TODA jurisdiction, or an emergency would be worse than no assistant, so
-/// the composer is visibly disabled rather than faked.
-class _ChatbotPlaceholder extends StatelessWidget {
-  const _ChatbotPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryFill,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.smart_toy_outlined,
-                  size: 20,
-                  color: AppColors.primaryText,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'ArangCada Assistant',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Not available yet',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.neutralFill,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            child: Text(
-              'The in-app assistant is planned but not built. Use the email or '
-              'contact number above to reach a person.',
-              style: AppTypography.bodySm.copyWith(height: 1.45),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // A disabled composer, not a working one. It shows where the
-          // assistant will live without pretending it listens.
-          Opacity(
-            opacity: 0.55,
-            child: IgnorePointer(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.inputFill,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                  border: Border.all(color: AppColors.borderStrong),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Ask a question…',
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.send_rounded,
-                      size: 20,
-                      color: AppColors.textMuted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -193,4 +193,23 @@ void main() {
       expect(auth.updateAvatarPathCalls, isEmpty);
     },
   );
+
+  testWidgets(
+    'driver profile displays Franchise & documents and not TODA membership',
+    (tester) async {
+      state.setCurrentUser(
+        const DemoUser(
+          email: 'driver@arangcada.demo',
+          displayName: 'SJVTODA Test Driver',
+          role: DemoRole.driver,
+        ),
+      );
+      await tester.pumpWidget(harness());
+      await tester.pump();
+
+      expect(find.text('LGU & TODA records'), findsOneWidget);
+      expect(find.text('Franchise & documents'), findsOneWidget);
+      expect(find.text('TODA membership'), findsNothing);
+    },
+  );
 }

@@ -27,6 +27,7 @@ import '../features/profile/developer_panel_screen.dart';
 import '../features/profile/discount_eligibility_screen.dart';
 import '../features/profile/profile_detail_screens.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/profile/driver_documents_screen.dart';
 import '../features/profile/support_screen.dart';
 import '../features/rating/driver_rating_screen.dart';
 import '../features/rating/driver_app_feedback_screen.dart';
@@ -252,6 +253,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile/saved-places',
         pageBuilder: (context, state) =>
             _screenPage(state, const SavedPlacesScreen()),
+      ),
+      GoRoute(
+        path: '/profile/driver-documents',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DriverDocumentsScreen()),
       ),
       GoRoute(
         path: '/profile/discount-eligibility',

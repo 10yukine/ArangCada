@@ -31,7 +31,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   final _mapController = LiveMapViewController();
   DemoSimulationRun? _completionRun;
   bool _completionStarted = false;
-  bool _liveListenerAttached = false;
+  Listenable? _liveState;
 
   @override
   void initState() {
@@ -40,8 +40,8 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (liveRides == null) {
       _scheduleCompletion();
     } else {
-      ref.read(demoStateProvider).addListener(_handleLiveTripChange);
-      _liveListenerAttached = true;
+      _liveState = ref.read(demoStateProvider);
+      _liveState!.addListener(_handleLiveTripChange);
       _handleLiveTripChange();
     }
   }
@@ -114,9 +114,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
 
   @override
   void dispose() {
-    if (_liveListenerAttached) {
-      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
-    }
+    _liveState?.removeListener(_handleLiveTripChange);
     _confirmTicker?.cancel();
     _completionRun?.cancel();
     super.dispose();
@@ -131,6 +129,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       });
       return;
     }
+    if (_completionStarted) return;
     final deadline = state.completionAvailableAt;
     if (deadline == null || _awaitingConfirmation) return;
     setState(() {
@@ -173,12 +172,20 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       try {
         await liveRides.completeTrip();
         if (mounted) context.go('/rating');
-      } on Exception {
-        _completionStarted = false;
+      } catch (_) {
         if (mounted) {
+          // No realtime update is guaranteed after a rejected/offline request.
+          // Restore the action locally, without automatically resending it.
+          setState(() {
+            _completionStarted = false;
+            _awaitingConfirmation = true;
+            _secondsLeft = 0;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Trip completion is not available yet. Try again.'),
+              content: Text(
+                'Could not confirm trip completion. Check your connection and try again.',
+              ),
             ),
           );
         }
@@ -324,7 +331,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                   left: 70,
                   child: const _TripStatusPill(),
                 ),
-
               ],
               sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
                 booking: booking,

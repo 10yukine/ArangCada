@@ -230,9 +230,7 @@ class ProfileScreen extends ConsumerWidget {
                   child: _ProfileHeader(
                     name:
                         user?.displayName ?? (isDriver ? 'Driver' : 'Commuter'),
-                    subtitle: isDriver
-                        ? 'Body no. 024 · Calamba TODA'
-                        : (user?.email ?? ''),
+                    subtitle: user?.email ?? '',
                     isDriver: isDriver,
                     imageUrl: user?.avatarUrl,
                     onChangePhoto: () => _changePhoto(context, ref),
@@ -248,18 +246,7 @@ class ProfileScreen extends ConsumerWidget {
                   _ProfileRow(
                     icon: Icons.description_outlined,
                     label: 'Franchise & documents',
-                    onTap: () =>
-                        _governedNotice(context, 'Franchise & documents'),
-                    trailing: const ArangBadge(
-                      'Verified',
-                      tone: ArangBadgeTone.green,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  _ProfileRow(
-                    icon: Icons.groups_outlined,
-                    label: 'TODA membership',
-                    onTap: () => _governedNotice(context, 'TODA membership'),
+                    onTap: () => context.push('/profile/driver-documents'),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
@@ -340,11 +327,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _governedNotice(BuildContext context, String what) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$what is managed by the LGU/TODA office.')),
-    );
-  }
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -451,10 +433,6 @@ class _ProfileHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.caption,
               ),
-              if (isDriver) ...[
-                const SizedBox(height: 6),
-                const ArangBadge('Verified', tone: ArangBadgeTone.green),
-              ],
             ],
           ),
         ),
@@ -487,7 +465,6 @@ class _ProfileRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.trailing,
     this.danger = false,
     this.showChevron = true,
   });
@@ -495,7 +472,6 @@ class _ProfileRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Widget? trailing;
   final bool danger;
   final bool showChevron;
 
@@ -507,18 +483,7 @@ class _ProfileRow extends StatelessWidget {
         label,
         style: danger ? const TextStyle(color: AppColors.danger) : null,
       ),
-      trailing: showChevron || trailing != null
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (trailing != null) ...[
-                  trailing!,
-                  const SizedBox(width: AppSpacing.xs),
-                ],
-                if (showChevron) const Icon(Icons.chevron_right),
-              ],
-            )
-          : null,
+      trailing: showChevron ? const Icon(Icons.chevron_right) : null,
       onTap: onTap,
     );
   }
