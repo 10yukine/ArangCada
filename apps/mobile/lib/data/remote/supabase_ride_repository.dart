@@ -225,10 +225,12 @@ class SupabaseRideRepository extends ChangeNotifier {
   /// rules (participant-only, active-trip-statuses-only).
   Future<void> _loadCounterpartAvatar(String tripId) async {
     try {
-      final path = await _client.rpc(
-        'trip_counterpart_avatar_path',
-        params: {'p_trip_id': tripId},
-      ) as String?;
+      final path =
+          await _client.rpc(
+                'trip_counterpart_avatar_path',
+                params: {'p_trip_id': tripId},
+              )
+              as String?;
       if (_disposed || path == null || _counterpartAvatarTripId != tripId) {
         return;
       }
@@ -363,9 +365,8 @@ class SupabaseRideRepository extends ChangeNotifier {
       // through. Anything else is an unplanned database error that can name
       // columns and constraints, so it gets generic text instead.
       throw switch (error.code) {
-        '22023' || '42501' when error.message.isNotEmpty => ApiRejectedException(
-          error.message,
-        ),
+        '22023' || '42501' when error.message.isNotEmpty =>
+          ApiRejectedException(error.message),
         _ => const ApiUnexpectedException(),
       };
     }
@@ -413,6 +414,20 @@ class SupabaseRideRepository extends ChangeNotifier {
   Future<void> declineRide() => _tripAction('decline_ride');
   Future<void> expireRide() => _tripAction('expire_ride');
   Future<void> cancelRide() => _tripAction('cancel_ride');
+
+  Future<String?> counterpartPhone(String tripId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    final phone =
+        await _client.rpc(
+              'trip_counterpart_phone',
+              params: {'p_trip_id': tripId},
+            )
+            as String?;
+    if (_disposed || _client.auth.currentUser?.id != userId) return null;
+    return phone;
+  }
+
   Future<void> markArrived() => _tripAction('mark_arrived');
   Future<void> startTrip() => _tripAction('start_trip');
   Future<void> completeTrip() => _tripAction('complete_trip');

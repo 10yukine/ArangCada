@@ -10,6 +10,8 @@ import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
+import '../../core/widgets/empty_state_card.dart';
+import '../../core/widgets/trip_call_sheet.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/mock/demo_state.dart';
@@ -61,7 +63,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   int _secondsRemaining = 0;
   int _cancelSecondsRemaining = _cancelWindowSeconds;
   bool _arrived = false;
-  bool _liveListenerAttached = false;
+  bool _cancelling = false;
+  DemoState? _liveState;
 
   @override
   void initState() {
@@ -77,7 +80,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
       // the driver did next.
       _arrived = liveRides.activeTrip?['status'] == 'arrived';
       state.addListener(_handleLiveTripChange);
-      _liveListenerAttached = true;
+      _liveState = state;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _handleLiveTripChange();
       });
@@ -154,25 +157,33 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   void _handleLiveTripChange() {
     if (!mounted) return;
     final state = ref.read(demoStateProvider);
+    if (state.activeBooking == null ||
+        state.activeBooking?.status == BookingStatus.cancelled) {
+      _liveTransition?.cancel();
+      _cancelWindowTimer?.cancel();
+      return;
+    }
     if (state.activeBooking?.status == BookingStatus.inProgress) {
       // Deferred a frame: this callback can itself run from a post-frame
       // callback registered in initState, and navigating from inside a
       // ChangeNotifier listener risks tearing down the tree mid-notification.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.go('/trip/active');
+        if (mounted &&
+            state.activeBooking?.status == BookingStatus.inProgress) {
+          context.go('/trip/active');
+        }
       });
       return;
     }
     final arrived =
-        ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] == 'arrived';
+        ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] ==
+        'arrived';
     if (_arrived != arrived) setState(() => _arrived = arrived);
   }
 
   @override
   void dispose() {
-    if (_liveListenerAttached) {
-      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
-    }
+    _liveState?.removeListener(_handleLiveTripChange);
     _approachRun?.cancel();
     _arrivalRun?.cancel();
     _liveTransition?.cancel();
@@ -180,48 +191,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     super.dispose();
   }
 
-  void _showCallSheet(BuildContext context, String driverName) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            0,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.call_outlined,
-                size: 40,
-                color: AppColors.primary,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text('Call $driverName', style: AppTypography.displaySm),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Calling is unavailable in this academic prototype. No call '
-                'was placed.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              ArangButton(
-                label: 'Close',
-                onPressed: () => Navigator.pop(sheetContext),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _cancelRide() async {
+    if (_cancelling) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => ArangDialog(
@@ -244,19 +215,27 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    _approachRun?.cancel();
-    _arrivalRun?.cancel();
-    _cancelWindowTimer?.cancel();
-
     final state = ref.read(demoStateProvider);
+    final status = state.activeBooking?.status;
+    if (_cancelling ||
+        _arrived ||
+        _cancelSecondsRemaining <= 0 ||
+        (status != BookingStatus.matched &&
+            status != BookingStatus.approaching)) {
+      return;
+    }
     final liveRides = ref.read(liveRideRepositoryProvider);
     if (liveRides == null) {
+      _approachRun?.cancel();
+      _arrivalRun?.cancel();
+      _cancelWindowTimer?.cancel();
       state.activeBooking = null;
       state.bookingChanged();
     } else {
+      setState(() => _cancelling = true);
       try {
         await liveRides.cancelRide();
-      } on Exception {
+      } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -265,6 +244,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
           );
         }
         return;
+      } finally {
+        if (mounted) setState(() => _cancelling = false);
       }
     }
     if (mounted) context.go('/home');
@@ -283,7 +264,23 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
               (booking.status == BookingStatus.matched ||
                   booking.status == BookingStatus.approaching);
           if (!waiting) {
-            return const Center(child: Text('No driver on the way.'));
+            final cancelled = booking?.status == BookingStatus.cancelled;
+            return SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  EmptyStateCard(
+                    icon: cancelled ? Icons.cancel_outlined : Icons.route,
+                    title: cancelled
+                        ? 'Ride cancelled'
+                        : 'No driver on the way',
+                    message: 'Open Trips to check your latest ride.',
+                    actionLabel: 'View trips',
+                    onAction: () => context.go('/trips'),
+                  ),
+                ],
+              ),
+            );
           }
 
           final driverName = state.liveDriverName ?? 'Marco Dela Cruz';
@@ -325,9 +322,11 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.dangerDark,
               ),
-              onPressed: cancellable ? _cancelRide : null,
+              onPressed: cancellable && !_cancelling ? _cancelRide : null,
               child: Text(
-                cancellable
+                _cancelling
+                    ? 'Cancelling ride…'
+                    : cancellable
                     ? 'Cancel ride · '
                           '0:${_cancelSecondsRemaining.toString().padLeft(2, '0')}'
                     : 'Cancellation window has expired',
@@ -402,7 +401,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                         label: 'Call',
                         icon: Icons.call_outlined,
                         variant: ArangButtonVariant.ghost,
-                        onPressed: () => _showCallSheet(context, driverName),
+                        onPressed: () => showTripCallSheet(context),
                       ),
                     ),
                   ],

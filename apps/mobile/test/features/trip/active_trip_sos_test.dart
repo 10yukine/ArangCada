@@ -137,6 +137,70 @@ void main() {
     expect(find.text('Call'), findsOneWidget);
   });
 
+  for (final useBack in [false, true]) {
+    testWidgets('cancelled trip exits safely (system back: $useBack)', (
+      tester,
+    ) async {
+      final state = DemoState();
+      final rides = _CompletionRepository();
+      addTearDown(state.dispose);
+      state.setDestination(DemoData.places[1]);
+      final booking = inProgressBooking();
+      state.setActiveBooking(booking);
+      state.completionAvailableAt = DateTime.now().subtract(
+        const Duration(minutes: 1),
+      );
+      final router = GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, _) => const ActiveTripScreen()),
+          GoRoute(
+            path: '/trips',
+            builder: (_, _) => const Scaffold(body: Text('Trip history')),
+          ),
+          GoRoute(
+            path: '/rating',
+            builder: (_, _) => const Scaffold(body: Text('Unexpected rating')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            demoStateProvider.overrideWithValue(state),
+            liveRideRepositoryProvider.overrideWithValue(rides),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pump();
+      if (useBack) {
+        await tester.tap(find.textContaining("I've arrived"));
+        await tester.pump();
+      }
+      booking.status = BookingStatus.cancelled;
+      state.bookingChanged();
+      await tester.pumpAndSettle();
+      if (useBack) {
+        rides.pending.complete();
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('Trip cancelled'), findsOneWidget);
+      expect(find.textContaining("I've arrived"), findsNothing);
+      await tester.pump(const Duration(seconds: 65));
+      expect(rides.calls, useBack ? 1 : 0);
+      if (useBack) {
+        await tester.binding.handlePopRoute();
+      } else {
+        await tester.tap(find.text('View trips'));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Trip history'), findsOneWidget);
+      expect(find.text('Leave active trip screen?'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('the fare detail stays behind the expand, unlike the controls', (
     tester,
   ) async {

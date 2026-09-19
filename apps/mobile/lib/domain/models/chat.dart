@@ -20,6 +20,8 @@ class ChatMessage {
     required this.sentAt,
     this.status = ChatMessageStatus.sent,
     this.remoteId,
+    this.voicePath,
+    this.voiceDurationMs,
   });
 
   final String id;
@@ -31,6 +33,9 @@ class ChatMessage {
 
   /// Populated only once a backend acknowledges the message.
   final String? remoteId;
+  final String? voicePath;
+  final int? voiceDurationMs;
+  bool get isVoice => voicePath != null;
 
   bool get isSystem => author == ChatMessageAuthor.system;
 
@@ -43,6 +48,8 @@ class ChatMessage {
       sentAt: sentAt,
       status: status ?? this.status,
       remoteId: remoteId ?? this.remoteId,
+      voicePath: voicePath,
+      voiceDurationMs: voiceDurationMs,
     );
   }
 
@@ -54,6 +61,8 @@ class ChatMessage {
     'sentAt': sentAt.toIso8601String(),
     'status': status.name,
     if (remoteId != null) 'remoteId': remoteId,
+    if (voicePath != null) 'voicePath': voicePath,
+    if (voiceDurationMs != null) 'voiceDurationMs': voiceDurationMs,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -66,6 +75,8 @@ class ChatMessage {
       json['status'] as String? ?? 'sent',
     ),
     remoteId: json['remoteId'] as String?,
+    voicePath: json['voicePath'] as String?,
+    voiceDurationMs: json['voiceDurationMs'] as int?,
   );
 }
 

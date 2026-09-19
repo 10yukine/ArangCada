@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +14,10 @@ import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
 import '../../domain/models/demo_user.dart';
 import '../../core/widgets/arang_dialog.dart';
-import '../../core/widgets/voice_record_button.dart';
+import '../../data/remote/supabase_chat_repository.dart';
+import 'voice_note_recorder.dart';
+import 'voice_note_player.dart';
+import '../../core/widgets/trip_call_sheet.dart';
 
 const _quickReplies = ['Where po kayo?', 'Salamat po!'];
 
@@ -26,6 +33,13 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
 class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  AudioPlayer? _player;
+  final _selectedVoice = ValueNotifier<String?>(null);
+  AudioPlayer get _voicePlayer {
+    // The package's default error logger includes the source URL (a bearer token).
+    AudioLogger.logLevel = AudioLogLevel.none;
+    return _player ??= AudioPlayer();
+  }
 
   @override
   void initState() {
@@ -33,6 +47,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     // Clearing unread touches the repository, so it must not happen during
     // build. One frame later is early enough for the badge to settle.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(chatRepositoryProvider).markRead(widget.threadId);
     });
   }
@@ -41,6 +56,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void dispose() {
     _controller.dispose();
     _scroll.dispose();
+    unawaited(_player?.dispose());
+    _selectedVoice.dispose();
     super.dispose();
   }
 
@@ -55,18 +72,44 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     });
   }
 
-  /// No microphone is opened and no audio is captured or stored -- see
-  /// VoiceRecordButton's doc comment. A completed hold sends a plain text
-  /// message describing itself honestly, through the same path as every
-  /// other message, rather than pretending to be a real voice note.
-  Future<void> _sendVoicePlaceholder(Duration duration) async {
-    final seconds = duration.inSeconds.clamp(1, 999);
-    await _send('🎤 Voice message · 0:${seconds.toString().padLeft(2, '0')}');
+  Future<void> _recordVoice() async {
+    final repository = ref.read(chatRepositoryProvider);
+    final thread = repository.threadById(widget.threadId);
+    if (repository is! SupabaseChatRepository ||
+        thread == null ||
+        thread.isReadOnly) {
+      return;
+    }
+    final tripId = thread.tripId!;
+    await _player?.stop();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      builder: (_) => VoiceNoteRecorder(
+        onSend: (id, bytes, durationMs) async {
+          if (!mounted ||
+              ref.read(chatRepositoryProvider) != repository ||
+              repository.threadById(widget.threadId)?.tripId != tripId) {
+            throw StateError('The ride or account changed.');
+          }
+          await repository.sendVoice(
+            tripId: tripId,
+            messageId: id,
+            bytes: bytes,
+            durationMs: durationMs,
+          );
+        },
+      ),
+    );
+    if (mounted) _scrollToEnd();
   }
 
-  Future<void> _send(String body) async {
+  Future<void> _send(String body, {bool clearDraft = true}) async {
     if (body.trim().isEmpty) return;
-    _controller.clear();
+    if (clearDraft) _controller.clear();
     try {
       final role = ref.read(demoStateProvider).currentUser?.role;
       await ref
@@ -171,7 +214,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               IconButton(
                 tooltip: 'Call $counterparty',
                 icon: const Icon(Icons.call_outlined),
-                onPressed: () => _showCallSheet(context, counterparty),
+                onPressed: thread.isReadOnly
+                    ? null
+                    : () => showTripCallSheet(context, tripId: thread.tripId),
               ),
               PopupMenuButton<String>(
                 tooltip: 'More options',
@@ -217,13 +262,40 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   itemCount: thread.messages.length,
                   itemBuilder: (context, i) => _Bubble(
+                    key: ValueKey(thread.messages[i].id),
                     message: thread.messages[i],
+                    voice:
+                        thread.messages[i].isVoice &&
+                            repository is SupabaseChatRepository
+                        ? VoiceNotePlayer(
+                            key: ValueKey(thread.messages[i].id),
+                            message: thread.messages[i],
+                            player: _voicePlayer,
+                            selected: _selectedVoice,
+                            loadUrl: () => repository.voiceNotes.playbackUrl(
+                              thread.messages[i].id,
+                            ),
+                            color: thread.messages[i].author == ownAuthor
+                                ? Colors.white
+                                : AppColors.ink,
+                          )
+                        : null,
                     ownAuthor: ownAuthor,
                     connected: connected,
-                    onRetry: () => repository.retryMessage(
-                      threadId: thread.id,
-                      messageId: thread.messages[i].id,
-                    ),
+                    onRetry: () async {
+                      try {
+                        await repository.retryMessage(
+                          threadId: thread.id,
+                          messageId: thread.messages[i].id,
+                        );
+                      } on StateError catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error.message)),
+                          );
+                        }
+                      }
+                    },
                   ),
                 ),
               ),
@@ -233,47 +305,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 _Composer(
                   controller: _controller,
                   onSend: _send,
-                  onVoiceRecorded: _sendVoicePlaceholder,
-                  allowVoicePlaceholder: !connected,
+                  onQuickReply: (body) => _send(body, clearDraft: false),
+                  onVoice: connected && !kIsWeb ? _recordVoice : null,
                 ),
             ],
           ),
         );
       },
-    );
-  }
-
-  void _showCallSheet(BuildContext context, String counterparty) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          0,
-          AppSpacing.lg,
-          AppSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Call $counterparty', style: AppTypography.displaySm),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Phone contact becomes available once dispatch is connected. '
-              'No number is dialled from this build.',
-              style: AppTypography.caption,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ArangButton(
-              label: 'Close',
-              variant: ArangButtonVariant.ghost,
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -340,8 +378,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Only LGU administrators will receive the reported chat '
-                  'history. TODA administrators cannot view it.',
+                  'Only LGU administrators will receive messages from this '
+                  'conversation’s current or most recent ride, not earlier rides. '
+                  'Voice recordings are not included in the report. '
+                  'TODA administrators cannot view them.',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 TextField(
@@ -431,12 +471,15 @@ class _Bubble extends StatelessWidget {
     required this.ownAuthor,
     required this.connected,
     required this.onRetry,
+    this.voice,
+    super.key,
   });
 
   final ChatMessage message;
   final ChatMessageAuthor ownAuthor;
   final bool connected;
   final VoidCallback onRetry;
+  final Widget? voice;
 
   @override
   Widget build(BuildContext context) {
@@ -478,14 +521,16 @@ class _Bubble extends StatelessWidget {
                 bottomRight: Radius.circular(mine ? 4 : 16),
               ),
             ),
-            child: Text(
-              message.body,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.35,
-                color: mine ? Colors.white : AppColors.ink,
-              ),
-            ),
+            child:
+                voice ??
+                Text(
+                  message.body,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: mine ? Colors.white : AppColors.ink,
+                  ),
+                ),
           ),
           const SizedBox(height: 3),
           Row(
@@ -566,14 +611,14 @@ class _Composer extends StatefulWidget {
   const _Composer({
     required this.controller,
     required this.onSend,
-    required this.onVoiceRecorded,
-    required this.allowVoicePlaceholder,
+    required this.onQuickReply,
+    this.onVoice,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onSend;
-  final ValueChanged<Duration> onVoiceRecorded;
-  final bool allowVoicePlaceholder;
+  final ValueChanged<String> onQuickReply;
+  final VoidCallback? onVoice;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -617,7 +662,7 @@ class _ComposerState extends State<_Composer> {
                     child: ArangChip(
                       label: reply,
                       selected: false,
-                      onTap: () => widget.onSend(reply),
+                      onTap: () => widget.onQuickReply(reply),
                     ),
                   ),
               ],
@@ -645,19 +690,7 @@ class _ComposerState extends State<_Composer> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                // Empty text and a real connected trip used to render
-                // neither button at all: allowVoicePlaceholder is false on a
-                // real trip (correctly -- VoiceRecordButton is a placeholder
-                // that records nothing, and offering it on a trip that is
-                // actually live would misrepresent what the app can do), but
-                // the `if (hasText) ... else if (allowVoicePlaceholder) ...`
-                // had no third branch, so the composer's trailing slot went
-                // fully blank until the driver or commuter typed something.
-                // A send button that is always visible, just disabled until
-                // there is text, is what every mainstream chat app does when
-                // it has no recording feature to fall back to -- and it does
-                // not claim a capability the app does not have.
-                if (hasText || !widget.allowVoicePlaceholder)
+                if (hasText || widget.onVoice == null)
                   Semantics(
                     button: true,
                     label: 'Send message',
@@ -685,7 +718,11 @@ class _ComposerState extends State<_Composer> {
                     ),
                   )
                 else
-                  VoiceRecordButton(onRecorded: widget.onVoiceRecorded),
+                  IconButton.filled(
+                    tooltip: 'Record voice message',
+                    onPressed: widget.onVoice,
+                    icon: const Icon(Icons.mic_none_rounded),
+                  ),
               ],
             ),
           ),

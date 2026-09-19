@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../core/widgets/trip_call_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -726,15 +727,7 @@ class _DriverTripModeCard extends ConsumerWidget {
                       label: 'Call',
                       icon: Icons.call_outlined,
                       variant: ArangButtonVariant.ghost,
-                      onPressed: () =>
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Calling is unavailable in this academic '
-                                'prototype. No call was placed.',
-                              ),
-                            ),
-                          ),
+                      onPressed: () => showTripCallSheet(context),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),

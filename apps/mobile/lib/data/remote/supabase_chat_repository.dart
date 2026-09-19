@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/models/chat.dart';
+import '../../domain/models/trip_chat_group.dart';
 import '../repositories/chat_repository.dart';
 import 'supabase_ride_repository.dart';
+import 'supabase_voice_notes.dart';
 
 /// Participant-only trip chat, retained read-only for 30 days after a ride.
 class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
@@ -16,15 +18,9 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   }
 
   static const _uuid = Uuid();
-  static const _activeStatuses = {
-    'accepted',
-    'driver_en_route',
-    'arrived',
-    'in_progress',
-    'emergency_reported',
-  };
 
   final SupabaseClient _client;
+  late final voiceNotes = SupabaseVoiceNotes(_client);
   final SupabaseRideRepository _rides;
   final StreamController<List<ChatThread>> _changes =
       StreamController<List<ChatThread>>.broadcast();
@@ -39,26 +35,33 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   // same reasoning and shape as SupabaseRideRepository's identical cache.
   final Map<String, String?> _counterpartAvatars = {};
   List<ChatThread> _threads = const [];
+  List<TripChatGroup> _groups = [];
+  Timer? _expiryTimer;
   bool _disposed = false;
 
   String get _userId => _client.auth.currentUser!.id;
 
   void _synchronizeTrips() {
     if (_disposed) return;
-    final cutoff = DateTime.now().toUtc().subtract(const Duration(days: 30));
-    final visible = <Map<String, dynamic>>[];
-    for (final trip in _rides.trips) {
-      final status = trip['status'] as String?;
-      if (trip['driver_id'] == null ||
-          (!_activeStatuses.contains(status) && status != 'completed')) {
-        continue;
+    _groups = TripChatGroup.retained(_rides.trips);
+    final visible = _groups.expand((group) => group.trips).toList();
+    _expiryTimer?.cancel();
+    DateTime? nextExpiry;
+    for (final trip in visible) {
+      if (trip['status'] != 'completed') continue;
+      final expiry = DateTime.parse(
+        trip['completed_at'] as String,
+      ).add(const Duration(days: 30, milliseconds: 1));
+      if (nextExpiry == null || expiry.isBefore(nextExpiry)) {
+        nextExpiry = expiry;
       }
-      final completed = trip['completed_at'] as String?;
-      if (completed != null &&
-          DateTime.parse(completed).toUtc().isBefore(cutoff)) {
-        continue;
-      }
-      visible.add(trip);
+    }
+    if (nextExpiry != null) {
+      final delay = nextExpiry.difference(DateTime.now());
+      _expiryTimer = Timer(
+        delay.isNegative ? Duration.zero : delay,
+        _synchronizeTrips,
+      );
     }
 
     final visibleIds = visible.map((trip) => trip['id'] as String).toSet();
@@ -67,6 +70,8 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
         unawaited(_listeners.remove(id)?.cancel());
         _messages.remove(id);
         _unread.remove(id);
+        _initializedTrips.remove(id);
+        _counterpartAvatars.remove(id);
       }
     }
     for (final trip in visible) {
@@ -93,22 +98,25 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
         unawaited(_loadCounterpartAvatar(id));
       }
     }
-    _threads = visible.map(_threadFromTrip).toList(growable: false);
-    _emit();
+    _rebuildThreads();
   }
 
-  ChatThread _threadFromTrip(Map<String, dynamic> trip) {
+  ChatThread _threadFromGroup(TripChatGroup group) {
+    final trip = group.current;
     final id = trip['id'] as String;
+    final messages =
+        group.tripIds.expand((id) => _messages[id] ?? <ChatMessage>[]).toList()
+          ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
     return ChatThread(
-      id: id,
+      id: group.id,
       tripId: id,
       commuterName: trip['rider_display_name'] as String? ?? 'Commuter',
       driverName: trip['driver_display_name'] as String? ?? 'Driver',
       bodyNumber: trip['driver_body_number'] as String? ?? 'Verified driver',
       todaName: trip['toda_name'] as String? ?? 'Assigned TODA',
-      messages: List.unmodifiable(_messages[id] ?? const <ChatMessage>[]),
-      unreadCount: _unread[id] ?? 0,
-      isActiveTrip: _activeStatuses.contains(trip['status']),
+      messages: List.unmodifiable(messages),
+      unreadCount: group.tripIds.fold(0, (sum, id) => sum + (_unread[id] ?? 0)),
+      isActiveTrip: group.active,
       counterpartAvatarUrl: _counterpartAvatars[id],
     );
   }
@@ -121,10 +129,12 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   /// single source of truth (_rides.trips) instead of patched in two places.
   Future<void> _loadCounterpartAvatar(String tripId) async {
     try {
-      final path = await _client.rpc(
-        'trip_counterpart_avatar_path',
-        params: {'p_trip_id': tripId},
-      ) as String?;
+      final path =
+          await _client.rpc(
+                'trip_counterpart_avatar_path',
+                params: {'p_trip_id': tripId},
+              )
+              as String?;
       if (_disposed) return;
       final url = path == null
           ? null
@@ -146,7 +156,7 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
     Map<String, dynamic> trip,
     List<Map<String, dynamic>> rows,
   ) {
-    if (_disposed) return;
+    if (_disposed || !_listeners.containsKey(trip['id'])) return;
     final tripId = trip['id'] as String;
     final previous = _messages[tripId] ?? const <ChatMessage>[];
     final priorIds = previous
@@ -166,6 +176,8 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
                 : ChatMessageAuthor.commuter,
             body: row['body'] as String,
             sentAt: DateTime.parse(row['created_at'] as String).toLocal(),
+            voicePath: row['voice_path'] as String?,
+            voiceDurationMs: row['voice_duration_ms'] as int?,
           );
         })
         .toList(growable: false);
@@ -186,14 +198,7 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   }
 
   void _rebuildThreads() {
-    _threads = _threads
-        .map((thread) {
-          return thread.copyWith(
-            messages: _messages[thread.id] ?? const [],
-            unreadCount: _unread[thread.id] ?? 0,
-          );
-        })
-        .toList(growable: false);
+    _threads = _groups.map(_threadFromGroup).toList(growable: false);
     _emit();
   }
 
@@ -226,8 +231,10 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
   @override
   ChatThread? threadById(String id) {
     final resolved = _resolveId(id);
-    for (final thread in _threads) {
-      if (thread.id == resolved) return thread;
+    for (var i = 0; i < _groups.length; i++) {
+      if (_groups[i].id == resolved || _groups[i].tripIds.contains(resolved)) {
+        return _threads[i];
+      }
     }
     return null;
   }
@@ -261,10 +268,10 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
     required String body,
     required ChatMessageAuthor author,
   }) async {
-    final resolved = _resolveId(threadId);
-    final thread = threadById(resolved);
+    final thread = threadById(threadId);
     if (thread == null) throw StateError('Conversation not found.');
     if (thread.isReadOnly) throw StateError('This conversation is closed.');
+    final resolved = thread.tripId!;
     final trimmed = body.trim();
     if (trimmed.isEmpty || trimmed.length > 1000) {
       throw StateError('Messages must contain 1 to 1,000 characters.');
@@ -325,15 +332,62 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
     _rebuildThreads();
   }
 
+  Future<void> sendVoice({
+    required String tripId,
+    required String messageId,
+    required Uint8List bytes,
+    required int durationMs,
+  }) async {
+    final trip = _rides.trips.where((trip) => trip['id'] == tripId).firstOrNull;
+    if (_disposed || trip == null) {
+      throw StateError('Conversation unavailable.');
+    }
+    final row = await voiceNotes.send(
+      tripId: tripId,
+      messageId: messageId,
+      bytes: bytes,
+      durationMs: durationMs,
+    );
+    if (_disposed) return;
+    final message = ChatMessage(
+      id: row['id'] as String,
+      remoteId: row['id'] as String,
+      threadId: tripId,
+      author: row['sender_id'] == trip['driver_id']
+          ? ChatMessageAuthor.driver
+          : ChatMessageAuthor.commuter,
+      body: row['body'] as String,
+      sentAt: DateTime.parse(row['created_at'] as String).toLocal(),
+      voicePath: row['voice_path'] as String?,
+      voiceDurationMs: row['voice_duration_ms'] as int?,
+    );
+    _messages[tripId] = [
+      ...?_messages[tripId]?.where((existing) => existing.id != message.id),
+      message,
+    ];
+    _rebuildThreads();
+  }
+
   @override
   Future<void> retryMessage({
     required String threadId,
     required String messageId,
   }) async {
-    final resolved = _resolveId(threadId);
-    final failed = (_messages[resolved] ?? []).firstWhere(
+    final thread = threadById(threadId);
+    if (thread == null || thread.isReadOnly) {
+      throw StateError('This conversation is closed.');
+    }
+    final failed = thread.messages.firstWhere(
       (message) => message.id == messageId,
     );
+    // Never silently resend a message from an earlier ride into a new ride.
+    if (failed.threadId != thread.tripId ||
+        failed.status != ChatMessageStatus.failed) {
+      throw StateError(
+        'Only failed messages from the current ride can be retried.',
+      );
+    }
+    final resolved = failed.threadId;
     _messages[resolved] = (_messages[resolved] ?? [])
         .where((message) => message.id != messageId)
         .toList();
@@ -346,28 +400,36 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
 
   @override
   Future<void> markRead(String threadId) async {
-    final resolved = _resolveId(threadId);
-    if ((_unread[resolved] ?? 0) == 0) return;
-    _unread[resolved] = 0;
+    final thread = threadById(threadId);
+    if (thread == null) return;
+    final group = _groups.firstWhere((group) => group.id == thread.id);
+    for (final id in group.tripIds) {
+      _unread[id] = 0;
+    }
     _rebuildThreads();
   }
 
   @override
   Future<void> markUnread(String threadId) async {
-    final resolved = _resolveId(threadId);
-    if ((_unread[resolved] ?? 0) != 0) return;
+    final thread = threadById(threadId);
+    if (thread == null || thread.unreadCount != 0) return;
+    final resolved = thread.tripId!;
     _unread[resolved] = 1;
     _rebuildThreads();
   }
 
   @override
   void clearSession() {
+    _expiryTimer?.cancel();
     for (final subscription in _listeners.values) {
       unawaited(subscription.cancel());
     }
     _listeners.clear();
     _messages.clear();
     _unread.clear();
+    _groups.clear();
+    _initializedTrips.clear();
+    _counterpartAvatars.clear();
     _threads = const [];
     _emit();
   }

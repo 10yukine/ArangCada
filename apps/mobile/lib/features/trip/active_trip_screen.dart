@@ -12,6 +12,8 @@ import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/empty_state_card.dart';
+import '../../core/widgets/trip_call_sheet.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/remote/supabase_ride_repository.dart';
@@ -123,12 +125,16 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   void _handleLiveTripChange() {
     if (!mounted) return;
     final state = ref.read(demoStateProvider);
+    if (state.activeBooking?.status != BookingStatus.inProgress) {
+      _confirmTicker?.cancel();
+    }
     if (state.activeBooking?.status == BookingStatus.completed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/rating');
       });
       return;
     }
+    if (state.activeBooking?.status != BookingStatus.inProgress) return;
     if (_completionStarted) return;
     final deadline = state.completionAvailableAt;
     if (deadline == null || _awaitingConfirmation) return;
@@ -171,9 +177,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     if (liveRides != null) {
       try {
         await liveRides.completeTrip();
+        if (!mounted || booking.status == BookingStatus.cancelled) return;
         if (mounted) context.go('/rating');
       } catch (_) {
-        if (mounted) {
+        if (mounted && booking.status != BookingStatus.cancelled) {
           // No realtime update is guaranteed after a rejected/offline request.
           // Restore the action locally, without automatically resending it.
           setState(() {
@@ -252,6 +259,11 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   }
 
   Future<void> _handleBack(BuildContext context) async {
+    if (ref.read(demoStateProvider).activeBooking?.status !=
+        BookingStatus.inProgress) {
+      context.go('/trips');
+      return;
+    }
     final leave = await showDialog<bool>(
       context: context,
       builder: (context) => ArangDialog(
@@ -288,7 +300,23 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
           builder: (context, _) {
             final booking = state.activeBooking;
             if (booking == null || booking.status != BookingStatus.inProgress) {
-              return const Center(child: Text('No active trip.'));
+              final cancelled = booking?.status == BookingStatus.cancelled;
+              return SafeArea(
+                child: ListView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  children: [
+                    EmptyStateCard(
+                      icon: cancelled ? Icons.cancel_outlined : Icons.route,
+                      title: cancelled ? 'Trip cancelled' : 'No active trip',
+                      message: cancelled
+                          ? 'This ride has ended. Open Trips to review its status.'
+                          : 'Open Trips to check your latest ride.',
+                      actionLabel: 'View trips',
+                      onAction: () => context.go('/trips'),
+                    ),
+                  ],
+                ),
+              );
             }
             return DragSheetScaffold(
               sheetKey: _mapController.panelKey,
@@ -346,14 +374,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                     _secondsLeft <= 0,
                 onConfirmArrival: _confirmArrival,
                 onMessage: () => context.push('/chat/thread-active'),
-                onCall: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Calling is unavailable in this academic prototype. '
-                      'No call was placed.',
-                    ),
-                  ),
-                ),
+                onCall: () => showTripCallSheet(context),
                 onSos: _recordSos,
               ),
             );

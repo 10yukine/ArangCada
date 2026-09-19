@@ -1,0 +1,53 @@
+begin;
+select no_plan();
+insert into auth.users(id,email,raw_user_meta_data) values
+('00000000-0000-0000-0000-000000009801','voice-rider@example.test','{"display_name":"Rider","mobile_number":"+639170009801"}'),
+('00000000-0000-0000-0000-000000009802','voice-driver@example.test','{"display_name":"Driver","mobile_number":"+639170009802"}'),
+('00000000-0000-0000-0000-000000009803','voice-outsider@example.test','{"display_name":"Outsider","mobile_number":"+639170009803"}');
+insert into public.trips(id,rider_id,driver_id,status,pickup,dropoff) values
+('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009801','00000000-0000-0000-0000-000000009802','accepted',st_setsrid(st_makepoint(121.16,14.2),4326),st_setsrid(st_makepoint(121.17,14.21),4326));
+select is((select public from storage.buckets where id='trip-voice-notes'),false,'private bucket');
+select is((select file_size_limit from storage.buckets where id='trip-voice-notes'),1048576::bigint,'server upload size limit');
+select is((select allowed_mime_types from storage.buckets where id='trip-voice-notes'),array['audio/mp4'],'server MIME allowlist');
+select ok(not has_function_privilege('anon','public.send_trip_voice_message(uuid,uuid,integer)','EXECUTE'),'anonymous RPC denied');
+set local role authenticated;
+set local request.jwt.claim.sub='00000000-0000-0000-0000-000000009803';
+select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('trip-voice-notes','00000000-0000-0000-0000-000000009811/00000000-0000-0000-0000-000000009803/00000000-0000-0000-0000-000000009821.m4a','{"size":100,"mimetype":"audio/mp4"}')$$,'42501',null,'outsider upload denied');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'42501',null,'outsider send denied');
+set local request.jwt.claim.sub='00000000-0000-0000-0000-000000009801';
+select throws_ok($$insert into storage.objects(bucket_id,name) values('trip-voice-notes','00000000-0000-0000-0000-000000009811/00000000-0000-0000-0000-000000009802/00000000-0000-0000-0000-000000009821.m4a')$$,'42501',null,'cannot upload as counterpart');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'22023',null,'missing upload rejected');
+insert into storage.objects(bucket_id,name,metadata) values('trip-voice-notes','00000000-0000-0000-0000-000000009811/00000000-0000-0000-0000-000000009801/00000000-0000-0000-0000-000000009821.m4a','{"size":100,"mimetype":"audio/mp4"}');
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),0::bigint,'unattached uploads are not readable');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',60001)$$,'22023',null,'long duration rejected');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',null)$$,'22023',null,'null duration rejected');
+select lives_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'participant can send');
+select lives_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'same send can be replayed');
+select is((select count(*) from public.trip_messages where trip_id='00000000-0000-0000-0000-000000009811'),1::bigint,'retry creates no duplicate');
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),1::bigint,'sender can listen');
+set local request.jwt.claim.sub='00000000-0000-0000-0000-000000009802';
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),1::bigint,'counterpart can listen');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'22023',null,'cannot reuse counterpart message id');
+set local request.jwt.claim.sub='00000000-0000-0000-0000-000000009803';
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),0::bigint,'outsider cannot listen');
+set local request.jwt.claim.sub='';
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009822',1000)$$,'42501',null,'missing identity rejected');
+reset role;
+update public.trips set status='completed',completed_at=now() where id='00000000-0000-0000-0000-000000009811';
+set local role authenticated;
+set local request.jwt.claim.sub='00000000-0000-0000-0000-000000009801';
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),1::bigint,'retained completed ride can listen');
+select throws_ok($$insert into storage.objects(bucket_id,name) values('trip-voice-notes','00000000-0000-0000-0000-000000009811/00000000-0000-0000-0000-000000009801/00000000-0000-0000-0000-000000009822.m4a')$$,'42501',null,'completed ride cannot upload');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009822',1000)$$,'22023',null,'completed ride cannot send new notes');
+select lives_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'lost acknowledgement can be recovered after completion');
+reset role;
+update public.trips set completed_at=now()-interval '31 days' where id='00000000-0000-0000-0000-000000009811';
+set local role authenticated;
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),0::bigint,'expired notes cannot be signed or downloaded');
+select throws_ok($$select public.send_trip_voice_message('00000000-0000-0000-0000-000000009811','00000000-0000-0000-0000-000000009821',1000)$$,'22023',null,'replay cannot recover expired metadata');
+reset role;
+update public.trips set status='cancelled_by_rider',completed_at=null where id='00000000-0000-0000-0000-000000009811';
+set local role authenticated;
+select is((select count(*) from storage.objects where bucket_id='trip-voice-notes'),0::bigint,'cancelled notes cannot be signed');
+select * from finish();
+rollback;
