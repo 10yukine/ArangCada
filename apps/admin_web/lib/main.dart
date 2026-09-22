@@ -54,17 +54,19 @@ Widget _consolePage(Widget child) => LayoutBuilder(builder: (context, constraint
   ),
 ));
 
-class AdminApp extends StatefulWidget {
-  const AdminApp({super.key});
+class AdminApp extends ConsumerStatefulWidget {
+  const AdminApp({super.key, this.initialLocation = '/login'});
+
+  final String initialLocation;
 
   @override
-  State<AdminApp> createState() => _AdminAppState();
+  ConsumerState<AdminApp> createState() => _AdminAppState();
 }
 
-class _AdminAppState extends State<AdminApp> {
+class _AdminAppState extends ConsumerState<AdminApp> {
   late final GoRouter router = GoRouter(
-    initialLocation: '/login',
-    refreshListenable: auth,
+    initialLocation: widget.initialLocation,
+    refreshListenable: Listenable.merge([auth, authRestoring]),
     redirect: (context, state) {
       final loggingIn = state.matchedLocation == '/login';
       // A recipient opening an invite link has no session at all -- this
@@ -72,11 +74,37 @@ class _AdminAppState extends State<AdminApp> {
       // there. See .pipeline/specs.md Spec 19.
       final acceptingInvite = state.matchedLocation == '/accept-invite' ||
           state.matchedLocation == '/accept-driver-invite';
-      if (auth.value == null && !loggingIn && !acceptingInvite) return '/login';
-      if (auth.value != null && loggingIn) return '/dashboard';
+
+      // While a persisted session from local storage is being restored,
+      // do not bounce the browser away to /login so the requested deep link
+      // or refreshed route (/admins, /drivers, etc.) is preserved.
+      if (authRestoring.value) {
+        return null;
+      }
+
+      if (auth.value == null && !loggingIn && !acceptingInvite) {
+        final uri = state.uri.toString();
+        if (uri != '/' && uri != '/login') {
+          return '/login?from=${Uri.encodeComponent(uri)}';
+        }
+        return '/login';
+      }
+
+      if (auth.value != null && (loggingIn || state.matchedLocation == '/')) {
+        final from = state.uri.queryParameters['from'];
+        if (from != null && from.startsWith('/') && !from.startsWith('//')) {
+          return from;
+        }
+        return '/dashboard';
+      }
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) =>
+            auth.value != null ? '/dashboard' : '/login',
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/accept-invite',
@@ -141,6 +169,41 @@ class _AdminAppState extends State<AdminApp> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    final repository = ref.read(adminRepositoryProvider);
+    if ((repository?.hasSession ?? false) && auth.value == null) {
+      authRestoring.value = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
+    }
+  }
+
+  Future<void> _restoreSession() async {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null || !repository.hasSession || auth.value != null) {
+      authRestoring.value = false;
+      return;
+    }
+    try {
+      final session = await repository.restoreSession();
+      await ref.read(adminProvider.notifier).connect(session);
+      if (mounted) {
+        auth.value = session;
+      }
+    } catch (_) {
+      try {
+        await repository.client.auth.signOut();
+      } catch (_) {}
+      if (mounted) {
+        auth.value = null;
+        authError.value = 'Your administrator session expired. Sign in again.';
+      }
+    } finally {
+      authRestoring.value = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
     valueListenable: adminThemeMode,
     builder: (context, mode, _) => MaterialApp.router(
@@ -174,42 +237,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool demoMode = !AdminAppConfig.isSupabaseConfigured;
   bool submitting = false;
   String? signInError;
-  // Supabase.initialize() (in main(), awaited before runApp()) restores any
-  // persisted session synchronously, so repository.hasSession is already
-  // correct on this very first build -- true here means _restoreSession()
-  // below WILL run and is expected to succeed. Rendering the actual login
-  // form for that brief async window (a real network round trip to reload
-  // the admin's profile/scope) is what produced the reported "reload lands
-  // on /login, then jumps to the dashboard a moment later" flash. Gate the
-  // form behind this instead of ever showing it mid-restore.
-  late bool restoring =
-      (ref.read(adminRepositoryProvider)?.hasSession ?? false) &&
-      auth.value == null;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
-  }
-
-  Future<void> _restoreSession() async {
-    final repository = ref.read(adminRepositoryProvider);
-    if (repository == null || !repository.hasSession || auth.value != null) {
-      if (mounted && restoring) setState(() => restoring = false);
-      return;
-    }
-    try {
-      final session = await repository.restoreSession();
-      await ref.read(adminProvider.notifier).connect(session);
-      if (mounted) auth.value = session;
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          restoring = false;
-          signInError = 'Your administrator session expired. Sign in again.';
-        });
-      }
-    }
+    signInError = authError.value;
+    authError.value = null;
   }
 
   @override
@@ -218,6 +251,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     password.dispose();
     super.dispose();
   }
+
 
   Future<void> submit() async {
     if (!formKey.currentState!.validate()) return;
@@ -273,11 +307,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (restoring) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    return Scaffold(
-    body: LayoutBuilder(
+    return ValueListenableBuilder<bool>(
+      valueListenable: authRestoring,
+      builder: (context, restoring, _) {
+        if (restoring) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final effectiveError = signInError ?? authError.value;
+        return Scaffold(
+          body: LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
         final hero = Container(
@@ -414,9 +454,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : 'Use at least 6 characters.',
                     ),
                     const SizedBox(height: 20),
-                    if (signInError != null) ...[
+                    if (effectiveError != null) ...[
                       Text(
-                        signInError!,
+                        effectiveError,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: context.adminColor(AdminColors.danger),
                         ),
@@ -503,6 +543,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     ),
   );
+      },
+    );
   }
 }
 
@@ -612,8 +654,20 @@ class AdminShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = auth.value!;
-    final state = ref.watch(adminProvider);
+    return ValueListenableBuilder<AdminSession?>(
+      valueListenable: auth,
+      builder: (context, session, _) {
+        if (session == null) {
+          return Scaffold(
+            backgroundColor: AdminColors.rail,
+            body: Center(
+              child: CircularProgressIndicator(
+                color: context.adminColor(AdminColors.primary),
+              ),
+            ),
+          );
+        }
+        final state = ref.watch(adminProvider);
     final visible = [
       for (final item in destinations)
         if (session.role == AdminRole.lgu || item.$1 != '/admins') item,
@@ -659,6 +713,9 @@ class AdminShell extends ConsumerWidget {
             onSignOut: () async {
               await ref.read(adminProvider.notifier).disconnect();
               auth.value = null;
+              if (context.mounted) {
+                context.go('/login');
+              }
             }),
         ])),
       );
@@ -703,6 +760,8 @@ class AdminShell extends ConsumerWidget {
         ]),
       );
     });
+      },
+    );
   }
 }
 
