@@ -485,8 +485,8 @@ class _ComparisonRow extends StatelessWidget {
         Expanded(
           child: Text(
             arangcada,
-            style: const TextStyle(
-              color: AdminColors.success,
+            style: TextStyle(
+              color: context.adminColor(AdminColors.success),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -522,8 +522,8 @@ class _ScoreBar extends StatelessWidget {
             value: score / 5,
             minHeight: 8,
             borderRadius: BorderRadius.circular(99),
-            backgroundColor: AdminColors.surface,
-            color: AdminColors.success,
+            backgroundColor: context.adminColor(AdminColors.surface),
+            color: context.adminColor(AdminColors.success),
           ),
         ],
       ),

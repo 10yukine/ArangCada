@@ -162,7 +162,7 @@ class _AdminAccountList extends StatelessWidget {
                         ? 'Pre-existing account (not invited)'
                         : 'Invited by ${account.invitedByName}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AdminColors.muted,
+                      color: context.adminColor(AdminColors.muted),
                     ),
                   ),
                 ],

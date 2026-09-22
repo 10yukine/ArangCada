@@ -68,21 +68,26 @@ class DriversScreen extends ConsumerWidget {
                   icon: const Icon(Icons.person_add_alt_1),
                   label: const Text('Enroll driver'),
                 )
-              : const StatusPill('Enrollment is managed by an LGU administrator'),
+              : const StatusPill(
+                  'Enrollment is managed by an LGU administrator',
+                ),
         ),
         const SizedBox(height: 22),
         if (state.connected && auth.value!.role == AdminRole.lgu) ...[
           const _PendingDriverInvitesPanel(),
           const SizedBox(height: 18),
         ],
-        Panel(
+        Material(
+          type: MaterialType.transparency,
           child: Column(
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
                   final fields = [
                     SizedBox(
-                      width: 280,
+                      width: constraints.maxWidth < 640
+                          ? constraints.maxWidth
+                          : 280,
                       child: TextField(
                         onChanged: controller.setDriverQuery,
                         decoration: const InputDecoration(
@@ -92,7 +97,9 @@ class DriversScreen extends ConsumerWidget {
                       ),
                     ),
                     SizedBox(
-                      width: 210,
+                      width: constraints.maxWidth < 640
+                          ? constraints.maxWidth
+                          : 210,
                       child: DropdownButtonFormField<String>(
                         initialValue: state.driverStatus,
                         isExpanded: true,
@@ -114,7 +121,9 @@ class DriversScreen extends ConsumerWidget {
                     ),
                     if (auth.value!.role == AdminRole.lgu)
                       SizedBox(
-                        width: 190,
+                        width: constraints.maxWidth < 640
+                            ? constraints.maxWidth
+                            : 190,
                         child: DropdownButtonFormField<String>(
                           initialValue: state.driverToda,
                           isExpanded: true,
@@ -143,98 +152,102 @@ class DriversScreen extends ConsumerWidget {
               if (drivers.isEmpty)
                 const EmptyState(message: 'No drivers match these filters.')
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columnSpacing: 28,
-                    dataRowMinHeight: state.compactDensity ? 48 : 60,
-                    dataRowMaxHeight: state.compactDensity ? 48 : 60,
-                    columns: const [
-                      DataColumn(label: Text('Driver')),
-                      DataColumn(label: Text('TODA')),
-                      DataColumn(label: Text('Plate')),
-                      DataColumn(label: Text('Documents')),
-                      DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('Action')),
-                    ],
-                    rows: [
-                      for (final driver in drivers)
-                        DataRow(
-                          cells: [
-                            DataCell(
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    driver.name,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
-                                  ),
-                                  Text(
-                                    driver.enrollmentCode,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ],
+                LayoutBuilder(
+                  builder: (context, constraints) => constraints.maxWidth < 640
+                      ? Column(
+                          children: [
+                            for (final driver in drivers) ...[
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                title: Text(driver.name),
+                                subtitle: Text(
+                                  '${driver.toda} · ${driver.plate}\n${driverStatusLabel(driver.status)} · ${driver.documents}/4 documents',
+                                ),
+                                isThreeLine: true,
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _showDriver(context, ref, driver),
                               ),
-                            ),
-                            DataCell(Text(driver.toda)),
-                            DataCell(Text(driver.plate)),
-                            DataCell(Text('${driver.documents}/4')),
-                            DataCell(
-                              StatusPill(
-                                driverStatusLabel(driver.status),
-                                tone: driverTone(driver.status),
-                              ),
-                            ),
-                            DataCell(
-                              OutlinedButton(
-                                onPressed: () =>
-                                    _showDriver(context, ref, driver),
-                                child: const Text('Review'),
-                              ),
-                            ),
+                              const Divider(height: 1),
+                            ],
                           ],
+                        )
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columnSpacing: 28,
+                            dataRowMinHeight: state.compactDensity ? 48 : 60,
+                            dataRowMaxHeight: state.compactDensity ? 48 : 60,
+                            columns: const [
+                              DataColumn(label: Text('Driver')),
+                              DataColumn(label: Text('TODA')),
+                              DataColumn(label: Text('Plate')),
+                              DataColumn(label: Text('Documents')),
+                              DataColumn(label: Text('Status')),
+                              DataColumn(label: Text('Action')),
+                            ],
+                            rows: [
+                              for (final driver in drivers)
+                                DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            driver.name,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleMedium,
+                                          ),
+                                          Text(
+                                            driver.enrollmentCode,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(Text(driver.toda)),
+                                    DataCell(Text(driver.plate)),
+                                    DataCell(Text('${driver.documents}/4')),
+                                    DataCell(
+                                      StatusPill(
+                                        driverStatusLabel(driver.status),
+                                        tone: driverTone(driver.status),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      OutlinedButton(
+                                        onPressed: () =>
+                                            _showDriver(context, ref, driver),
+                                        child: const Text('Review'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
-                    ],
-                  ),
                 ),
             ],
           ),
         ),
         const SizedBox(height: 18),
-        Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lifecycle guide',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 14),
-              const Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  StatusPill('Enrolled'),
-                  Text('→'),
-                  StatusPill('Documents submitted', tone: StatusTone.warning),
-                  Text('→'),
-                  StatusPill('Under review', tone: StatusTone.warning),
-                  Text('→'),
-                  StatusPill('Approved', tone: StatusTone.success),
-                  Text('or'),
-                  StatusPill(
-                    'Rejected / suspended / expired',
-                    tone: StatusTone.danger,
-                  ),
-                ],
-              ),
-            ],
-          ),
+        const ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text('How driver verification works'),
+          childrenPadding: EdgeInsets.only(bottom: 16),
+          children: [
+            Text(
+              'Enrolled → Documents submitted → Under review → Approved. Rejected, suspended, and expired records require follow-up before returning to service.',
+            ),
+          ],
         ),
       ],
     );
@@ -335,9 +348,9 @@ class _PendingDriverInvitesPanelState
     try {
       await ref.read(adminProvider.notifier).revokeDriverInvite(invite.id);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invite to ${invite.email} revoked.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invite to ${invite.email} revoked.')),
+      );
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -520,7 +533,9 @@ class _DriverEnrollmentDialogState
 
     final found = _candidates!.isNotEmpty;
     return AlertDialog(
-      title: Text(found ? 'This email already has an account' : 'Enroll a new driver'),
+      title: Text(
+        found ? 'This email already has an account' : 'Enroll a new driver',
+      ),
       content: SizedBox(
         width: 420,
         child: Form(
@@ -550,9 +565,12 @@ class _DriverEnrollmentDialogState
                     controller: _confirmEmail,
                     autofocus: true,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Confirm email'),
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm email',
+                    ),
                     validator: (value) =>
-                        value?.trim().toLowerCase() == _email.text.trim().toLowerCase()
+                        value?.trim().toLowerCase() ==
+                            _email.text.trim().toLowerCase()
                         ? null
                         : 'Must match the email above exactly.',
                   ),
@@ -988,10 +1006,10 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
                     ? Icons.cancel
                     : Icons.radio_button_unchecked,
                 color: approved
-                    ? AdminColors.success
+                    ? context.adminColor(AdminColors.success)
                     : rejected
-                    ? AdminColors.danger
-                    : AdminColors.muted,
+                    ? context.adminColor(AdminColors.danger)
+                    : context.adminColor(AdminColors.muted),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1022,7 +1040,9 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
                   icon: const Icon(Icons.upload_file, size: 18),
                   label: Text(path == null ? 'Upload' : 'Replace'),
                 ),
-                if (widget.connected && status == 'pending' && path != null) ...[
+                if (widget.connected &&
+                    status == 'pending' &&
+                    path != null) ...[
                   FilledButton(
                     onPressed: _busy ? null : () => _review(approve: true),
                     child: const Text('Approve'),

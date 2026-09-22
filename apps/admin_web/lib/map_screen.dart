@@ -263,15 +263,15 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         Container(
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            color: AdminColors.warningTint,
+            color: context.adminColor(AdminColors.warningTint),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AdminColors.warning.withValues(alpha: .25),
+              color: context.adminColor(AdminColors.warning).withValues(alpha: .25),
             ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, color: AdminColors.warning),
+              Icon(Icons.info_outline, color: context.adminColor(AdminColors.warning)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -344,8 +344,8 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                               Container(
                                 width: 9,
                                 height: 9,
-                                decoration: const BoxDecoration(
-                                  color: AdminColors.success,
+                                decoration: BoxDecoration(
+                                  color: context.adminColor(AdminColors.success),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -364,15 +364,15 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                           right: 14,
                           bottom: 14,
                           child: Material(
-                            color: AdminColors.dangerTint,
+                            color: context.adminColor(AdminColors.dangerTint),
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.warning_amber,
-                                    color: AdminColors.danger,
+                                    color: context.adminColor(AdminColors.danger),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text(mapError!)),
@@ -513,9 +513,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                           for (final driver in liveDrivers)
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: const Icon(
+                              leading: Icon(
                                 Icons.electric_rickshaw,
-                                color: AdminColors.success,
+                                color: context.adminColor(AdminColors.success),
                               ),
                               title: Text(driver.name),
                               subtitle: Text(driver.toda),
@@ -625,13 +625,13 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
         : 'Interactive dispatch map with ${widget.rides.length} simulated rides';
     if (!kIsWeb || failed) {
       return ColoredBox(
-        color: AdminColors.surface,
+        color: context.adminColor(AdminColors.surface),
         child: Center(
           child: Semantics(
             label: label,
             child: Icon(
               failed ? Icons.map_outlined : Icons.location_on_outlined,
-              color: AdminColors.primary,
+              color: context.adminColor(AdminColors.primary),
             ),
           ),
         ),
@@ -681,9 +681,9 @@ class _RideCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.primaryTint : AdminColors.background,
+          color: selected ? context.adminColor(AdminColors.primaryTint) : context.adminColor(AdminColors.background),
           border: Border.all(
-            color: selected ? AdminColors.primary : AdminColors.border,
+            color: selected ? context.adminColor(AdminColors.primary) : context.adminColor(AdminColors.border),
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -693,7 +693,7 @@ class _RideCard extends StatelessWidget {
               width: 39,
               height: 39,
               decoration: BoxDecoration(
-                color: selected ? AdminColors.primary : AdminColors.rail,
+                color: selected ? context.adminColor(AdminColors.primary) : AdminColors.rail,
                 borderRadius: BorderRadius.circular(11),
               ),
               child: const Icon(
@@ -738,7 +738,7 @@ class _MapDetailRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       children: [
-        Icon(icon, size: 19, color: AdminColors.muted),
+        Icon(icon, size: 19, color: context.adminColor(AdminColors.muted)),
         const SizedBox(width: 9),
         Expanded(child: Text(label)),
       ],

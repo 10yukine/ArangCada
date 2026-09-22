@@ -2,6 +2,7 @@ import 'package:arangcada_admin/admin_controller.dart';
 import 'package:arangcada_admin/main.dart';
 import 'package:arangcada_admin/models.dart';
 import 'package:arangcada_admin/session.dart';
+import 'package:arangcada_admin/screens/claims_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,45 @@ class _ClaimFixtureController extends AdminController {
 }
 
 void main() {
+  testWidgets('compact claims focus on one record and return to the queue', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+    });
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [adminProvider.overrideWith(_ClaimFixtureController.new)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: ClaimsScreen(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Submitted ID'), findsNothing);
+    await tester.ensureVisible(find.text('Ana Reyes'));
+    await tester.tap(find.text('Ana Reyes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Submitted ID'), findsOneWidget);
+    expect(find.text('Paolo Cruz'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Back to queue'));
+    await tester.tap(find.text('Back to queue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Paolo Cruz'), findsOneWidget);
+    expect(find.text('Submitted ID'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   tearDown(() {
     auth.value = null;
   });
@@ -46,7 +86,10 @@ void main() {
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+      auth.value = const AdminSession(
+        name: 'LGU evaluator',
+        role: AdminRole.lgu,
+      );
 
       await tester.pumpWidget(
         ProviderScope(
@@ -71,7 +114,10 @@ void main() {
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+      auth.value = const AdminSession(
+        name: 'LGU evaluator',
+        role: AdminRole.lgu,
+      );
 
       await tester.pumpWidget(
         ProviderScope(

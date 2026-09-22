@@ -23,6 +23,7 @@ class _ClaimsScreenState extends ConsumerState<ClaimsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(adminProvider);
     final session = auth.value!;
     if (session.role != AdminRole.lgu) {
       return const Column(
@@ -43,23 +44,29 @@ class _ClaimsScreenState extends ConsumerState<ClaimsScreen> {
         ],
       );
     }
-    final claims = ref.read(adminProvider.notifier).visibleFareClassClaims(session);
-    if (claims.isNotEmpty && !claims.any((claim) => claim.id == selected)) {
-      selected = claims.first.id;
+    final claims = ref
+        .read(adminProvider.notifier)
+        .visibleFareClassClaims(session);
+    if (selected != null && !claims.any((claim) => claim.id == selected)) {
+      selected = null;
     }
-    final active = claims.where((claim) => claim.id == selected).firstOrNull;
-    final list = Panel(
-      padding: const EdgeInsets.all(10),
+    final active =
+        claims.where((claim) => claim.id == selected).firstOrNull ??
+        claims.firstOrNull;
+    final list = Material(
+      type: MaterialType.transparency,
       child: claims.isEmpty
           ? const EmptyState(message: 'No discount claims pending review.')
           : Column(
               children: [
-                for (final claim in claims)
+                for (final claim in claims) ...[
                   _ClaimTile(
                     claim: claim,
-                    selected: claim.id == selected,
+                    selected: claim.id == active?.id,
                     onTap: () => setState(() => selected = claim.id),
                   ),
+                  const Divider(height: 1),
+                ],
               ],
             ),
     );
@@ -72,20 +79,14 @@ class _ClaimsScreenState extends ConsumerState<ClaimsScreen> {
         const PageHeading(
           title: 'Discount claims',
           subtitle:
-              "Student/Senior Citizen/PWD fare-class claims -- manual ID review, not automatic reading. Approving flips the commuter's billing to the discounted rate on their next booking.",
+              'Review student, senior citizen, and PWD identification. Approved discounts apply to the next booking.',
         ),
         const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth < 950
-              ? Column(children: [list, const SizedBox(height: 14), detail])
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 380, child: list),
-                    const SizedBox(width: 16),
-                    Expanded(child: detail),
-                  ],
-                ),
+        ReviewWorkspace(
+          queue: list,
+          detail: detail,
+          showDetail: selected != null,
+          onBack: () => setState(() => selected = null),
         ),
       ],
     );
@@ -112,21 +113,23 @@ class _ClaimTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.primaryTint : Colors.transparent,
+          color: selected
+              ? context.adminColor(AdminColors.primaryTint)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
               children: [
-                Expanded(
-                  child: Text(
-                    fareClassRequestedClassLabel(claim.requestedClass),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                Text(
+                  fareClassRequestedClassLabel(claim.requestedClass),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 StatusPill(
                   fareClassClaimStatusLabel(claim.status),
@@ -163,24 +166,24 @@ class _ClaimDetail extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fareClassRequestedClassLabel(claim.requestedClass),
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Submitted ${shortTime(claim.created)}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fareClassRequestedClassLabel(claim.requestedClass),
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Submitted ${shortTime(claim.created)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
               StatusPill(
                 fareClassClaimStatusLabel(claim.status),
                 tone: fareClassClaimTone(claim.status),
@@ -191,7 +194,10 @@ class _ClaimDetail extends ConsumerWidget {
           LabelValue('Claimant', claim.claimantName),
           if (claim.rejectionReason != null) ...[
             const SizedBox(height: 18),
-            Text('Rejection reason', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Rejection reason',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 6),
             Text(claim.rejectionReason!),
           ],

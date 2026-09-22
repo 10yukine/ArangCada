@@ -2,6 +2,50 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 
+/// Wide screens keep the queue visible; phones focus on one record at a time.
+class ReviewWorkspace extends StatelessWidget {
+  const ReviewWorkspace({
+    super.key,
+    required this.queue,
+    required this.detail,
+    required this.showDetail,
+    required this.onBack,
+  });
+  final Widget queue;
+  final Widget detail;
+  final bool showDetail;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 840) {
+        if (!showDetail) return queue;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextButton.icon(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back to queue'),
+            ),
+            const SizedBox(height: 12),
+            detail,
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 320, child: queue),
+          const SizedBox(width: 24),
+          Expanded(child: detail),
+        ],
+      );
+    },
+  );
+}
+
 class ResponsiveGrid extends StatelessWidget {
   const ResponsiveGrid({super.key, required this.children});
   final List<Widget> children;
@@ -13,18 +57,13 @@ class ResponsiveGrid extends StatelessWidget {
           : constraints.maxWidth >= 620
           ? 2
           : 1;
-      return GridView.count(
-        crossAxisCount: count,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: count == 1
-            ? 3.4
-            : count == 2
-            ? 2.35
-            : 2.05,
-        children: children,
+      final width = (constraints.maxWidth - (count - 1) * 16) / count;
+      return Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: [
+          for (final child in children) SizedBox(width: width, child: child),
+        ],
       );
     },
   );
@@ -56,20 +95,20 @@ class ProgressRow extends StatelessWidget {
             ),
             Text(
               '${(value * 100).round()}%',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: AdminColors.primary),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: context.adminColor(AdminColors.primary),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 7),
         ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
             value: value,
             minHeight: 9,
-            backgroundColor: AdminColors.surface,
-            color: AdminColors.primary,
+            backgroundColor: context.adminColor(AdminColors.surface),
+            color: context.adminColor(AdminColors.primary),
           ),
         ),
         const SizedBox(height: 5),

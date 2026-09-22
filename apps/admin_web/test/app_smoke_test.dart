@@ -38,6 +38,34 @@ class _ReportedChatFixtureController extends AdminController {
 }
 
 void main() {
+  testWidgets('phone overview and driver queue work with larger text', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    auth.value = const AdminSession(
+      name: 'Coordinator',
+      role: AdminRole.toda,
+      toda: 'Brgy. Real',
+    );
+    addTearDown(() async {
+      auth.value = null;
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpAndSettle();
+    expect(find.text('Operations overview'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('PENDING REVIEWS'));
+    await tester.tap(find.text('PENDING REVIEWS'));
+    await tester.pumpAndSettle();
+    expect(find.text('Driver verification'), findsOneWidget);
+    expect(find.byType(DataTable), findsNothing);
+    expect(find.text('Joel Mendoza'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('demo login opens the merged six-section console', (
     tester,
   ) async {
@@ -55,7 +83,7 @@ void main() {
     await tester.tap(find.text('Open console'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Good morning, evaluator'), findsOneWidget);
+    expect(find.text('Operations overview'), findsOneWidget);
     expect(find.text('Live map'), findsAtLeastNWidgets(1));
     expect(find.text('Evaluation'), findsAtLeastNWidgets(1));
     expect(find.text('Driver survey'), findsNothing);
@@ -79,7 +107,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: AdminApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Good morning, evaluator'), findsOneWidget);
+    expect(find.text('Operations overview'), findsOneWidget);
     expect(find.byIcon(Icons.map_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -101,7 +129,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Live dispatch map'), findsOneWidget);
-      expect(find.text('Rides per hour · today'), findsOneWidget);
+      expect(find.text('Needs attention'), findsOneWidget);
+      expect(find.text('Review reports'), findsOneWidget);
+      expect(find.text('Rides per hour · today'), findsNothing);
       expect(find.text('Terminal activity'), findsOneWidget);
 
       final semantics = tester.ensureSemantics();
@@ -253,9 +283,37 @@ void main() {
     await tester.tap(find.text('Reviews'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Ana Reyes rated Ramon Dela Cruz'), findsOneWidget);
-    expect(find.textContaining('Joel Mendoza rated Mika Flores'), findsOneWidget);
+    expect(
+      find.textContaining('Ana Reyes rated Ramon Dela Cruz'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Joel Mendoza rated Mika Flores'),
+      findsOneWidget,
+    );
     expect(find.text('Safe ride, a bit late to pick up.'), findsOneWidget);
+    await tester.tap(find.text('Everyone'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drivers').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Ana Reyes rated Ramon Dela Cruz'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('Joel Mendoza rated Mika Flores'),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byType(TextField), 'no matching review');
+    await tester.pumpAndSettle();
+    expect(find.text('0 reviews'), findsOneWidget);
+    expect(find.textContaining('Joel Mendoza rated Mika Flores'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Mika');
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Joel Mendoza rated Mika Flores'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

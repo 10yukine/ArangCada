@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'admin_controller.dart';
 import 'app_config.dart';
@@ -34,11 +35,16 @@ Future<void> main() async {
       publishableKey: AdminAppConfig.supabaseAnonKey,
     );
   }
+  final preferences = await SharedPreferences.getInstance();
+  final savedAppearance = preferences.getString('admin-appearance');
+  adminThemeMode.value = ThemeMode.values.firstWhere(
+    (mode) => mode.name == savedAppearance, orElse: () => ThemeMode.system,
+  );
   runApp(const ProviderScope(child: AdminApp()));
 }
 
-Widget _consolePage(Widget child) => SingleChildScrollView(
-  padding: const EdgeInsets.fromLTRB(28, 26, 28, 40),
+Widget _consolePage(Widget child) => LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+  padding: EdgeInsets.fromLTRB(constraints.maxWidth < 600 ? 16 : 32, 28, constraints.maxWidth < 600 ? 16 : 32, 40),
   child: Align(
     alignment: Alignment.topCenter,
     child: ConstrainedBox(
@@ -46,7 +52,7 @@ Widget _consolePage(Widget child) => SingleChildScrollView(
       child: child,
     ),
   ),
-);
+));
 
 class AdminApp extends StatefulWidget {
   const AdminApp({super.key});
@@ -135,12 +141,16 @@ class _AdminAppState extends State<AdminApp> {
   );
 
   @override
-  Widget build(BuildContext context) => MaterialApp.router(
+  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: adminThemeMode,
+    builder: (context, mode, _) => MaterialApp.router(
     debugShowCheckedModeBanner: false,
     title: 'ArangCada Admin',
     theme: adminTheme(),
+    darkTheme: adminTheme(brightness: Brightness.dark),
+    themeMode: mode,
     routerConfig: router,
-  );
+  ));
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -333,6 +343,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Align(alignment: Alignment.centerRight, child: AdminAppearanceButton()),
                     Text(
                       'Welcome back',
                       style: Theme.of(context).textTheme.headlineLarge,
@@ -344,7 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : 'Use your assigned LGU or TODA administrator account.',
                       style: Theme.of(
                         context,
-                      ).textTheme.bodyLarge?.copyWith(color: AdminColors.muted),
+                      ).textTheme.bodyLarge?.copyWith(color: context.adminColor(AdminColors.muted)),
                     ),
                     const SizedBox(height: 30),
                     if (demoMode) ...[
@@ -407,7 +418,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Text(
                         signInError!,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AdminColors.danger,
+                          color: context.adminColor(AdminColors.danger),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -480,8 +491,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             : SingleChildScrollView(
                 child: Column(
                   children: [
-                    SizedBox(height: 430, child: hero),
-                    SizedBox(height: 600, child: form),
+                    Padding(padding: const EdgeInsets.fromLTRB(24, 28, 24, 0), child: Row(children: [
+                      SvgPicture.asset('assets/branding/arangcada-mark-dark.svg', width: 36, height: 36, colorFilter: ColorFilter.mode(Theme.of(context).colorScheme.primary, BlendMode.srcIn)),
+                      const SizedBox(width: 12),
+                      Text('ArangCada Admin', style: Theme.of(context).textTheme.titleLarge),
+                    ])),
+                    form,
                   ],
                 ),
               );
@@ -583,15 +598,14 @@ class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.location, required this.child});
   final String location;
   final Widget child;
-
   static const destinations = [
     ('/dashboard', 'Dashboard', Icons.dashboard_outlined),
     ('/live-map', 'Live map', Icons.map_outlined),
+    ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
     ('/drivers', 'Drivers', Icons.badge_outlined),
     ('/admins', 'Admins', Icons.admin_panel_settings_outlined),
-    ('/safety', 'Safety reports', Icons.health_and_safety_outlined),
-    ('/reviews', 'Reviews', Icons.star_outline),
     ('/discount-claims', 'Discount claims', Icons.percent_outlined),
+    ('/reviews', 'Reviews', Icons.star_outline),
     ('/evaluation', 'Evaluation', Icons.fact_check_outlined),
     ('/settings', 'Settings', Icons.settings_outlined),
   ];
@@ -600,159 +614,95 @@ class AdminShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = auth.value!;
     final state = ref.watch(adminProvider);
-    // /admins is LGU-only (Spec 19) -- RLS backs this up server-side
-    // regardless, this just keeps a TODA-scoped admin from seeing a tab
-    // that would refuse every action on it anyway.
-    final destinations = [
-      for (final item in AdminShell.destinations)
-        if (item.$1 != '/admins' || session.role == AdminRole.lgu) item,
+    final visible = [
+      for (final item in destinations)
+        if (session.role == AdminRole.lgu || item.$1 != '/admins') item,
     ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final expanded = constraints.maxWidth >= 960;
-        final railWidth = expanded ? 236.0 : 84.0;
-        return Scaffold(
-          body: Row(
-            children: [
-              Container(
-                width: railWidth,
-                color: AdminColors.rail,
-                padding: EdgeInsets.fromLTRB(
-                  expanded ? 18 : 12,
-                  18,
-                  expanded ? 18 : 12,
-                  16,
-                ),
-                child: SafeArea(
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: expanded
-                            ? MainAxisAlignment.start
-                            : MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/branding/arangcada-mark-dark.svg',
-                            width: 38,
-                            height: 38,
-                          ),
-                          if (expanded) ...[
-                            const SizedBox(width: 10),
-                            Text(
-                              'ArangCada',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: Colors.white),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 28),
-                      // Expanded, not Flexible -- a loose Flexible sharing
-                      // this Column with a Spacer (also flex: 1) only ever
-                      // got HALF the remaining height, the other half wasted
-                      // as blank space before the footer. Ten items (nine
-                      // plus Admins, Spec 19) no longer fit in that half on
-                      // an ordinary window, silently hiding Discount claims,
-                      // Evaluation, and Settings below the visible list with
-                      // no scroll affordance shown. Expanded takes the whole
-                      // remaining space instead, so the list scrolls only
-                      // when it genuinely needs to and the footer still ends
-                      // up flush at the bottom -- no separate Spacer needed.
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              for (final item in destinations)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: _NavItem(
-                                    path: item.$1,
-                                    label: item.$2,
-                                    icon: item.$3,
-                                    selected: location == item.$1,
-                                    expanded: expanded,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        height: 1,
-                        color: AdminColors.railText.withValues(alpha: .2),
-                      ),
-                      const SizedBox(height: 12),
-                      _RailAccountFooter(
-                        session: session,
-                        expanded: expanded,
-                        onSignOut: () async {
-                          await ref.read(adminProvider.notifier).disconnect();
-                          auth.value = null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 64,
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      decoration: const BoxDecoration(
-                        color: AdminColors.card,
-                        border: Border(
-                          bottom: BorderSide(color: AdminColors.border),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            destinations
-                                .firstWhere((item) => item.$1 == location)
-                                .$2,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const Spacer(),
-                          StatusPill(session.scope, tone: StatusTone.brand),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            tooltip: 'Notifications',
-                            onPressed: () {
-                              final count = state.unreadSafetyAlerts;
-                              ref
-                                  .read(adminProvider.notifier)
-                                  .clearSafetyNotifications();
-                              if (count > 0) context.go('/safety');
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    count == 0
-                                        ? 'No unread safety alerts.'
-                                        : '$count new safety report${count == 1 ? '' : 's'}.',
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: Badge(
-                              isLabelVisible: state.unreadSafetyAlerts > 0,
-                              label: Text('${state.unreadSafetyAlerts}'),
-                              child: const Icon(Icons.notifications_none),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(child: Semantics(container: true, child: child)),
-                  ],
-                ),
-              ),
+    final title = destinations.where((item) => item.$1 == location).firstOrNull?.$2 ?? 'Console';
+    return LayoutBuilder(builder: (context, constraints) {
+      final compact = constraints.maxWidth < 600;
+      final expanded = constraints.maxWidth >= 1000;
+      Widget navigation({required bool labels, bool drawer = false}) => Container(
+        width: labels ? 248 : 80,
+        color: AdminColors.rail,
+        padding: EdgeInsets.symmetric(horizontal: labels ? 20 : 12, vertical: 24),
+        child: SafeArea(child: Column(children: [
+          Row(mainAxisAlignment: labels ? MainAxisAlignment.start : MainAxisAlignment.center, children: [
+            SvgPicture.asset('assets/branding/arangcada-mark-dark.svg', width: 36, height: 36),
+            if (labels) ...[
+              const SizedBox(width: 10),
+              const Expanded(child: Text('ArangCada', overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 21))),
             ],
+          ]),
+          if (labels) const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Align(alignment: Alignment.centerLeft,
+              child: Text('CALAMBA · ADMINISTRATION', style: TextStyle(color: AdminColors.railText, fontSize: 10, letterSpacing: 1.3))),
           ),
-        );
-      },
-    );
+          const SizedBox(height: 28),
+          Expanded(child: ListView(padding: EdgeInsets.zero, children: [
+            for (final item in visible) ...[
+              if (labels && ['/dashboard', '/drivers', '/reviews'].contains(item.$1))
+                Padding(padding: const EdgeInsets.fromLTRB(12, 18, 0, 10),
+                  child: Text(switch(item.$1) {'/dashboard' => 'OPERATIONS', '/drivers' => 'MANAGEMENT', _ => 'INSIGHTS'},
+                    style: const TextStyle(color: AdminColors.railTextMuted, fontSize: 10, letterSpacing: 1.5))),
+              Padding(padding: const EdgeInsets.only(bottom: 4),
+                child: _NavItem(path: item.$1, label: item.$2, icon: item.$3,
+                  selected: location == item.$1, expanded: labels,
+                  closeDrawer: drawer)),
+            ],
+          ])),
+          const Divider(color: Color(0xFF304159)),
+          const SizedBox(height: 12),
+          _RailAccountFooter(session: session, expanded: labels,
+            onSignOut: () async {
+              await ref.read(adminProvider.notifier).disconnect();
+              auth.value = null;
+            }),
+        ])),
+      );
+      final toolbar = Container(
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 24, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor))),
+        child: Row(children: [
+          if (compact) Builder(builder: (context) => IconButton(
+            tooltip: 'Open navigation', icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer())),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            Text(session.scope, style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ])),
+          const AdminAppearanceButton(),
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () {
+              final count = state.unreadSafetyAlerts;
+              ref.read(adminProvider.notifier).clearSafetyNotifications();
+              if (count > 0) context.go('/safety');
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(count == 0 ? 'No unread safety alerts.' : '$count new safety reports.')));
+            },
+            icon: Badge(isLabelVisible: state.unreadSafetyAlerts > 0,
+              label: Text('${state.unreadSafetyAlerts}'),
+              child: const Icon(Icons.notifications_none)),
+          ),
+        ]),
+      );
+      return Scaffold(
+        drawer: compact ? Drawer(width: 280, child: navigation(labels: true, drawer: true)) : null,
+        body: Row(children: [
+          if (!compact) navigation(labels: expanded),
+          Expanded(child: Column(children: [
+            toolbar,
+            Expanded(child: Semantics(container: true, child: child)),
+          ])),
+        ]),
+      );
+    });
   }
 }
 
@@ -782,15 +732,15 @@ class _RailAccountFooter extends StatelessWidget {
         final avatarUrl = session.avatarUrl;
         final avatar = CircleAvatar(
           radius: 20,
-          backgroundColor: AdminColors.primaryTint,
-          foregroundColor: AdminColors.primaryPress,
+          backgroundColor: context.adminColor(AdminColors.primaryTint),
+          foregroundColor: context.adminColor(AdminColors.primaryPress),
           backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
           child: avatarUrl != null
               ? null
               : Text(
                   session.initials,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AdminColors.primaryPress,
+                    color: context.adminColor(AdminColors.primaryPress),
                   ),
                 ),
         );
@@ -856,7 +806,9 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.expanded,
+    this.closeDrawer = false,
   });
+  final bool closeDrawer;
   final String path;
   final String label;
   final IconData icon;
@@ -871,15 +823,18 @@ class _NavItem extends StatelessWidget {
     child: Tooltip(
       message: expanded ? '' : label,
       child: InkWell(
-        onTap: () => context.go(path),
-        borderRadius: BorderRadius.circular(24),
+        onTap: () {
+          if (closeDrawer) Navigator.of(context).pop();
+          context.go(path);
+        },
+        borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           height: 48,
           padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 0),
           decoration: BoxDecoration(
-            color: selected ? AdminColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
+            color: selected ? context.adminColor(AdminColors.primary) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: expanded

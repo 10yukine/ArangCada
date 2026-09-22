@@ -26,7 +26,7 @@ class PageHeading extends StatelessWidget {
             subtitle,
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: AdminColors.muted),
+            ).textTheme.bodyLarge?.copyWith(color: context.adminColor(AdminColors.muted)),
           ),
         ],
       );
@@ -77,11 +77,11 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = switch (tone) {
-      StatusTone.success => (AdminColors.successTint, AdminColors.success),
-      StatusTone.warning => (AdminColors.warningTint, AdminColors.warning),
-      StatusTone.danger => (AdminColors.dangerTint, AdminColors.danger),
-      StatusTone.brand => (AdminColors.primaryTint, AdminColors.primaryPress),
-      StatusTone.neutral => (AdminColors.surface, AdminColors.secondary),
+      StatusTone.success => (context.adminColor(AdminColors.successTint), context.adminColor(AdminColors.success)),
+      StatusTone.warning => (context.adminColor(AdminColors.warningTint), context.adminColor(AdminColors.warning)),
+      StatusTone.danger => (context.adminColor(AdminColors.dangerTint), context.adminColor(AdminColors.danger)),
+      StatusTone.brand => (context.adminColor(AdminColors.primaryTint), context.adminColor(AdminColors.primaryPress)),
+      StatusTone.neutral => (context.adminColor(AdminColors.surface), context.adminColor(AdminColors.secondary)),
     };
     return Semantics(
       label: 'Status: $label',
@@ -89,7 +89,7 @@ class StatusPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           label,
@@ -169,10 +169,10 @@ class MetricCard extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: tone.withValues(alpha: .12),
+                color: context.adminColor(tone).withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(icon, color: tone, size: 20),
+              child: Icon(icon, color: context.adminColor(tone), size: 20),
             ),
           ),
           Padding(
@@ -226,7 +226,7 @@ class EmptyState extends StatelessWidget {
         textAlign: TextAlign.center,
         style: Theme.of(
           context,
-        ).textTheme.bodyLarge?.copyWith(color: AdminColors.muted),
+        ).textTheme.bodyLarge?.copyWith(color: context.adminColor(AdminColors.muted)),
       ),
     ),
   );

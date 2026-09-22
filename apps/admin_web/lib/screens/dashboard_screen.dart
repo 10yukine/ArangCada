@@ -6,9 +6,7 @@ import '../admin_controller.dart';
 import '../map_screen.dart';
 import '../models.dart';
 import '../session.dart';
-import '../theme.dart';
 import '../widgets.dart';
-import 'shared_widgets.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -20,471 +18,343 @@ class DashboardScreen extends ConsumerWidget {
     final controller = ref.read(adminProvider.notifier);
     final drivers = controller.scopedDrivers(session);
     final rides = controller.visibleRides(session);
-    final reports = controller.visibleReports(session);
-    final audit = controller.visibleAudit(session);
-    final todas = <String>{
-      for (final boundary in state.boundaries)
-        if (session.role == AdminRole.lgu || boundary.name == session.toda)
-          boundary.name,
-      for (final item in state.feedbackSummaries)
-        if (session.role == AdminRole.lgu || item.toda == session.toda)
-          item.toda,
-      for (final driver in drivers) driver.toda,
-      if (session.toda != null) session.toda!,
-    }.toList();
-    final approved = drivers
-        .where((driver) => driver.status == DriverStatus.approved)
-        .length;
+    final reports = controller
+        .visibleReports(session)
+        .where(
+          (report) =>
+              report.status != ReportStatus.resolved &&
+              report.status != ReportStatus.dismissed,
+        )
+        .toList();
     final pending = drivers
         .where(
           (driver) =>
               driver.status == DriverStatus.review ||
               driver.status == DriverStatus.submitted,
         )
+        .toList();
+    final approved = drivers
+        .where((driver) => driver.status == DriverStatus.approved)
         .length;
-    final feedbackParticipants = todas.fold<int>(
-      0,
-      (total, toda) => total + (state.feedbackCounts[toda] ?? 0),
-    );
-    final participantTarget = todas.length * state.respondentTarget;
-    final readyDrivers = approved + pending;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const PageHeading(
-          title: 'Good morning, evaluator',
-          subtitle:
-              'A local snapshot of dispatch activity and governance readiness.',
-        ),
-        const SizedBox(height: 24),
-        ResponsiveGrid(
-          children: [
-            MetricCard(
-              label: 'Approved drivers',
-              value: '$approved',
-              detail: '${drivers.length} enrolled',
-              icon: Icons.verified_user_outlined,
-              tone: AdminColors.success,
-              onTap: () {
-                controller.resetViewFilters();
-                controller.setDriverStatus('Approved');
-                context.go('/drivers');
-              },
+    final audit = controller.visibleAudit(session);
+    final todas = <String>{
+      for (final boundary in state.boundaries)
+        if (session.role == AdminRole.lgu || boundary.name == session.toda)
+          boundary.name,
+      for (final driver in drivers) driver.toda,
+      if (session.toda != null) session.toda!,
+    };
+    void openReviews() {
+      controller.resetViewFilters();
+      controller.setDriverStatus('Needs review');
+      context.go('/drivers');
+    }
+
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeading(
+            title: 'Operations overview',
+            subtitle: session.role == AdminRole.lgu
+                ? 'Calamba City · Dispatch, safety, and driver verification.'
+                : '${session.toda} · Your dispatch and review workspace.',
+            action: TextButton.icon(
+              onPressed: () => context.go('/live-map'),
+              icon: const Icon(Icons.open_in_full, size: 18),
+              label: const Text('Open live map'),
             ),
-            MetricCard(
-              label: 'Active rides',
-              value: '${rides.length}',
-              detail: state.connected
-                  ? 'Updated in real time'
-                  : 'Local demo data',
-              icon: Icons.location_on_outlined,
-              onTap: () => context.go('/live-map'),
-            ),
-            MetricCard(
-              label: 'Pending reviews',
-              value: '$pending',
-              detail: 'Needs action',
-              icon: Icons.hourglass_top_outlined,
-              tone: AdminColors.warning,
-              onTap: () {
-                controller.resetViewFilters();
-                controller.setDriverStatus('Needs review');
-                context.go('/drivers');
-              },
-            ),
-            MetricCard(
-              label: 'Open safety reports',
-              value:
-                  '${reports.where((report) => report.status != ReportStatus.resolved && report.status != ReportStatus.dismissed).length}',
-              detail: '${reports.length} total',
-              icon: Icons.shield_outlined,
-              tone: AdminColors.danger,
-              onTap: () => context.go('/safety'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stack = constraints.maxWidth < 900;
-            final dispatch = Panel(
-              child: Column(
+          ),
+          const SizedBox(height: 16),
+          Text(
+            state.connected
+                ? 'Connected operations · Records are scoped to your access.'
+                : 'Demo workspace · Sample records, not live operations.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth < 600 ? 2 : 4;
+              final metrics = [
+                _Metric(
+                  label: 'OPEN SAFETY REPORTS',
+                  value: '${reports.length}',
+                  detail: 'Review and follow up',
+                  onTap: () => context.go('/safety'),
+                ),
+                _Metric(
+                  label: 'PENDING REVIEWS',
+                  value: '${pending.length}',
+                  detail: 'Driver applications',
+                  onTap: openReviews,
+                ),
+                _Metric(
+                  label: 'ACTIVE RIDES',
+                  value: '${rides.length}',
+                  detail: 'View dispatch',
+                  onTap: () => context.go('/live-map'),
+                ),
+                _Metric(
+                  label: 'APPROVED DRIVERS',
+                  value: '$approved',
+                  detail: '${drivers.length} enrolled',
+                  onTap: () {
+                    controller.resetViewFilters();
+                    controller.setDriverStatus('Approved');
+                    context.go('/drivers');
+                  },
+                ),
+              ];
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.symmetric(
+                    horizontal: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
+                  ),
+                ),
+                child: Wrap(
+                  children: [
+                    for (final metric in metrics)
+                      SizedBox(
+                        width: constraints.maxWidth / columns,
+                        child: metric,
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final work = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Live dispatch map',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => context.go('/live-map'),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(44, 44),
-                        ),
-                        icon: const Icon(Icons.arrow_forward, size: 17),
-                        iconAlignment: IconAlignment.end,
-                        label: const Text('Open live map'),
-                      ),
-                    ],
+                  Text(
+                    'Needs attention',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
+                  const Text('Start with safety, then clear the review queue.'),
+                  const SizedBox(height: 16),
+                  if (reports.isEmpty && pending.isEmpty)
+                    const EmptyState(
+                      message:
+                          'You’re all caught up. New reports and applications will appear here.',
+                    ),
+                  if (reports.isNotEmpty) ...[
+                    _WorkRow(
+                      icon: Icons.shield_outlined,
+                      title: '${reports.length} open safety reports',
+                      detail: reports.first.summary,
+                      action: 'Review reports',
+                      onTap: () => context.go('/safety'),
+                    ),
+                    const Divider(height: 1),
+                  ],
+                  if (pending.isNotEmpty)
+                    _WorkRow(
+                      icon: Icons.fact_check_outlined,
+                      title: '${pending.length} driver applications',
+                      detail: pending
+                          .take(3)
+                          .map((driver) => driver.name)
+                          .join(', '),
+                      action: 'Review drivers',
+                      onTap: openReviews,
+                    ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Live activity',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  if (audit.isEmpty)
+                    const EmptyState(
+                      message: 'No activity in your jurisdiction yet.',
+                    )
+                  else
+                    for (final event in audit.take(4))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.title,
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(event.detail),
+                            const SizedBox(height: 4),
+                            Text(
+                              shortTime(event.time),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                ],
+              );
+              final dispatch = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Live dispatch map',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Select a trip to inspect it on the full map.'),
+                  const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      height: stack ? 240 : 280,
+                      height: constraints.maxWidth < 900 ? 260 : 340,
                       child: DashboardMapPreview(
                         rides: rides,
                         connected: state.connected,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    state.connected
-                        ? 'Pan or zoom to inspect live trip and driver GPS positions in your jurisdiction.'
-                        : 'Pan or zoom to inspect synthetic positions; prototype boundaries remain on the full map.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            );
-            final hourly = Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Rides per hour · today',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      StatusPill(
-                        state.connected ? 'Connected data' : 'Illustrative',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (state.connected)
+                  const SizedBox(height: 12),
+                  if (rides.isEmpty)
                     const EmptyState(
                       message:
-                          'Hourly trip-history aggregation has not yet been collected.',
+                          'No active trips. New dispatch activity will appear here.',
                     )
                   else
-                    _HourlyRideChart(activeRides: rides.length),
-                  const SizedBox(height: 10),
-                  Text(
-                    state.connected
-                        ? 'No estimated or synthetic ride totals are shown.'
-                        : 'Example activity only; not collected trip history.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            );
-            final activity = Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Live activity',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
+                    for (final ride in rides.take(4)) ...[
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        title: Text(ride.driver),
+                        subtitle: Text(
+                          '${ride.rider} · ${ride.toda}\n${ride.status} · Updated ${ride.updatedMinutes} min ago',
                         ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.arrow_forward, size: 18),
+                        onTap: () {
+                          controller.selectRide(ride.id);
+                          context.go('/live-map');
+                        },
                       ),
-                      const SizedBox(width: 8),
-                      StatusPill(
-                        state.connected
-                            ? 'Connected operations'
-                            : 'Local event log',
-                      ),
+                      const Divider(height: 1),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (audit.isEmpty)
-                    const EmptyState(message: 'No activity in this TODA yet.')
-                  else
-                    for (final event in audit.take(5)) _AuditRow(event),
                 ],
-              ),
-            );
-            final terminals = Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Terminal activity',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 14),
-                  for (final toda in todas)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _TerminalActivityRow(
-                        toda: toda,
-                        approved: drivers
-                            .where(
-                              (driver) =>
-                                  driver.toda == toda &&
-                                  driver.status == DriverStatus.approved,
-                            )
-                            .length,
-                        rides: rides.where((ride) => ride.toda == toda).length,
-                        enrolled: drivers
-                            .where((driver) => driver.toda == toda)
-                            .length,
-                      ),
-                    ),
-                  Text(
-                    state.connected
-                        ? 'Server-scoped live driver and dispatch records.'
-                        : 'Scoped local records; terminal queue order is not simulated.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            );
-            final readiness = Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Evaluation readiness',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 18),
-                  if (!state.connected) ...[
-                    const ProgressRow(
-                      label: 'Feature scenarios',
-                      value: .82,
-                      caption: '9 of 11 checks prepared',
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  ProgressRow(
-                    label: 'Unique driver app-feedback participants',
-                    value: participantTarget == 0
-                        ? 0
-                        : (feedbackParticipants / participantTarget).clamp(
-                            0,
-                            1,
-                          ),
-                    caption:
-                        '$feedbackParticipants of $participantTarget target drivers',
-                  ),
-                  const SizedBox(height: 18),
-                  ProgressRow(
-                    label: 'Driver verification',
-                    value: drivers.isEmpty
-                        ? 0
-                        : (readyDrivers / drivers.length).clamp(0, 1),
-                    caption:
-                        '$readyDrivers of ${drivers.length} records review-ready',
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    state.connected
-                        ? 'Participation is counted by unique drivers; repeat feedback does not inflate readiness.'
-                        : 'Prototype metrics support the capstone evaluation and do not represent production operations.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            );
-            final primary = Column(
-              children: [dispatch, const SizedBox(height: 16), hourly],
-            );
-            final secondary = Column(
-              children: [
-                activity,
-                const SizedBox(height: 16),
-                terminals,
-                const SizedBox(height: 16),
-                readiness,
-              ],
-            );
-            return stack
-                ? Column(
-                    children: [primary, const SizedBox(height: 16), secondary],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: primary),
-                      const SizedBox(width: 16),
-                      Expanded(child: secondary),
-                    ],
-                  );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _HourlyRideChart extends StatelessWidget {
-  const _HourlyRideChart({required this.activeRides});
-
-  final int activeRides;
-
-  @override
-  Widget build(BuildContext context) {
-    const hours = ['6a', '7a', '8a', '9a', '10a', '11a', '12p', '1p'];
-    const profile = [.4, .7, 1.0, .75, .55, 1.2, .85, .65];
-    final values = [
-      for (final factor in profile)
-        activeRides == 0
-            ? 0
-            : (activeRides * factor).round().clamp(1, 99).toInt(),
-    ];
-    final maximum = values.fold<int>(
-      1,
-      (largest, value) => value > largest ? value : largest,
-    );
-
-    return Semantics(
-      label: 'Illustrative hourly ride activity; not collected trip history',
-      child: SizedBox(
-        height: 132,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final entry in values.indexed)
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(left: entry.$1 == 0 ? 0 : 8),
-                  child: Tooltip(
-                    message:
-                        '${hours[entry.$1]} · ${entry.$2} illustrative rides',
-                    child: Column(
+              );
+              return constraints.maxWidth < 900
+                  ? Column(
+                      children: [work, const SizedBox(height: 32), dispatch],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: FractionallySizedBox(
-                              heightFactor: (entry.$2 / maximum).clamp(.06, 1),
-                              widthFactor: 1,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: entry.$2 == maximum
-                                      ? AdminColors.primary
-                                      : AdminColors.primaryTint,
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(6),
-                                    bottom: Radius.circular(3),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          hours[entry.$1],
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                        Expanded(flex: 4, child: work),
+                        const SizedBox(width: 40),
+                        Expanded(flex: 6, child: dispatch),
                       ],
-                    ),
-                  ),
-                ),
+                    );
+            },
+          ),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text(
+            'Terminal activity',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          for (final toda in todas)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(toda),
+              subtitle: Text(
+                '${drivers.where((driver) => driver.toda == toda && driver.status == DriverStatus.approved).length} approved drivers · ${rides.where((ride) => ride.toda == toda).length} active rides',
               ),
-          ],
-        ),
+            ),
+          const Divider(),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.insights_outlined),
+            title: const Text('Evaluation readiness'),
+            subtitle: Text(
+              '${todas.fold<int>(0, (total, toda) => total + (state.feedbackCounts[toda] ?? 0))} of ${todas.length * state.respondentTarget} target drivers',
+            ),
+            trailing: const Icon(Icons.arrow_forward, size: 18),
+            onTap: () => context.go('/evaluation'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TerminalActivityRow extends StatelessWidget {
-  const _TerminalActivityRow({
-    required this.toda,
-    required this.approved,
-    required this.rides,
-    required this.enrolled,
+class _Metric extends StatelessWidget {
+  const _Metric({
+    required this.label,
+    required this.value,
+    required this.detail,
+    required this.onTap,
   });
-
-  final String toda;
-  final int approved;
-  final int rides;
-  final int enrolled;
+  final String label;
+  final String value;
+  final String detail;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$toda, $approved approved drivers, $rides active rides',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                toda,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '$approved approved · $rides active',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        const SizedBox(height: 7),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: enrolled == 0 ? 0 : (rides / enrolled).clamp(0, 1),
-            minHeight: 7,
-            color: AdminColors.primary,
-            backgroundColor: AdminColors.surface,
-          ),
-        ),
-      ],
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 8),
+          Text(value, style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 4),
+          Text(detail, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
     ),
   );
 }
 
-class _AuditRow extends StatelessWidget {
-  const _AuditRow(this.event);
-  final AuditEvent event;
+class _WorkRow extends StatelessWidget {
+  const _WorkRow({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.action,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String detail;
+  final String action;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 11),
+    padding: const EdgeInsets.symmetric(vertical: 16),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 9,
-          height: 9,
-          margin: const EdgeInsets.only(top: 5),
-          decoration: const BoxDecoration(
-            color: AdminColors.primary,
-            shape: BoxShape.circle,
-          ),
-        ),
+        Icon(icon, size: 22),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(event.title, style: Theme.of(context).textTheme.titleMedium),
-              Text(event.detail, style: Theme.of(context).textTheme.bodySmall),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(detail, maxLines: 3, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 8),
+              TextButton(onPressed: onTap, child: Text(action)),
             ],
           ),
-        ),
-        Text(
-          shortTime(event.time),
-          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     ),

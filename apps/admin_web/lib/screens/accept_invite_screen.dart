@@ -251,7 +251,7 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AdminColors.background,
+      backgroundColor: context.adminColor(AdminColors.background),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

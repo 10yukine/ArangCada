@@ -307,8 +307,8 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
                         children: [
                           CircleAvatar(
                             radius: 26,
-                            backgroundColor: AdminColors.primaryTint,
-                            foregroundColor: AdminColors.primaryPress,
+                            backgroundColor: context.adminColor(AdminColors.primaryTint),
+                            foregroundColor: context.adminColor(AdminColors.primaryPress),
                             backgroundImage: avatarUrl == null
                                 ? null
                                 : NetworkImage(avatarUrl),
@@ -679,10 +679,10 @@ class _SettingRow extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: AdminColors.primaryTint,
+            color: context.adminColor(AdminColors.primaryTint),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AdminColors.primary),
+          child: Icon(icon, color: context.adminColor(AdminColors.primary)),
         ),
         const SizedBox(width: 13),
         Expanded(

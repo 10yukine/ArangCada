@@ -76,12 +76,14 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
     final reportedChats = ref
         .read(adminProvider.notifier)
         .visibleReportedChats(session);
-    if (reports.isNotEmpty && !reports.any((report) => report.id == selected)) {
-      selected = reports.first.id;
+    if (selected != null && !reports.any((report) => report.id == selected)) {
+      selected = null;
     }
-    final active = reports.where((report) => report.id == selected).firstOrNull;
-    final list = Panel(
-      padding: const EdgeInsets.all(10),
+    final active =
+        reports.where((report) => report.id == selected).firstOrNull ??
+        reports.firstOrNull;
+    final list = Material(
+      type: MaterialType.transparency,
       child: reports.isEmpty
           ? const EmptyState(message: 'No safety reports in this scope.')
           : Column(
@@ -89,7 +91,7 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
                 for (final report in reports)
                   _ReportTile(
                     report: report,
-                    selected: report.id == selected,
+                    selected: report.id == active?.id,
                     onTap: () => setState(() => selected = report.id),
                   ),
               ],
@@ -107,17 +109,11 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
               'Review, acknowledge, investigate, and document responses without implying emergency-service dispatch.',
         ),
         const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth < 950
-              ? Column(children: [list, const SizedBox(height: 14), detail])
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 380, child: list),
-                    const SizedBox(width: 16),
-                    Expanded(child: detail),
-                  ],
-                ),
+        ReviewWorkspace(
+          queue: list,
+          detail: detail,
+          showDetail: selected != null,
+          onBack: () => setState(() => selected = null),
         ),
         const SizedBox(height: 18),
         // Its own nav tab felt like too much weight for a non-emergency
@@ -192,9 +188,9 @@ class _ReportedConversationSection extends StatelessWidget {
           const SizedBox(height: 9),
           Text(
             refreshError!,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AdminColors.danger),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.adminColor(AdminColors.danger),
+            ),
           ),
         ],
         const SizedBox(height: 16),
@@ -218,7 +214,7 @@ class _ReportedConversationCard extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      border: Border.all(color: AdminColors.border),
+      border: Border.all(color: context.adminColor(AdminColors.border)),
       borderRadius: BorderRadius.circular(13),
     ),
     child: Column(
@@ -240,7 +236,7 @@ class _ReportedConversationCard extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AdminColors.surface,
+                color: context.adminColor(AdminColors.surface),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -287,7 +283,9 @@ class _ReportTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.primaryTint : Colors.transparent,
+          color: selected
+              ? context.adminColor(AdminColors.primaryTint)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -296,10 +294,10 @@ class _ReportTile extends StatelessWidget {
             Row(
               children: [
                 if (report.priority == 'critical') ...[
-                  const Icon(
+                  Icon(
                     Icons.priority_high,
                     size: 18,
-                    color: AdminColors.danger,
+                    color: context.adminColor(AdminColors.danger),
                   ),
                   const SizedBox(width: 5),
                 ],
@@ -392,10 +390,10 @@ class _SafetyDetail extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline,
                   size: 19,
-                  color: AdminColors.success,
+                  color: context.adminColor(AdminColors.success),
                 ),
                 const SizedBox(width: 9),
                 Expanded(child: Text(note)),
@@ -564,7 +562,9 @@ class _ComplaintTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.primaryTint : Colors.transparent,
+          color: selected
+              ? context.adminColor(AdminColors.primaryTint)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -667,10 +667,10 @@ class _ComplaintDetail extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline,
                   size: 19,
-                  color: AdminColors.success,
+                  color: context.adminColor(AdminColors.success),
                 ),
                 const SizedBox(width: 9),
                 Expanded(child: Text(note)),
