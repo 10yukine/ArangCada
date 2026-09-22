@@ -5,6 +5,7 @@ import 'package:arangcada/features/notifications/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 /// Records calls and never touches Hive -- PushNotificationService's real
 /// history()/markRead() (and the Hive box behind them) are exercised by
@@ -160,4 +161,125 @@ void main() {
 
     expect(repository.markReadCalls, isEmpty);
   });
+
+  Widget routedHarness() => ProviderScope(
+    overrides: [
+      notificationsRepositoryProvider.overrideWithValue(repository),
+    ],
+    child: MaterialApp.router(
+      routerConfig: GoRouter(
+        initialLocation: '/notifications',
+        routes: [
+          GoRoute(
+            path: '/notifications',
+            builder: (_, _) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/driver',
+            builder: (_, _) => const Scaffold(body: Text('driver destination')),
+          ),
+          GoRoute(
+            path: '/trips',
+            builder: (_, _) => const Scaffold(body: Text('trips destination')),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  testWidgets(
+    'tapping a ride_offer notification navigates to /driver',
+    (tester) async {
+      repository.items = [
+        AppNotificationRecord(
+          id: 'driver-notif-1',
+          title: 'New ride offer',
+          body: 'Special ride requested nearby.',
+          receivedAt: DateTime.now(),
+          data: const {'type': 'ride_offer'},
+          read: false,
+        ),
+      ];
+
+      await tester.pumpWidget(routedHarness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New ride offer'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('driver destination'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping a ride_updated notification navigates to /trips',
+    (tester) async {
+      repository.items = [
+        AppNotificationRecord(
+          id: 'rider-notif-1',
+          title: 'Ride completed',
+          body: 'Your ride has completed.',
+          receivedAt: DateTime.now(),
+          data: const {'type': 'ride_updated'},
+          read: false,
+        ),
+      ];
+
+      await tester.pumpWidget(routedHarness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ride completed'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('trips destination'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping a ride_cancelled notification with target_role commuter navigates to /trips',
+    (tester) async {
+      repository.items = [
+        AppNotificationRecord(
+          id: 'rider-cancelled-1',
+          title: 'Ride cancelled',
+          body: 'Your driver cancelled the ride.',
+          receivedAt: DateTime.now(),
+          data: const {'type': 'ride_cancelled', 'target_role': 'commuter'},
+          read: false,
+        ),
+      ];
+
+      await tester.pumpWidget(routedHarness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ride cancelled'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('trips destination'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping a ride_cancelled notification with target_role driver navigates to /driver',
+    (tester) async {
+      repository.items = [
+        AppNotificationRecord(
+          id: 'driver-cancelled-1',
+          title: 'Ride cancelled',
+          body: 'The passenger cancelled this ride request.',
+          receivedAt: DateTime.now(),
+          data: const {'type': 'ride_cancelled', 'target_role': 'driver'},
+          read: false,
+        ),
+      ];
+
+      await tester.pumpWidget(routedHarness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ride cancelled'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('driver destination'), findsOneWidget);
+    },
+  );
 }

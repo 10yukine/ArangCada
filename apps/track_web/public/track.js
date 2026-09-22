@@ -30,6 +30,7 @@ let pollTimer = null;
 let consecutiveFailures = 0;
 let stopped = false;
 let hasRenderedOnce = false;
+let inFlight = false;
 
 const token = parseToken(window.location.pathname, window.location.search);
 
@@ -46,6 +47,7 @@ async function fetchTrip() {
       Authorization: `Bearer ${cfg.supabaseAnonKey}`,
     },
     body: JSON.stringify({ p_token: token }),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -99,7 +101,12 @@ function renderActive(vm) {
     age.classList.toggle('warn', vm.positionIsStale);
   }
 
-  updateMap(vm);
+  try {
+    updateMap(vm);
+  } catch (error) {
+    // A blocked map CDN must not discard usable trip details.
+    console.error('track_web: map unavailable');
+  }
   hasRenderedOnce = true;
 }
 
@@ -154,7 +161,8 @@ function staticMarker(point, className, label) {
 }
 
 async function tick() {
-  if (stopped) return;
+  if (stopped || inFlight) return;
+  inFlight = true;
 
   try {
     const rows = await fetchTrip();
@@ -174,11 +182,12 @@ async function tick() {
     if (hasRenderedOnce) {
       show('reconnecting');
     } else if (consecutiveFailures >= FAILURES_BEFORE_BACKOFF) {
-      // Never rendered anything and repeatedly failing: most likely a bad
-      // token or a blocked network. Expired is the safe, non-revealing message.
-      renderExpired();
-      return;
+      // Network failure does not establish that a link has expired.
+      el('state-loading').querySelector('p').textContent =
+        'Unable to connect. Retrying…';
     }
+  } finally {
+    inFlight = false;
   }
 
   schedule();

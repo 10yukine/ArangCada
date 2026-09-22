@@ -20,7 +20,7 @@
 // Locally, run the same script with the same three variables set. One
 // mechanism for both, rather than a checked-in example file that drifts.
 
-import { writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,24 +41,30 @@ if (missing.length > 0) {
   // Fail the build rather than emit a broken config. A deploy that silently
   // shows every visitor "this tracking link has expired" is far worse than a
   // build that stops and tells you which variable is missing.
-  if (existsSync(OUT)) {
-    console.log('build-config: env vars missing, but config.js already exists — leaving it alone.');
-    process.exit(0);
-  }
   console.error(
     `build-config: missing required environment variable(s): ${missing.join(', ')}\n` +
-    'Set them in the Cloudflare Workers project settings, or copy config.example.js ' +
-    'to public/config.js for local use.',
+    'Set all three variables in the build environment and rerun this command.',
   );
   process.exit(1);
 }
 
 // A service_role key must never reach the browser. This is a cheap guard
-// against someone pasting the wrong key into the Pages settings: Supabase
-// service keys carry the "service_role" claim in their payload.
-if (SUPABASE_ANON_KEY.includes('service_role')) {
+// against someone pasting the wrong key into the Pages settings. Decode
+// legacy JWT payloads; their role is not visible in the encoded token text.
+// This is configuration validation, not JWT signature verification.
+let isPublicKey = /^sb_publishable_[A-Za-z0-9_-]+$/.test(SUPABASE_ANON_KEY);
+if (!isPublicKey) {
+  try {
+    const parts = SUPABASE_ANON_KEY.split('.');
+    isPublicKey = parts.length === 3 && parts.every(Boolean) &&
+      JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')).role === 'anon';
+  } catch {
+    isPublicKey = false;
+  }
+}
+if (!isPublicKey) {
   console.error(
-    'build-config: SUPABASE_ANON_KEY looks like a SERVICE ROLE key. Refusing to ' +
+    'build-config: SUPABASE_ANON_KEY is not an anon/publishable key. Refusing to ' +
     'write it into a public page. Use the anon/publishable key.',
   );
   process.exit(1);

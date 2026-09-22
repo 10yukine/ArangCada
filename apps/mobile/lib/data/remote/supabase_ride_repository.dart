@@ -327,6 +327,12 @@ class SupabaseRideRepository extends ChangeNotifier {
             _state.driverTrip.status = row['is_online'] == true
                 ? DriverTripStatus.available
                 : DriverTripStatus.offline;
+            if (_state.driverTrip.isOnline && _locationTicker == null) {
+              _startLocationUpdates();
+            } else if (!_state.driverTrip.isOnline) {
+              _locationTicker?.cancel();
+              _locationTicker = null;
+            }
           }
           _state.driverChanged();
           notifyListeners();
@@ -370,6 +376,16 @@ class SupabaseRideRepository extends ChangeNotifier {
         _ => const ApiUnexpectedException(),
       };
     }
+    _applyTrip(_row(result));
+  }
+
+  Future<void> retryDispatch() async {
+    final trip = _activeTrip;
+    if (trip == null || trip['status'] != 'searching_driver') return;
+    final result = await _client.rpc(
+      'retry_dispatch',
+      params: {'p_trip_id': trip['id']},
+    );
     _applyTrip(_row(result));
   }
 

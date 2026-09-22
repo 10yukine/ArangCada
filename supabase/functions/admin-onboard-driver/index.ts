@@ -1,3 +1,4 @@
+import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 // admin-onboard-driver -- the one piece of driver onboarding that must be
 // server-side, because only the Supabase Auth Admin API can create an auth
 // user or issue an invite link, and that API requires the service-role key.
@@ -40,14 +41,10 @@ import {
   type CandidateRow,
 } from "./lib.ts";
 
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
     return jsonResponse(405, { error: "method not allowed" });
   }

@@ -131,6 +131,25 @@ void main() {
     expect(find.text('Ride options'), findsOneWidget);
   });
 
+  testWidgets(
+    'destination search updates its pickup label when pickup changes',
+    (tester) async {
+      await tester.pumpWidget(harness(const DestinationSearchScreen()));
+      expect(find.text(DemoData.calambaCrossing.name), findsWidgets);
+
+      state.setPickup(
+        DemoPlace(
+          id: 'changed-pickup',
+          name: 'Changed pickup',
+          address: 'Test address',
+          coordinate: DemoData.calambaCrossing.coordinate,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Changed pickup'), findsOneWidget);
+    },
+  );
+
   testWidgets('canceling selection leaves storage and booking unchanged', (
     tester,
   ) async {

@@ -1,0 +1,44 @@
+import 'dart:async';
+import 'package:arangcada/core/geo/haversine.dart';
+import 'package:arangcada/data/remote/google_routes_routing_repository.dart';
+import 'package:arangcada/data/remote/openrouteservice_routing_repository.dart';
+import 'package:arangcada/data/repositories/routing_repository.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+// Run with synthetic ORS_API_KEY and GOOGLE_ROUTES_API_KEY dart defines.
+void main() {
+  for (final google in [false, true]) {
+    test(
+      '${google ? "Google" : "ORS"} serializes distinct requests and observes cooldown',
+      () async {
+        final pending = Completer<http.Response>();
+        var calls = 0;
+        final client = MockClient((_) {
+          calls++;
+          return pending.future;
+        });
+        final RoutingRepository repository = google
+            ? GoogleRoutesRoutingRepository(client: client)
+            : OpenRouteServiceRoutingRepository(client: client);
+        addTearDown(client.close);
+        const from = GeoCoordinate(latitude: 14.2, longitude: 121.1);
+        const to = GeoCoordinate(latitude: 14.3, longitude: 121.2);
+        const other = GeoCoordinate(latitude: 14.4, longitude: 121.3);
+        final first = repository.route(from: from, to: to);
+        final second = repository.route(from: from, to: other);
+        final duplicate = repository.route(from: from, to: to);
+        await Future<void>.delayed(Duration.zero);
+        expect(calls, 1);
+        pending.complete(http.Response('{}', 429));
+        final results = await Future.wait([first, second, duplicate]);
+        expect(calls, 1);
+        expect(results.every((r) => r.isFallback), isTrue);
+      },
+      skip:
+          const String.fromEnvironment('ORS_API_KEY').isEmpty ||
+          const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
+    );
+  }
+}

@@ -142,14 +142,14 @@ class SupabaseAuthRepository implements AuthRepository {
       );
       final user = response.user;
       if (user == null) {
-        throw const DemoAuthException('Unable to sign in right now.');
+        throw const DemoAuthException(
+          'Unable to sign in. Check your credentials and try again.',
+        );
       }
       return await restoreProfile(user);
-    } on AuthException {
-      throw const DemoAuthException('Email or password is incorrect.');
-    } on PostgrestException {
+    } catch (_) {
       throw const DemoAuthException(
-        'Your account profile is unavailable. Contact an administrator.',
+        'Unable to sign in. Check your credentials and try again.',
       );
     }
   }

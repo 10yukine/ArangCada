@@ -27,6 +27,7 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
 
   static const int _minQueryLength = 3;
   static const Duration _timeout = Duration(seconds: 10);
+  static const int _maxCacheEntries = 40;
 
   /// Calamba City centre, used as the proximity hint.
   static const GeoCoordinate _calamba = GeoCoordinate(
@@ -47,6 +48,7 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
   @override
   Future<List<GeocodedPlace>> search(String query) async {
     final trimmed = query.trim();
+    final seq = ++_requestSeq;
     if (trimmed.length < _minQueryLength) return const [];
     if (!AppConfig.isMapTilerConfigured) {
       throw const ApiNotConfiguredException('Place search is not configured.');
@@ -55,8 +57,6 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
     final cacheKey = trimmed.toLowerCase();
     final cached = _cache[cacheKey];
     if (cached != null) return cached;
-
-    final seq = ++_requestSeq;
 
     final uri = Uri.parse(
       'https://api.maptiler.com/geocoding/${Uri.encodeComponent(trimmed)}.json',
@@ -85,6 +85,9 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
     switch (response.statusCode) {
       case 200:
         final places = _parse(response.body);
+        if (_cache.length >= _maxCacheEntries) {
+          _cache.remove(_cache.keys.first);
+        }
         _cache[cacheKey] = places;
         return places;
       case 401:

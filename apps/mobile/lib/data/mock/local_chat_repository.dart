@@ -13,9 +13,11 @@ import '../repositories/chat_repository.dart';
 /// message-status pipeline is exercised end to end; a real backend replaces
 /// that delay with an actual acknowledgement.
 class LocalChatRepository extends ChangeNotifier implements ChatRepository {
-  /// Starts empty. Sample conversations are loaded on request from Demo
-  /// Tools, so a first run does not show chats the commuter never had.
-  LocalChatRepository() : _threads = [];
+  /// Starts empty unless sample content is requested. Sample conversations
+  /// are loaded on request from Demo Tools, so a first run does not show chats
+  /// the commuter never had.
+  LocalChatRepository({bool sampleContent = false})
+      : _threads = sampleContent ? _seedThreads() : [];
 
   final List<ChatThread> _threads;
   final StreamController<List<ChatThread>> _controller =

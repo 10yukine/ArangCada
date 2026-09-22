@@ -37,6 +37,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   int _secondsRemaining = 30;
   VoidCallback? _removeLiveStateListener;
   bool _actionPending = false;
+  bool _expirePending = false;
 
   @override
   void initState() {
@@ -107,35 +108,40 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final deadline = liveRides?.activeTrip?['accept_by'] as String?;
     _secondsRemaining = deadline == null
         ? 30
-        : DateTime.parse(
-            deadline,
-          ).difference(DateTime.now().toUtc()).inSeconds.clamp(0, 30);
+        : (DateTime.parse(
+                    deadline,
+                  ).difference(DateTime.now().toUtc()).inMilliseconds /
+                  1000)
+              .ceil()
+              .clamp(0, 30);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      if (_secondsRemaining <= 1) {
+      if (_secondsRemaining > 0) {
+        setState(() => _secondsRemaining--);
+        return;
+      }
+      final state = ref.read(demoStateProvider);
+      if (state.driverTrip.status != DriverTripStatus.incoming) return;
+      if (liveRides == null) {
         timer.cancel();
         _countdownTimer = null;
-        final state = ref.read(demoStateProvider);
-        if (state.driverTrip.status == DriverTripStatus.incoming) {
-          if (liveRides == null) {
-            state.driverTrip.declineRequest();
-            state.driverChanged();
-          } else {
-            unawaited(_expireRequest());
-          }
-        }
-        setState(() => _secondsRemaining = 0);
-      } else {
-        setState(() => _secondsRemaining--);
+        state.driverTrip.declineRequest();
+        state.driverChanged();
+      } else if (timer.tick % 3 == 0) {
+        unawaited(_expireRequest());
       }
     });
   }
 
   Future<void> _expireRequest() async {
+    if (_expirePending) return;
+    _expirePending = true;
     try {
       await ref.read(liveRideRepositoryProvider)?.expireRide();
     } on Exception {
-      // The server still rejects acceptance after its authoritative deadline.
+      // A client timer can reach zero before the server's deadline. Retry.
+    } finally {
+      _expirePending = false;
     }
   }
 

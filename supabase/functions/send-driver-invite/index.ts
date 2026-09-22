@@ -1,3 +1,5 @@
+import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
+import { sendInviteEmail } from "../_shared/invite_email.ts";
 // send-driver-invite -- an LGU administrator invites a new driver by email.
 //
 // See .pipeline/specs.md Spec 20. Mirrors send-admin-invite (Spec 19)
@@ -25,58 +27,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_ADDRESS = "ArangCada <services@info.arangcada.app>";
 const ADMIN_WEB_BASE_URL = "https://admin.arangcada.app";
-
-// "*" rather than a specific origin -- this function's own JWT/RPC checks
-// are the real authorization boundary, not CORS. See send-admin-invite for
-// the fuller version of this reasoning.
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", ...CORS_HEADERS },
-  });
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-async function sendInviteEmail(email: string, link: string): Promise<void> {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_ADDRESS,
-      to: [email],
-      subject: "You're invited to drive for ArangCada",
-      html:
-        `<p>You've been invited to create an ArangCada driver account.</p>` +
-        `<p><a href="${escapeHtml(link)}">Accept the invite and create your account</a></p>` +
-        `<p>This link is for one-time use and expires in 7 days. If you were not expecting ` +
-        `this invite, you can ignore this email.</p>`,
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error(`send-driver-invite: Resend rejected the send (HTTP ${response.status})`, detail);
-    throw new Error(`Resend HTTP ${response.status}`);
-  }
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -138,7 +89,7 @@ Deno.serve(async (req: Request) => {
   const link = `${ADMIN_WEB_BASE_URL}/accept-driver-invite?token=${token}`;
 
   try {
-    await sendInviteEmail(email, link);
+    await sendInviteEmail("driver", email, link, RESEND_API_KEY);
   } catch (error) {
     // The invite row already exists (admin_create_driver_invite() committed
     // it) but was never delivered. Not rolled back -- sending the same

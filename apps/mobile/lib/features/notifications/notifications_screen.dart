@@ -55,6 +55,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       if (!mounted) return;
       _refresh();
     }
+    if (!mounted) return;
+    // Same routing PushNotificationService._navigateForData uses when a
+    // tapped push opens the app -- driver-targeted notifications land on /driver,
+    // commuter notifications land on /trips where the existing per-status
+    // "Resume" button takes over.
+    final targetRole = item.data['target_role'] as String?;
+    final route = switch (targetRole) {
+      'driver' => '/driver',
+      'commuter' => '/trips',
+      _ => switch (item.data['type']) {
+        'ride_offer' || 'ride_cancelled' || 'ride_expired' => '/driver',
+        _ => '/trips',
+      },
+    };
+    GoRouter.maybeOf(context)?.go(route);
   }
 
   static IconData _iconFor(AppNotificationRecord item) =>

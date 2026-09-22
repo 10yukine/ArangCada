@@ -1,3 +1,5 @@
+import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
+import { sendInviteEmail } from "../_shared/invite_email.ts";
 // send-admin-invite -- an LGU administrator invites a new LGU or TODA admin.
 //
 // See .pipeline/specs.md Spec 19.
@@ -21,68 +23,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_ADDRESS = "ArangCada <services@info.arangcada.app>";
 const ADMIN_WEB_BASE_URL = "https://admin.arangcada.app";
-
-// Never actually invoked from a browser until this feature -- see
-// admin-onboard-driver, which has this exact same gap and went undetected
-// for the same reason (zero real callers). Supabase Edge Functions do not
-// add CORS headers on their own; without these, the browser blocks the
-// response before Flutter ever sees it, even though the function itself
-// ran successfully server-side -- which is exactly what made this
-// confusing to diagnose (a direct API call with no browser involved
-// worked fine the whole time). "*" rather than a specific origin because
-// this function's own JWT/RPC checks are the real authorization boundary,
-// not CORS -- a wildcard here does not widen who can actually act, only
-// who can read the response in a browser tab, and locking it to
-// admin.arangcada.app would also break local `flutter run -d chrome`
-// development against the hosted project.
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", ...CORS_HEADERS },
-  });
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-async function sendInviteEmail(email: string, link: string): Promise<void> {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_ADDRESS,
-      to: [email],
-      subject: "You're invited to the ArangCada admin console",
-      html:
-        `<p>You've been invited to create an ArangCada LGU/TODA administrator account.</p>` +
-        `<p><a href="${escapeHtml(link)}">Accept the invite and create your account</a></p>` +
-        `<p>This link is for one-time use and expires in 7 days. If you were not expecting ` +
-        `this invite, you can ignore this email.</p>`,
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error(`send-admin-invite: Resend rejected the send (HTTP ${response.status})`, detail);
-    throw new Error(`Resend HTTP ${response.status}`);
-  }
-}
 
 Deno.serve(async (req: Request) => {
   // The browser's CORS preflight -- must return before any auth/config
@@ -153,7 +94,7 @@ Deno.serve(async (req: Request) => {
   const link = `${ADMIN_WEB_BASE_URL}/accept-invite?token=${token}`;
 
   try {
-    await sendInviteEmail(email, link);
+    await sendInviteEmail("admin", email, link, RESEND_API_KEY);
   } catch (error) {
     // The invite row already exists at this point (admin_create_invite()
     // committed it), but it was never delivered. Not rolled back -- sending

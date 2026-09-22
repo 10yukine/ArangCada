@@ -114,6 +114,10 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
     final key = _key(from, to);
     // Collapse concurrent identical requests instead of racing the API.
     if (_inFlight != null && _inFlightKey == key) return _inFlight!;
+    if (_inFlight != null) {
+      // Recheck cache and quota after the current request completes.
+      return _inFlight!.then((_) => route(from: from, to: to));
+    }
 
     _inFlightKey = key;
     final future = _request(from, to)

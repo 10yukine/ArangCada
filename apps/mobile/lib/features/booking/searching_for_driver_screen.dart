@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,9 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
+import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/map/live_map_view.dart';
+import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
@@ -28,7 +31,9 @@ class SearchingForDriverScreen extends ConsumerStatefulWidget {
 class _SearchingForDriverScreenState
     extends ConsumerState<SearchingForDriverScreen> {
   DemoSimulationRun? _matchRun;
-  bool _liveListenerAttached = false;
+  DemoState? _liveState;
+  Timer? _retryTimer;
+  bool _retryInFlight = false;
   bool _navigated = false;
 
   @override
@@ -48,7 +53,11 @@ class _SearchingForDriverScreenState
       // showing, so the listener must not depend on catching one specific
       // status at one specific instant.
       state.addListener(_handleLiveTripChange);
-      _liveListenerAttached = true;
+      _liveState = state;
+      _retryTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => unawaited(_retryLiveDispatch()),
+      );
       // The transition may already have happened before the listener above
       // was wired up (the same race, closed). Checked once via a
       // post-frame callback, not synchronously here -- _handleLiveTripChange
@@ -59,7 +68,9 @@ class _SearchingForDriverScreenState
       // elsewhere in this app. Deferring one frame matches the pattern
       // SplashScreen already uses for the same reason.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _handleLiveTripChange();
+        if (!mounted) return;
+        _handleLiveTripChange();
+        unawaited(_retryLiveDispatch());
       });
     } else if (state.activeBooking?.status == BookingStatus.searching) {
       // The scripted demo simulation is deterministic, so gating it on the
@@ -68,6 +79,29 @@ class _SearchingForDriverScreenState
       _matchRun = ref
           .read(demoSimulationServiceProvider)
           .scheduleDriverMatch(state: state, onMatched: _onMatched);
+    }
+  }
+
+  Future<void> _retryLiveDispatch() async {
+    if (!mounted || _retryInFlight || _navigated) return;
+    final rides = ref.read(liveRideRepositoryProvider);
+    final trip = rides?.activeTrip;
+    final status = trip?['status'];
+    if (status != 'searching_driver' && status != 'driver_assigned') return;
+    _retryInFlight = true;
+    try {
+      if (status == 'searching_driver') {
+        await rides!.retryDispatch();
+      } else {
+        final deadline = DateTime.tryParse(trip?['accept_by'] as String? ?? '');
+        if (deadline != null && DateTime.now().toUtc().isAfter(deadline)) {
+          await rides!.expireRide();
+        }
+      }
+    } on Exception {
+      // Realtime may recover independently; the next tick retries the search.
+    } finally {
+      _retryInFlight = false;
     }
   }
 
@@ -99,9 +133,8 @@ class _SearchingForDriverScreenState
 
   @override
   void dispose() {
-    if (_liveListenerAttached) {
-      ref.read(demoStateProvider).removeListener(_handleLiveTripChange);
-    }
+    _retryTimer?.cancel();
+    _liveState?.removeListener(_handleLiveTripChange);
     _matchRun?.cancel();
     super.dispose();
   }
@@ -160,6 +193,21 @@ class _SearchingForDriverScreenState
         listenable: state,
         builder: (context, _) {
           final booking = state.activeBooking;
+          if (ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] ==
+              'no_driver_available') {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: EmptyStateCard(
+                  icon: Icons.no_transfer_outlined,
+                  title: 'No drivers available right now',
+                  message: 'Try again later or choose a different pickup.',
+                  actionLabel: 'Book another ride',
+                  onAction: () => context.go('/home'),
+                ),
+              ),
+            );
+          }
           if (booking == null || booking.status != BookingStatus.searching) {
             return const Center(child: Text('No active driver search.'));
           }

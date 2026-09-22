@@ -173,8 +173,7 @@ final notificationsRepositoryProvider = Provider<NotificationsRepository>((
 
 final liveRideRepositoryProvider = Provider<SupabaseRideRepository?>((ref) {
   final client = _supabaseClient();
-  final state = ref.watch(demoStateProvider);
-  final account = state.currentUser;
+  final account = ref.watch(demoStateProvider.select((s) => s.currentUser));
   if (client == null ||
       account == null ||
       account.isDemoAccount ||
@@ -184,10 +183,19 @@ final liveRideRepositoryProvider = Provider<SupabaseRideRepository?>((ref) {
   }
   final repository = SupabaseRideRepository(
     client,
-    state,
+    ref.read(demoStateProvider),
     ref.read(locationRepositoryProvider),
     ref.read(fareRepositoryProvider),
   );
+  ref.onDispose(repository.dispose);
+  return repository;
+});
+
+final localChatRepositoryProvider = Provider<LocalChatRepository>((ref) {
+  final sampleEnabled = ref.watch(
+    demoStateProvider.select((s) => s.sampleContentEnabled),
+  );
+  final repository = LocalChatRepository(sampleContent: sampleEnabled);
   ref.onDispose(repository.dispose);
   return repository;
 });
@@ -197,9 +205,7 @@ final liveRideRepositoryProvider = Provider<SupabaseRideRepository?>((ref) {
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   final rides = ref.watch(liveRideRepositoryProvider);
   if (rides == null) {
-    final repository = LocalChatRepository();
-    ref.onDispose(repository.dispose);
-    return repository;
+    return ref.watch(localChatRepositoryProvider);
   }
   final repository = SupabaseChatRepository(_supabaseClient()!, rides);
   ref.onDispose(repository.dispose);

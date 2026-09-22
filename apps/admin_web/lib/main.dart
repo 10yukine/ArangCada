@@ -249,13 +249,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       await ref.read(adminProvider.notifier).connect(session);
       if (mounted) auth.value = session;
-    } on AuthException catch (error) {
-      if (mounted) setState(() => signInError = error.message);
     } catch (_) {
       if (mounted) {
         setState(
           () => signInError =
-              'This account is not an active administrator, or its assigned scope could not be loaded.',
+              'Unable to sign in. Check your credentials and try again.',
         );
       }
     } finally {

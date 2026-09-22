@@ -227,6 +227,15 @@ class PushNotificationService {
   static void _navigateForData(Map<String, dynamic> data) {
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
+    final targetRole = data['target_role'] as String?;
+    if (targetRole == 'commuter') {
+      GoRouter.of(context).go('/trips');
+      return;
+    }
+    if (targetRole == 'driver') {
+      GoRouter.of(context).go('/driver');
+      return;
+    }
     final type = data['type'] as String?;
     switch (type) {
       case 'ride_offer':

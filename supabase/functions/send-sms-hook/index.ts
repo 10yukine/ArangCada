@@ -9,16 +9,14 @@
 // TWO MODES. GET THIS RIGHT BEFORE THE PILOT.
 // ============================================================================
 //
-//   SMS_HOOK_MODE=stub  (default)  Logs the OTP. Sends NOTHING.
+//   SMS_HOOK_MODE=stub             Sends nothing; logs no OTP.
 //   SMS_HOOK_MODE=live             Sends via Semaphore. Logs no code.
 //
 // Stub mode exists so the whole registration flow is testable without spending
 // credits or waiting on a sender-name approval.
 //
-// Stub mode is SAFE IN DEVELOPMENT AND CATASTROPHIC IN PRODUCTION: anyone who
-// can read the function logs can read every user's OTP. The default is stub
-// deliberately -- a misconfigured deploy fails closed by not sending, which is
-// a visible bug, rather than failing open by sending real codes.
+// An unset or unknown mode rejects delivery. Stub mode must be explicitly
+// selected for development and never records authentication codes.
 //
 // Flipping to live is on the pre-beta checklist. See
 // .pipeline/PRE_BETA_CHECKLIST.md item 2.
@@ -63,7 +61,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 // moment the endpoint was secured rather than when the code was written.
 import { Buffer } from 'node:buffer'
 
-const MODE = (Deno.env.get('SMS_HOOK_MODE') ?? 'stub').toLowerCase()
+const MODE = (Deno.env.get('SMS_HOOK_MODE') ?? 'disabled').toLowerCase()
 const HOOK_SECRET = Deno.env.get('SEND_SMS_HOOK_SECRET') ?? ''
 const SEMAPHORE_KEY = Deno.env.get('SEMAPHORE_API_KEY') ?? ''
 const SEMAPHORE_SENDER = Deno.env.get('SEMAPHORE_SENDER_NAME') ?? ''
@@ -154,6 +152,7 @@ async function sendViaSemaphore(phone: string, message: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
+      signal: AbortSignal.timeout(10_000),
     },
   )
 
@@ -197,6 +196,13 @@ Deno.serve(async (req) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  if (MODE !== 'live' && MODE !== 'stub') {
+    console.error('send-sms-hook: SMS_HOOK_MODE must be explicitly configured')
+    return new Response(JSON.stringify({ error: { message: 'SMS provider is not configured' } }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const body = await req.text()
 
   // Signature is mandatory in live mode. In stub mode it is checked when a
@@ -231,10 +237,11 @@ Deno.serve(async (req) => {
   // registration in this app, because an account created with email+password
   // has no confirmed phone yet -- and it failed silently, since the branch
   // below used to return 400 without logging.
-  const phone = payload.user?.new_phone || payload.user?.phone || ''
-  const otp = payload.sms?.otp ?? ''
+  const phone = payload?.user?.new_phone || payload?.user?.phone || ''
+  const otp = payload?.sms?.otp ?? ''
 
-  if (!phone || !otp) {
+  if (typeof phone !== 'string' || !/^\+?639\d{9}$/.test(phone) ||
+      typeof otp !== 'string' || !/^\d{6}$/.test(otp)) {
     console.error(
       `send-sms-hook: payload missing ${!phone ? 'phone' : ''}` +
         `${!phone && !otp ? ' and ' : ''}${!otp ? 'otp' : ''}`,
@@ -253,10 +260,9 @@ Deno.serve(async (req) => {
 
   if (MODE !== 'live') {
     // ---- STUB MODE -------------------------------------------------------
-    // The code is printed so a developer can complete the flow without a
-    // gateway. This is the line that must never run in production.
+    // Keep the delivery diagnostic without exposing an authentication code.
     console.log(
-      `[send-sms-hook][STUB] no SMS sent. to=${maskPhone(phone)} OTP=${otp} ` +
+      `[send-sms-hook][STUB] no SMS sent. to=${maskPhone(phone)} OTP=[REDACTED] ` +
         `user=${payload.user?.id ?? 'unknown'}`,
     )
     return new Response(JSON.stringify({}), {

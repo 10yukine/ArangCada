@@ -6,7 +6,28 @@ The system digitizes the manual tricycle *pila* process through mobile booking, 
 
 ## Status
 
-**Pre-implementation.** The design phase (Figma mockups) is complete/ongoing in a separate local planning workspace. This repository holds the project documentation and will hold the Flutter application once implementation mode starts.
+The Flutter mobile app, Flutter Web admin console, static tracking page, and Supabase backend are implemented. Work is in internal testing and verification; this is not a production-readiness claim.
+
+## Repository map
+
+- `apps/mobile`: commuter and driver Flutter app; owns its dependencies, lint rules, and tests.
+- `apps/admin_web`: Flutter Web console. Feature screens live in `lib/screens`; `lib/screens.dart` preserves existing imports.
+- `apps/track_web`: static HTML/CSS/JavaScript tracking page with Node tests.
+- `apps/web`: static public information and legal pages.
+- `supabase/functions`: Edge Functions; shared HTTP and invitation transport lives in `_shared`.
+- `supabase/migrations` and `supabase/tests`: ordered SQL migrations and pgTAP coverage.
+
+## Local verification
+
+Run `flutter analyze` and the relevant `flutter test` paths from the affected Flutter app directory. Run `npm test` from `apps/track_web`. Edge transport tests use Deno with mocked provider requests:
+
+```sh
+deno test --allow-env --allow-read=supabase/functions supabase/functions/_shared/transport_test.ts supabase/functions/admin-onboard-driver/lib_test.ts supabase/functions/send-sms-hook/index_test.ts
+```
+
+The database test runner rebuilds its target database. Inspect `scripts/run_db_tests.sh` and explicitly select a disposable local database before using it. Live schema changes are not part of local verification.
+
+Deployment configuration lives in each site's `wrangler.jsonc` and in `supabase/config.toml`. No GitHub Actions workflow files are committed in this repository.
 
 ## Stack (3-month internal MVP)
 

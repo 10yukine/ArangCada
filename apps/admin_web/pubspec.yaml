@@ -39,7 +39,6 @@ dependencies:
   image_picker: ^1.2.3
   maplibre_gl: ^0.26.2
   supabase_flutter: ^2.16.0
-  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

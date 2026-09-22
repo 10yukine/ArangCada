@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/format/money_format.dart';
 import '../../core/widgets/dashboard_back_button.dart';
 import '../../core/widgets/empty_state_card.dart';
+import '../../core/widgets/report_issue_sheet.dart';
+import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
@@ -67,9 +70,7 @@ class TripsScreen extends ConsumerWidget {
                   final status = trip['status'] as String;
                   final completed = status == 'completed';
                   final driverCancelled = status == 'cancelled_by_driver';
-                  final route = isDriver
-                      ? '/driver'
-                      : completed
+                  final route = completed
                       ? '/receipt'
                       : driverCancelled
                       ? '/home'
@@ -97,7 +98,30 @@ class TripsScreen extends ConsumerWidget {
                         '${trip['pickup_label'] ?? 'Pickup'} → '
                         '${trip['destination_label'] ?? 'Destination'}',
                     buttonLabel: completed ? 'View Summary' : 'View',
-                    onButtonPressed: () => context.go(route),
+                    onButtonPressed: () {
+                      if (isDriver && completed) {
+                        final rawCentavos = trip['fare_centavos'];
+                        final rawPesos = trip['fare_pesos'];
+                        final fare = rawCentavos != null
+                            ? formatCentavos((rawCentavos as num).toInt())
+                            : (rawPesos != null ? '₱$rawPesos.00' : '₱50.00');
+                        _showDriverTripSummarySheet(
+                          context,
+                          ref,
+                          route:
+                              '${trip['pickup_label'] ?? 'Pickup'} → '
+                              '${trip['destination_label'] ?? 'Destination'}',
+                          passengerName:
+                              trip['passenger_name'] as String? ?? 'Passenger',
+                          fare: fare,
+                          reference:
+                              trip['receipt_ref'] as String? ??
+                              trip['id'] as String?,
+                        );
+                      } else {
+                        context.go(route);
+                      }
+                    },
                   );
                 },
               );
@@ -138,7 +162,20 @@ class TripsScreen extends ConsumerWidget {
                     buttonLabel: status == DriverTripStatus.completed
                         ? 'View Summary'
                         : 'Resume',
-                    onButtonPressed: () => context.go('/driver'),
+                    onButtonPressed: () {
+                      if (status == DriverTripStatus.completed) {
+                        _showDriverTripSummarySheet(
+                          context,
+                          ref,
+                          route: 'Calamba Crossing → SM Calamba',
+                          passengerName: 'Joshua Ramos',
+                          fare: '₱50.00',
+                          reference: 'SBX-RIDE-024',
+                        );
+                      } else {
+                        context.go('/driver');
+                      }
+                    },
                   ),
                 ],
               );
@@ -396,6 +433,135 @@ class _SampleTripTile extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
         ),
       ],
+    );
+  }
+}
+
+void _showDriverTripSummarySheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String route,
+  required String passengerName,
+  required String fare,
+  String? reference,
+  String? date,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.green,
+                  size: 28,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Trip summary',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SectionCard(
+              child: Column(
+                children: [
+                  _SummaryRow(label: 'Passenger', value: passengerName),
+                  _SummaryRow(label: 'Route', value: route),
+                  if (date != null) _SummaryRow(label: 'Date', value: date),
+                  if (reference != null)
+                    _SummaryRow(label: 'Reference', value: reference),
+                  const Divider(height: AppSpacing.lg),
+                  _SummaryRow(
+                    label: 'Fare collected',
+                    value: fare,
+                    emphasize: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+              ),
+              onPressed: () => Navigator.pop(sheetContext),
+              child: const Text('Close'),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  showReportIssueFlow(
+                    context: context,
+                    driver: true,
+                    onSubmit:
+                        ref.read(liveRideRepositoryProvider)?.createComplaint,
+                  );
+                },
+                child: const Text('Report an issue with this trip'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: emphasize
+                  ? Theme.of(context).textTheme.headlineSmall
+                  : Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

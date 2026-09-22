@@ -172,111 +172,120 @@ class _DestinationSearchScreenState
     final hasQuery = _controller.text.trim().length >= 3;
     final canChoosePickup = state.currentUser?.canChoosePickup ?? false;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.selectOnly
-              ? 'Save a place'
-              : widget.pickingPickup
-              ? 'Choose pickup'
-              : 'Choose destination',
+    return ListenableBuilder(
+      listenable: state,
+      builder: (context, _) => Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.selectOnly
+                ? 'Save a place'
+                : widget.pickingPickup
+                ? 'Choose pickup'
+                : 'Choose destination',
+          ),
         ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: ArangCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    if (!widget.selectOnly)
-                      ArangRow(
-                        icon: Icons.my_location,
-                        title: state.pickup.name,
-                        subtitle: canChoosePickup && !widget.pickingPickup
-                            ? 'Pickup · tap to change'
-                            : 'Pickup',
-                        iconBackground: AppColors.greenFill,
-                        iconForeground: AppColors.green,
-                        showChevron: canChoosePickup && !widget.pickingPickup,
-                        showDivider: true,
-                        onTap: canChoosePickup && !widget.pickingPickup
-                            ? () => context.push('/home/choose-pickup')
-                            : null,
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                      child: TextField(
-                        controller: _controller,
-                        autofocus: false,
-                        textInputAction: TextInputAction.search,
-                        onChanged: _onChanged,
-                        decoration: InputDecoration(
-                          hintText: 'Search for a place in Calamba',
-                          prefixIcon: const Icon(Icons.search, size: 20),
-                          suffixIcon: _controller.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear',
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () {
-                                    _controller.clear();
-                                    _onChanged('');
-                                  },
-                                ),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: ArangCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      if (!widget.selectOnly)
+                        ArangRow(
+                          icon: Icons.my_location,
+                          title: state.pickup.name,
+                          subtitle: canChoosePickup && !widget.pickingPickup
+                              ? 'Pickup · tap to change'
+                              : 'Pickup',
+                          iconBackground: AppColors.greenFill,
+                          iconForeground: AppColors.green,
+                          showChevron: canChoosePickup && !widget.pickingPickup,
+                          showDivider: true,
+                          onTap: canChoosePickup && !widget.pickingPickup
+                              ? () => context.push('/home/choose-pickup')
+                              : null,
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                        child: TextField(
+                          controller: _controller,
+                          autofocus: false,
+                          textInputAction: TextInputAction.search,
+                          onChanged: _onChanged,
+                          decoration: InputDecoration(
+                            hintText: 'Search for a place in Calamba',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _controller.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear',
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () {
+                                      _controller.clear();
+                                      _onChanged('');
+                                    },
+                                  ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (!widget.selectOnly)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ArangButton(
-                        label: _locating ? 'Locating…' : 'Use current location',
-                        icon: Icons.gps_fixed,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: _locating ? null : _useCurrentLocation,
+              if (!widget.selectOnly)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ArangButton(
+                          label: _locating
+                              ? 'Locating…'
+                              : 'Use current location',
+                          icon: Icons.gps_fixed,
+                          variant: ArangButtonVariant.ghost,
+                          onPressed: _locating ? null : _useCurrentLocation,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: ArangButton(
-                        label: 'Pin on map',
-                        icon: Icons.place_outlined,
-                        variant: ArangButtonVariant.ghost,
-                        onPressed: () => context.push('/home/pin-on-map'),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: ArangButton(
+                          label: 'Pin on map',
+                          icon: Icons.place_outlined,
+                          variant: ArangButtonVariant.ghost,
+                          onPressed: () => context.push('/home/pin-on-map'),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: hasQuery
+                    ? _ResultsList(
+                        searching: _searching,
+                        error: _error,
+                        results: _results,
+                        onSelect: (p) =>
+                            _choose(p.name, p.context, p.coordinate),
+                      )
+                    : _Accelerators(
+                        savedPlaces: ref
+                            .watch(savedPlacesRepositoryProvider)
+                            .places,
+                        onSelect: (place) => _choose(
+                          place.name,
+                          place.address,
+                          place.coordinate,
+                        ),
+                      ),
               ),
-            const SizedBox(height: AppSpacing.sm),
-            Expanded(
-              child: hasQuery
-                  ? _ResultsList(
-                      searching: _searching,
-                      error: _error,
-                      results: _results,
-                      onSelect: (p) => _choose(p.name, p.context, p.coordinate),
-                    )
-                  : _Accelerators(
-                      savedPlaces: ref
-                          .watch(savedPlacesRepositoryProvider)
-                          .places,
-                      onSelect: (place) =>
-                          _choose(place.name, place.address, place.coordinate),
-                    ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

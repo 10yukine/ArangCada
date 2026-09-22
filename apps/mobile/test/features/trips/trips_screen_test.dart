@@ -2,6 +2,7 @@ import 'package:arangcada/app/theme/app_theme.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
+import 'package:arangcada/domain/state/driver_trip_state_machine.dart';
 import 'package:arangcada/features/trips/trips_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,4 +72,45 @@ void main() {
     expect(find.text('₱15.00'), findsOneWidget);
     expect(find.text('₱60.00'), findsNWidgets(2));
   });
+
+  testWidgets(
+    'tapping View Summary on a completed driver trip opens trip summary sheet',
+    (tester) async {
+      final state = DemoState(
+        initialUser: const DemoUser(
+          email: 'driver@arangcada.demo',
+          displayName: 'Mang Ben D.',
+          role: DemoRole.driver,
+        ),
+      );
+      state.driverTrip.status = DriverTripStatus.completed;
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [demoStateProvider.overrideWithValue(state)],
+          child: MaterialApp(theme: AppTheme.light, home: const TripsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Completed driver trip'), findsOneWidget);
+      expect(find.text('View Summary'), findsOneWidget);
+
+      await tester.tap(find.text('View Summary'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trip summary'), findsOneWidget);
+      expect(find.text('Joshua Ramos'), findsOneWidget);
+      expect(find.text('Calamba Crossing → SM Calamba'), findsOneWidget);
+      expect(find.text('₱50.00'), findsOneWidget);
+      expect(find.text('Report an issue with this trip'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trip summary'), findsNothing);
+    },
+  );
 }
