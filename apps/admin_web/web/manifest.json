@@ -1,11 +1,11 @@
 {
-    "name": "arangcada_admin",
-    "short_name": "arangcada_admin",
+    "name": "ArangCada Admin",
+    "short_name": "ArangCada Admin",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F6F9FD",
     "theme_color": "#1262D0",
-    "description": "A new Flutter project.",
+    "description": "ArangCada LGU and TODA administration console.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
