@@ -22,9 +22,6 @@ HTML_TEMPLATE = """<!doctype html>
 <meta name="theme-color" content="#1262D0">
 <link rel="canonical" href="{canonical_url}">
 <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 
 <!-- Open Graph / Facebook / Messenger -->

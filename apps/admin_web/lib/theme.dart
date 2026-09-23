@@ -88,7 +88,7 @@ ThemeData adminTheme({Brightness brightness = Brightness.light}) {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: background,
-    fontFamily: 'Roboto',
+    fontFamily: 'Fredoka',
     textTheme: TextTheme(
       displaySmall: TextStyle(fontSize: 40, height: 1.1, fontWeight: FontWeight.w600, letterSpacing: -1.5, color: ink),
       headlineLarge: TextStyle(fontSize: 30, height: 1.2, fontWeight: FontWeight.w600, letterSpacing: -.8, color: ink),

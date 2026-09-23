@@ -1,10 +1,11 @@
-/* Public ride-tracking page.
- *
- * Written for a low-end Android phone on mobile data. No web font is loaded --
- * the app's Fredoka would be an extra download for a page someone opens once,
- * so this uses the system font stack instead. Colours are lifted from
- * apps/mobile/lib/app/theme/app_colors.dart so the page still looks like the
- * product. */
+/* Self-hosted branding keeps tracking tokens away from font providers. */
+@font-face {
+  font-family: Fredoka;
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/assets/fonts/Fredoka-Variable.ttf') format('truetype');
+}
 
 :root {
   --ink: #0F1A28;
@@ -20,7 +21,8 @@
   --amber-fill: #FCEFD6;
   --danger: #C22F26;
   --danger-fill: #FCEAE8;
-  --radius: 16px;
+  --radius: 12px;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -48,7 +50,7 @@ html, body {
   background: var(--primary-deep);
   color: #fff;
 }
-.brand { font-weight: 700; letter-spacing: 0.2px; }
+.brand { font-family: Fredoka, sans-serif; font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
 .bar-sub { font-size: 13px; opacity: 0.85; }
 
 .panel {
@@ -68,7 +70,7 @@ html, body {
 
 /* ---- text -------------------------------------------------------------- */
 
-h1 { font-size: 21px; margin: 14px 0 8px; }
+h1 { font-family: Fredoka, sans-serif; font-size: clamp(26px, 4vw, 36px); font-weight: 600; line-height: 1.2; margin: 20px 0 12px; }
 .muted { color: var(--text-secondary); }
 .small { font-size: 13px; }
 
@@ -91,7 +93,7 @@ h1 { font-size: 21px; margin: 14px 0 8px; }
   gap: 10px;
   margin-bottom: 12px;
 }
-.status-text { font-size: 17px; font-weight: 600; }
+.status-text { font-family: Fredoka, sans-serif; font-size: 22px; font-weight: 500; }
 
 .dot {
   width: 10px;
@@ -158,11 +160,9 @@ h1 { font-size: 21px; margin: 14px 0 8px; }
 /* ---- cards ------------------------------------------------------------- */
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 6px 14px;
-  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+  margin-bottom: 16px;
 }
 
 .row {
@@ -202,7 +202,7 @@ h1 { font-size: 21px; margin: 14px 0 8px; }
 .icon-circle {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
+  border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   display: flex;
@@ -218,10 +218,8 @@ h1 { font-size: 21px; margin: 14px 0 8px; }
   color: var(--text-muted);
   font-size: 12.5px;
   line-height: 1.5;
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-left: 3px solid var(--border);
+  padding: 8px 14px;
   margin-top: 4px;
 }
 
@@ -243,4 +241,26 @@ h1 { font-size: 21px; margin: 14px 0 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
+}
+
+.bar { flex-wrap: wrap; padding: 18px max(20px, calc((100vw - 1120px) / 2)); }
+.route-text, .row > * { min-width: 0; overflow-wrap: anywhere; }
+.panel { padding-top: 32px; }
+#state-active { max-width: 1120px; }
+a { color: var(--primary); text-underline-offset: 4px; }
+a:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; }
+.foot a { display: inline-block; padding: 14px 10px; }
+@media (min-width: 840px) {
+  #state-active { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 0 32px; }
+  #status-row { grid-column: 1 / -1; margin-bottom: 24px; }
+  #map { grid-column: 1; grid-row: 2 / 5; height: 480px; }
+  #position-age { grid-column: 1; grid-row: 5; }
+  #state-active > .card { grid-column: 2; }
+  #state-active > .privacy-note { grid-column: 2; grid-row: 4; }
+  #reconnecting { grid-column: 1 / -1; grid-row: 6; }
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; --ink: #edf3fc; --text-secondary: #d4dfee; --text-muted: #adbdd2; --screen-bg: #0d1725; --surface: #152235; --border: #304159; --primary: #8ab9ff; --green: #83d9b6; --amber-text: #f6d68d; --amber-fill: #3c3017; --danger: #ffaba6; --danger-fill: #492623; }
+  #map { background: #203047; }
+  .skeleton { background: linear-gradient(90deg, #152235 25%, #203047 37%, #152235 63%); background-size: 400% 100%; }
 }
