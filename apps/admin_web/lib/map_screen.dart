@@ -20,7 +20,6 @@ class LiveMapScreen extends ConsumerStatefulWidget {
 
 class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   static const mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
-  static const boundarySource = 'toda-boundaries';
   static const rideSource = 'active-rides';
   static const osmStyle = '''{
     "version": 8,
@@ -64,27 +63,6 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       )
       .toList();
 
-  Map<String, dynamic> boundaryGeoJson(AdminState state) => {
-    'type': 'FeatureCollection',
-    'features': [
-      for (final boundary in state.boundaries)
-        if (auth.value?.role == AdminRole.lgu ||
-            boundary.name == auth.value?.toda)
-          {
-            'type': 'Feature',
-            'id': boundary.name,
-            'properties': {
-              'name': boundary.name,
-              'color': '#${boundary.color.toRadixString(16).substring(2)}',
-            },
-            'geometry': {
-              'type': 'Polygon',
-              'coordinates': [boundary.coordinates],
-            },
-          },
-    ],
-  };
-
   Map<String, dynamic> rideGeoJson(String? selected) => {
     'type': 'FeatureCollection',
     'features': [
@@ -127,21 +105,6 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     if (controller == null) return;
     try {
       final state = ref.read(adminProvider);
-      await controller.addGeoJsonSource(
-        boundarySource,
-        boundaryGeoJson(state),
-        promoteId: 'name',
-      );
-      await controller.addFillLayer(
-        boundarySource,
-        'toda-fill',
-        const FillLayerProperties(
-          fillColor: ['get', 'color'],
-          fillOpacity: .18,
-          fillOutlineColor: ['get', 'color'],
-        ),
-        enableInteraction: true,
-      );
       await controller.addGeoJsonSource(
         rideSource,
         rideGeoJson(state.selectedRide),
@@ -256,35 +219,10 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         PageHeading(
           title: 'Live dispatch map',
           subtitle: state.connected
-              ? 'Inspect live commuter requests, driver GPS, and server-scoped TODA jurisdictions.'
-              : 'Inspect synthetic ride positions and evaluation-only TODA overlays.',
+              ? 'Inspect live commuter requests and driver GPS.'
+              : 'Inspect synthetic ride positions and driver GPS.',
         ),
         const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: context.adminColor(AdminColors.warningTint),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: context.adminColor(AdminColors.warning).withValues(alpha: .25),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: context.adminColor(AdminColors.warning)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  state.connected
-                      ? 'TODA boundaries are read-only server records. The SJVTODA developer-test polygon is provisional; only trusted server dispatch determines ride eligibility.'
-                      : 'Prototype boundary · evaluation only. These polygons are not authoritative and must never determine ride eligibility.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
             final stack = constraints.maxWidth < 980;
