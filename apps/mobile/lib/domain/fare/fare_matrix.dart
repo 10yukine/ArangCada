@@ -98,42 +98,99 @@ abstract final class FareMatrix {
     20: 16300,
   };
 
-  static Map<int, int> publishedRows(
+  static FareStrategy strategyFor(
     RideType rideType,
     DiscountClass discountClass,
   ) {
-    return switch ((rideType, discountClass)) {
-      (RideType.pooling, DiscountClass.full) => poolingFullCentavos,
-      (RideType.pooling, DiscountClass.discounted) => poolingDiscountedCentavos,
-      (RideType.special, DiscountClass.full) => specialFullCentavos,
-      (RideType.special, DiscountClass.discounted) => specialDiscountedCentavos,
-    };
+    final strategy = _fareStrategies[(rideType, discountClass)];
+    if (strategy == null) {
+      throw ArgumentError('Unsupported fare combination');
+    }
+    return strategy;
   }
+
+  static Map<int, int> publishedRows(
+    RideType rideType,
+    DiscountClass discountClass,
+  ) => strategyFor(rideType, discountClass).publishedRows;
 
   static int incrementPast20Centavos(
     RideType rideType,
     DiscountClass discountClass,
-  ) {
-    return switch ((rideType, discountClass)) {
-      (RideType.pooling, DiscountClass.full) => 200,
-      (RideType.pooling, DiscountClass.discounted) => 160,
-      (RideType.special, DiscountClass.full) => 800,
-      (RideType.special, DiscountClass.discounted) => 640,
-    };
-  }
+  ) => strategyFor(rideType, discountClass).incrementPast20Centavos;
 
   static int fareForChargeableKm({
     required int chargeableKm,
     required RideType rideType,
     required DiscountClass discountClass,
-  }) {
+  }) => strategyFor(rideType, discountClass).fareForChargeableKm(chargeableKm);
+}
+
+/// Strategy contract for one fare rule combination.
+///
+/// Each concrete strategy keeps the published fare table and its extrapolation
+/// increment together so FareMatrix does not duplicate selection logic.
+abstract class FareStrategy {
+  const FareStrategy();
+
+  Map<int, int> get publishedRows;
+  int get incrementPast20Centavos;
+
+  int fareForChargeableKm(int chargeableKm) {
     if (chargeableKm < 2) {
       throw ArgumentError.value(chargeableKm, 'chargeableKm', 'Must be >= 2');
     }
-    final rows = publishedRows(rideType, discountClass);
-    if (chargeableKm <= printedMaxKm) return rows[chargeableKm]!;
-    return rows[printedMaxKm]! +
-        (chargeableKm - printedMaxKm) *
-            incrementPast20Centavos(rideType, discountClass);
+
+    const maxKm = FareMatrix.printedMaxKm;
+    final rows = publishedRows;
+    if (chargeableKm <= maxKm) return rows[chargeableKm]!;
+    return rows[maxKm]! + (chargeableKm - maxKm) * incrementPast20Centavos;
   }
 }
+
+class PoolingFullFare extends FareStrategy {
+  const PoolingFullFare();
+
+  @override
+  Map<int, int> get publishedRows => FareMatrix.poolingFullCentavos;
+
+  @override
+  int get incrementPast20Centavos => 200;
+}
+
+class PoolingDiscountedFare extends FareStrategy {
+  const PoolingDiscountedFare();
+
+  @override
+  Map<int, int> get publishedRows => FareMatrix.poolingDiscountedCentavos;
+
+  @override
+  int get incrementPast20Centavos => 160;
+}
+
+class SpecialFullFare extends FareStrategy {
+  const SpecialFullFare();
+
+  @override
+  Map<int, int> get publishedRows => FareMatrix.specialFullCentavos;
+
+  @override
+  int get incrementPast20Centavos => 800;
+}
+
+class SpecialDiscountedFare extends FareStrategy {
+  const SpecialDiscountedFare();
+
+  @override
+  Map<int, int> get publishedRows => FareMatrix.specialDiscountedCentavos;
+
+  @override
+  int get incrementPast20Centavos => 640;
+}
+
+const _fareStrategies = <(RideType, DiscountClass), FareStrategy>{
+  (RideType.pooling, DiscountClass.full): PoolingFullFare(),
+  (RideType.pooling, DiscountClass.discounted): PoolingDiscountedFare(),
+  (RideType.special, DiscountClass.full): SpecialFullFare(),
+  (RideType.special, DiscountClass.discounted): SpecialDiscountedFare(),
+};

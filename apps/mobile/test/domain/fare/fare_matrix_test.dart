@@ -2,6 +2,25 @@ import 'package:arangcada/domain/fare/fare_matrix.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('every ride type and discount class has a complete fare strategy', () {
+    for (final rideType in RideType.values) {
+      for (final discountClass in DiscountClass.values) {
+        final strategy = FareMatrix.strategyFor(rideType, discountClass);
+        for (var km = 2; km <= FareMatrix.printedMaxKm; km++) {
+          expect(strategy.publishedRows[km], isNotNull);
+          expect(
+            FareMatrix.fareForChargeableKm(
+              chargeableKm: km,
+              rideType: rideType,
+              discountClass: discountClass,
+            ),
+            strategy.publishedRows[km],
+          );
+        }
+      }
+    }
+  });
+
   test('pins all 76 published Ordinance 743 values literally', () {
     const expectedPoolingFull = <int, int>{
       2: 1500,
@@ -98,6 +117,85 @@ void main() {
           FareMatrix.specialFullCentavos.length +
           FareMatrix.specialDiscountedCentavos.length,
       76,
+    );
+  });
+
+  test('selects the expected concrete fare strategy', () {
+    expect(
+      FareMatrix.strategyFor(RideType.pooling, DiscountClass.full),
+      isA<PoolingFullFare>(),
+    );
+    expect(
+      FareMatrix.strategyFor(RideType.pooling, DiscountClass.discounted),
+      isA<PoolingDiscountedFare>(),
+    );
+    expect(
+      FareMatrix.strategyFor(RideType.special, DiscountClass.full),
+      isA<SpecialFullFare>(),
+    );
+    expect(
+      FareMatrix.strategyFor(RideType.special, DiscountClass.discounted),
+      isA<SpecialDiscountedFare>(),
+    );
+  });
+
+  test('strategy delegation preserves published and extrapolated fares', () {
+    expect(
+      FareMatrix.fareForChargeableKm(
+        chargeableKm: 20,
+        rideType: RideType.pooling,
+        discountClass: DiscountClass.full,
+      ),
+      5100,
+    );
+    expect(
+      FareMatrix.fareForChargeableKm(
+        chargeableKm: 21,
+        rideType: RideType.pooling,
+        discountClass: DiscountClass.discounted,
+      ),
+      4260,
+    );
+    expect(
+      FareMatrix.fareForChargeableKm(
+        chargeableKm: 21,
+        rideType: RideType.special,
+        discountClass: DiscountClass.full,
+      ),
+      21200,
+    );
+    expect(
+      FareMatrix.fareForChargeableKm(
+        chargeableKm: 21,
+        rideType: RideType.special,
+        discountClass: DiscountClass.discounted,
+      ),
+      16940,
+    );
+  });
+
+  test('compatibility methods delegate through the same strategy', () {
+    expect(
+      FareMatrix.publishedRows(RideType.special, DiscountClass.discounted),
+      same(FareMatrix.specialDiscountedCentavos),
+    );
+    expect(
+      FareMatrix.incrementPast20Centavos(
+        RideType.special,
+        DiscountClass.discounted,
+      ),
+      640,
+    );
+  });
+
+  test('fare strategies still reject chargeable distance below 2 km', () {
+    expect(
+      () => FareMatrix.fareForChargeableKm(
+        chargeableKm: 1,
+        rideType: RideType.special,
+        discountClass: DiscountClass.full,
+      ),
+      throwsArgumentError,
     );
   });
 }
