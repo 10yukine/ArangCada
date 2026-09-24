@@ -28,7 +28,7 @@ const supportTopics = [
     answer:
         'Choose your destination from Home, check the pickup location, '
         'then follow the ride options and booking review. '
-        'If your location is inaccurate, use Choose pickup to correct it.',
+        'If your location is inaccurate, tap Try again to refresh your GPS.',
     keywords: 'book booking ride pickup destination location gps map',
     role: DemoRole.commuter,
     route: '/home/search',
@@ -39,7 +39,7 @@ const supportTopics = [
     title: 'How do saved places work?',
     answer:
         'Open Saved Places and select Add a Saved Place. Choose a location '
-        'to save it. Saved locations also appear in pickup and destination '
+        'to save it. Saved locations also appear in destination '
         'search. They are stored on this device for your account; '
         'the remove button deletes a saved location.',
     keywords: 'save saved places address favorite favourite remove delete',

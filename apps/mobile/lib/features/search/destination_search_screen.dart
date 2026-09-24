@@ -12,7 +12,6 @@ import '../../core/network/api_exceptions.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/geocoding_repository.dart';
-import '../../data/repositories/location_repository.dart';
 import '../../demo/demo_data.dart';
 import '../../domain/geo/service_area.dart';
 
@@ -51,7 +50,7 @@ class _DestinationSearchScreenState
   List<GeocodedPlace> _results = const [];
   bool _searching = false;
   String? _error;
-  bool _locating = false;
+  int _searchToken = 0;
 
   @override
   void dispose() {
@@ -62,6 +61,7 @@ class _DestinationSearchScreenState
 
   void _onChanged(String value) {
     _debounceTimer?.cancel();
+    _searchToken++;
     if (value.trim().length < 3) {
       setState(() {
         _results = const [];
@@ -71,13 +71,14 @@ class _DestinationSearchScreenState
       return;
     }
     setState(() => _searching = true);
-    _debounceTimer = Timer(_debounce, () => _search(value));
+    final token = _searchToken;
+    _debounceTimer = Timer(_debounce, () => _search(value, token));
   }
 
-  Future<void> _search(String query) async {
+  Future<void> _search(String query, int token) async {
     try {
       final places = await ref.read(geocodingRepositoryProvider).search(query);
-      if (!mounted) return;
+      if (!mounted || token != _searchToken) return;
       final internalTester =
           ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
       setState(() {
@@ -91,7 +92,7 @@ class _DestinationSearchScreenState
         _searching = false;
       });
     } on ApiException catch (error) {
-      if (!mounted) return;
+      if (!mounted || token != _searchToken) return;
       setState(() {
         _error = error.message;
         _searching = false;
@@ -113,69 +114,33 @@ class _DestinationSearchScreenState
     final state = ref.read(demoStateProvider);
     if (widget.pickingPickup) {
       state.setPickup(place);
-      context.pop();
+      if (state.destination != null) {
+        context.go('/home/ride-options');
+      } else {
+        context.pop();
+      }
       return;
     }
     state.setDestination(place);
-    context.go('/home/ride-options');
+    context.go(state.hasPickup ? '/home/ride-options' : '/home/choose-pickup');
   }
 
-  /// Sets the PICKUP from GPS. This is a destination picker, so using the
-  /// device position as the *destination* would be nonsensical -- it would
-  /// book a ride to where the commuter already is.
-  Future<void> _useCurrentLocation() async {
-    setState(() => _locating = true);
-    // Both repositories are captured before the first await, so nothing
-    // touches `ref` after the widget may have been disposed.
-    final locationRepository = ref.read(locationRepositoryProvider);
-    final geocodingRepository = ref.read(geocodingRepositoryProvider);
-    final demoState = ref.read(demoStateProvider);
-    try {
-      final fix = await locationRepository.currentLocation();
-      if (!mounted) return;
-
-      // Reverse geocoding is a label nicety and must not hold the user for the
-      // full network timeout; a coordinate label is an acceptable answer.
-      final place = await geocodingRepository
-          .reverse(fix.coordinate)
-          .timeout(const Duration(seconds: 3), onTimeout: () => null);
-      if (!mounted) return;
-
-      demoState.setPickup(
-        DemoPlace(
-          id: 'gps',
-          name: place?.name ?? 'Current location',
-          address:
-              place?.context ??
-              '${fix.coordinate.latitude.toStringAsFixed(5)}, '
-                  '${fix.coordinate.longitude.toStringAsFixed(5)}',
-          coordinate: fix.coordinate,
-        ),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pickup set to your current location.')),
-      );
-    } on LocationFailure catch (failure) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message)));
-    } finally {
-      if (mounted) setState(() => _locating = false);
-    }
+  Future<void> _pinOnMap() async {
+    final place = await context.push<DemoPlace>('/home/pin-on-map');
+    if (!mounted || place == null) return;
+    _choose(place.name, place.address, place.coordinate);
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     final hasQuery = _controller.text.trim().length >= 3;
-    final canChoosePickup = state.currentUser?.canChoosePickup ?? false;
 
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) => Scaffold(
         appBar: AppBar(
+          leading: const TooltipVisibility(visible: false, child: BackButton()),
           title: Text(
             widget.selectOnly
                 ? 'Save a place'
@@ -186,104 +151,87 @@ class _DestinationSearchScreenState
         ),
         body: SafeArea(
           top: false,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: ArangCard(
-                  padding: EdgeInsets.zero,
+          child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!widget.selectOnly)
-                        ArangRow(
-                          icon: Icons.my_location,
-                          title: state.pickup.name,
-                          subtitle: canChoosePickup && !widget.pickingPickup
-                              ? 'Pickup · tap to change'
-                              : 'Pickup',
-                          iconBackground: AppColors.greenFill,
-                          iconForeground: AppColors.green,
-                          showChevron: canChoosePickup && !widget.pickingPickup,
-                          showDivider: true,
-                          onTap: canChoosePickup && !widget.pickingPickup
-                              ? () => context.push('/home/choose-pickup')
-                              : null,
+                      if (!widget.selectOnly && !widget.pickingPickup)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.my_location,
+                            color: AppColors.primary,
+                          ),
+                          title: Text(
+                            state.hasPickup
+                                ? state.pickup.name
+                                : 'Choose pickup location',
+                          ),
+                          subtitle: const Text('Pickup'),
                         ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                        child: TextField(
-                          controller: _controller,
-                          autofocus: false,
-                          textInputAction: TextInputAction.search,
-                          onChanged: _onChanged,
-                          decoration: InputDecoration(
-                            hintText: 'Search for a place in Calamba',
-                            prefixIcon: const Icon(Icons.search, size: 20),
-                            suffixIcon: _controller.text.isEmpty
-                                ? null
-                                : IconButton(
-                                    tooltip: 'Clear',
-                                    icon: const Icon(Icons.close, size: 18),
-                                    onPressed: () {
-                                      _controller.clear();
-                                      _onChanged('');
-                                    },
-                                  ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _controller,
+                        autofocus: false,
+                        textInputAction: TextInputAction.search,
+                        onChanged: _onChanged,
+                        decoration: InputDecoration(
+                          hintText: widget.pickingPickup
+                              ? 'Search pickup location…'
+                              : 'Search destination in Calamba…',
+                          hintStyle: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          prefixIcon: const Icon(Icons.search, size: 24),
+                          suffixIcon: _controller.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear',
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    _controller.clear();
+                                    _onChanged('');
+                                  },
+                                ),
+                        ),
+                      ),
+                      if (!widget.selectOnly) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            label: const Text('Pin on map'),
+                            icon: const Icon(Icons.place_outlined, size: 18),
+                            onPressed: _pinOnMap,
                           ),
                         ),
-                      ),
+                      ],
+                      const SizedBox(height: 12),
+                      const Divider(),
                     ],
                   ),
                 ),
               ),
-              if (!widget.selectOnly)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ArangButton(
-                          label: _locating
-                              ? 'Locating…'
-                              : 'Use current location',
-                          icon: Icons.gps_fixed,
-                          variant: ArangButtonVariant.ghost,
-                          onPressed: _locating ? null : _useCurrentLocation,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: ArangButton(
-                          label: 'Pin on map',
-                          icon: Icons.place_outlined,
-                          variant: ArangButtonVariant.ghost,
-                          onPressed: () => context.push('/home/pin-on-map'),
-                        ),
-                      ),
-                    ],
-                  ),
+              if (hasQuery)
+                _ResultsList(
+                  searching: _searching,
+                  error: _error,
+                  results: _results,
+                  onSelect: (p) => _choose(p.name, p.context, p.coordinate),
+                )
+              else
+                _Accelerators(
+                  savedPlaces: ref.watch(savedPlacesRepositoryProvider).places,
+                  onSelect: (place) =>
+                      _choose(place.name, place.address, place.coordinate),
                 ),
-              const SizedBox(height: AppSpacing.sm),
-              Expanded(
-                child: hasQuery
-                    ? _ResultsList(
-                        searching: _searching,
-                        error: _error,
-                        results: _results,
-                        onSelect: (p) =>
-                            _choose(p.name, p.context, p.coordinate),
-                      )
-                    : _Accelerators(
-                        savedPlaces: ref
-                            .watch(savedPlacesRepositoryProvider)
-                            .places,
-                        onSelect: (place) => _choose(
-                          place.name,
-                          place.address,
-                          place.coordinate,
-                        ),
-                      ),
-              ),
             ],
           ),
         ),
@@ -308,26 +256,32 @@ class _ResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (searching) {
-      return ListView.builder(
+      return SliverList.builder(
         itemCount: 4,
         itemBuilder: (context, i) => const _ResultSkeleton(),
       );
     }
     if (error != null) {
-      return _Message(
-        icon: Icons.search_off,
-        title: 'Search unavailable',
-        body: '$error\nYou can still pick a saved or popular place.',
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _Message(
+          icon: Icons.search_off,
+          title: 'Search unavailable',
+          body: '$error\nClear your search to pick a saved or popular place.',
+        ),
       );
     }
     if (results.isEmpty) {
-      return const _Message(
-        icon: Icons.search_off,
-        title: 'No matches',
-        body: 'Try a different spelling, or pin the spot on the map.',
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _Message(
+          icon: Icons.search_off,
+          title: 'No matches',
+          body: 'Try a different spelling, or pin the spot on the map.',
+        ),
       );
     }
-    return ListView.builder(
+    return SliverList.builder(
       itemCount: results.length,
       itemBuilder: (context, i) {
         final place = results[i];
@@ -351,8 +305,7 @@ class _Accelerators extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: EdgeInsets.zero,
+    return SliverList.list(
       children: [
         if (savedPlaces.isNotEmpty) ...[
           const Padding(

@@ -28,6 +28,13 @@ class DriverEarningsScreen extends StatelessWidget {
             vertical: AppSpacing.sm,
           ),
           children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                'Sample earnings · live totals are not connected',
+                style: AppTypography.caption,
+              ),
+            ),
             const _TodayEarnings(total: 47800, tripCount: 9),
             const SizedBox(height: AppSpacing.sm),
             const Row(
@@ -99,8 +106,7 @@ class _TodayEarnings extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: AppColors.neutralFill,
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+        border: Border(bottom: BorderSide(color: AppColors.dividerLight)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -142,9 +148,7 @@ class _EarningsMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.card)),
+        border: const Border(bottom: BorderSide(color: AppColors.dividerLight)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -171,9 +175,10 @@ class _RecentTrips extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.dividerLight),
-        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.card)),
+        border: const Border(
+          top: BorderSide(color: AppColors.dividerLight),
+          bottom: BorderSide(color: AppColors.dividerLight),
+        ),
       ),
       child: const Column(
         children: [

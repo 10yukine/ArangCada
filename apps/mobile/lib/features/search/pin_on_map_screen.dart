@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -9,6 +8,7 @@ import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/repositories/geocoding_repository.dart';
 import '../../demo/demo_data.dart';
 
 /// Drop a pin to choose a destination the geocoder does not know.
@@ -37,9 +37,12 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
       _label = null;
       _resolving = true;
     });
-    final place = await ref
-        .read(geocodingRepositoryProvider)
-        .reverse(coordinate);
+    GeocodedPlace? place;
+    try {
+      place = await ref.read(geocodingRepositoryProvider).reverse(coordinate);
+    } catch (_) {
+      // The pin coordinate remains usable when reverse geocoding fails.
+    }
     if (!mounted || token != _resolveToken) return;
     setState(() {
       _label = place?.name;
@@ -51,19 +54,16 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
     final coordinate = _picked;
     if (coordinate == null) return;
     final label = _label ?? 'Pinned location';
-    ref
-        .read(demoStateProvider)
-        .setDestination(
-          DemoPlace(
-            id: 'pin-${coordinate.latitude},${coordinate.longitude}',
-            name: label,
-            address:
-                '${coordinate.latitude.toStringAsFixed(5)}, '
-                '${coordinate.longitude.toStringAsFixed(5)}',
-            coordinate: coordinate,
-          ),
-        );
-    context.go('/home/ride-options');
+    Navigator.of(context).pop(
+      DemoPlace(
+        id: 'pin-${coordinate.latitude},${coordinate.longitude}',
+        name: label,
+        address:
+            '${coordinate.latitude.toStringAsFixed(5)}, '
+            '${coordinate.longitude.toStringAsFixed(5)}',
+        coordinate: coordinate,
+      ),
+    );
   }
 
   @override

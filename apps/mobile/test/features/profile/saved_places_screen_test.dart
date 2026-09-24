@@ -122,6 +122,7 @@ void main() {
 
   testWidgets('saved place can be reused from booking search', (tester) async {
     repository = _MemoryPlaces();
+    state.setPickup(DemoData.places.last);
     await repository.save(DemoData.calambaCrossing);
     await tester.pumpWidget(harness(const DestinationSearchScreen()));
     expect(find.text('Saved places'), findsOneWidget);
@@ -157,7 +158,8 @@ void main() {
     await tester.pumpWidget(harness(const SavedPlacesScreen()));
     await tester.tap(find.text('Add a Saved Place'));
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    // The picker deliberately hides the visual Back tooltip.
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(repository.places, isEmpty);
     expect(state.destination, isNull);

@@ -8,16 +8,18 @@ import '../../core/format/money_format.dart';
 import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
-import '../../domain/fare/fare_matrix.dart';
 import '../../domain/models/booking.dart';
 import '../wallet/wallet_sheets.dart';
 
 class DigitalReceiptScreen extends ConsumerWidget {
-  const DigitalReceiptScreen({super.key});
+  const DigitalReceiptScreen({this.tripId, super.key});
+
+  final String? tripId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final rides = ref.watch(liveRideRepositoryProvider);
     return Scaffold(
       appBar: AppBar(
         // Same destination as "Back to Home" below -- this is a `go()`
@@ -31,12 +33,37 @@ class DigitalReceiptScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: state,
+          listenable: Listenable.merge([state, rides]),
           builder: (context, _) {
             final booking = state.activeBooking;
-            if (booking == null || booking.status != BookingStatus.completed) {
+            final connectedReceipt = tripId != null || rides != null;
+            final selectedId = tripId ?? state.liveTripId;
+            Map<String, dynamic>? trip;
+            for (final row in rides?.trips ?? <Map<String, dynamic>>[]) {
+              if (row['id'] == selectedId) {
+                trip = row;
+                break;
+              }
+            }
+            if (connectedReceipt
+                ? trip == null || trip['status'] != 'completed'
+                : booking == null ||
+                      booking.status != BookingStatus.completed) {
               return const Center(child: Text('No completed trip receipt.'));
             }
+            final rawFare = trip?['final_fare'] ?? trip?['fare_estimate'];
+            final reference = connectedReceipt
+                ? (trip!['receipt_ref'] as String? ?? 'TRIP-${trip['id']}')
+                : booking!.receiptReference ?? 'SBX-RIDE-024';
+            final route = connectedReceipt
+                ? '${trip!['pickup_label'] ?? 'Pickup'} → ${trip['destination_label'] ?? 'Destination'}'
+                : '${booking!.pickupName} → ${booking.destinationName}';
+            final ride = connectedReceipt
+                ? trip!['ride_type']
+                : booking!.rideType.name;
+            final payment = connectedReceipt
+                ? trip!['payment_method']
+                : booking!.paymentMethod.name;
             return LayoutBuilder(
               builder: (context, constraints) => SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -62,43 +89,46 @@ class DigitalReceiptScreen extends ConsumerWidget {
                       SectionCard(
                         child: Column(
                           children: [
-                            _ReceiptRow(
-                              label: 'Reference',
-                              value: booking.receiptReference ?? 'SBX-RIDE-024',
-                            ),
-                            _ReceiptRow(
-                              label: 'Route',
-                              value:
-                                  '${booking.pickupName} → ${booking.destinationName}',
-                            ),
+                            _ReceiptRow(label: 'Reference', value: reference),
+                            _ReceiptRow(label: 'Route', value: route),
                             _ReceiptRow(
                               label: 'Ride',
-                              value: booking.rideType == RideType.pooling
-                                  ? 'Pooling'
-                                  : 'Special',
+                              value: ride == 'pooling' ? 'Pooling' : 'Special',
                             ),
-                            _ReceiptRow(
-                              label: 'Fare class',
-                              value: booking.userFareClass.label,
-                            ),
+                            if (!connectedReceipt)
+                              _ReceiptRow(
+                                label: 'Fare class',
+                                value: booking!.userFareClass.label,
+                              ),
                             _ReceiptRow(
                               label: 'Payment',
-                              value: state.paymentFallbackToCash
+                              value: connectedReceipt
+                                  ? (payment == 'cash'
+                                        ? 'Cash'
+                                        : payment?.toString() ?? 'Unavailable')
+                                  : state.paymentFallbackToCash
                                   ? 'Cash · switched after sandbox payment failure'
-                                  : booking.paymentMethod.label,
+                                  : booking!.paymentMethod.label,
                             ),
                             const Divider(height: AppSpacing.lg),
                             _ReceiptRow(
                               label: 'Total fare',
-                              value: formatCentavos(
-                                booking.fareQuote.partyTotalCentavos,
-                              ),
+                              value: connectedReceipt
+                                  ? rawFare is num
+                                        ? formatCentavos(
+                                            (rawFare * 100).round(),
+                                          )
+                                        : 'Unavailable'
+                                  : formatCentavos(
+                                      booking!.fareQuote.partyTotalCentavos,
+                                    ),
                               emphasize: true,
                             ),
                           ],
                         ),
                       ),
-                      if (booking.paymentMethod == PaymentMethod.digital) ...[
+                      if (!connectedReceipt &&
+                          booking!.paymentMethod == PaymentMethod.digital) ...[
                         const SizedBox(height: AppSpacing.md),
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
@@ -125,7 +155,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                       // only in the unrated branch had the same effect. The
                       // receipt now states the outcome and offers exactly one
                       // action.
-                      if (state.tripRating != null) ...[
+                      if (!connectedReceipt && state.tripRating != null) ...[
                         Text(
                           'You rated this ride ${state.tripRating} out of 5.',
                           textAlign: TextAlign.center,
@@ -142,9 +172,14 @@ class DigitalReceiptScreen extends ConsumerWidget {
                         onPressed: () => showReportIssueFlow(
                           context: context,
                           driver: false,
-                          onSubmit: ref
-                              .read(liveRideRepositoryProvider)
-                              ?.createComplaint,
+                          onSubmit: rides == null || selectedId == null
+                              ? null
+                              : (category, description) =>
+                                    rides.createComplaint(
+                                      selectedId,
+                                      category,
+                                      description,
+                                    ),
                         ),
                         child: const Text('Report an issue with this trip'),
                       ),

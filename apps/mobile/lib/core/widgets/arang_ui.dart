@@ -186,7 +186,10 @@ class ArangChip extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
-            child: Padding(
+            child: Container(
+              constraints: const BoxConstraints(
+                minHeight: AppSizes.minTapTarget,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -243,7 +246,6 @@ class ArangCard extends StatelessWidget {
       color: color ?? AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
-        side: BorderSide(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: onTap == null ? content : InkWell(onTap: onTap, child: content),
@@ -538,7 +540,7 @@ class ArangIconButton extends StatelessWidget {
         excludeFromSemantics: true,
         child: Material(
           color: AppColors.surface,
-          shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+          shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,

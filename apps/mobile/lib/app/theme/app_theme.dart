@@ -36,10 +36,15 @@ abstract final class AppTheme {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadii.pill),
     );
-    const buttonText = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
+    const buttonText = TextStyle(
+      fontFamily: 'Fredoka',
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+    );
 
     return ThemeData(
       useMaterial3: true,
+      visualDensity: VisualDensity.standard,
       fontFamily: 'Fredoka',
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.screenBackground,
@@ -72,7 +77,6 @@ abstract final class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
-          side: BorderSide(color: AppColors.border),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -215,7 +219,11 @@ abstract final class AppTheme {
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         textColor: AppColors.textRow,
         iconColor: AppColors.textMuted,
-        titleTextStyle: TextStyle(fontSize: 14, color: AppColors.textRow),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Fredoka',
+          fontSize: 15,
+          color: AppColors.textRow,
+        ),
         subtitleTextStyle: AppTypography.caption,
       ),
       dividerTheme: const DividerThemeData(

@@ -7,7 +7,9 @@ import 'package:arangcada/data/repositories/location_repository.dart';
 import 'package:arangcada/data/repositories/notifications_repository.dart';
 import 'package:arangcada/domain/models/app_notification.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
+import 'package:arangcada/core/widgets/philippine_peso_icon.dart';
 import 'package:arangcada/features/home/commuter_home_screen.dart';
+import 'package:arangcada/demo/demo_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +27,16 @@ class _FakeNotificationsRepository implements NotificationsRepository {
 }
 
 class _LocationSpy implements LocationRepository {
+  _LocationSpy({
+    this.fail = false,
+    this.coordinate = const GeoCoordinate(
+      latitude: 14.2825,
+      longitude: 121.115,
+    ),
+  });
+
+  final bool fail;
+  final GeoCoordinate coordinate;
   int requests = 0;
 
   @override
@@ -33,8 +45,14 @@ class _LocationSpy implements LocationRepository {
   @override
   Future<LocationFix> currentLocation() async {
     requests++;
+    if (fail) {
+      throw const LocationFailure(
+        LocationFailureReason.unavailable,
+        'Location is unavailable right now.',
+      );
+    }
     return LocationFix(
-      coordinate: const GeoCoordinate(latitude: 14.2825, longitude: 121.115),
+      coordinate: coordinate,
       accuracyMeters: 18,
       timestamp: DateTime.utc(2026, 8, 25),
     );
@@ -42,13 +60,15 @@ class _LocationSpy implements LocationRepository {
 }
 
 void main() {
-  Future<void> render(
+  Future<DemoState> render(
     WidgetTester tester, {
     required DemoUser user,
     required _LocationSpy location,
     List<AppNotificationRecord> notifications = const [],
+    DemoPlace? pickup,
   }) async {
     final state = DemoState(initialUser: user);
+    if (pickup != null) state.setPickup(pickup);
     addTearDown(state.dispose);
     await tester.pumpWidget(
       ProviderScope(
@@ -66,6 +86,7 @@ void main() {
       ),
     );
     await tester.pump();
+    return state;
   }
 
   testWidgets('real commuters request GPS and start from their live pickup', (
@@ -102,6 +123,24 @@ void main() {
     );
 
     expect(location.requests, 0);
+  });
+
+  testWidgets('automatic GPS does not replace a manually chosen pickup', (
+    tester,
+  ) async {
+    final state = await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+        isInternalTester: true,
+      ),
+      location: _LocationSpy(),
+      pickup: DemoData.places.last,
+    );
+
+    expect(state.pickup, same(DemoData.places.last));
   });
 
   group('notification bell dot', () {
@@ -160,5 +199,79 @@ void main() {
       );
       expect(bell.showDot, isTrue);
     });
+  });
+
+  testWidgets('know your fare row renders PhilippinePesoIcon', (tester) async {
+    final location = _LocationSpy();
+    await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+        isInternalTester: true,
+      ),
+      location: location,
+    );
+
+    expect(find.text('Know your fare'), findsOneWidget);
+    expect(find.byType(PhilippinePesoIcon), findsOneWidget);
+  });
+
+  testWidgets('GPS failure never displays Crossing as the pickup or map', (
+    tester,
+  ) async {
+    final state = await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+      ),
+      location: _LocationSpy(fail: true),
+    );
+
+    expect(state.hasPickup, isFalse);
+    expect(find.text('Calamba Crossing Terminal'), findsNothing);
+    expect(find.text('Choose pickup location'), findsOneWidget);
+    expect(find.text('GPS unavailable'), findsOneWidget);
+  });
+
+  testWidgets('GPS in Cabuyao is shown instead of a Calamba fallback', (
+    tester,
+  ) async {
+    final state = await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+      ),
+      location: _LocationSpy(
+        coordinate: const GeoCoordinate(latitude: 14.31, longitude: 121.13),
+      ),
+    );
+
+    expect(state.pickup.id, 'gps');
+    expect(state.pickup.coordinate.latitude, 14.31);
+    expect(find.text('Calamba Crossing Terminal'), findsNothing);
+  });
+
+  testWidgets('GPS refreshes while the home screen remains open', (
+    tester,
+  ) async {
+    final location = _LocationSpy();
+    await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+      ),
+      location: location,
+    );
+
+    await tester.pump(const Duration(seconds: 15));
+    expect(location.requests, 2);
   });
 }

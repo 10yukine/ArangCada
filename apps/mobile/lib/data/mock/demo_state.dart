@@ -21,6 +21,7 @@ class DemoState extends ChangeNotifier {
 
   int walletBalanceCentavos = 0;
   DemoPlace pickup = DemoData.calambaCrossing;
+  bool hasPickup = false;
   DemoPlace? destination;
   int passengerCount = 1;
 
@@ -93,6 +94,10 @@ class DemoState extends ChangeNotifier {
 
   void setCurrentUser(DemoUser? user) {
     if (identical(_currentUser, user)) return;
+    if (_currentUser?.email != user?.email) {
+      pickup = DemoData.calambaCrossing;
+      hasPickup = false;
+    }
     _currentUser = user;
     // driverFeedbackPending is per-account server state (set only by
     // SupabaseRideRepository.refreshFeedbackState()). Leaving a stale true
@@ -113,6 +118,7 @@ class DemoState extends ChangeNotifier {
   /// from a different point than the one shown to the commuter.
   void setPickup(DemoPlace place) {
     pickup = place;
+    hasPickup = true;
     notifyListeners();
   }
 
@@ -298,6 +304,7 @@ class DemoState extends ChangeNotifier {
     _currentUser = null;
     walletBalanceCentavos = 0;
     pickup = DemoData.calambaCrossing;
+    hasPickup = false;
     destination = null;
     passengerCount = 1;
     userFareClass = UserFareClass.regular;

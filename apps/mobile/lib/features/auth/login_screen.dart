@@ -7,7 +7,6 @@ import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/arangcada_mark.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
@@ -26,8 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   bool _obscurePassword = true;
 
-  static const _padTop = AppSpacing.lg;
-  static const _padBottom = AppSpacing.xl;
+  static const _padVertical = AppSpacing.md;
 
   @override
   void dispose() {
@@ -36,8 +34,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-
   Future<void> _submit() async {
+    if (_submitting) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _submitting = true;
@@ -65,19 +63,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              _padTop,
-              AppSpacing.xl,
-              _padBottom,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: _padVertical,
             ),
-            // The padding is subtracted because SingleChildScrollView adds it
-            // *around* this box. Using the raw viewport height here makes the
-            // content taller than the screen by exactly the padding, which
-            // reads as a page biased toward the bottom.
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - _padTop - _padBottom,
+                minHeight: constraints.maxHeight - (_padVertical * 2),
               ),
               child: Center(
                 child: ConstrainedBox(
@@ -87,35 +79,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Center(
-                          child: ArangCadaMark(badge: true),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        const Center(
-                          child: SizedBox(
-                            width: 280,
-                            child: Text(
-                              'Tricycle rides across Calamba City, anchored to '
-                              'your local TODA.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                        const Center(child: ArangCadaMark(badge: true)),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Tricycle rides across Calamba City,\nanchored to your local TODA.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        SectionCard(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.lg,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            border: Border.all(color: AppColors.border),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: AppColors.shadowLight,
+                                blurRadius: 16,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               LabeledTextField(
                                 label: 'Email Address',
-                                // Format-illustrative, not a generic
-                                // instruction -- matches the reference
-                                // prototype and shows the expected shape of
-                                // the answer at a glance.
                                 hintText: 'you@example.com',
                                 controller: _emailController,
                                 icon: Icons.email_outlined,
@@ -153,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ),
                               if (_errorMessage != null) ...[
-                                const SizedBox(height: AppSpacing.xs),
+                                const SizedBox(height: AppSpacing.sm),
                                 Text(
                                   _errorMessage!,
                                   style: Theme.of(context).textTheme.bodySmall
@@ -165,9 +164,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 child: TextButton(
                                   onPressed: () =>
                                       context.push('/forgot-password'),
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                  ),
                                   child: const Text('Forgot password?'),
                                 ),
                               ),
+                              const SizedBox(height: AppSpacing.xs),
                               FilledButton(
                                 onPressed: _submitting ? null : _submit,
                                 child: Text(
@@ -183,7 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           actionLabel: 'Sign Up',
                           onTap: () => context.push('/signup'),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
+                        const SizedBox(height: AppSpacing.xs),
                         const AuthLegalNotice(actionVerb: 'logging in'),
                       ],
                     ),

@@ -209,6 +209,9 @@ class _LiveMapViewState extends State<LiveMapView> {
       routeChanged: true,
       boundariesChanged: true,
     );
+    if (widget.route.isEmpty) {
+      await _recenter();
+    }
   }
 
   @override

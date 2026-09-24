@@ -3,11 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_typography.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
-import '../../core/widgets/section_card.dart';
-import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../domain/fare/fare_matrix.dart';
@@ -16,10 +13,32 @@ import '../../domain/models/booking.dart';
 import '../wallet/wallet_sheets.dart';
 import '../../core/widgets/arang_dialog.dart';
 
-class BookingReviewScreen extends ConsumerWidget {
+class BookingReviewScreen extends ConsumerStatefulWidget {
   const BookingReviewScreen({super.key});
 
+  @override
+  ConsumerState<BookingReviewScreen> createState() =>
+      _BookingReviewScreenState();
+}
+
+class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
+  bool _submitting = false;
+
   Future<void> _confirm(
+    BuildContext context,
+    WidgetRef ref,
+    DemoBooking booking,
+  ) async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await _sendBooking(context, ref, booking);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _sendBooking(
     BuildContext context,
     WidgetRef ref,
     DemoBooking booking,
@@ -109,7 +128,7 @@ class BookingReviewScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return ListenableBuilder(
       listenable: state,
@@ -127,174 +146,204 @@ class BookingReviewScreen extends ConsumerWidget {
           );
         }
         final quote = booking.fareQuote;
+        final colors = Theme.of(context).colorScheme;
+        final connected = ref.read(liveRideRepositoryProvider) != null;
         return Scaffold(
           appBar: AppBar(title: const Text('Review booking')),
+          bottomNavigationBar: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: FilledButton(
+                onPressed: booking.isFareLocked || _submitting
+                    ? null
+                    : () => _confirm(context, ref, booking),
+                child: Text(
+                  _submitting ? 'Sending request…' : 'Confirm Booking',
+                ),
+              ),
+            ),
+          ),
           body: SafeArea(
+            bottom: false,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               children: [
-                SectionCard(
-                  child: Column(
-                    children: [
-                      _ReviewRow(label: 'Pickup', value: booking.pickupName),
-                      _ReviewRow(
-                        label: 'Destination',
-                        value: booking.destinationName,
-                      ),
-                      _ReviewRow(
-                        label: 'Ride type',
-                        value: booking.rideType == RideType.pooling
-                            ? 'Pooling · Regular na Byahe'
-                            : 'Special · Espesyal na Byahe',
-                      ),
-                      _ReviewRow(
-                        label: 'Passengers',
-                        value: '${booking.passengerCount}',
-                      ),
-                      _ReviewRow(
-                        label: 'Discount',
-                        value: booking.userFareClass.label,
-                      ),
-                      _ReviewRow(
-                        label: 'Distance',
-                        value:
-                            '${(quote.distanceMeters / 1000).toStringAsFixed(1)} km, '
-                            'billed as ${quote.chargeableKm} km',
-                      ),
-                      const _ReviewRow(
-                        label: 'Estimated pickup',
-                        value: '4–7 minutes',
-                      ),
-                      const _ReviewRow(
-                        label: 'Predicted ETA',
-                        value: '12–16 minutes',
-                      ),
-                    ],
+                Text(
+                  'YOUR RIDE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 1.6,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Label and control on one line. Stacked, this block cost
-                      // three rows of height and pushed the screen past a
-                      // single page for the sake of a two-option choice --
-                      // so the review screen scrolled even though everything
-                      // on it fitted.
-                      //
-                      // The icons come off the segments for the same reason:
-                      // "Cash" and "Digital" are unambiguous words, and the
-                      // icons were what made the control too wide to sit
-                      // beside its own label.
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Payment method',
-                              style: AppTypography.label,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          SegmentedButton<PaymentMethod>(
-                            showSelectedIcon: false,
-                            style: const ButtonStyle(
-                              visualDensity: VisualDensity.compact,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            segments: [
-                              const ButtonSegment(
-                                value: PaymentMethod.cash,
-                                label: Text('Cash'),
-                              ),
-                              if (ref.read(liveRideRepositoryProvider) == null)
-                                const ButtonSegment(
-                                  value: PaymentMethod.digital,
-                                  label: Text('Digital'),
-                                ),
-                            ],
-                            selected: {booking.paymentMethod},
-                            onSelectionChanged: booking.isFareLocked
-                                ? null
-                                : (selection) {
-                                    booking.changePaymentMethod(
-                                      selection.single,
-                                    );
-                                    state.bookingChanged();
-                                  },
-                          ),
-                        ],
-                      ),
-                      // Only under Digital, because it is only true then. A
-                      // balance shown beside a cash fare invites the reader to
-                      // work out a relationship that does not exist.
-                      if (booking.paymentMethod == PaymentMethod.digital) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Account balance',
-                                style: AppTypography.caption,
-                              ),
-                            ),
-                            Text(
-                              formatCentavos(state.walletBalanceCentavos),
-                              style: AppTypography.caption.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
+                const SizedBox(height: 8),
+                Text(
+                  formatCentavos(quote.partyTotalCentavos),
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w500,
+                    color: colors.onSurface,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                SectionCard(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.receipt_long, color: AppColors.primary),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Expanded(child: Text('Estimated fare')),
-                      Text(
-                        formatCentavos(quote.partyTotalCentavos),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(color: AppColors.primary),
-                      ),
-                    ],
+                const SizedBox(height: 4),
+                Text(
+                  'Estimated fare · locks on confirmation',
+                  style: TextStyle(color: colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 28),
+                _RouteStop(
+                  label: 'PICKUP',
+                  name: booking.pickupName,
+                  icon: Icons.my_location,
+                ),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: VerticalDivider(),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                const Row(
-                  children: [
-                    Icon(Icons.lock_outline, size: 18),
-                    SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Text('Fare locks when booking is confirmed'),
+                _RouteStop(
+                  label: 'DESTINATION',
+                  name: booking.destinationName,
+                  icon: Icons.place_outlined,
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 12),
+                _ReviewRow(
+                  label: 'Ride',
+                  value: booking.rideType == RideType.pooling
+                      ? 'Pooling · Regular na Byahe'
+                      : 'Special · Espesyal na Byahe',
+                ),
+                _ReviewRow(
+                  label: 'Passengers',
+                  value: '${booking.passengerCount}',
+                ),
+                _ReviewRow(
+                  label: 'Fare class',
+                  value: booking.userFareClass.label,
+                ),
+                _ReviewRow(
+                  label: 'Distance',
+                  value:
+                      '${(quote.distanceMeters / 1000).toStringAsFixed(1)} km · billed as ${quote.chargeableKm} km',
+                ),
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 24),
+                Text('Payment', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                if (connected)
+                  const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.payments_outlined),
+                    title: Text('Cash'),
+                    subtitle: Text('Pay your driver after the ride.'),
+                  )
+                else
+                  SegmentedButton<PaymentMethod>(
+                    style: SegmentedButton.styleFrom(
+                      selectedBackgroundColor: colors.primaryContainer,
+                      selectedForegroundColor: colors.onPrimaryContainer,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ],
+                    segments: const [
+                      ButtonSegment(
+                        value: PaymentMethod.cash,
+                        icon: Icon(Icons.payments_outlined),
+                        label: Text('Cash'),
+                      ),
+                      ButtonSegment(
+                        value: PaymentMethod.digital,
+                        icon: Icon(Icons.account_balance_wallet_outlined),
+                        label: Text('Digital'),
+                      ),
+                    ],
+                    selected: {booking.paymentMethod},
+                    onSelectionChanged: booking.isFareLocked || _submitting
+                        ? null
+                        : (selection) {
+                            booking.changePaymentMethod(selection.single);
+                            state.bookingChanged();
+                          },
+                  ),
+                if (booking.paymentMethod == PaymentMethod.digital) ...[
+                  const SizedBox(height: 12),
+                  _ReviewRow(
+                    label: 'Account balance',
+                    value: formatCentavos(state.walletBalanceCentavos),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Text(
+                  'Driver availability and arrival time are confirmed after dispatch.',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                ArangButton(
-                  label: 'Confirm Booking',
-                  onPressed: booking.isFareLocked
-                      ? null
-                      : () => _confirm(context, ref, booking),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                // Backing out of a review must be possible without the system
-                // back gesture being the only way.
-                ArangButton(
-                  label: 'Cancel',
-                  variant: ArangButtonVariant.ghost,
-                  onPressed: () => _cancel(context),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _submitting ? null : () => _cancel(context),
+                  child: const Text('Cancel'),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _RouteStop extends StatelessWidget {
+  const _RouteStop({
+    required this.label,
+    required this.name,
+    required this.icon,
+  });
+  final String label;
+  final String name;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: colors.primary, size: 24),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: colors.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

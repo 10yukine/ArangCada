@@ -23,6 +23,7 @@ class TripsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final liveRides = ref.watch(liveRideRepositoryProvider);
     final isDriver = state.currentUser?.role == DemoRole.driver;
     return Scaffold(
       appBar: AppBar(
@@ -31,9 +32,8 @@ class TripsScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: state,
+          listenable: Listenable.merge([state, liveRides]),
           builder: (context, _) {
-            final liveRides = ref.read(liveRideRepositoryProvider);
             // Illustrative sandbox history for the pre-connection demo only.
             // Once a real Supabase session is live, actual trip records
             // always win -- this branch never runs when liveRides != null.
@@ -71,7 +71,10 @@ class TripsScreen extends ConsumerWidget {
                   final completed = status == 'completed';
                   final driverCancelled = status == 'cancelled_by_driver';
                   final route = completed
-                      ? '/receipt'
+                      ? Uri(
+                          path: '/receipt',
+                          queryParameters: {'trip': trip['id'] as String},
+                        ).toString()
                       : driverCancelled
                       ? '/home'
                       : _routeFor(
@@ -100,14 +103,15 @@ class TripsScreen extends ConsumerWidget {
                     buttonLabel: completed ? 'View Summary' : 'View',
                     onButtonPressed: () {
                       if (isDriver && completed) {
-                        final rawCentavos = trip['fare_centavos'];
-                        final rawPesos = trip['fare_pesos'];
-                        final fare = rawCentavos != null
-                            ? formatCentavos((rawCentavos as num).toInt())
-                            : (rawPesos != null ? '₱$rawPesos.00' : '₱50.00');
+                        final rawPesos =
+                            trip['final_fare'] ?? trip['fare_estimate'];
+                        final fare = rawPesos is num
+                            ? formatCentavos((rawPesos * 100).round())
+                            : 'Unavailable';
                         _showDriverTripSummarySheet(
                           context,
                           ref,
+                          tripId: trip['id'] as String,
                           route:
                               '${trip['pickup_label'] ?? 'Pickup'} → '
                               '${trip['destination_label'] ?? 'Destination'}',
@@ -297,8 +301,7 @@ class _CommuterSampleHistory extends StatefulWidget {
   const _CommuterSampleHistory();
 
   @override
-  State<_CommuterSampleHistory> createState() =>
-      _CommuterSampleHistoryState();
+  State<_CommuterSampleHistory> createState() => _CommuterSampleHistoryState();
 }
 
 class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
@@ -445,7 +448,9 @@ void _showDriverTripSummarySheet(
   required String fare,
   String? reference,
   String? date,
+  String? tripId,
 }) {
+  final rides = ref.read(liveRideRepositoryProvider);
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -510,8 +515,13 @@ void _showDriverTripSummarySheet(
                   showReportIssueFlow(
                     context: context,
                     driver: true,
-                    onSubmit:
-                        ref.read(liveRideRepositoryProvider)?.createComplaint,
+                    onSubmit: tripId == null || rides == null
+                        ? null
+                        : (category, description) => rides.createComplaint(
+                            tripId,
+                            category,
+                            description,
+                          ),
                   );
                 },
                 child: const Text('Report an issue with this trip'),

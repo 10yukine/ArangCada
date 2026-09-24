@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -97,12 +98,22 @@ class AdaptiveTabShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (AppBreakpoints.isCompact(context)) {
-      return Scaffold(
-        body: body,
-        bottomNavigationBar: AppTabBar(
-          selectedIndex: selectedIndex,
-          onSelected: onSelected,
-          destinations: destinations,
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: Scaffold(
+          body: body,
+          bottomNavigationBar: AppTabBar(
+            selectedIndex: selectedIndex,
+            onSelected: onSelected,
+            destinations: destinations,
+          ),
         ),
       );
     }

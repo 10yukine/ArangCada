@@ -1,69 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/arangcada_mark.dart';
 import '../../data/providers/repository_providers.dart';
-import '../../domain/models/demo_user.dart';
 
-class SplashScreen extends ConsumerStatefulWidget {
+class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends ConsumerState<SplashScreen> {
-  bool _navigationQueued = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_navigationQueued) return;
-    _navigationQueued = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final user = ref.read(authRepositoryProvider).currentUser;
-      final destination = switch (user?.role) {
-        DemoRole.commuter => '/home',
-        DemoRole.driver => '/driver',
-        null => '/login',
-      };
-      context.go(destination);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restoration = ref.watch(sessionRestorationProvider);
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            children: [
-              const Spacer(),
-              const ArangCadaMark(),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Sakay na, Calamba.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+      backgroundColor: AppColors.surface,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Centered at the exact window center, identical to Android 12+ native splash
+          Center(
+            child: SizedBox(
+              width: 172,
+              height: 172,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  DecoratedBox(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          AppColors.primaryFill,
+                          Color(0x00E4F0FE),
+                        ],
+                      ),
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                  const ArangCadaMark(badge: true, showName: false),
+                ],
               ),
-              const Spacer(),
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Ride smarter around Calamba',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  bottom: AppSpacing.xl,
+                  left: AppSpacing.xl,
+                  right: AppSpacing.xl,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (restoration.hasError) ...[
+                      const Text(
+                        'We couldn’t restore your account. Check your connection and try again.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FilledButton(
+                        onPressed: () =>
+                            ref.invalidate(sessionRestorationProvider),
+                        child: const Text('Try again'),
+                      ),
+                    ] else
+                      const SizedBox(
+                        width: 160,
+                        child: LinearProgressIndicator(
+                          minHeight: 3,
+                          backgroundColor: AppColors.inputFill,
+                          semanticsLabel: 'Restoring your account',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

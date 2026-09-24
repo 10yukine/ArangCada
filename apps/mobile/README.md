@@ -49,6 +49,10 @@ Copy `env.json.example` to `env.json` and fill it in. `env.json` is gitignored
 and must never be committed. **The Supabase service-role key has no variable
 reserved here and must never be added.**
 
+Place this Android app's `google-services.json` from the team Firebase project
+at `android/app/google-services.json`. It is also gitignored. Ask a project
+maintainer for the client configuration; do not put either file in a commit.
+
 Each integration reports readiness on its own (`AppConfig.isMapTilerConfigured`
 and friends), so a missing map key costs the map, not authentication.
 

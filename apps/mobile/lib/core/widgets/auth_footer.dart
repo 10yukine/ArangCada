@@ -64,6 +64,8 @@ class AuthLegalNotice extends StatelessWidget {
   const AuthLegalNotice({
     this.actionVerb,
     this.prefixText,
+    this.textAlign = TextAlign.center,
+    this.padding,
     super.key,
   }) : assert(actionVerb != null || prefixText != null);
 
@@ -72,6 +74,12 @@ class AuthLegalNotice extends StatelessWidget {
   
   /// "I agree to the "
   final String? prefixText;
+
+  /// Alignment of the text within its container. Defaults to [TextAlign.center].
+  final TextAlign textAlign;
+
+  /// Optional outer padding. Defaults to horizontal [AppSpacing.lg].
+  final EdgeInsetsGeometry? padding;
 
   void _launchURL(BuildContext context, String url) async {
     final uri = Uri.parse(url);
@@ -99,9 +107,9 @@ class AuthLegalNotice extends StatelessWidget {
     final prefix = prefixText ?? 'By $actionVerb, you agree to ArangCada\'s ';
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: RichText(
-        textAlign: TextAlign.center,
+        textAlign: textAlign,
         text: TextSpan(
           style: AppTypography.caption.copyWith(height: 1.5),
           children: [

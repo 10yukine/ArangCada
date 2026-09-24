@@ -1,25 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../app/theme/app_typography.dart';
-import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../domain/geo/service_area.dart';
 import '../../demo/demo_data.dart';
+import '../../core/widgets/philippine_peso_icon.dart';
 
-/// Commuter home, following the approved prototype's composition: greeting
-/// row, destination field, Plan Your Ride, discount card, then a compact
-/// "Drivers Nearby You" map.
-///
-/// Deliberately NOT a full-screen map. The prototype puts a small map card at
-/// the foot of a scrolling page, which is what a commuter needs before a
-/// destination exists.
+/// Commuter dashboard: streamlined, transit-first interface.
+/// Anchored on the commuter's profile identity, rapid trip planning,
+/// live TODA map overview, and local Calamba fare transparency.
 class CommuterHomeScreen extends ConsumerStatefulWidget {
   const CommuterHomeScreen({super.key});
 
@@ -27,7 +24,10 @@ class CommuterHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CommuterHomeScreen> createState() => _CommuterHomeScreenState();
 }
 
-class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
+class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
+    with WidgetsBindingObserver {
+  Timer? _gpsTimer;
+  bool _autoGpsEnabled = false;
   LocationFix? _fix;
   LocationFailure? _locationError;
   bool _locating = false;
@@ -35,6 +35,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Connected commuters must start from device GPS, so request while-in-use
     // access immediately. Hidden local demos keep their no-prompt behavior.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -48,12 +49,44 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
         if (!mounted || !granted) return;
       }
       if (!mounted) return;
+      _autoGpsEnabled = true;
       await _locate(silent: user.isDemoAccount);
+      if (mounted) {
+        _startGpsTimer();
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _gpsTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startGpsTimer() {
+    _gpsTimer?.cancel();
+    _gpsTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _locate(silent: true),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_autoGpsEnabled) return;
+    if (state == AppLifecycleState.resumed) {
+      _locate(silent: true);
+      _startGpsTimer();
+    } else {
+      _gpsTimer?.cancel();
+    }
   }
 
   Future<void> _locate({bool silent = false}) async {
     if (_locating) return;
+    final state = ref.read(demoStateProvider);
+    final pickupBeforeRequest = state.pickup;
     setState(() {
       _locating = true;
       if (!silent) _locationError = null;
@@ -62,36 +95,36 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       final repository = ref.read(locationRepositoryProvider);
       final fix = await repository.currentLocation();
       if (!mounted) return;
-      // A fix must become the actual booking origin. Labelling it while
-      // leaving DemoState.pickup untouched would price the ride from a
-      // different point than the one shown.
-      final internalTester =
-          ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+      // A GPS request may finish after the rider has chosen a pickup.
       if (!fix.isCoarse &&
-          ServiceArea.contains(
-            fix.coordinate,
-            allowCabuyaoTestException: internalTester,
-          )) {
-        ref
-            .read(demoStateProvider)
-            .setPickup(
-              DemoPlace(
-                id: 'gps',
-                name: 'Current location',
-                address:
-                    '${fix.coordinate.latitude.toStringAsFixed(5)}, '
-                    '${fix.coordinate.longitude.toStringAsFixed(5)}',
-                coordinate: fix.coordinate,
-              ),
-            );
+          identical(state.pickup, pickupBeforeRequest) &&
+          (!state.hasPickup || _usesAutomaticPickup(state.pickup))) {
+        state.setPickup(
+          DemoPlace(
+            id: 'gps',
+            name: 'Current location',
+            address:
+                '${fix.coordinate.latitude.toStringAsFixed(5)}, '
+                '${fix.coordinate.longitude.toStringAsFixed(5)}',
+            coordinate: fix.coordinate,
+          ),
+        );
       }
       setState(() {
         _fix = fix;
-        _locationError = null;
+        _locationError = fix.isCoarse
+            ? const LocationFailure(
+                LocationFailureReason.unavailable,
+                'GPS is approximate. Enable precise location or choose a pickup manually.',
+              )
+            : null;
       });
     } on LocationFailure catch (failure) {
       if (!mounted) return;
-      setState(() => _locationError = failure);
+      setState(() {
+        _fix = null;
+        _locationError = failure;
+      });
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -104,118 +137,309 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        final firstName = (state.currentUser?.displayName ?? 'there')
-            .split(' ')
-            .first;
-        final centre = _fix?.coordinate ?? state.pickup.coordinate;
+        final user = state.currentUser;
+        final firstName = (user?.displayName ?? 'there').split(' ').first;
+        final centre = _fix?.coordinate;
         final connected = ref.read(liveRideRepositoryProvider) != null;
-        // Read fresh on every rebuild of this ListenableBuilder, same as
-        // `connected` above -- there is no server-pushed invalidation for a
-        // local Hive cache, so "how stale can the dot be" is bounded by
-        // how often this screen already rebuilds, not by anything new.
         final hasUnreadNotifications = ref
             .read(notificationsRepositoryProvider)
             .history()
             .any((item) => !item.read);
 
+        final colors = Theme.of(context).colorScheme;
         return Scaffold(
           body: SafeArea(
             bottom: false,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               children: [
-                _GreetingRow(
+                _HomeHeader(
                   name: firstName,
-                  imageUrl: state.currentUser?.avatarUrl,
+                  imageUrl: user?.avatarUrl,
                   hasUnreadNotifications: hasUnreadNotifications,
                 ),
-                const SizedBox(height: 14),
-                ArangField(
-                  icon: Icons.search,
-                  text:
-                      state.destination?.name ?? 'Where would you like to go?',
-                  muted: state.destination == null,
-                  onTap: () => context.push('/home/search'),
-                ),
-                const SizedBox(height: 14),
-                if (state.destination != null)
-                  _CurrentSelection(
-                    pickupName: _pickupLabel(state.pickup.name),
-                    destinationName: state.destination!.name,
-                    onEdit: () => context.push('/home/search'),
-                  )
-                else
-                  _PlanYourRide(
-                    pickupName: _pickupLabel(state.pickup.name),
-                    onTap: () => context.push('/home/search'),
+                const SizedBox(height: 18),
+                Material(
+                  color: AppColors.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                    side: const BorderSide(color: AppColors.border, width: 1.2),
                   ),
-                // Below Plan Your Ride, not above it. Booking is why the app
-                // gets opened; the fare matrix is reference material. It sat
-                // between the search field and the primary action, so the first
-                // thing a commuter met was a link to a table. It stays on the
-                // screen -- the LGU rates are part of what this project has to
-                // show a panel -- just underneath the thing people came to do.
-                const SizedBox(height: AppSpacing.sm),
-                const _DiscountCard(),
-                if (_locationError != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryFill,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.my_location,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Pickup',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _locating && _fix == null && !state.hasPickup
+                                        ? 'Finding your location…'
+                                        : state.hasPickup
+                                        ? _pickupLabel(state.pickup.name)
+                                        : 'Choose pickup location',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.ink,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Choose pickup',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () =>
+                                  context.push('/home/choose-pickup'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, indent: 64, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: InkWell(
+                          onTap: () => context.push('/home/search'),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(AppRadii.md),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.22,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.search,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    state.destination?.name ??
+                                        'Where are you going?',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_forward,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_locationError != null && !state.hasPickup) ...[
+                  const SizedBox(height: 12),
                   _LocationNotice(
                     failure: _locationError!,
                     busy: _locating,
                     onRetry: _locate,
-                    onManual: () => context.push('/home/search'),
                   ),
                 ],
-                ArangSectionHead(
-                  'Drivers Nearby You',
-                  color: AppColors.textMuted,
-                  trailing: Text(
-                    _fix != null ? 'Near you' : 'Calamba',
-                    style: AppTypography.caption,
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const ArangRowIcon(
+                    Icons.bookmark_border,
+                    background: AppColors.primaryFill,
+                    foreground: AppColors.primary,
                   ),
-                ),
-                LiveMapView(
-                  center: centre,
-                  height: 168,
-                  zoom: 14.2,
-                  // The one-shot fix is already drawn below. Enabling
-                  // MapLibre's native puck here starts a retained 1-second
-                  // location stream even after the user leaves this tab.
-                  showUserLocation: false,
-                  interactive: false,
-                  markers: [
-                    MapMarker(
-                      coordinate: centre,
-                      color: AppColors.primary,
-                      radius: 8,
+                  title: const Text(
+                    'Saved places',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
                     ),
-                    if (connected && state.liveDriverLocation != null)
-                      MapMarker(
-                        coordinate: state.liveDriverLocation!,
-                        color: AppColors.primaryText,
-                        radius: 7,
-                      ),
-                    if (!connected)
-                      for (final offset in _nearbyDriverOffsets)
-                        MapMarker(
-                          coordinate: GeoCoordinate(
-                            latitude: centre.latitude + offset.$1,
-                            longitude: centre.longitude + offset.$2,
-                          ),
-                          color: AppColors.primaryText,
-                          radius: 5.5,
+                  ),
+                  subtitle: const Text(
+                    'Keep your usual stops close',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                  onTap: () => context.push('/profile/saved-places'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryFill,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const PhilippinePesoIcon(
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  title: const Text(
+                    'Know your fare',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Official Calamba LGU rates & eligible discounts',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                  onTap: () => context.push('/fare-matrix'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Drivers Nearby You',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ArangBadge(
+                      _fix == null
+                          ? 'GPS unavailable'
+                          : _fix!.isCoarse
+                          ? 'Approximate GPS'
+                          : 'Live GPS',
+                      tone: _fix != null
+                          ? ArangBadgeTone.brand
+                          : ArangBadgeTone.neutral,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
+                if (centre != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: LiveMapView(
+                      center: centre,
+                      height: MediaQuery.textScalerOf(context).scale(180),
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      zoom: 14.5,
+                      showUserLocation: true,
+                      interactive: true,
+                      markers: [
+                        MapMarker(
+                          coordinate: centre,
+                          color: colors.primary,
+                          radius: 8,
+                        ),
+                        if (connected && state.liveDriverLocation != null)
+                          MapMarker(
+                            coordinate: state.liveDriverLocation!,
+                            color: colors.primary,
+                            radius: 7,
+                          ),
+                      ],
+                    ),
+                  )
+                else
+                  const SizedBox(
+                    height: 180,
+                    child: Center(child: Text('Waiting for device GPS…')),
+                  ),
+                const SizedBox(height: 8),
                 Text(
-                  connected
-                      ? 'Assigned driver location updates during an active trip.'
-                      : 'Tricycle positions are illustrative until TODA dispatch '
-                            'is connected.',
-                  style: AppTypography.caption.copyWith(fontSize: 11),
+                  'Your driver appears here once assigned.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.md),
               ],
             ),
           ),
@@ -227,34 +451,33 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   /// A coarse fix is never promoted to the booking pickup, so the label says
   /// so instead of implying precision the device did not provide.
   String _pickupLabel(String configuredName) {
-    if (_fix == null) return configuredName;
+    if (_fix == null || ref.read(demoStateProvider).pickup.id != 'gps') {
+      return configuredName;
+    }
     final internalTester =
         ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
     if (!ServiceArea.contains(
       _fix!.coordinate,
       allowCabuyaoTestException: internalTester,
     )) {
-      return '$configuredName · you are outside ${ServiceArea.name}';
+      return 'Current location · outside service area';
     }
     return _fix!.isCoarse
         ? '$configuredName · approximate location only'
         : configuredName;
   }
+
+  bool _usesAutomaticPickup(DemoPlace pickup) =>
+      pickup.id == 'gps' ||
+      pickup.id == DemoData.calambaCrossing.id ||
+      pickup.id.startsWith('live-pickup-');
 }
 
-/// Deterministic offsets so markers do not jump on every rebuild.
-const _nearbyDriverOffsets = <(double, double)>[
-  (0.0031, -0.0024),
-  (-0.0018, 0.0035),
-  (0.0042, 0.0019),
-  (-0.0036, -0.0031),
-];
-
-class _GreetingRow extends StatelessWidget {
-  const _GreetingRow({
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
     required this.name,
+    required this.imageUrl,
     required this.hasUnreadNotifications,
-    this.imageUrl,
   });
 
   final String name;
@@ -265,11 +488,20 @@ class _GreetingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        ArangAvatar(name: name, imageUrl: imageUrl),
-        const SizedBox(width: AppSpacing.sm),
+        Semantics(
+          button: true,
+          label: 'Profile',
+          child: InkWell(
+            onTap: () => context.push('/profile'),
+            borderRadius: BorderRadius.circular(24),
+            child: ArangAvatar(name: name, imageUrl: imageUrl, size: 44),
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Hello, $name',
@@ -277,13 +509,19 @@ class _GreetingRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ink,
+                  letterSpacing: -0.2,
                 ),
               ),
+              const SizedBox(height: 2),
               const Text(
                 'Ready for your next ride?',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -299,191 +537,24 @@ class _GreetingRow extends StatelessWidget {
   }
 }
 
-class _DiscountCard extends StatelessWidget {
-  const _DiscountCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: const BoxDecoration(
-        color: AppColors.primaryFill,
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Student, Senior & PWD fares',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryText,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                // The published matrix prints its own discounted amounts, and
-                // two rows are NOT a flat 20% of the full fare. Never state a
-                // blanket percentage here.
-                const Text(
-                  'Discounted rates follow the LGU fare matrix.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.45,
-                    color: AppColors.primaryText,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: ArangButton(
-                    label: 'View fare matrix',
-                    expand: false,
-                    onPressed: () => context.push('/fare-matrix'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          const Icon(
-            Icons.local_offer_outlined,
-            size: 34,
-            color: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlanYourRide extends StatelessWidget {
-  const _PlanYourRide({required this.pickupName, required this.onTap});
-
-  final String pickupName;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ArangSectionHead('Plan Your Ride'),
-        ArangCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              ArangRow(
-                icon: Icons.my_location,
-                title: pickupName,
-                subtitle: 'Pickup Location',
-                iconBackground: AppColors.greenFill,
-                iconForeground: AppColors.green,
-                showChevron: false,
-                onTap: onTap,
-              ),
-              ArangRow(
-                icon: Icons.place_outlined,
-                title: 'Where are you going?',
-                subtitle: 'Drop Location',
-                iconBackground: AppColors.primaryFill,
-                iconForeground: AppColors.primaryText,
-                showDivider: false,
-                onTap: onTap,
-                trailing: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward,
-                    size: 17,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CurrentSelection extends StatelessWidget {
-  const _CurrentSelection({
-    required this.pickupName,
-    required this.destinationName,
-    required this.onEdit,
-  });
-
-  final String pickupName;
-  final String destinationName;
-  final VoidCallback onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ArangSectionHead('Plan Your Ride'),
-        ArangCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              ArangRow(
-                icon: Icons.my_location,
-                title: pickupName,
-                subtitle: 'Pickup Location',
-                iconBackground: AppColors.greenFill,
-                iconForeground: AppColors.green,
-                showChevron: false,
-                onTap: onEdit,
-              ),
-              ArangRow(
-                icon: Icons.place_outlined,
-                title: destinationName,
-                subtitle: 'Drop Location',
-                iconBackground: AppColors.primaryFill,
-                iconForeground: AppColors.primaryText,
-                showDivider: false,
-                onTap: onEdit,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _LocationNotice extends StatelessWidget {
   const _LocationNotice({
     required this.failure,
     required this.busy,
     required this.onRetry,
-    required this.onManual,
   });
 
   final LocationFailure failure;
   final bool busy;
   final VoidCallback onRetry;
-  final VoidCallback onManual;
 
   @override
   Widget build(BuildContext context) {
-    final blocked =
-        failure.reason == LocationFailureReason.permissionDeniedForever;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: const BoxDecoration(
         color: AppColors.amberFill,
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.lg)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,10 +567,12 @@ class _LocationNotice extends StatelessWidget {
                 color: AppColors.amberText,
               ),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Location unavailable',
-                  style: AppTypography.label.copyWith(
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.amberText,
                   ),
                 ),
@@ -509,29 +582,16 @@ class _LocationNotice extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             failure.message,
-            style: AppTypography.caption.copyWith(color: AppColors.amberText),
+            style: const TextStyle(fontSize: 12, color: AppColors.amberText),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: ArangButton(
-                  label: 'Choose pickup',
-                  variant: ArangButtonVariant.ghost,
-                  onPressed: onManual,
-                ),
-              ),
-              if (!blocked) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: ArangButton(
-                    label: busy ? 'Trying…' : 'Try again',
-                    variant: ArangButtonVariant.ghost,
-                    onPressed: busy ? null : onRetry,
-                  ),
-                ),
-              ],
-            ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ArangButton(
+              label: busy ? 'Trying…' : 'Try again',
+              variant: ArangButtonVariant.ghost,
+              onPressed: busy ? null : onRetry,
+            ),
           ),
         ],
       ),

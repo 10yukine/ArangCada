@@ -35,9 +35,9 @@ abstract final class AppColors {
   static const textDisabled = Color(0xFF8493A5);
 
   // --- Surfaces and lines ---------------------------------------------------
-  static const screenBackground = Color(0xFFF6F9FD);
+  static const screenBackground = Color(0xFFF8FAFC);
   static const surface = Color(0xFFFFFFFF);
-  static const inputFill = Color(0xFFF1F6FC);
+  static const inputFill = Color(0xFFF4F7FA);
   static const pressedFill = Color(0xFFE8F0FA);
   static const neutralFill = Color(0xFFE9F0F8);
   static const border = Color(0xFFDBE5F1);
@@ -52,9 +52,9 @@ abstract final class AppColors {
   // These are `ink` (0F1A28) at three alphas. They previously hardcoded
   // 1F1E1D, the ink of the superseded warm-brown palette, which tinted every
   // card shadow in the app faintly brown on an otherwise blue product.
-  static const shadowLight = Color(0x140F1A28);   // ~8%  cards, sheets
-  static const shadowMedium = Color(0x1F0F1A28);  // ~12% brand mark, overlays
-  static const shadowStrong = Color(0x240F1A28);  // ~14% floating nav
+  static const shadowLight = Color(0x140F1A28); // ~8%  cards, sheets
+  static const shadowMedium = Color(0x1F0F1A28); // ~12% brand mark, overlays
+  static const shadowStrong = Color(0x240F1A28); // ~14% floating nav
 
   static const primary = Color(0xFF1262D0);
   static const primaryPressed = Color(0xFF0E4EA6);

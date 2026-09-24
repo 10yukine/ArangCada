@@ -23,6 +23,7 @@ void main() {
   DemoState bookingState() {
     final state = DemoState();
     // The screen renders an empty placeholder without a destination.
+    state.setPickup(DemoData.calambaCrossing);
     state.setDestination(DemoData.places[1]);
     return state;
   }

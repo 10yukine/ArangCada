@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/widgets/adaptive_screen_frame.dart';
 import '../data/providers/repository_providers.dart';
+import '../demo/demo_data.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/verify_phone_screen.dart';
@@ -43,8 +44,8 @@ import 'shells/commuter_shell.dart';
 import 'shells/driver_shell.dart';
 import 'theme/app_dimensions.dart';
 
-CustomTransitionPage<void> _screenPage(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
+CustomTransitionPage<T> _screenPage<T>(GoRouterState state, Widget child) {
+  return CustomTransitionPage<T>(
     key: state.pageKey,
     transitionDuration: AppMotion.screen,
     reverseTransitionDuration: AppMotion.screen,
@@ -103,9 +104,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: demoState,
     redirect: (context, state) {
       final path = state.uri.path;
-      if (path == '/splash') return null;
+      final restoration = ref.read(sessionRestorationProvider);
+      if (restoration.isLoading || restoration.hasError) {
+        return path == '/splash' ? null : '/splash';
+      }
 
       final user = demoState.currentUser;
+      if (path == '/splash') {
+        if (user == null) return '/login';
+        if (user.needsPhoneVerification) return '/verify-phone';
+        return user.role == DemoRole.commuter ? '/home' : '/driver';
+      }
       final isAuthPath =
           path == '/login' || path == '/signup' || path == '/forgot-password';
       if (user == null) return isAuthPath ? null : '/login';
@@ -204,8 +213,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/receipt',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const DigitalReceiptScreen()),
+        pageBuilder: (context, state) => _screenPage(
+          state,
+          DigitalReceiptScreen(tripId: state.uri.queryParameters['trip']),
+        ),
       ),
       GoRoute(
         path: '/rating',
@@ -311,7 +322,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'pin-on-map',
                     pageBuilder: (context, state) =>
-                        _screenPage(state, const PinOnMapScreen()),
+                        _screenPage<DemoPlace>(state, const PinOnMapScreen()),
                   ),
                   GoRoute(
                     path: 'ride-options',
@@ -416,6 +427,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.listen(sessionRestorationProvider, (_, _) => router.refresh());
   ref.onDispose(router.dispose);
   return router;
 });

@@ -180,6 +180,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     final pickup = _coordinate(trip, 'pickup');
     final destination = _coordinate(trip, 'destination');
     if (pickup != null) {
+      _state.hasPickup = true;
       _state.pickup = DemoPlace(
         id: 'live-pickup-${trip['id']}',
         name: trip['pickup_label'] as String? ?? 'Pickup',
@@ -203,6 +204,9 @@ class SupabaseRideRepository extends ChangeNotifier {
       if (status == 'completed') unawaited(refreshFeedbackState());
     } else {
       final booking = _state.activeBooking ?? _restoreBooking(trip);
+      booking.driverAcceptedAt = DateTime.tryParse(
+        trip['accepted_at'] as String? ?? '',
+      )?.toUtc();
       booking.status = commuterStatusFor(status, previous: booking.status);
       if (status == 'completed') {
         booking.receiptReference = 'TRIP-${trip['id']}';
@@ -397,23 +401,30 @@ class SupabaseRideRepository extends ChangeNotifier {
     }
     LocationFix? fix;
     if (online) fix = await _location.currentLocation();
-    final coordinate =
-        fix?.coordinate ??
-        _state.liveDriverLocation ??
-        _state.pickup.coordinate;
+    if (fix?.isCoarse ?? false) {
+      throw const LocationFailure(
+        LocationFailureReason.unavailable,
+        'GPS is too approximate to go online. Enable precise location and try again.',
+      );
+    }
+    final coordinate = online ? fix?.coordinate : null;
     final result = await _client.rpc(
       'set_driver_availability',
       params: {
         'p_online': online,
-        'p_lat': coordinate.latitude,
-        'p_lng': coordinate.longitude,
+        'p_lat': coordinate?.latitude,
+        'p_lng': coordinate?.longitude,
       },
     );
     final row = _row(result);
-    _state.liveDriverLocation = GeoCoordinate(
-      latitude: (row['latitude'] as num).toDouble(),
-      longitude: (row['longitude'] as num).toDouble(),
-    );
+    final latitude = row['latitude'] as num?;
+    final longitude = row['longitude'] as num?;
+    _state.liveDriverLocation = latitude == null || longitude == null
+        ? null
+        : GeoCoordinate(
+            latitude: latitude.toDouble(),
+            longitude: longitude.toDouble(),
+          );
     _state.driverTrip.status = online
         ? DriverTripStatus.available
         : DriverTripStatus.offline;
@@ -497,7 +508,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     _publishingLocation = true;
     try {
       final fix = await _location.currentLocation();
-      if (_disposed || !_state.driverTrip.isOnline) return;
+      if (_disposed || !_state.driverTrip.isOnline || fix.isCoarse) return;
       final tripId = _state.liveTripId;
       if (tripId == null ||
           _state.driverTrip.status == DriverTripStatus.available) {
@@ -610,9 +621,12 @@ class SupabaseRideRepository extends ChangeNotifier {
     );
   }
 
-  Future<void> createComplaint(String category, String description) async {
-    final tripId = _state.liveTripId;
-    if (tripId == null) {
+  Future<void> createComplaint(
+    String tripId,
+    String category,
+    String description,
+  ) async {
+    if (tripId.trim().isEmpty) {
       throw StateError('Complaints require an active or completed trip.');
     }
     await _client.rpc(

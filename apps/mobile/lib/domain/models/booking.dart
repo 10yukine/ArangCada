@@ -60,6 +60,7 @@ class DemoBooking {
   FareQuote fareQuote;
   BookingStatus status = BookingStatus.draft;
   String? receiptReference;
+  DateTime? driverAcceptedAt;
 
   bool get isFareLocked => status != BookingStatus.draft;
 
@@ -86,8 +87,10 @@ class DemoBooking {
   void beginSearching() =>
       _transition(BookingStatus.confirmed, BookingStatus.searching);
 
-  void matchDriver() =>
-      _transition(BookingStatus.searching, BookingStatus.matched);
+  void matchDriver() {
+    _transition(BookingStatus.searching, BookingStatus.matched);
+    driverAcceptedAt = DateTime.now().toUtc();
+  }
 
   void beginDriverApproach() =>
       _transition(BookingStatus.matched, BookingStatus.approaching);

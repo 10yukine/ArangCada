@@ -116,7 +116,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 itemCount: items.length,
                 separatorBuilder: (context, index) =>
-                    const SizedBox(height: AppSpacing.xs),
+                    const Divider(height: AppSpacing.md),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   return InkWell(

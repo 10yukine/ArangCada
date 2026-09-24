@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -236,6 +235,7 @@ class _SearchingForDriverScreenState
               onPressed: () => _cancel(context, ref, booking),
             ),
             sheetBuilder: (context, expanded) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (noDrivers)
                   const Icon(
@@ -244,30 +244,50 @@ class _SearchingForDriverScreenState
                     color: AppColors.primary,
                   )
                 else
-                  const _ScanningIndicator(),
-                const SizedBox(height: AppSpacing.sm),
+                  LinearProgressIndicator(
+                    value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+                    semanticsLabel: 'Searching for a driver',
+                    borderRadius: BorderRadius.circular(4),
+                    minHeight: 4,
+                  ),
+                const SizedBox(height: 24),
                 Text(
                   noDrivers
                       ? 'No drivers available right now'
                       : 'Searching for a nearby driver',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.displaySm,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   noDrivers
                       ? 'A testing override is active. Turn it off to continue.'
                       : 'Checking approved drivers near your pickup.',
-                  textAlign: TextAlign.center,
                 ),
                 if (!noDrivers) ...[
                   const SizedBox(height: AppSpacing.md),
                   const Text(
                     'We will connect you as soon as a nearby driver accepts.',
-                    textAlign: TextAlign.center,
                     style: AppTypography.caption,
                   ),
                 ],
+                const SizedBox(height: 24),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.my_location),
+                  title: const Text('Pickup'),
+                  subtitle: Text(booking.pickupName),
+                ),
+                if (expanded)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.place_outlined),
+                    title: const Text('Destination'),
+                    subtitle: Text(booking.destinationName),
+                  ),
               ],
             ),
           );
@@ -275,93 +295,4 @@ class _SearchingForDriverScreenState
       ),
     );
   }
-}
-
-class _ScanningIndicator extends StatefulWidget {
-  const _ScanningIndicator();
-
-  @override
-  State<_ScanningIndicator> createState() => _ScanningIndicatorState();
-}
-
-class _ScanningIndicatorState extends State<_ScanningIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 76,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) =>
-            CustomPaint(painter: _ScanningIndicatorPainter(_controller.value)),
-      ),
-    );
-  }
-}
-
-class _ScanningIndicatorPainter extends CustomPainter {
-  const _ScanningIndicatorPainter(this.progress);
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final pulseRadius = 13 + (22 * progress);
-    canvas.drawCircle(
-      center,
-      pulseRadius,
-      Paint()
-        ..color = AppColors.sky.withValues(alpha: 1 - progress)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: 30),
-      (progress * math.pi * 2) - math.pi / 2,
-      math.pi * 0.9,
-      false,
-      Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawCircle(center, 15, Paint()..color = AppColors.surface);
-    canvas.drawCircle(center, 11, Paint()..color = AppColors.primary);
-    final icon = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(Icons.location_on_rounded.codePoint),
-        style: TextStyle(
-          fontSize: 15,
-          fontFamily: Icons.location_on_rounded.fontFamily,
-          package: Icons.location_on_rounded.fontPackage,
-          color: AppColors.surface,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    icon.paint(canvas, center - Offset(icon.width / 2, icon.height / 2));
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScanningIndicatorPainter oldDelegate) =>
-      oldDelegate.progress != progress;
 }

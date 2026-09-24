@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -71,70 +69,23 @@ SupabaseClient? _supabaseClient() {
   }
 }
 
-// supabase_flutter persists a session and restores it on the next cold start,
-// which is the correct behaviour for a real user -- nobody wants to log into a
-// ride-hailing app every time they open it, least of all a driver starting a
-// shift outdoors on a low-end handset.
-//
-// This used to be suppressed wholesale by an AUTO_SIGN_OUT_ON_COLD_START
-// constant, because a phone used to exercise one QA identity (the SJVTODA
-// driver account, say) silently auto-signed back into that SAME account every
-// launch, and switching identities meant remembering to sign out first. That
-// was a real problem, but the blanket fix charged its cost to every real user.
-//
-// The accounts it was written for are already marked, server-side, by
-// profiles.is_internal_tester -- so only those sessions are discarded now.
-//
-// Note the gate is NOT DemoUser.isDemoAccount. The @arangcada.demo accounts
-// authenticate through MockAuthRepository and hold no Supabase session at all,
-// so gating on them would restore nothing and discard nothing.
-
 final demoStateProvider = Provider<DemoState>((ref) {
-  final client = _supabaseClient();
-  final remoteUser = client?.auth.currentUser;
   // Never construct a commuter shell from stale JWT metadata while a restored
   // driver session is waiting for its authoritative profiles row.
   final state = DemoState();
-  if (client != null && remoteUser != null) {
-    unawaited(_restoreTrustedProfile(client, state, remoteUser));
-  }
   ref.onDispose(state.dispose);
   return state;
 });
 
-Future<void> _restoreTrustedProfile(
-  SupabaseClient client,
-  DemoState state,
-  User user,
-) async {
-  try {
-    // Checked BEFORE restoreProfile, not after. restoreProfile() calls
-    // setCurrentUser() itself, which fires the router's refreshListenable --
-    // so deciding afterwards would redirect to the role home, then null the
-    // user and redirect back to /login, flashing a screen the tester never
-    // asked for on every launch.
-    //
-    // is_internal_tester is read from profiles under the existing owner-select
-    // policy. It is not self-service: the privilege guard stops an ordinary
-    // account granting itself the flag, so this cannot be flipped from the
-    // client to change which branch runs.
-    final flags = await client
-        .from('profiles')
-        .select('is_internal_tester')
-        .eq('id', user.id)
-        .maybeSingle();
-
-    if (flags?['is_internal_tester'] == true) {
-      await client.auth.signOut();
-      state.setCurrentUser(null);
-      return;
-    }
-
-    await SupabaseAuthRepository(client, state).restoreProfile(user);
-  } on Exception {
-    state.setCurrentUser(null);
-  }
-}
+/// Routing waits for the authoritative profile before choosing a role's shell.
+/// A network failure stays recoverable on the splash; it is not a sign-out.
+final sessionRestorationProvider = FutureProvider<void>((ref) async {
+  final state = ref.read(demoStateProvider);
+  final client = _supabaseClient();
+  final user = client?.auth.currentUser;
+  if (client == null || user == null || state.currentUser != null) return;
+  await SupabaseAuthRepository(client, state).restoreProfile(user);
+}, retry: (_, _) => null);
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final state = ref.watch(demoStateProvider);

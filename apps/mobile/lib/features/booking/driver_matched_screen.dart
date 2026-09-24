@@ -13,7 +13,6 @@ import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/trip_call_sheet.dart';
 import '../../core/widgets/map/live_map_view.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../demo/demo_simulation.dart';
@@ -44,14 +43,17 @@ import '../../domain/models/booking.dart';
 /// call 911, and ArangCada should not pretend to be that channel. SOS starts
 /// where the ride does.
 class DriverMatchedScreen extends ConsumerStatefulWidget {
-  const DriverMatchedScreen({super.key});
+  const DriverMatchedScreen({this.now, super.key});
+
+  final DateTime Function()? now;
 
   @override
   ConsumerState<DriverMatchedScreen> createState() =>
       _DriverMatchedScreenState();
 }
 
-class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
+class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
+    with WidgetsBindingObserver {
   /// How long a commuter may cancel without it counting against them.
   static const _cancelWindowSeconds = 60;
 
@@ -69,6 +71,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final state = ref.read(demoStateProvider);
     final liveRides = ref.read(liveRideRepositoryProvider);
 
@@ -142,16 +145,33 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
 
   void _startCancelWindow() {
     _cancelWindowTimer?.cancel();
-    _cancelSecondsRemaining = _cancelWindowSeconds;
+    _cancelSecondsRemaining = _remainingCancellationSeconds();
     _cancelWindowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      if (_cancelSecondsRemaining <= 1) {
-        timer.cancel();
-        setState(() => _cancelSecondsRemaining = 0);
-      } else {
-        setState(() => _cancelSecondsRemaining--);
-      }
+      setState(() => _cancelSecondsRemaining = _remainingCancellationSeconds());
     });
+  }
+
+  int _remainingCancellationSeconds() {
+    final acceptedAt = ref
+        .read(demoStateProvider)
+        .activeBooking
+        ?.driverAcceptedAt;
+    if (acceptedAt == null) return 0;
+    final remaining = acceptedAt
+        .add(const Duration(seconds: _cancelWindowSeconds))
+        .difference(widget.now?.call() ?? DateTime.now().toUtc());
+    return (remaining.inMilliseconds / 1000).ceil().clamp(
+      0,
+      _cancelWindowSeconds,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() => _cancelSecondsRemaining = _remainingCancellationSeconds());
+    }
   }
 
   void _handleLiveTripChange() {
@@ -183,6 +203,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _liveState?.removeListener(_handleLiveTripChange);
     _approachRun?.cancel();
     _arrivalRun?.cancel();
@@ -219,7 +240,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
     final status = state.activeBooking?.status;
     if (_cancelling ||
         _arrived ||
-        _cancelSecondsRemaining <= 0 ||
+        _remainingCancellationSeconds() <= 0 ||
         (status != BookingStatus.matched &&
             status != BookingStatus.approaching)) {
       return;
@@ -296,7 +317,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
           final cancellable = !_arrived && _cancelSecondsRemaining > 0;
 
           return DragSheetScaffold(
-            collapsedHeight: 320,
+            collapsedHeight: 400,
             handleSemanticLabel: 'Driver details',
             background: LiveMapView(
               // Centred on the driver, not the route. Where they are now is the
@@ -335,6 +356,23 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
             sheetBuilder: (context, expanded) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Text(
+                  _arrived ? 'Meet your driver.' : 'Your ride is coming.',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _arrived
+                      ? 'Head to your pickup point.'
+                      : 'Pickup · ${booking.pickupName}',
+                  style: AppTypography.bodySm,
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     ArangAvatar(
@@ -347,26 +385,19 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _arrived
-                                ? '$driverName has arrived'
-                                : '$driverName is on the way',
-                            style: AppTypography.displaySm,
-                          ),
+                          Text(driverName, style: AppTypography.h2),
                           Text('Tricycle · $toda'),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      eta,
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.primary,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
+                Text(
+                  eta,
+                  style: AppTypography.label.copyWith(color: AppColors.primary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   _arrived
                       ? 'Your driver is at the pickup point. The trip will '
@@ -388,19 +419,17 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: ArangButton(
-                        label: 'Message',
-                        icon: Icons.chat_outlined,
-                        variant: ArangButtonVariant.ghost,
+                      child: OutlinedButton.icon(
+                        label: const Text('Message'),
+                        icon: const Icon(Icons.chat_outlined),
                         onPressed: () => context.push('/chat/thread-active'),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
-                      child: ArangButton(
-                        label: 'Call',
-                        icon: Icons.call_outlined,
-                        variant: ArangButtonVariant.ghost,
+                      child: OutlinedButton.icon(
+                        label: const Text('Call'),
+                        icon: const Icon(Icons.call_outlined),
                         onPressed: () => showTripCallSheet(context),
                       ),
                     ),
@@ -409,27 +438,27 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen> {
 
                 if (expanded) ...[
                   const SizedBox(height: AppSpacing.md),
-                  SectionCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pickup',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textMuted,
-                          ),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.sm),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pickup',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textMuted,
                         ),
-                        Text(booking.pickupName),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Destination',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textMuted,
-                          ),
+                      ),
+                      Text(booking.pickupName),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Destination',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textMuted,
                         ),
-                        Text(booking.destinationName),
-                      ],
-                    ),
+                      ),
+                      Text(booking.destinationName),
+                    ],
                   ),
                 ],
               ],

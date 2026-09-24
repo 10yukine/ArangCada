@@ -91,7 +91,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     _sent
-                        ? 'If an account matches that address, Supabase Auth sent recovery instructions.'
+                        ? 'If an account matches that address, you’ll receive password reset instructions.'
                         : 'Enter the email address connected to your ArangCada account.',
                   ),
                   if (!_sent) ...[

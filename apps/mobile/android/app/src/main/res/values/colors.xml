@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window background shown between process start and Flutter's first
-         frame. Fixed to AppColors.screenBackground rather than white or
-         ?android:colorBackground: the app ships light-only, so inheriting the
-         system background made a dark-mode phone flash near-black before a
-         light UI painted over it. -->
-    <color name="arang_splash_background">#F6F9FD</color>
+    <!-- Match Flutter's white splash even when Android uses dark mode. -->
+    <color name="arang_splash_background">#FFFFFF</color>
 </resources>

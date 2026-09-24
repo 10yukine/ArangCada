@@ -122,6 +122,8 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
               );
             }
             final submitted = state.driverTripRating;
+            final reportTripId = state.liveTripId;
+            final rides = ref.read(liveRideRepositoryProvider);
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
@@ -218,9 +220,13 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
                     onPressed: () => showReportIssueFlow(
                       context: context,
                       driver: true,
-                      onSubmit: ref
-                          .read(liveRideRepositoryProvider)
-                          ?.createComplaint,
+                      onSubmit: rides == null || reportTripId == null
+                          ? null
+                          : (category, description) => rides.createComplaint(
+                              reportTripId,
+                              category,
+                              description,
+                            ),
                     ),
                     child: const Text('Report an issue with this trip'),
                   ),

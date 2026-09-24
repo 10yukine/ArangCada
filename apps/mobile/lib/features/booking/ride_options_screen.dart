@@ -8,7 +8,6 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
-import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../data/providers/repository_providers.dart';
@@ -16,7 +15,6 @@ import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../domain/geo/service_area.dart';
 import '../../domain/models/booking.dart';
-import '../../demo/demo_data.dart';
 
 /// Ride selection, following the approved prototype's `confirm` screen:
 /// map on top, a sheet holding the pickup/drop card, ride options, and a
@@ -38,7 +36,6 @@ class RideOptionsScreen extends ConsumerStatefulWidget {
 }
 
 class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
@@ -46,6 +43,17 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        if (!state.hasPickup) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Select a ride')),
+            body: Center(
+              child: TextButton(
+                onPressed: () => context.go('/home/choose-pickup'),
+                child: const Text('Choose pickup location'),
+              ),
+            ),
+          );
+        }
         final destination = state.destination;
         if (destination == null) {
           return Scaffold(
@@ -94,13 +102,6 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
               height: double.infinity,
               borderRadius: BorderRadius.zero,
               showCaption: false,
-              // Keeps the compass AND the boundary chip out from under the
-              // status bar; this map runs edge to edge.
-              boundaries: const [
-                MapBoundary(
-                  points: DemoData.calambaPoblacionPrototypeBoundary,
-                ),
-              ],
             ),
             overlay: [
               Positioned(
@@ -202,8 +203,8 @@ class _LocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ArangCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         children: [
           _Line(

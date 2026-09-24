@@ -6,28 +6,18 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 
 class ArangCadaMark extends StatelessWidget {
-  const ArangCadaMark({super.key, this.compact = false, this.badge = false});
+  const ArangCadaMark({
+    super.key,
+    this.compact = false,
+    this.badge = false,
+    this.showName = true,
+  });
+
+  final bool showName;
 
   final bool compact;
 
-  /// Presents the mark on a rounded-square backdrop with a small drop
-  /// shadow. Off by default so About and Splash -- which already reference
-  /// this widget -- render exactly as before; only the login screen opts in.
-  ///
-  /// Two deliberate choices here, both from user review:
-  ///
-  /// 1. The backdrop fill matches `AppColors.screenBackground`, the same
-  ///    colour as the page behind it. A contrasting circle was tried first
-  ///    and read as a mismatched container. The app icon already
-  ///    establishes a rounded square as this brand's separating shape, so
-  ///    the square is legible from its edge and shadow alone rather than
-  ///    from a colour change.
-  /// 2. Badge mode swaps in `arangcada_mark_square.svg`, the designer's
-  ///    square-framed composition of the same artwork. The default
-  ///    `arangcada_icon.svg` is framed tall: its content sits 128px below
-  ///    the canvas centre with ~18% dead space above, which looks
-  ///    noticeably low and left once placed inside a square. The square
-  ///    framing centres to within 2px on both axes.
+  /// White rounded-square brand tile shared by login and startup.
   final bool badge;
 
   /// 84, down from 116 (5 Sep 2026). The badge is the first thing on the login
@@ -56,10 +46,8 @@ class ArangCadaMark extends StatelessWidget {
             height: _badgeSize,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.screenBackground,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(_badgeRadius),
-              // Deliberately soft: this is the only thing separating the
-              // badge from the page now that the fill colour matches.
               boxShadow: const [
                 BoxShadow(
                   color: AppColors.shadowMedium,
@@ -77,8 +65,10 @@ class ArangCadaMark extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text('ArangCada', style: AppTypography.displaySm),
+          if (showName) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text('ArangCada', style: AppTypography.display),
+          ],
         ],
       );
     }

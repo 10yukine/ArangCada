@@ -70,8 +70,7 @@ class DemoUser {
   bool get needsPhoneVerification => !phoneVerified && !isInternalTester;
 
   /// The seeded `@arangcada.demo` accounts, and only those accounts. Used to
-  /// gate every walkthrough-only affordance: manual pickup choice, and the
-  /// Demo section on App Settings.
+  /// gate walkthrough-only affordances in App Settings.
   bool get isDemoAccount => email.endsWith('@arangcada.demo');
 
   /// GPS starts the pickup, but commuters may correct an inaccurate fix.

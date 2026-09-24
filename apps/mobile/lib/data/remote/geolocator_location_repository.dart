@@ -79,12 +79,24 @@ class GeolocatorLocationRepository implements LocationRepository {
     {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          // `medium` is enough to place a pickup pin and costs less battery
-          // than `best`. Anything finer is not needed for this feature.
-          accuracy: LocationAccuracy.medium,
+          accuracy: LocationAccuracy.high,
           timeLimit: _timeout,
         ),
       );
+      if (!position.latitude.isFinite ||
+          !position.longitude.isFinite ||
+          position.latitude.abs() > 90 ||
+          position.longitude.abs() > 180 ||
+          (position.latitude == 0 && position.longitude == 0) ||
+          position.accuracy <= 0 ||
+          !position.accuracy.isFinite ||
+          DateTime.now().difference(position.timestamp).abs() >
+              const Duration(seconds: 30)) {
+        throw const LocationFailure(
+          LocationFailureReason.unavailable,
+          'No recent GPS fix is available. Try again or choose a pickup manually.',
+        );
+      }
       return LocationFix(
         coordinate: GeoCoordinate(
           latitude: position.latitude,

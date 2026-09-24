@@ -18,7 +18,6 @@ import '../../core/nav/external_navigation.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/remote/supabase_ride_repository.dart';
-import '../../demo/demo_data.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
@@ -314,7 +313,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 .history()
                 .any((item) => !item.read);
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               children: [
                 // Prototype driver header: who you are, which body number and
                 // TODA you drive under. The bell reads the same real
@@ -375,26 +374,18 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   onToggle: _toggleAvailability,
                 ),
                 const SizedBox(height: 14),
-                _EarningsCard(onView: () => context.push('/driver/earnings')),
-                const SizedBox(height: 14),
                 if (state.driverTrip.status == DriverTripStatus.available)
-                  const SectionCard(
-                    child: Column(
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
                       children: [
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                        SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'You are online',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Waiting for ride requests in the Calamba TODA area.',
-                          textAlign: TextAlign.center,
+                        Icon(Icons.radar, color: AppColors.primary),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Ready for requests. Keep the app open while you wait.',
+                            style: AppTypography.bodySm,
+                          ),
                         ),
                       ],
                     ),
@@ -432,20 +423,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     onFinish: state.finishDriverTrip,
                   ),
                 const SizedBox(height: AppSpacing.md),
-                // The waiting/request map shows the driver's relevant demo
-                // jurisdiction. It is explicitly labelled because the seeded
-                // polygon is not official LGU geometry.
                 LiveMapView(
                   center: state.liveDriverLocation ?? state.pickup.coordinate,
-                  height: 190,
+                  height: 280,
                   zoom: 13.3,
                   showUserLocation: false,
                   interactive: false,
-                  boundaries: const [
-                    MapBoundary(
-                      points: DemoData.calambaPoblacionPrototypeBoundary,
-                    ),
-                  ],
                   markers: [
                     MapMarker(
                       coordinate:
@@ -454,6 +437,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       radius: 8,
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  leading: const Icon(
+                    Icons.payments_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Earnings & settlements'),
+                  subtitle: const Text('Review your trip earnings'),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () => context.push('/driver/earnings'),
                 ),
               ],
             );
@@ -597,20 +593,17 @@ class _PickupModeCard extends ConsumerWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: RoutePreviewMap(
-            controller: mapController,
-            from:
-                state.liveDriverLocation ??
-                DemoData.mockDriverLocation.coordinate,
-            to: state.pickup.coordinate,
-            height: double.infinity,
-            borderRadius: BorderRadius.zero,
-            showCaption: false,
-            interactive: true,
-            boundaries: const [
-              MapBoundary(points: DemoData.calambaPoblacionPrototypeBoundary),
-            ],
-          ),
+          child: state.liveDriverLocation == null
+              ? const Center(child: Text('Waiting for device GPS…'))
+              : RoutePreviewMap(
+                  controller: mapController,
+                  from: state.liveDriverLocation!,
+                  to: state.pickup.coordinate,
+                  height: double.infinity,
+                  borderRadius: BorderRadius.zero,
+                  showCaption: false,
+                  interactive: true,
+                ),
         ),
         Align(
           alignment: Alignment.bottomCenter,
@@ -672,23 +665,25 @@ class _DriverTripModeCard extends ConsumerWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: RoutePreviewMap(
-            controller: mapController,
-            from: state.pickup.coordinate,
-            to: state.destination?.coordinate ?? DemoData.places[1].coordinate,
-            height: double.infinity,
-            borderRadius: BorderRadius.zero,
-            showCaption: false,
-            interactive: true,
-            additionalMarkers: [
-              if (state.liveDriverLocation != null)
-                MapMarker(
-                  coordinate: state.liveDriverLocation!,
-                  color: AppColors.primaryText,
-                  radius: 9,
+          child: state.destination == null
+              ? const Center(child: Text('Trip destination unavailable'))
+              : RoutePreviewMap(
+                  controller: mapController,
+                  from: state.pickup.coordinate,
+                  to: state.destination!.coordinate,
+                  height: double.infinity,
+                  borderRadius: BorderRadius.zero,
+                  showCaption: false,
+                  interactive: true,
+                  additionalMarkers: [
+                    if (state.liveDriverLocation != null)
+                      MapMarker(
+                        coordinate: state.liveDriverLocation!,
+                        color: AppColors.primaryText,
+                        radius: 9,
+                      ),
+                  ],
                 ),
-            ],
-          ),
         ),
         Align(
           alignment: Alignment.bottomCenter,
@@ -742,11 +737,12 @@ class _DriverTripModeCard extends ConsumerWidget {
                       label: 'Maps',
                       icon: Icons.navigation_outlined,
                       variant: ArangButtonVariant.ghost,
-                      onPressed: () => openExternalNavigation(
-                        state.destination?.coordinate ??
-                            DemoData.places[1].coordinate,
-                        label: state.destination?.name,
-                      ),
+                      onPressed: state.destination == null
+                          ? null
+                          : () => openExternalNavigation(
+                              state.destination!.coordinate,
+                              label: state.destination!.name,
+                            ),
                     ),
                   ),
                 ],
@@ -976,112 +972,43 @@ class _AvailabilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ArangCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              // Status is never colour alone -- the sentence beside it says
-              // the same thing in words.
-              color: online ? AppColors.green : AppColors.textMuted,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  online ? "You're online" : "You're offline",
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  online
-                      ? 'Receiving requests from the Calamba Crossing terminal queue.'
-                      : 'Go online to join the terminal queue.',
-                  style: AppTypography.caption.copyWith(height: 1.4),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          ArangChip(
-            label: online ? 'Go offline' : 'Go online',
-            selected: false,
-            onTap: canToggle ? onToggle : null,
-          ),
-        ],
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
       ),
-    );
-  }
-}
-
-/// Today's earnings panel.
-class _EarningsCard extends StatelessWidget {
-  const _EarningsCard({required this.onView});
-
-  final VoidCallback onView;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: const BoxDecoration(
-        color: AppColors.primaryFill,
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Today's earnings",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryText,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    online ? "You're online" : 'Ready when you are.',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  '9 trips · 6.5 hrs online',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: AppColors.primaryText,
+                  const SizedBox(height: 8),
+                  Text(
+                    online
+                        ? 'You can receive ride requests.'
+                        : 'Go online to join the terminal queue.',
+                    style: TextStyle(color: colors.onSurfaceVariant),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: ArangButton(
-                    label: 'View earnings',
-                    expand: false,
-                    onPressed: onView,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            formatCentavos(36000),
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(color: AppColors.primary),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Semantics(
+              label: online ? 'Go offline' : 'Go online',
+              child: Switch(
+                value: online,
+                onChanged: canToggle ? (_) => onToggle() : null,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
