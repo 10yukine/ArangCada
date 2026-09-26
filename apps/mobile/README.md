@@ -3,6 +3,9 @@
 TODA-aware tricycle booking and dispatch for Calamba City. Academic capstone
 prototype, National University Laguna. Android-first.
 
+Self-funded; intended for donation to Calamba City. Recipients provide their own
+service accounts and operating costs. See [handover setup](HANDOVER.md).
+
 ---
 
 ## What is real and what is simulated
@@ -23,7 +26,7 @@ This is the single most important table in this file. Do not blur it.
 | Chat transport | **Live for authenticated accounts.** Private realtime text chat; completed trips remain read-only for 30 days. |
 | Safety reports | **Live for authenticated accounts.** Three-second hold, issue selection, then delivery to scoped LGU/TODA administrators. No emergency service is contacted. |
 | Driver app evaluation | **Live for authenticated drivers.** Required bilingual five-point feedback after the configured completed-trip interval; passenger ratings remain separate. |
-| Wallet balance and payments | Sandbox. No provider connected, no money moves. |
+| Wallet balance and payments | Disabled during beta testing, pending full implementation. Cash only; no provider connected. |
 | Driver payouts / settlement | Sandbox. |
 | Predictive ETA | Mock range. |
 
@@ -36,7 +39,8 @@ accounts remain explicitly local.
 ## Configuration
 
 Values are compile-time, supplied with `--dart-define-from-file`. Nothing is
-read from a bundled asset, so the JSON never ships inside the APK.
+read from a bundled asset, so the JSON never ships inside the APK. Compiled
+values remain extractable; use recipient-owned keys for a handover build.
 
 ```
 MAPTILER_KEY
@@ -49,9 +53,9 @@ Copy `env.json.example` to `env.json` and fill it in. `env.json` is gitignored
 and must never be committed. **The Supabase service-role key has no variable
 reserved here and must never be added.**
 
-Place this Android app's `google-services.json` from the team Firebase project
+Place this Android app's `google-services.json` from your own Firebase project
 at `android/app/google-services.json`. It is also gitignored. Ask a project
-maintainer for the client configuration; do not put either file in a commit.
+maintainer for setup guidance; do not reuse their credentials or commit either file.
 
 Each integration reports readiness on its own (`AppConfig.isMapTilerConfigured`
 and friends), so a missing map key costs the map, not authentication.
@@ -167,7 +171,8 @@ Email and password only.
 
 ## Payments
 
-No payment provider is selected or connected. The wallet is a sandbox: top-up,
+Wallet controls and digital booking are disabled during beta testing, pending
+full implementation. No payment provider is selected or connected. The underlying sandbox top-up,
 ride debit, refund, transaction history and settlement state all run locally.
 Balances are labelled `SANDBOX` and every payment surface states that no funds
 move. ArangCada does not custody customer funds; in production a digital
