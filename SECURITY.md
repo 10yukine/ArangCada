@@ -1,241 +1,177 @@
-# SECURITY.md — ArangCada Supabase Security Checklist
-*Use this before every demo build, panel test, and Supabase migration.*
+# Security policy
 
----
+ArangCada handles account information, driver verification documents, vehicle
+records, trip locations, chat and safety reports. Protecting this data and the
+credentials used to operate the project is part of every release and handover.
 
-## Security Goal
+**Status:** academic capstone in beta/internal testing. This document defines
+security requirements and verification steps; it is not evidence of a completed
+security audit, production readiness or legal compliance. Deployed settings must
+be checked separately from repository code.
 
-ArangCada handles commuter accounts, driver verification documents, vehicle identifiers, ride records, live location, payment references, complaints, and emergency reports. The system must follow data minimization and access control practices suitable for the Philippine Data Privacy Act and a public transport capstone.
+## Report a vulnerability
 
-The current target is internal testing only. Do not expose the app, admin dashboard, Supabase data, Storage objects, or development map/routing credentials through a public deployment.
+Contact the repository maintainer privately through an established project
+communication channel. Do not put credentials, personal records, usable tracking
+links or exploit details in public issues or discussions. If no private channel
+is available, request one without including sensitive details.
 
----
+Include the affected component/version, expected and observed behavior,
+reproduction steps using synthetic accounts, and a redacted screenshot or log
+if needed. Do not access another person's records to demonstrate a finding.
+Testing must stay within systems and accounts you are authorized to use.
 
-## Supabase Auth
+Reports are handled as maintainer availability permits. No response-time or
+security-support guarantee is currently offered for this beta.
 
-- [ ] Supabase Auth is the only auth provider for MVP
-- [ ] Clerk is not installed unless explicitly approved
-- [ ] New auth users get exactly one `profiles` row
-- [ ] Valid roles are limited to `commuter`, `driver`, `admin`
-- [ ] Driver accounts default to `pending`, not `approved`
-- [ ] Suspended users cannot create or accept rides
-- [ ] Admin creation is controlled through a safe seed script or manual Supabase dashboard action, not public sign up
-- [ ] Auth state is cleared on logout
-- [ ] No password, OTP, refresh token, or private credential is logged
+## Credentials and service ownership
 
----
+| Material | Required handling |
+| --- | --- |
+| Supabase project URL and publishable/anon key | Client configuration; access must still be enforced by backend authorization and RLS |
+| MapTiler, openrouteservice and optional Google Routes client keys | Separate keys per environment, provider-supported restrictions, quotas and usage monitoring; assume shipped values are extractable |
+| Supabase service-role/secret keys, provider account tokens, webhook secrets and Firebase service-account credentials | Server or operator environment only; never mobile/web code, public configuration or Git |
+| Passwords, OTPs, access/refresh tokens and recovery codes | Never commit, log, paste into AI conversations or include in screenshots or reports |
+| Android signing keys and passwords | Owner-controlled secure storage and backup; exclude from source packages and logs |
 
-## Key and Secret Safety
+`env.json`, `.env` files, Firebase client configuration and signing material must
+remain ignored. Commit only templates without real values. Ignoring a path does
+not remove an already tracked file, past commits, uploaded artifacts or other
+copies. Check the exact staged files before pushing.
 
-- [ ] Supabase URL and anon key are the only Supabase values allowed in Flutter or public web code
-- [ ] Supabase service role key is never placed in Flutter, web dashboard, Git, screenshots, or logs
-- [ ] MapTiler and openrouteservice keys use the narrowest available restrictions and free-tier quotas
-- [ ] MapLibre contains no secret; provider style URLs and tokens are treated as configuration, not committed credentials
-- [ ] `.env`, `.env.local`, and key files are ignored by Git
-- [ ] Edge Function secrets are stored in Supabase secrets, not hardcoded
-- [ ] Hive local cache stores only session/profile/fare-matrix/trip-history display data — never tokens, keys, driver documents, or raw payment details
+`--dart-define-from-file` does not make embedded values secret. Obfuscation and a
+private repository are not substitutes for authorization or key restrictions.
+Firebase client configuration identifies the client project; it must never be
+confused with privileged Firebase service-account credentials.
 
----
+The donation does not transfer the developer's personal logins, service credits,
+billing accounts or ongoing operating costs. Recipients must provision their own
+services and rebuild with their own configuration. See the
+[handover checklist](apps/mobile/HANDOVER.md).
 
-## Row Level Security Baseline
+## Authentication and authorization
 
-Every sensitive table must have RLS enabled.
+- Supabase Auth handles connected user authentication. Firebase Messaging is
+  used for push transport. Local demo accounts represent simulated users and
+  must not gain access to live records or administrative operations.
+- Resolve roles, approval status, suspension and administrator scope from
+  trusted server-side records. Do not trust client-selected roles, user-editable
+  metadata or hidden navigation controls as authorization.
+- Restrict administrator creation and invitations to authorized operators.
+  Validate invitation tokens, expiration, intended recipient and reuse rules.
+- Enforce account and trip permissions on every RPC, table, Storage operation,
+  Edge Function and Realtime subscription that exposes sensitive data.
+- Clear user-specific state on sign-out and account switching. Verify session
+  restoration and push-token reassignment do not expose the previous user's data.
+- Let the authentication SDK manage sessions; do not copy passwords or tokens
+  into application caches. Review the SDK's configured persistence and device
+  storage separately; encrypted session storage is not asserted by this policy.
 
-- [ ] `profiles`
-- [ ] `driver_profiles`
-- [ ] `vehicles`
-- [ ] `toda_zones`
-- [ ] `fare_matrix`
-- [ ] `fare_discount_brackets`
-- [ ] `driver_availability`
-- [ ] `trips`
-- [ ] `trip_locations`
-- [ ] `payments`
-- [ ] `emergency_reports`
-- [ ] `complaints`
-- [ ] `admin_audit_logs`
+## Database and server functions
 
-Minimum rules:
+Enable RLS and least-privilege grants for every exposed table containing private
+data. Use the existing [migrations](supabase/migrations) and
+[database tests](supabase/tests) as the implementation reference, rather than
+copying generic policy snippets into a live database.
 
-- [ ] Commuters can read and update only their own profile
-- [ ] Drivers can read and update only their own driver profile, except approval fields
-- [ ] Drivers cannot approve themselves
-- [ ] Commuters can read only their own rides
-- [ ] Drivers can read only rides assigned to them or eligible minimal dispatch request data
-- [ ] Admins can read records needed for governance, but admin access is still logged
-- [ ] Public users cannot read driver documents, live locations, emergency reports, or payment proof
+Required boundaries:
 
----
+- Commuters access their own records and the minimum information needed for
+  their trips. Drivers access eligible offers and their assigned trips.
+- Drivers cannot approve themselves, change privileges or bypass suspension.
+  Administrative reads and writes respect the caller's authorized scope.
+- The server owns final fares, assignment, state transitions, cancellations,
+  approvals and audit records. Client previews are not authoritative.
+- Security-definer functions validate the caller and inputs, constrain object
+  resolution, and expose only the execute permissions they require.
+- Validate coordinates, service-area eligibility, passenger counts, ride types,
+  text lengths and permitted state transitions at the backend boundary.
 
-## Suggested RLS Patterns
+An Edge Function with `verify_jwt = false` still needs the appropriate in-function
+authorization. Some configured endpoints use signed webhooks, a shared secret or
+an invitation token rather than a signed-in user's JWT. Review each handler with
+[`supabase/config.toml`](supabase/config.toml); do not enable or disable gateway
+JWT checks indiscriminately. A valid JWT alone does not establish admin authority.
 
-Use these patterns as starting points, then adapt per migration.
+## Documents, locations and shared links
 
-```sql
--- Profiles: user can read own profile
-create policy "profiles_select_own"
-on public.profiles
-for select
-to authenticated
-using (id = auth.uid());
+- Keep verification documents and other private uploads in private Storage.
+  Check ownership, administrator scope, allowed file types and size limits.
+  Use authorized downloads or short-lived signed URLs; treat those URLs as
+  sensitive while valid.
+- Restrict location access to the participants, eligible trip states and
+  authorized operational roles. Collect only what the active workflow needs.
+- A ride-sharing link grants access to a limited tracking view. Treat its token
+  as a bearer credential: enforce its scope, expiry and revocation on the
+  server, and keep it out of analytics, screenshots and logs.
+- Shared tracking must not expose private documents, full profiles, chat,
+  emergency reports or unrelated trip histories.
+- Define and verify retention/deletion periods for documents, chat, GPS records,
+  notifications and backups before operational handover. Do not assume that
+  hiding data in the UI deletes it from the backend.
 
--- Trips: commuter can read own trip
-create policy "trips_select_rider_own"
-on public.trips
-for select
-to authenticated
-using (rider_id = auth.uid());
+## Third-party requests and local data
 
--- Trips: assigned driver can read assigned trip
-create policy "trips_select_assigned_driver"
-on public.trips
-for select
-to authenticated
-using (driver_id = auth.uid());
-```
+MapTiler receives map/style requests and geocoding search text or coordinates.
+openrouteservice and optional Google Routes receive coordinates needed for route
+lookups. Do not attach names, phone numbers, trip IDs, documents or authentication
+tokens to those requests. Keep required provider attribution visible.
 
-Admin policies must reference a trusted profile role check or secured function. Do not rely on Flutter hiding admin screens.
+Push, SMS and email providers receive the data required to deliver their
+messages. Minimize message content, especially on lock screens. Protect push
+tokens and ensure server-side recipient selection follows account permissions.
 
----
+Application caches must hold only the minimum display data needed. Do not treat
+Hive or any local cache as a vault for credentials, private documents or raw
+financial details. Test cache isolation, logout cleanup and behavior on shared
+devices. Avoid logging request URLs or SDK errors that may contain tokens,
+provider keys or personal data.
 
-## Storage Buckets
+## Payments and beta boundaries
 
-### Driver Documents
+Cash is the beta payment method. Wallet top-ups and digital payments remain
+outside the supported beta flow pending full implementation. Simulated balances
+are not customer funds, and no payment provider is connected.
 
-- [ ] Bucket is private
-- [ ] Drivers can upload only inside their own folder path
-- [ ] Drivers can read only their own uploaded documents
-- [ ] Admins can read documents for verification
-- [ ] Public access is disabled
+Do not collect card details, banking passwords or payment-provider credentials.
+Enabling digital payments requires a separate implementation and security review,
+including server-side verification and protection against duplicate transactions.
+A wallet UI or payment screenshot is not proof that money moved.
 
-### Payment Proof
+## Exposure response
 
-- [ ] Bucket is private
-- [ ] Commuter can upload proof only for their own ride
-- [ ] Assigned driver and authorized admin can view payment status only when needed
-- [ ] Raw financial account details are not stored
+If a credential or private record is exposed:
 
-All driver-document and payment-proof buckets remain private. Access uses authenticated, short-lived URLs or authorized downloads; never public bucket URLs.
+1. Revoke or rotate the affected credential at its provider; removing text from
+   Git is not enough. Revoke affected sessions or shared links where applicable.
+2. Identify affected environments, accounts, artifacts and access. Review provider
+   usage and audit logs without copying sensitive records into the incident note.
+3. Replace configuration securely and rebuild/redeploy affected clients or
+   services through the authorized release process.
+4. Remove exposed material from current files and coordinate any necessary
+   history/artifact cleanup. Existing clones and downloaded builds may retain it.
+5. Record the scope, containment and follow-up privately. Escalate personal-data
+   exposure to the responsible project or recipient contact for assessment.
 
----
+## Verification before release or handover
 
-## Map and Routing Privacy
+Run checks with synthetic data and separate commuter, driver and administrator
+accounts. A passing checklist applies only to the environment and build tested.
 
-- [ ] MapLibre is only the client renderer and never receives Supabase service-role credentials or unrestricted ride records
-- [ ] MapTiler receives only the tile/style requests needed to draw the map
-- [ ] openrouteservice receives only the coordinates needed for the current route lookup; do not attach names, phone numbers, ride IDs, or document URLs
-- [ ] Point-in-Polygon TODA authorization (PostGIS spatial containment query, server-side) and LGU fare decisions remain in trusted project logic, not in a third-party map response
-- [ ] Development keys are rotated if exposed and are never reused as future production credentials
+- [ ] Scan staged source and delivery artifacts for credentials and personal data.
+- [ ] Confirm recipient-owned services, restricted client keys and appropriate signing.
+- [ ] Confirm commuter A cannot access commuter B's trips, chat or safety reports.
+- [ ] Confirm drivers cannot read another driver's documents or approve themselves.
+- [ ] Confirm pending/suspended drivers cannot accept rides or bypass restrictions.
+- [ ] Test unauthorized RPC calls and administrator scope with direct requests.
+- [ ] Confirm private Storage and Realtime access across accounts and anonymous users.
+- [ ] Test shared-link expiry, revocation and minimal response fields.
+- [ ] Test sign-out, account switching, restored sessions and notification recipients.
+- [ ] Confirm cash booking works and unsupported digital payment paths stay blocked.
+- [ ] Check logs, screenshots, exports and backups for sensitive information.
+- [ ] Record remaining findings and acceptance results before operational use.
 
----
-
-## Trusted Backend Logic
-
-Use Supabase Edge Functions or secured SQL RPC for these operations:
-
-- [ ] Final fare computation
-- [ ] Driver assignment
-- [ ] Driver approval or suspension
-- [ ] Ride cancellation rules
-- [ ] SOS report creation and notification routing
-- [ ] Fare matrix changes
-- [ ] Admin audit logging
-
-The Flutter app may request these actions, but must not be the final authority.
-
----
-
-## Location Privacy
-
-- [ ] Live driver location is visible only during eligible states
-- [ ] Active commuter can see only assigned driver location
-- [ ] Driver can see only relevant pickup and destination details for assigned rides
-- [ ] Completed ride route traces are restricted to participant users and authorized admins
-- [ ] GPS trail retention is limited to what the capstone needs
-- [ ] SOS stores a location snapshot, not unnecessary continuous private tracking beyond the active ride
-
----
-
-## Fare and Payment Safety
-
-- [ ] No surge pricing
-- [ ] Fare matrix changes require admin role
-- [ ] Fare preview and final fare are compared during testing
-- [ ] Final fare is computed through trusted logic
-- [ ] Payment methods are limited to `cash`, `gcash`, `qr_transfer` for MVP
-- [ ] No raw card numbers
-- [ ] No fake Stripe or external payment gateway unless explicitly requested
-- [ ] QR payment proof is private
-
----
-
-## Input Validation
-
-- [ ] Coordinates must be valid latitude and longitude values
-- [ ] Pickup and dropoff must pass Calamba or TODA boundary rules
-- [ ] Ride type must be `special` or `pooling`
-- [ ] Driver status must be approved before accepting rides
-- [ ] Uploaded files must be limited by size and type
-- [ ] Phone numbers and names must be normalized where needed
-- [ ] Complaint text must have length limits
-- [ ] SOS reason text must have length limits
-
----
-
-## Realtime Safety
-
-- [ ] Realtime is enabled only on tables that need it
-- [ ] Realtime payloads do not expose private fields to unauthorized subscribers
-- [ ] RLS policies are tested with Realtime subscriptions
-- [ ] Driver availability updates are throttled or paced to reduce cost and noise
-- [ ] Location updates stop after ride completion or cancellation
-
----
-
-## Logging and Audit
-
-- [ ] No full name, phone, ID number, license number, exact GPS trail, emergency contact, or uploaded document URL in logs
-- [ ] Admin actions write to `admin_audit_logs`
-- [ ] Driver approval, suspension, fare matrix update, complaint status update, and emergency report review are audited
-- [ ] Debug logs are removed or reduced before demo build
-
----
-
-## Manual Security Tests
-
-Run these with separate commuter, driver, and admin accounts.
-
-- [ ] Commuter A cannot read Commuter B's ride
-- [ ] Driver A cannot read Driver B's documents
-- [ ] Pending driver cannot go online
-- [ ] Pending driver cannot accept a ride
-- [ ] Driver cannot approve their own account
-- [ ] Commuter cannot edit fare matrix
-- [ ] Commuter cannot read emergency reports of other users
-- [ ] Public user cannot read private Storage files
-- [ ] User cannot create ride outside allowed boundary
-- [ ] User cannot mark another user's ride as completed
-
----
-
-## Pre Demo Checklist
-
-- [ ] RLS enabled on all sensitive tables
-- [ ] Storage buckets private
-- [ ] Service role key absent from repo
-- [ ] MapTiler and openrouteservice keys restricted and absent from Git
-- [ ] No public deployment or public Storage buckets
-- [ ] Test accounts prepared
-- [ ] Demo data does not contain real private documents
-- [ ] Emergency demo uses mock contacts or safe placeholder data
-- [ ] Backup demo video prepared in case internet or GPS fails
-
----
-
-## Agent and Wiki Privacy
-
-- [ ] Do not paste Supabase service role keys, MapTiler/openrouteservice unrestricted keys, `.env` contents, or real private records into Claude Code, Codex, or the wiki.
-- [ ] Keep `wiki/raw/` sanitized. No real driver documents, license IDs, emergency contacts, or private GPS trails.
-- [ ] Codex and Claude Code must not run destructive commands without explicit approval.
-- [ ] Handoff logs must describe files and state, not private user data.
-- [ ] If using screenshots or transcripts as sources, remove personal information before ingestion.
+Use relevant existing Flutter, tracking-page, Edge Function and database tests.
+[`scripts/run_db_tests.sh`](scripts/run_db_tests.sh) rebuilds its target database:
+inspect it first and use only an explicitly identified disposable local database.
+A request for local verification does not authorize tests against live data.
