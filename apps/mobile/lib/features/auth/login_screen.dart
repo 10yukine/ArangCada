@@ -135,7 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
                             border: Border.all(color: AppColors.border),
                             boxShadow: const [
                               BoxShadow(

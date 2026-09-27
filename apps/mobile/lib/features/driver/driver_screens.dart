@@ -446,7 +446,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                           state.driverTrip.status == DriverTripStatus.declined),
                   onToggle: _toggleAvailability,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.xs),
                 if (state.driverTrip.status == DriverTripStatus.available)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
@@ -495,16 +495,34 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                     onRate: () => context.push('/driver/rating'),
                     onFinish: state.finishDriverTrip,
                   ),
-                const SizedBox(height: AppSpacing.md),
+                // Same row treatment as the commuter dashboard's shortcuts.
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  leading: const Icon(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const ArangRowIcon(
                     Icons.payments_outlined,
-                    color: AppColors.primary,
+                    background: AppColors.primaryFill,
+                    foreground: AppColors.primary,
                   ),
-                  title: const Text('Earnings & settlements'),
-                  subtitle: const Text('Review your trip earnings'),
-                  trailing: const Icon(Icons.arrow_forward),
+                  title: const Text(
+                    'Earnings & settlements',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Review your trip earnings',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
                   onTap: () => context.push('/driver/earnings'),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -1108,12 +1126,31 @@ class _AvailabilityCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            Semantics(
-              label: online ? 'Go offline' : 'Go online',
-              child: Switch(
-                value: online,
-                onChanged: canToggle ? (_) => onToggle() : null,
-              ),
+            // Going online is this screen's main action, so the switch is
+            // drawn larger and states its current mode in words.
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  label: online ? 'Go offline' : 'Go online',
+                  child: Transform.scale(
+                    scale: 1.2,
+                    child: Switch(
+                      value: online,
+                      onChanged: canToggle ? (_) => onToggle() : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                ExcludeSemantics(
+                  child: Text(
+                    online ? 'Online' : 'Offline',
+                    style: AppTypography.label.copyWith(
+                      color: online ? AppColors.primary : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

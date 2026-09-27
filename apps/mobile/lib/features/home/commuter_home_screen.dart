@@ -223,7 +223,11 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                             ),
                             IconButton(
                               tooltip: 'Choose pickup',
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 20,
+                                color: AppColors.primary,
+                              ),
                               onPressed: () =>
                                   context.push('/home/choose-pickup'),
                             ),
@@ -378,7 +382,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                   children: [
                     Expanded(
                       child: Text(
-                        'Drivers Nearby You',
+                        'Around you',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium

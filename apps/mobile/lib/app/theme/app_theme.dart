@@ -167,8 +167,10 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
           foregroundColor: const WidgetStatePropertyAll(AppColors.primary),
+          // Family must be restated: a theme textStyle replaces the inherited
+          // one, and without it every TextButton fell back to the platform font.
           textStyle: const WidgetStatePropertyAll(
-            TextStyle(fontWeight: FontWeight.w600),
+            TextStyle(fontFamily: 'Fredoka', fontWeight: FontWeight.w600),
           ),
           animationDuration: AppMotion.button,
         ),

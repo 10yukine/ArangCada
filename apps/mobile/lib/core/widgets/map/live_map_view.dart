@@ -638,7 +638,7 @@ class _MapUnavailable extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               const Text(
-                'The rest of booking still works.',
+                'Everything else still works.',
                 textAlign: TextAlign.center,
                 style: AppTypography.caption,
               ),
