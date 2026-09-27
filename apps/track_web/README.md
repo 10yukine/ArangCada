@@ -87,9 +87,8 @@ containing `service_role`.
 
 ## Deploy — Cloudflare Workers
 
-Cloudflare merged Pages into Workers, so this deploys with `wrangler deploy`
-rather than a dashboard "output directory" setting. A separate project from the
-admin console.
+This project uses Cloudflare Workers static assets with `wrangler deploy`.
+It is separate from the admin console.
 
 | Setting | Value |
 |---|---|
@@ -105,8 +104,8 @@ file serves `index.html`, and `track.js` reads the token from the URL. No
 Step-by-step, including which variables screen to use, is in
 `docs/DOMAIN_DNS_RUNBOOK.md` Part 2.
 
-**`config.js` is gitignored**, so it is not in the repo Pages clones. The build
-command generates it from environment variables set in the Pages project:
+**`config.js` is gitignored**, so it is not in the repository checkout. The build
+command generates it from environment variables set in the build environment:
 
 | Env var | Example |
 |---|---|

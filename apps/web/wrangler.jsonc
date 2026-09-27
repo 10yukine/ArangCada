@@ -18,12 +18,11 @@
   "compatibility_date": "2026-09-04",
 
   "assets": {
-    "directory": "./public/"
-    // No "not_found_handling" override: every path here is a real static
-    // file (ph.html, terms.html, policy.html) plus the root redirect in
-    // _redirects. Unlike apps/track_web there is no client-side token
-    // route to fall back for, so the platform's normal 404 is correct for
-    // anything else.
+    "directory": "./public/",
+    // Every real path here is a static file (ph, download, terms, policy)
+    // plus the root redirect in _redirects. Anything else gets public/404.html
+    // with a real 404 status, instead of the browser's bare error page.
+    "not_found_handling": "404-page"
   },
 
   // Custom domains. Cloudflare creates and manages the DNS records for

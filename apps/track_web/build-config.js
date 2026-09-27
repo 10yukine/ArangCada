@@ -8,11 +8,11 @@
 // history outlives any decision to rotate it.
 //
 // So config.js is gitignored. That creates a problem for a Git-connected
-// Cloudflare Pages build: the file simply is not in the repo Pages clones, and
+// Cloudflare Workers build: the file is not in the repository checkout, and
 // the page would render its "expired" state for every visitor.
 //
 // This script closes that gap. Set the three values as environment variables in
-// the Pages project settings, and run it as the build command:
+// the build environment, and run it as the build command:
 //
 //   Build command:   node apps/track_web/build-config.js
 //   Deploy command:  npx wrangler deploy --config apps/track_web/wrangler.jsonc
@@ -49,7 +49,7 @@ if (missing.length > 0) {
 }
 
 // A service_role key must never reach the browser. This is a cheap guard
-// against someone pasting the wrong key into the Pages settings. Decode
+// against someone pasting the wrong key into the build settings. Decode
 // legacy JWT payloads; their role is not visible in the encoded token text.
 // This is configuration validation, not JWT signature verification.
 let isPublicKey = /^sb_publishable_[A-Za-z0-9_-]+$/.test(SUPABASE_ANON_KEY);

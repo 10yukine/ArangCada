@@ -38,7 +38,7 @@ Commuter and Driver run on the same Flutter codebase, split by role-gated routes
 | openrouteservice | Route preview and distance/duration lookup | Decide TODA eligibility or final LGU fare |
 | geolocator (client-side) | Android fused-location access feeding position to Realtime/RPC calls | Decide TODA eligibility or compute final fare |
 | Hive (client-side) | Read-only local cache of session/profile/fare-matrix/trip-history for display | Cache secrets, tokens, driver documents, or act as an offline write queue |
-| Cloudflare Pages | Static hosting/CDN for the Flutter Web admin build | Hold Supabase service-role credentials or execute trusted logic |
+| Cloudflare Workers | Static hosting/CDN for the Flutter Web admin build | Hold Supabase service-role credentials or execute trusted logic |
 
 ---
 

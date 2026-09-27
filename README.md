@@ -77,6 +77,8 @@ See the component guides for further setup:
 [mobile](apps/mobile/README.md) · [admin](apps/admin_web/README.md) ·
 [tracking](apps/track_web/README.md) · [public pages](apps/web/README.md).
 
+See [website hosting](docs/HOSTING.md) for the configured Cloudflare projects.
+
 ## Verify changes
 
 From the affected Flutter app directory:

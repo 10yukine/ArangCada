@@ -5,7 +5,9 @@
 <meta name="description" content="Official privacy policy and data protection practices for ArangCada in accordance with Philippine Republic Act 10173.">
 <meta name="theme-color" content="#1262D0">
 <link rel="canonical" href="https://arangcada.app/policy">
-<link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/site.css">
 
 <!-- Open Graph / Facebook / Messenger -->
@@ -29,15 +31,16 @@
 <meta name="twitter:image" content="https://arangcada.app/assets/og-banner.png">
 
 <script src="/appearance.js"></script>
-</head><body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="site-header wrap">
-<a class="brand" href="/ph"><img src="/assets/mark.svg" alt="" width="40" height="40">ArangCada</a>
-<nav aria-label="Main navigation"><a href="/ph">Home</a><a href="/terms">Terms</a><a href="/policy">Privacy</a></nav>
-<label class="appearance"><span class="sr-only">Appearance</span><select data-appearance aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-</header>
-<main id="main" class="legal-layout wrap">
-<aside class="legal-nav"><details open><summary>On this page</summary><div class="toc">
+</head><body class="legal-page">
+<a class="skip" href="#document">Skip to document</a>
+<header class="site-header"><div class="wrap header-row">
+<a class="brand" href="/ph"><span class="brand-mark"><img src="/assets/mark.svg" alt="" width="30" height="30"></span>ArangCada</a>
+<nav class="site-nav" aria-label="Main navigation"><a href="/ph">Home</a><a href="/terms">Terms</a><a href="/policy" aria-current="page">Privacy</a></nav>
+<label class="appearance" data-mode="system"><svg data-mode-icon="system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 3-.6 2.4-2 .9-2.2-.7-2.5 4.3 1.7 1.7v2.3l-1.7 1.7 2.5 4.3 2.3-.7 2 .9.5 2.4h5l.6-2.4 2-.9 2.2.7 2.5-4.3-1.7-1.7v-2.3l1.7-1.7-2.5-4.3-2.3.7-2-.9L14.5 3z"/><circle cx="12" cy="12" r="3"/></svg><svg data-mode-icon="light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg data-mode-icon="dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg><select data-appearance aria-label="Appearance" title="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+</div></header>
+<main id="main">
+<div class="legal-layout wrap">
+<aside><details class="legal-nav" open><summary>On this page</summary><div class="toc">
 <ul>
 <li><a href="#tldr-plain-english">TL;DR (plain English)</a></li>
 <li><a href="#1-who-this-document-is-about">1. Who this document is about</a></li>
@@ -57,26 +60,24 @@
 </ul>
 </div>
 </details></aside>
-<article class="legal-content"><h1 id="arangcada-privacy-policy">ArangCada Privacy Policy</h1>
+<div class="legal-document">
+<section class="legal-hero">
+<p class="eyebrow">Legal · Data Privacy Act of 2012</p>
+<h1>Privacy Policy</h1>
+<p class="legal-summary">What ArangCada collects, why, who can see it, and the rights you have under the Data Privacy Act of 2012.</p>
+<dl class="legal-meta"><div><dt>Effective</dt><dd>September 2026 (Academic Pilot)</dd></div><div><dt>Last updated</dt><dd>September 2026</dd></div><div><dt>Applies to</dt><dd>The ArangCada mobile app (commuter and driver roles) and the ArangCada LGU/TODA admin web console.</dd></div><div><dt>Prepared by</dt><dd>ArangCada capstone group (NU Laguna, Department of Computer Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet O. Niega.</dd></div></dl>
+<div class="legal-actions"><button type="button" class="legal-print" data-print>Print or save as PDF</button><a class="text-link" href="/terms">Read the Terms of Service <span aria-hidden="true">&rarr;</span></a></div>
+</section>
+<article class="legal-content" id="document"><h1 id="arangcada-privacy-policy">ArangCada Privacy Policy<a class="anchor" href="#arangcada-privacy-policy" title="Link to this section">#</a></h1>
 <blockquote>
 <p><strong>STATUS: Academic Capstone Release · Researched Legal Draft.</strong> Prepared
 for the Calamba City academic pilot pursuant to Republic Act No. 10173 (Data
 Privacy Act of 2012), its Implementing Rules and Regulations, and relevant
-National Privacy Commission (NPC) issuances. Source of truth for the data
-practices described here is <code>CLAUDE.md</code>; if the two ever disagree, treat
-that as a bug in this document and fix this document, not the other way
-around.</p>
+National Privacy Commission (NPC) issuances. If this policy ever disagrees
+with how the app actually handles data, we treat that as an error in this
+document and correct it.</p>
 </blockquote>
-<p><strong>Applies to:</strong> the ArangCada mobile app (commuter and driver roles) and the
-ArangCada LGU/TODA admin web console.
-<strong>Prepared by:</strong> ArangCada capstone group (NU Laguna, Department of Computer
-Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet
-O. Niega.
-<strong>Last updated:</strong> September 2026 · <strong>Effective date:</strong> September 2026 (Academic
-Pilot)
-<strong>Published at:</strong> <code>arangcada.app/policy</code> (once the site ships; see <code>apps/web</code>)</p>
-<hr />
-<h2 id="tldr-plain-english">TL;DR (plain English)</h2>
+<h2 id="tldr-plain-english">TL;DR (plain English)<a class="anchor" href="#tldr-plain-english" title="Link to this section">#</a></h2>
 <ul>
 <li>ArangCada is a <strong>school capstone project</strong>, not a commercial company. It is
   being tested internally in Calamba City for about three months. It is not
@@ -110,7 +111,7 @@ Pilot)
 <p>If any of that sounds wrong for what the app actually does, tell the group —
 this document is supposed to describe reality, not the other way around.</p>
 <hr />
-<h2 id="1-who-this-document-is-about">1. Who this document is about</h2>
+<h2 id="1-who-this-document-is-about">1. Who this document is about<a class="anchor" href="#1-who-this-document-is-about" title="Link to this section">#</a></h2>
 <p>ArangCada has three kinds of users:</p>
 <table>
 <thead>
@@ -134,7 +135,7 @@ this document is supposed to describe reality, not the other way around.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="2-what-we-collect">2. What we collect</h2>
+<h2 id="2-what-we-collect">2. What we collect<a class="anchor" href="#2-what-we-collect" title="Link to this section">#</a></h2>
 <table>
 <thead>
 <tr>
@@ -165,7 +166,7 @@ this document is supposed to describe reality, not the other way around.</p>
 </tr>
 <tr>
 <td>Trip records</td>
-<td>Pickup/destination, ride type (currently always Special — see <code>docs/LGU_FARE_MATRIX.md</code> §2a), passenger count (1–4), fare amount, status history</td>
+<td>Pickup/destination, ride type (currently always Special), passenger count (1–4), fare amount, status history</td>
 <td><code>trips</code> table</td>
 <td>You, your matched driver, TODA/LGU admin</td>
 </tr>
@@ -211,7 +212,7 @@ this document is supposed to describe reality, not the other way around.</p>
 an uploaded driver document image itself, health data, biometric data
 (no facial recognition), or precise location from anyone who is not
 currently a rider/driver on an active trip.</p>
-<h2 id="3-how-we-collect-it">3. How we collect it</h2>
+<h2 id="3-how-we-collect-it">3. How we collect it<a class="anchor" href="#3-how-we-collect-it" title="Link to this section">#</a></h2>
 <ul>
 <li><strong>Directly from you</strong>: registration forms, document uploads, in-app
   feedback surveys, complaint/SOS submissions.</li>
@@ -220,14 +221,13 @@ currently a rider/driver on an active trip.</p>
 <li><strong>From LGU/TODA administrators</strong>: approval/rejection decisions, TODA-zone
   assignment.</li>
 </ul>
-<h2 id="4-why-we-use-it">4. Why we use it</h2>
+<h2 id="4-why-we-use-it">4. Why we use it<a class="anchor" href="#4-why-we-use-it" title="Link to this section">#</a></h2>
 <ul>
 <li><strong>Dispatch and fare</strong>: match you to the <strong>nearest available verified
   driver within Calamba City</strong> — a server-side proximity search that starts
   at a 1 km radius and widens to 3 km if unmatched — and compute your fare
   using straight-line (Haversine) distance against the LGU-approved fare
-  matrix (Calamba City Ordinance No. 743, s. 2022) — see
-  <code>docs/LGU_FARE_MATRIX.md</code>. A separate server-side check confirms your
+  matrix (Calamba City Ordinance No. 743, s. 2022). A separate server-side check confirms your
   pickup and destination are both inside Calamba City; a driver's TODA
   membership no longer restricts which pickups they can be matched to, though
   it is still recorded for LGU/TODA oversight and reporting. There is no
@@ -242,7 +242,7 @@ currently a rider/driver on an active trip.</p>
   recommending to the LGU beyond the capstone — this is a required part of
   the underlying academic study, not incidental data collection.</li>
 </ul>
-<h2 id="5-legal-basis-republic-act-no-10173-the-data-privacy-act-of-2012">5. Legal basis (Republic Act No. 10173, the Data Privacy Act of 2012)</h2>
+<h2 id="5-legal-basis-republic-act-no-10173-the-data-privacy-act-of-2012">5. Legal basis (Republic Act No. 10173, the Data Privacy Act of 2012)<a class="anchor" href="#5-legal-basis-republic-act-no-10173-the-data-privacy-act-of-2012" title="Link to this section">#</a></h2>
 <p>This app operates in the Philippines, so the Data Privacy Act of 2012 (RA
 10173) and its Implementing Rules and Regulations govern how we handle your
 personal data, under the oversight of the <strong>National Privacy Commission
@@ -270,7 +270,7 @@ definition of <strong>sensitive personal information</strong> once uploaded (gov
 issued IDs). We apply the Act's higher standard of care to
 <code>driver_documents</code>: private Storage only, visible solely to the document
 owner and authorized LGU/TODA admins, per existing RLS/Storage policy.</p>
-<h2 id="6-who-can-see-your-data">6. Who can see your data</h2>
+<h2 id="6-who-can-see-your-data">6. Who can see your data<a class="anchor" href="#6-who-can-see-your-data" title="Link to this section">#</a></h2>
 <table>
 <thead>
 <tr>
@@ -313,7 +313,7 @@ owner and authorized LGU/TODA admins, per existing RLS/Storage policy.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="6a-ride-tracking-links-you-choose-to-share">6a. Ride-tracking links you choose to share</h3>
+<h3 id="6a-ride-tracking-links-you-choose-to-share">6a. Ride-tracking links you choose to share<a class="anchor" href="#6a-ride-tracking-links-you-choose-to-share" title="Link to this section">#</a></h3>
 <p>During an active trip you can generate a tracking link and send it to family or
 friends. This exists because Calamba City Hall asked for it: so someone can watch
 your trip in real time and know you arrived.</p>
@@ -358,8 +358,7 @@ not a full copy of your account):</p>
   or documents. <strong>Not active, and staying that way for now</strong>: no API key is
   configured, so no request currently reaches Google. The project owner
   confirmed on 4 Sept 2026 that this stays off — Google Routes is a paid API
-  and the project has no budget for it during internal testing (flagged in
-  <code>.pipeline/changes.md</code>, 1 Sept and 4 Sept 2026). Under NPC Circular 2020-03,
+  and the project has no budget for it during internal testing. Under NPC Circular 2020-03,
   routing requests to a US-headquartered processor would constitute a
   cross-border transfer requiring specific data transfer mechanisms; this
   remains inactive. Active routing continues to be serviced by European
@@ -385,7 +384,7 @@ not a full copy of your account):</p>
 <li><strong>Resend</strong> — receives an invited administrator's email address, and only
   that address, in order to deliver a one-time account-creation link when an
   LGU administrator invites a new LGU or TODA admin through the admin web
-  console (see <code>.pipeline/specs.md</code> Spec 19). This never applies to
+  console. This never applies to
   commuters or drivers — only to the small number of LGU/TODA staff being
   added as administrators. <strong>Not active for real messages yet</strong>: the sending
   domain and API key are staged but no real invite has gone out. Resend, Inc.
@@ -395,7 +394,7 @@ not a full copy of your account):</p>
   after which records are deleted. Resend does not receive your name, phone
   number, location, trip history, or password.</li>
 </ul>
-<h3 id="6b-physical-server-infrastructure-and-cross-border-transfers">6b. Physical server infrastructure and cross-border transfers</h3>
+<h3 id="6b-physical-server-infrastructure-and-cross-border-transfers">6b. Physical server infrastructure and cross-border transfers<a class="anchor" href="#6b-physical-server-infrastructure-and-cross-border-transfers" title="Link to this section">#</a></h3>
 <p>In compliance with the Data Privacy Act of 2012 and NPC Circular 2020-03:</p>
 <ul>
 <li><strong>Primary Database &amp; Application Storage (Supabase):</strong> Hosted on Amazon Web
@@ -411,7 +410,7 @@ not a full copy of your account):</p>
   processing within the EU provides an adequate and comparable standard of
   data protection under the EU General Data Protection Regulation (GDPR).</li>
 </ul>
-<h2 id="7-how-we-protect-it">7. How we protect it</h2>
+<h2 id="7-how-we-protect-it">7. How we protect it<a class="anchor" href="#7-how-we-protect-it" title="Link to this section">#</a></h2>
 <ul>
 <li>Row Level Security (RLS) is enabled on every table holding user, driver,
   trip, document, complaint, location, or emergency data — the database
@@ -427,7 +426,7 @@ not a full copy of your account):</p>
   you, we will notify you and the NPC as required by RA 10173 and its breach
   notification rules.</li>
 </ul>
-<h2 id="8-how-long-we-keep-it">8. How long we keep it</h2>
+<h2 id="8-how-long-we-keep-it">8. How long we keep it<a class="anchor" href="#8-how-long-we-keep-it" title="Link to this section">#</a></h2>
 <p>In compliance with the Data Privacy Act of 2012 Principle of Proportionality
 (RA 10173 Section 11), personal data is retained only for as long as necessary
 to fulfill the academic research, dispatch evaluation, and regulatory oversight
@@ -478,7 +477,7 @@ purposes:</p>
 </tr>
 </tbody>
 </table>
-<h2 id="9-payments">9. Payments</h2>
+<h2 id="9-payments">9. Payments<a class="anchor" href="#9-payments" title="Link to this section">#</a></h2>
 <p>Supported payment methods in this version: <strong>cash, GCash payment
 reference, QR transfer reference, and PayMongo in test mode.</strong> PayMongo live
 API keys exist for this project (kept outside the app, in a gitignored
@@ -488,7 +487,7 @@ version, this section and the corresponding consent flow will be updated
 <em>before</em> any live transaction is enabled — final fare and payment
 confirmation logic will remain server-side, never trusted to the client
 alone.</p>
-<h2 id="10-sharing-with-the-calamba-city-lgutoda-office">10. Sharing with the Calamba City LGU/TODA office</h2>
+<h2 id="10-sharing-with-the-calamba-city-lgutoda-office">10. Sharing with the Calamba City LGU/TODA office<a class="anchor" href="#10-sharing-with-the-calamba-city-lgutoda-office" title="Link to this section">#</a></h2>
 <p>Because this system exists to support the LGU's tricycle dispatch and to
 measure whether it should be recommended beyond the capstone, some data is
 specifically built to be shared with LGU/TODA administrators, not just kept
@@ -506,7 +505,7 @@ internal to the app:</p>
 </ul>
 <p>Only LGU administrators may configure how often the mandatory feedback is
 requested; during internal testing that interval is every trip.</p>
-<h2 id="11-your-rights-under-ra-10173">11. Your rights under RA 10173</h2>
+<h2 id="11-your-rights-under-ra-10173">11. Your rights under RA 10173<a class="anchor" href="#11-your-rights-under-ra-10173" title="Link to this section">#</a></h2>
 <p>You may:</p>
 <ul>
 <li><strong>Be informed</strong> about how your data is processed (this document).</li>
@@ -525,21 +524,21 @@ requested; during internal testing that interval is every trip.</p>
 contact our Data Protection Officer / Capstone Privacy Liaison at:
 <strong><code>privacy@arangcada.app</code></strong>. Identity verification is required, and requests
 will receive a formal response within fifteen (15) business days.</p>
-<h2 id="12-childrens-privacy">12. Children's privacy</h2>
+<h2 id="12-childrens-privacy">12. Children's privacy<a class="anchor" href="#12-childrens-privacy" title="Link to this section">#</a></h2>
 <p>ArangCada is strictly intended for individuals aged 18 and older. Minors aged
 15 to 17 may use the application only with verifiable parental or legal
 guardian consent and active supervision. We do not knowingly collect personal
 information from children under 15 years of age. If we discover that personal
 data of a child under 15 has been collected without parental consent, we will
 promptly delete that data and terminate the account.</p>
-<h2 id="13-changes-to-this-policy">13. Changes to this policy</h2>
+<h2 id="13-changes-to-this-policy">13. Changes to this policy<a class="anchor" href="#13-changes-to-this-policy" title="Link to this section">#</a></h2>
 <p>Because this is an active capstone build, this policy will be revisited
-whenever <code>CLAUDE.md</code>'s data model, dispatch/matching rule, third-party
+whenever the app's data model, dispatch/matching rule, third-party
 provider list, RLS scope, or payment method list changes. Material changes
 will be dated and summarized here before the next round of internal testing.
-There is currently no in-app mechanism to notify users of changes — that is
-part of the future UI-wiring spec referenced in <code>.pipeline/specs.md</code>.</p>
-<h2 id="14-contact">14. Contact</h2>
+There is currently no in-app mechanism to notify users of changes; the latest
+version is always published on this page.</p>
+<h2 id="14-contact">14. Contact<a class="anchor" href="#14-contact" title="Link to this section">#</a></h2>
 <p><strong>Data controller (for capstone purposes):</strong> ArangCada capstone group,
 Section CpE231B, Department of Computer Engineering, National University Laguna.
 - <strong>Capstone Adviser:</strong> Dr. Juliet O. Niega
@@ -555,6 +554,6 @@ guidance regarding Republic Act No. 10173:
 - <strong>Trunkline / Contact:</strong> +63 (02) 8234-2228
 - <strong>Address:</strong> 5th Floor, Delegation Building, Philippine International
   Convention Center (PICC) Complex, Vicente Sotto Avenue, Pasay City, Metro
-  Manila 1307, Philippines.</p></article></main>
-<footer class="site-footer wrap"><a class="brand" href="/ph">ArangCada</a><p>Made for the everyday ride.</p><nav aria-label="Footer"><a href="/terms">Terms of Service</a><a href="/policy">Privacy Policy</a></nav><span class="small">Academic capstone · Beta testing</span></footer>
+  Manila 1307, Philippines.</p><p class="legal-end"><a href="#main">Back to top <span aria-hidden="true">&uarr;</span></a></p></article></div></div></main>
+<footer class="site-footer"><div class="wrap footer-row"><a class="brand" href="/ph"><span class="brand-mark"><img src="/assets/mark.svg" alt="" width="30" height="30"></span>ArangCada</a><p>Made for the everyday ride.</p><nav class="footer-nav" aria-label="Footer"><a href="/terms">Terms of Service</a><a href="/policy">Privacy Policy</a></nav></div><p class="wrap footer-meta">Academic capstone &middot; National University Laguna &middot; Beta testing</p></footer>
 </body></html>
