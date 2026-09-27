@@ -478,7 +478,7 @@ class _ProfileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: AppRowIcon(icon, danger: danger),
+      leading: AppRowIcon(Icon(icon), danger: danger),
       title: Text(
         label,
         style: danger ? const TextStyle(color: AppColors.danger) : null,

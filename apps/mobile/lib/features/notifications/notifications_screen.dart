@@ -8,6 +8,7 @@ import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/tricycle_icon.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/app_notification.dart';
 
@@ -72,13 +73,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     GoRouter.maybeOf(context)?.go(route);
   }
 
-  static IconData _iconFor(AppNotificationRecord item) =>
+  static Widget _iconFor(AppNotificationRecord item) =>
       switch (item.data['type']) {
-        'ride_offer' => Icons.electric_rickshaw_outlined,
-        'ride_cancelled' => Icons.cancel_outlined,
-        'ride_expired' => Icons.timer_off_outlined,
-        'ride_updated' => Icons.directions_car_filled_outlined,
-        _ => Icons.notifications_outlined,
+        'ride_offer' => const TricycleIcon(),
+        'ride_cancelled' => const Icon(Icons.cancel_outlined),
+        'ride_expired' => const Icon(Icons.timer_off_outlined),
+        'ride_updated' => const Icon(Icons.directions_car_filled_outlined),
+        _ => const Icon(Icons.notifications_outlined),
       };
 
   static String _relativeTime(DateTime value) {

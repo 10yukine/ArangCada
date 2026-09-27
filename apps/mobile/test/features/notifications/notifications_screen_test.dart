@@ -1,5 +1,6 @@
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/repositories/notifications_repository.dart';
+import 'package:arangcada/core/widgets/tricycle_icon.dart';
 import 'package:arangcada/domain/models/app_notification.dart';
 import 'package:arangcada/features/notifications/notifications_screen.dart';
 import 'package:flutter/material.dart';
@@ -91,7 +92,7 @@ void main() {
       expect(find.text('Receipt ready'), findsOneWidget);
       expect(find.text('Yesterday'), findsOneWidget);
       // Type-based icon mapping.
-      expect(find.byIcon(Icons.electric_rickshaw_outlined), findsOneWidget);
+      expect(find.byType(TricycleIcon), findsOneWidget);
       expect(
         find.byIcon(Icons.directions_car_filled_outlined),
         findsOneWidget,

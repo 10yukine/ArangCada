@@ -7,6 +7,7 @@ import '../map_screen.dart';
 import '../models.dart';
 import '../session.dart';
 import '../theme.dart';
+import '../tricycle_icon.dart';
 import '../widgets.dart';
 
 /// The overview. On a desktop-sized window it fits the viewport exactly --
@@ -113,7 +114,7 @@ class DashboardScreen extends ConsumerWidget {
             label: 'OPEN SAFETY REPORTS',
             value: '${reports.length}',
             detail: 'Review and follow up',
-            icon: Icons.shield_outlined,
+            icon: const Icon(Icons.shield_outlined),
             compact: compact,
             onTap: () => context.go('/safety'),
           ),
@@ -121,7 +122,7 @@ class DashboardScreen extends ConsumerWidget {
             label: 'PENDING REVIEWS',
             value: '${pending.length}',
             detail: 'Driver applications',
-            icon: Icons.fact_check_outlined,
+            icon: const Icon(Icons.fact_check_outlined),
             compact: compact,
             onTap: openReviews,
           ),
@@ -129,7 +130,7 @@ class DashboardScreen extends ConsumerWidget {
             label: 'ACTIVE RIDES',
             value: '${rides.length}',
             detail: 'View dispatch',
-            icon: Icons.electric_rickshaw_outlined,
+            icon: const TricycleIcon(),
             compact: compact,
             onTap: () => context.go('/live-map'),
           ),
@@ -137,7 +138,7 @@ class DashboardScreen extends ConsumerWidget {
             label: 'APPROVED DRIVERS',
             value: '$approved',
             detail: '${drivers.length} enrolled',
-            icon: Icons.verified_outlined,
+            icon: const Icon(Icons.verified_outlined),
             compact: compact,
             onTap: () {
               controller.resetViewFilters();
@@ -218,8 +219,7 @@ class DashboardScreen extends ConsumerWidget {
               color: context.adminColor(AdminColors.primaryTint),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              Icons.electric_rickshaw_outlined,
+            child: TricycleIcon(
               size: 19,
               color: context.adminColor(AdminColors.primary),
             ),
@@ -581,7 +581,7 @@ class _Metric extends StatelessWidget {
   final String label;
   final String value;
   final String detail;
-  final IconData icon;
+  final Widget icon;
   final bool compact;
   final VoidCallback onTap;
 
@@ -613,10 +613,12 @@ class _Metric extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(
-                  icon,
-                  size: 18,
-                  color: context.adminColor(AdminColors.primary),
+                IconTheme(
+                  data: IconThemeData(
+                    size: 18,
+                    color: context.adminColor(AdminColors.primary),
+                  ),
+                  child: icon,
                 ),
               ],
             ),

@@ -7,6 +7,7 @@ import 'admin_controller.dart';
 import 'models.dart';
 import 'session.dart';
 import 'theme.dart';
+import 'tricycle_icon.dart';
 import 'widgets.dart';
 
 @visibleForTesting
@@ -451,8 +452,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                           for (final driver in liveDrivers)
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                Icons.electric_rickshaw,
+                              leading: TricycleIcon(
                                 color: context.adminColor(AdminColors.success),
                               ),
                               title: Text(driver.name),
@@ -633,8 +633,7 @@ class _RideCard extends StatelessWidget {
                 color: selected ? context.adminColor(AdminColors.primary) : AdminColors.rail,
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: const Icon(
-                Icons.electric_rickshaw,
+              child: const TricycleIcon(
                 color: Colors.white,
                 size: 21,
               ),

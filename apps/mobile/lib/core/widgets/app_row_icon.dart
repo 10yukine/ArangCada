@@ -6,7 +6,7 @@ import '../../app/theme/app_dimensions.dart';
 class AppRowIcon extends StatelessWidget {
   const AppRowIcon(this.icon, {super.key, this.danger = false});
 
-  final IconData icon;
+  final Widget icon;
   final bool danger;
 
   @override
@@ -19,10 +19,12 @@ class AppRowIcon extends StatelessWidget {
         color: danger ? AppColors.dangerFill : AppColors.neutralFill,
         borderRadius: BorderRadius.circular(AppRadii.badge),
       ),
-      child: Icon(
-        icon,
-        size: 20,
-        color: danger ? AppColors.danger : AppColors.textMuted,
+      child: IconTheme(
+        data: IconThemeData(
+          size: 20,
+          color: danger ? AppColors.danger : AppColors.textMuted,
+        ),
+        child: icon,
       ),
     );
   }

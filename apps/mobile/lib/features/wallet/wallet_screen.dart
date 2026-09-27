@@ -9,6 +9,7 @@ import '../../core/format/money_format.dart';
 import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/dashboard_back_button.dart';
 import '../../core/widgets/empty_state_card.dart';
+import '../../core/widgets/tricycle_icon.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/wallet_transaction.dart';
 import 'wallet_sheets.dart';
@@ -165,9 +166,9 @@ class _TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = switch (transaction.kind) {
-      WalletTransactionKind.topUp => Icons.add_card,
-      WalletTransactionKind.ridePayment => Icons.electric_rickshaw_outlined,
-      WalletTransactionKind.refund => Icons.replay,
+      WalletTransactionKind.topUp => const Icon(Icons.add_card),
+      WalletTransactionKind.ridePayment => const TricycleIcon(),
+      WalletTransactionKind.refund => const Icon(Icons.replay),
     };
     return ListTile(
       contentPadding: EdgeInsets.zero,
