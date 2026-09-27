@@ -12,6 +12,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/trip_call_sheet.dart';
+import '../../core/widgets/trip_share_sheet.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
@@ -443,6 +444,17 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                     ),
                   ],
                 ),
+                // Family can follow along from the moment a driver is on the
+                // way. Live trips only: a demo trip has no server link.
+                if (ref.read(liveRideRepositoryProvider) != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => showTripShareSheet(context),
+                      icon: const Icon(Icons.share_location_outlined),
+                      label: const Text('Share trip'),
+                    ),
+                  ),
 
                 if (expanded) ...[
                   const SizedBox(height: AppSpacing.md),

@@ -14,6 +14,7 @@ import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/trip_call_sheet.dart';
+import '../../core/widgets/trip_share_sheet.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/remote/supabase_ride_repository.dart';
@@ -375,6 +376,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 onConfirmArrival: _confirmArrival,
                 onMessage: () => context.push('/chat/thread-active'),
                 onCall: () => showTripCallSheet(context),
+                // Live trips only: a demo trip has no server link to share.
+                onShare: ref.read(liveRideRepositoryProvider) == null
+                    ? null
+                    : () => showTripShareSheet(context),
                 onSos: _recordSos,
               ),
             );
@@ -445,6 +450,7 @@ class _ActiveTripSheetBody extends StatelessWidget {
     required this.onConfirmArrival,
     required this.onMessage,
     required this.onCall,
+    required this.onShare,
     required this.onSos,
   });
 
@@ -460,6 +466,7 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final VoidCallback onConfirmArrival;
   final VoidCallback onMessage;
   final VoidCallback onCall;
+  final VoidCallback? onShare;
   final Future<void> Function() onSos;
 
   /// "2:54", not "174s". Past a minute, raw seconds stop being a duration a
@@ -606,6 +613,15 @@ class _ActiveTripSheetBody extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        if (!awaitingConfirmation && onShare != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onShare,
+              icon: const Icon(Icons.share_location_outlined),
+              label: const Text('Share trip'),
+            ),
           ),
         const SizedBox(height: AppSpacing.xs),
         // SOS outlives arrival deliberately. "SOS starts where the ride does"

@@ -455,6 +455,19 @@ class SupabaseRideRepository extends ChangeNotifier {
     return phone;
   }
 
+  /// Token for the public tracking page of the rider's current trip. The
+  /// server reuses an existing link, and refuses unverified accounts, other
+  /// people's trips and trips that have ended.
+  Future<String> createShareLink() async {
+    final tripId = _state.liveTripId;
+    if (tripId == null) throw StateError('There is no active trip to share.');
+    return await _client.rpc(
+          'create_ride_share_link',
+          params: {'p_trip_id': tripId},
+        )
+        as String;
+  }
+
   Future<void> markArrived() => _tripAction('mark_arrived');
   Future<void> startTrip() => _tripAction('start_trip');
   Future<void> completeTrip() => _tripAction('complete_trip');
