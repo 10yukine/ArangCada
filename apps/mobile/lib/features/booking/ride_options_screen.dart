@@ -117,9 +117,9 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
           body: DragSheetScaffold(
             sheetKey: _mapController.panelKey,
             // Tall enough that the collapsed peek already shows the addresses,
-            // the passenger picker and the Review bar. The fare breakdown is
-            // what expanding is for.
-            collapsedHeight: 340,
+            // the fare, the passenger picker and the Review bar. The fare
+            // breakdown is what expanding is for.
+            collapsedHeight: 420,
             handleSemanticLabel: 'Show fare breakdown',
             background: RoutePreviewMap(
               controller: _mapController,
@@ -184,28 +184,15 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                 ],
                 const SizedBox(height: AppSpacing.md),
 
-                // The "Select a Ride" heading and its single selected card are
-                // gone. Espesyal has been the only bookable ride type since
-                // 31 Aug 2026, so a picker with one permanently chosen option
-                // was a choice that could not be made, taking the room the
-                // fare breakdown needed. What it actually carried -- the
-                // distance and the ordinance the price comes from -- is kept.
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Espesyal · private trip',
-                        style: AppTypography.label,
-                      ),
-                    ),
-                    Text(
-                      '${(distanceMeters / 1000).toStringAsFixed(1)} km '
-                      '· Ord. 743',
-                      style: AppTypography.caption,
-                    ),
-                  ],
+                // Espesyal is the only bookable ride type (since 31 Aug 2026),
+                // so there is no picker: this row states the ride and, above
+                // all, its price -- the one number people look for here.
+                _FareSummary(
+                  distanceKm: distanceMeters / 1000,
+                  amount: formatCentavos(special.partyTotalCentavos),
+                  discounted: discountClass == DiscountClass.discounted,
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.md),
                 _PassengerRow(
                   count: state.passengerCount,
                   max: 4,
@@ -239,24 +226,12 @@ class _LocationCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         children: [
-          _Line(
-            icon: Icons.my_location,
-            background: AppColors.greenFill,
-            foreground: AppColors.green,
-            label: 'Pickup Location',
-            value: pickupName,
-          ),
+          _Line(destination: false, label: 'Pickup', value: pickupName),
           const Padding(
-            padding: EdgeInsets.only(left: 46),
+            padding: EdgeInsets.only(left: 32),
             child: Divider(height: 1, color: AppColors.dividerLight),
           ),
-          _Line(
-            icon: Icons.place_outlined,
-            background: AppColors.primaryFill,
-            foreground: AppColors.primaryText,
-            label: 'Drop Location',
-            value: destinationName,
-          ),
+          _Line(destination: true, label: 'Drop-off', value: destinationName),
         ],
       ),
     );
@@ -265,16 +240,12 @@ class _LocationCard extends StatelessWidget {
 
 class _Line extends StatelessWidget {
   const _Line({
-    required this.icon,
-    required this.background,
-    required this.foreground,
+    required this.destination,
     required this.label,
     required this.value,
   });
 
-  final IconData icon;
-  final Color background;
-  final Color foreground;
+  final bool destination;
   final String label;
   final String value;
 
@@ -284,12 +255,7 @@ class _Line extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          ArangRowIcon(
-            icon,
-            background: background,
-            foreground: foreground,
-            size: 34,
-          ),
+          ArangRouteMarker(destination: destination),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -367,26 +333,82 @@ class _PassengerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Passengers',
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Passengers', style: AppTypography.label),
+            ),
+            // Espesyal is billed per trip, so the count never moves the
+            // price. Saying so stops people under-reporting to save money.
+            Text('Same fare for 1–$max', style: AppTypography.caption),
+          ],
         ),
-        const SizedBox(width: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
+        SegmentedButton<int>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            selectedBackgroundColor: AppColors.primaryFill,
+            selectedForegroundColor: AppColors.primaryText,
+          ),
+          segments: [
+            for (var value = 1; value <= max; value++)
+              ButtonSegment(value: value, label: Text('$value')),
+          ],
+          selected: {count},
+          onSelectionChanged: (values) => onChanged(values.single),
+        ),
+      ],
+    );
+  }
+}
+
+class _FareSummary extends StatelessWidget {
+  const _FareSummary({
+    required this.distanceKm,
+    required this.amount,
+    required this.discounted,
+  });
+
+  final double distanceKm;
+  final String amount;
+  final bool discounted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
         Expanded(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var value = 1; value <= max; value++)
-                ArangChip(
-                  label: '$value',
-                  selected: value == count,
-                  onTap: () => onChanged(value),
-                ),
+              const Text('Espesyal na Byahe', style: AppTypography.h2),
+              const SizedBox(height: 2),
+              Text(
+                'Private trip · ${distanceKm.toStringAsFixed(1)} km'
+                '${discounted ? ' · discount applied' : ''}',
+                style: AppTypography.caption,
+              ),
             ],
           ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              amount,
+              style: AppTypography.displaySm.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const Text('LGU fare · no surge', style: AppTypography.caption),
+          ],
         ),
       ],
     );
@@ -494,7 +516,7 @@ class _BreakdownLine extends StatelessWidget {
   }
 }
 
-/// Fare on the left, action on the right -- the prototype's bottom CTA.
+/// The bottom action. Its semantics include the fare shown in the sheet.
 class _ReviewBar extends StatelessWidget {
   const _ReviewBar({required this.amount, required this.onPressed});
 
@@ -516,26 +538,16 @@ class _ReviewBar extends StatelessWidget {
           onTap: onPressed,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  amount ?? '—',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: enabled ? Colors.white : AppColors.textDisabled,
-                  ),
-                ),
-                Text(
-                  'Review Ride',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: enabled ? Colors.white : AppColors.textDisabled,
-                  ),
-                ),
-              ],
+            // The fare is stated right above in the sheet, so the button
+            // carries only the action (screen readers still hear the amount).
+            child: Text(
+              'Review Ride',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: enabled ? Colors.white : AppColors.textDisabled,
+              ),
             ),
           ),
         ),

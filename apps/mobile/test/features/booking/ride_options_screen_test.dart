@@ -1,4 +1,3 @@
-import 'package:arangcada/core/widgets/arang_ui.dart';
 import 'package:arangcada/core/widgets/map/route_preview_map.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
@@ -61,6 +60,11 @@ void main() {
     );
   });
 
+  Finder segment(String label) => find.descendant(
+    of: find.byType(SegmentedButton<int>),
+    matching: find.text(label),
+  );
+
   testWidgets('passenger count reaches the LGU-approved four', (tester) async {
     final state = bookingState();
     addTearDown(state.dispose);
@@ -68,10 +72,10 @@ void main() {
     await tester.pumpWidget(harness(state));
     await tester.pumpAndSettle();
 
-    // The selector renders one chip per permitted passenger count.
+    // The selector renders one segment per permitted passenger count.
     for (final value in ['1', '2', '3', '4']) {
       expect(
-        find.widgetWithText(ArangChip, value),
+        segment(value),
         findsOneWidget,
         reason: '$value passengers must be selectable under the LGU-approved '
             'Espesyal cap of 4 (31 Aug 2026)',
@@ -79,13 +83,18 @@ void main() {
     }
 
     expect(
-      find.widgetWithText(ArangChip, '5'),
+      segment('5'),
       findsNothing,
       reason: 'the cap moved from 3 to 4, it was not removed -- a fifth '
           'passenger must not be offered',
     );
 
-    await tester.tap(find.widgetWithText(ArangChip, '4'));
+    await tester.ensureVisible(segment('4'));
+    await tester.pumpAndSettle();
+    await tester.tap(segment('4'));
+    await tester.pumpAndSettle();
+    // Passenger count never changes the Espesyal price; the screen says so.
+    expect(find.text('Same fare for 1–4'), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(state.passengerCount, 4);

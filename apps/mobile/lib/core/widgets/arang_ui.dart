@@ -634,3 +634,32 @@ class ArangField extends StatelessWidget {
     );
   }
 }
+
+/// The route pair used wherever a trip is shown: a round dot for pickup and a
+/// location pin for the destination, told apart by shape as well as label.
+/// Both sit in a 20 px column so stacked rows line up.
+class ArangRouteMarker extends StatelessWidget {
+  const ArangRouteMarker({required this.destination, super.key});
+
+  final bool destination;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: Center(
+        child: destination
+            ? const Icon(Icons.location_on, size: 16, color: AppColors.primary)
+            : Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+      ),
+    );
+  }
+}

@@ -149,13 +149,11 @@ class _DestinationSearchScreenState
         prefixIcon: framed
             ? const Icon(Icons.search, size: 22)
             : const Padding(
-                padding: EdgeInsets.only(left: 16, right: 14),
-                // Align keeps the 10 px marker from stretching to the
-                // field's full height.
+                padding: EdgeInsets.only(left: 11, right: 9),
                 child: Align(
                   widthFactor: 1,
                   heightFactor: 1,
-                  child: _RouteMarker(square: true),
+                  child: ArangRouteMarker(destination: true),
                 ),
               ),
         prefixIconConstraints: framed
@@ -209,15 +207,15 @@ class _DestinationSearchScreenState
                             children: [
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
-                                  16,
+                                  11,
                                   12,
                                   16,
                                   10,
                                 ),
                                 child: Row(
                                   children: [
-                                    const _RouteMarker(square: false),
-                                    const SizedBox(width: 14),
+                                    const ArangRouteMarker(destination: false),
+                                    const SizedBox(width: 9),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -277,27 +275,6 @@ class _DestinationSearchScreenState
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RouteMarker extends StatelessWidget {
-  const _RouteMarker({required this.square});
-
-  /// Round for the pickup, square for the destination: the usual pair on a
-  /// route, readable without colour.
-  final bool square;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: square ? AppColors.ink : AppColors.primary,
-        shape: square ? BoxShape.rectangle : BoxShape.circle,
-        borderRadius: square ? BorderRadius.circular(2) : null,
       ),
     );
   }
