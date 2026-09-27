@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
 
@@ -14,9 +14,6 @@ class RatingScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<RatingScreen> createState() => _RatingScreenState();
 }
-
-/// Said back under the stars, so a tap gets an answer in words.
-const _starWords = ['Poor', 'Fair', 'Okay', 'Good', 'Great'];
 
 class _RatingScreenState extends ConsumerState<RatingScreen> {
   final _commentController = TextEditingController();
@@ -100,48 +97,11 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 // Big stars: this is the one tap the screen exists for.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var star = 1; star <= 5; star++)
-                      if (submitted == null)
-                        IconButton(
-                          tooltip: '$star star${star == 1 ? '' : 's'}',
-                          iconSize: 40,
-                          onPressed: () =>
-                              setState(() => _selectedStars = star),
-                          icon: Icon(
-                            star <= _selectedStars
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            star <= submitted
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            color: AppColors.primary,
-                            size: 36,
-                          ),
-                        ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  switch (submitted ?? _selectedStars) {
-                    0 => 'Tap a star',
-                    final n => _starWords[n - 1],
-                  },
-                  textAlign: TextAlign.center,
-                  style: AppTypography.label.copyWith(
-                    color: (submitted ?? _selectedStars) == 0
-                        ? AppColors.textMuted
-                        : AppColors.primary,
-                  ),
+                ArangStarRating(
+                  value: submitted ?? _selectedStars,
+                  onChanged: submitted == null
+                      ? (star) => setState(() => _selectedStars = star)
+                      : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (submitted == null)

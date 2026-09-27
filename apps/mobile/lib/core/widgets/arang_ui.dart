@@ -703,3 +703,60 @@ class ArangRouteStop extends StatelessWidget {
     );
   }
 }
+
+/// Five large stars with the choice said back in words (Poor to Great).
+/// Read-only when [onChanged] is null, e.g. after a rating was sent.
+class ArangStarRating extends StatelessWidget {
+  const ArangStarRating({required this.value, this.onChanged, super.key});
+
+  static const words = ['Poor', 'Fair', 'Okay', 'Good', 'Great'];
+
+  /// 0 when nothing is chosen yet.
+  final int value;
+  final ValueChanged<int>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var star = 1; star <= 5; star++)
+              if (onChanged != null)
+                IconButton(
+                  tooltip: '$star star${star == 1 ? '' : 's'}',
+                  iconSize: 40,
+                  onPressed: () => onChanged!(star),
+                  icon: Icon(
+                    star <= value
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: AppColors.primary,
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    star <= value
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: AppColors.primary,
+                    size: 36,
+                  ),
+                ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          value == 0 ? 'Tap a star' : words[value - 1],
+          textAlign: TextAlign.center,
+          style: AppTypography.label.copyWith(
+            color: value == 0 ? AppColors.textMuted : AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}

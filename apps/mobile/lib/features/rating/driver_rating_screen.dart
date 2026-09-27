@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/report_issue_sheet.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
@@ -127,15 +125,10 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                const Icon(
-                  Icons.favorite_outline,
-                  size: 52,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   submitted == null
-                      ? 'How was ${state.liveCommuterName ?? 'Joshua Adia'}?'
+                      ? 'How was ${state.liveCommuterName ?? 'your passenger'}?'
                       : 'Thanks for your feedback',
                   textAlign: TextAlign.center,
                   style: AppTypography.display,
@@ -143,66 +136,36 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   '${state.pickup.name} → '
-                  '${state.destination?.name ?? 'Calamba City Hall'}',
+                  '${state.destination?.name ?? 'Destination'}',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                SectionCard(
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          for (var star = 1; star <= 5; star++)
-                            if (submitted == null)
-                              IconButton(
-                                tooltip: '$star star${star == 1 ? '' : 's'}',
-                                onPressed: () =>
-                                    setState(() => _selectedStars = star),
-                                icon: Icon(
-                                  star <= _selectedStars
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            else
-                              Icon(
-                                star <= submitted
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                color: AppColors.primary,
-                                size: 34,
-                              ),
-                        ],
-                      ),
-                      if (submitted == null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          controller: _commentController,
-                          minLines: 3,
-                          maxLines: 5,
-                          maxLength: 240,
-                          decoration: const InputDecoration(
-                            labelText: 'Comment (optional)',
-                            hintText: 'Tell us about the passenger',
-                            alignLabelWithHint: true,
-                          ),
-                        ),
-                      ] else if (state.driverTripRatingComment != null) ...[
-                        const Divider(height: AppSpacing.xl),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            state.driverTripRatingComment!,
-                            style: AppTypography.body,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                ArangStarRating(
+                  value: submitted ?? _selectedStars,
+                  onChanged: submitted == null
+                      ? (star) => setState(() => _selectedStars = star)
+                      : null,
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                if (submitted == null)
+                  TextField(
+                    controller: _commentController,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 240,
+                    decoration: const InputDecoration(
+                      labelText: 'Comment (optional)',
+                      hintText: 'Tell us about the passenger',
+                      alignLabelWithHint: true,
+                    ),
+                  )
+                else if (state.driverTripRatingComment != null)
+                  Text(
+                    state.driverTripRatingComment!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body,
+                  ),
                 const SizedBox(height: AppSpacing.lg),
                 if (submitted == null) ...[
                   FilledButton(
