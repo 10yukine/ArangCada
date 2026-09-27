@@ -281,13 +281,13 @@ class _SearchingForDriverScreenState
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: AppSpacing.xs),
-                _Stop(
+                ArangRouteStop(
                   destination: false,
                   label: 'Pickup',
                   name: booking.pickupName,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                _Stop(
+                ArangRouteStop(
                   destination: true,
                   label: 'Drop-off',
                   name: booking.destinationName,
@@ -297,44 +297,6 @@ class _SearchingForDriverScreenState
           );
         },
       ),
-    );
-  }
-}
-
-class _Stop extends StatelessWidget {
-  const _Stop({
-    required this.destination,
-    required this.label,
-    required this.name,
-  });
-
-  final bool destination;
-  final String label;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        ArangRouteMarker(destination: destination),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.caption),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySm.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

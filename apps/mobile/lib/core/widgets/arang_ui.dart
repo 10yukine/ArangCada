@@ -663,3 +663,43 @@ class ArangRouteMarker extends StatelessWidget {
     );
   }
 }
+
+/// One stop of a trip: the route marker, a small label ("Pickup",
+/// "Drop-off") and the place name. Shared by every ride screen so the route
+/// reads the same from search to receipt.
+class ArangRouteStop extends StatelessWidget {
+  const ArangRouteStop({
+    required this.destination,
+    required this.label,
+    required this.name,
+    super.key,
+  });
+
+  final bool destination;
+  final String label;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ArangRouteMarker(destination: destination),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTypography.caption),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

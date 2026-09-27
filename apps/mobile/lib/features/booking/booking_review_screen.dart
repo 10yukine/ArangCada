@@ -175,7 +175,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                _RouteStop(
+                ArangRouteStop(
                   destination: false,
                   label: 'Pickup',
                   name: booking.pickupName,
@@ -191,7 +191,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                     color: AppColors.border,
                   ),
                 ),
-                _RouteStop(
+                ArangRouteStop(
                   destination: true,
                   label: 'Drop-off',
                   name: booking.destinationName,
@@ -246,42 +246,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _RouteStop extends StatelessWidget {
-  const _RouteStop({
-    required this.destination,
-    required this.label,
-    required this.name,
-  });
-
-  final bool destination;
-  final String label;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        ArangRouteMarker(destination: destination),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.caption),
-              Text(
-                name,
-                style: AppTypography.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

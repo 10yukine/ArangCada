@@ -331,15 +331,17 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
               borderRadius: BorderRadius.zero,
               interactive: true,
               markers: [
+                // Pickup in the app's blue, like its route dot; the driver
+                // larger and darker so the two never read as one.
                 MapMarker(
                   coordinate: state.pickup.coordinate,
-                  color: AppColors.green,
+                  color: AppColors.primary,
                   radius: 8,
                 ),
                 if (state.liveDriverLocation != null)
                   MapMarker(
                     coordinate: state.liveDriverLocation!,
-                    color: AppColors.primary,
+                    color: AppColors.primaryText,
                     radius: 10,
                   ),
               ],
@@ -368,10 +370,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
               children: [
                 Text(
                   _arrived ? 'Meet your driver.' : 'Your ride is coming.',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.display,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -461,25 +460,16 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   const SizedBox(height: AppSpacing.md),
                   const Divider(),
                   const SizedBox(height: AppSpacing.sm),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Pickup',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      Text(booking.pickupName),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Destination',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      Text(booking.destinationName),
-                    ],
+                  ArangRouteStop(
+                    destination: false,
+                    label: 'Pickup',
+                    name: booking.pickupName,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  ArangRouteStop(
+                    destination: true,
+                    label: 'Drop-off',
+                    name: booking.destinationName,
                   ),
                 ],
               ],
