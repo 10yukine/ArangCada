@@ -308,39 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       valueListenable: authRestoring,
       builder: (context, restoring, _) {
         if (restoring) {
-          return Scaffold(
-            body: Container(
-              decoration: const BoxDecoration(gradient: adminBrandGradient),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  const Center(child: BrandTile(size: 64)),
-                  Positioned(
-                    left: 24,
-                    right: 24,
-                    bottom: 24,
-                    child: SafeArea(
-                      top: false,
-                      child: Center(
-                        child: SizedBox(
-                          width: 160,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: const LinearProgressIndicator(
-                              minHeight: 3,
-                              backgroundColor: Color(0x55FFFFFF),
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              semanticsLabel: 'Restoring your account',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return const AdminLoadingScreen(label: 'Restoring your account');
         }
         final effectiveError = signInError ?? authError.value;
         return Scaffold(
@@ -653,39 +621,7 @@ class AdminShell extends ConsumerWidget {
       valueListenable: auth,
       builder: (context, session, _) {
         if (session == null) {
-          return Scaffold(
-            body: Container(
-              decoration: const BoxDecoration(gradient: adminBrandGradient),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  const Center(child: BrandTile(size: 64)),
-                  Positioned(
-                    left: 24,
-                    right: 24,
-                    bottom: 24,
-                    child: SafeArea(
-                      top: false,
-                      child: Center(
-                        child: SizedBox(
-                          width: 160,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: const LinearProgressIndicator(
-                              minHeight: 3,
-                              backgroundColor: Color(0x55FFFFFF),
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              semanticsLabel: 'Loading your console',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return const AdminLoadingScreen(label: 'Loading your console');
         }
         final state = ref.watch(adminProvider);
     final visible = [

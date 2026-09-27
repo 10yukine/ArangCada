@@ -54,6 +54,57 @@ class BrandStage extends StatelessWidget {
   );
 }
 
+class AdminLoadingScreen extends StatelessWidget {
+  const AdminLoadingScreen({super.key, required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final glow = context.adminColor(AdminColors.primaryTint);
+    return Scaffold(
+      backgroundColor: dark ? Theme.of(context).scaffoldBackgroundColor : Colors.white,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Container(
+              width: 172,
+              height: 172,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [glow, glow.withValues(alpha: 0)]),
+              ),
+              child: const Center(child: BrandTile(size: 84)),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: 24,
+            child: SafeArea(
+              top: false,
+              child: Center(
+                child: SizedBox(
+                  width: 160,
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    color: Theme.of(context).colorScheme.primary,
+                    backgroundColor: dark
+                        ? context.adminColor(AdminColors.surface)
+                        : const Color(0xFFF4F7FA),
+                    semanticsLabel: label,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class PageHeading extends StatelessWidget {
   const PageHeading({
     super.key,
