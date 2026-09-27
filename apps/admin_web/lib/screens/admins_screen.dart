@@ -101,11 +101,7 @@ class _AdminsScreenState extends ConsumerState<AdminsScreen> {
             );
             return constraints.maxWidth < 950
                 ? Column(
-                    children: [
-                      lguPanel,
-                      const SizedBox(height: 14),
-                      todaPanel,
-                    ],
+                    children: [lguPanel, const SizedBox(height: 14), todaPanel],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,9 +226,9 @@ class _PendingInvitesPanel extends ConsumerWidget {
     try {
       await ref.read(adminProvider.notifier).revokeAdminInvite(invite.id);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invite to ${invite.email} revoked.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invite to ${invite.email} revoked.')),
+      );
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,7 +246,9 @@ Future<void> _showInvite(
   final formKey = GlobalKey<FormState>();
   final email = TextEditingController();
   String scope = 'lgu';
-  String? todaZoneId = todaZoneOptions.isEmpty ? null : todaZoneOptions.first.$1;
+  String? todaZoneId = todaZoneOptions.isEmpty
+      ? null
+      : todaZoneOptions.first.$1;
   bool sending = false;
 
   final sent = await showDialog<bool>(
@@ -258,9 +256,24 @@ Future<void> _showInvite(
     barrierDismissible: false,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setDialogState) => AlertDialog(
-        title: const Text('Invite an administrator'),
+        titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Invite an administrator'),
+            const SizedBox(height: 4),
+            Text(
+              'They receive a one-time link by email to create their account.',
+              style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+                color: dialogContext.adminColor(AdminColors.muted),
+              ),
+            ),
+          ],
+        ),
         content: SizedBox(
-          width: 460,
+          width: 440,
           child: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -273,6 +286,7 @@ Future<void> _showInvite(
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email address',
+                      prefixIcon: Icon(Icons.mail_outline),
                     ),
                     validator: (value) => (value?.trim().contains('@') ?? false)
                         ? null
@@ -281,7 +295,11 @@ Future<void> _showInvite(
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: scope,
-                    decoration: const InputDecoration(labelText: 'Scope'),
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Scope',
+                      prefixIcon: Icon(Icons.admin_panel_settings_outlined),
+                    ),
                     items: const [
                       DropdownMenuItem(
                         value: 'lgu',
@@ -302,7 +320,10 @@ Future<void> _showInvite(
                       decoration: const InputDecoration(labelText: 'TODA'),
                       items: [
                         for (final zone in todaZoneOptions)
-                          DropdownMenuItem(value: zone.$1, child: Text(zone.$2)),
+                          DropdownMenuItem(
+                            value: zone.$1,
+                            child: Text(zone.$2),
+                          ),
                       ],
                       onChanged: (value) =>
                           setDialogState(() => todaZoneId = value),

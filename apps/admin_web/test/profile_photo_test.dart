@@ -4,6 +4,7 @@ import 'package:arangcada_admin/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 void main() {
   tearDown(() {
@@ -14,7 +15,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1001, 941));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     auth.value = session;
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Settings'));
     await tester.pumpAndSettle();

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../admin_controller.dart';
@@ -260,24 +259,7 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // The mark's non-C details render near-white, meant for a
-                // dark surface (the login screen's own navy hero) -- this
-                // page's background is light, so they would be invisible
-                // without a dark chip of their own behind them.
-                Container(
-                  width: 56,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AdminColors.rail,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: SvgPicture.asset(
-                    'assets/branding/arangcada-mark-dark.svg',
-                    width: 32,
-                    height: 32,
-                  ),
-                ),
+                const BrandTile(size: 64),
                 const SizedBox(height: 14),
                 Text(
                   'ArangCada',

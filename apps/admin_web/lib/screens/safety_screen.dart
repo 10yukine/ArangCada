@@ -82,8 +82,7 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
     final active =
         reports.where((report) => report.id == selected).firstOrNull ??
         reports.firstOrNull;
-    final list = Material(
-      type: MaterialType.transparency,
+    final list = Panel(
       child: reports.isEmpty
           ? const EmptyState(message: 'No safety reports in this scope.')
           : Column(

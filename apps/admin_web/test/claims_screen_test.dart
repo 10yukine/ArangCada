@@ -6,6 +6,7 @@ import 'package:arangcada_admin/screens/claims_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 /// Same fixture-injection pattern app_smoke_test.dart uses for
 /// reportedChats: fareClassClaims carries no demo seed data (commuters have
@@ -13,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// be injected the same way.
 class _ClaimFixtureController extends AdminController {
   @override
-  AdminState build() => seedAdminState().copyWith(
+  AdminState build() => testAdminState().copyWith(
     fareClassClaims: [
       FareClassClaim.fromRow({
         'id': 'claim-1',

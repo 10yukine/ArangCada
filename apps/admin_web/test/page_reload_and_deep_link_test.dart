@@ -24,6 +24,15 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
   final Object? restoreError;
 
   @override
+  Future<AdminSession> signIn({
+    required String email,
+    required String password,
+  }) async {
+    if (session != null) return session!;
+    throw StateError('Invalid credentials');
+  }
+
+  @override
   Future<AdminSession> restoreSession() async {
     if (restoreError != null) throw restoreError!;
     if (restoreCompleter != null) return restoreCompleter!.future;
@@ -119,7 +128,7 @@ void main() {
       // Must NOT redirect to /login and must NOT show the login screen.
       expect(find.text('Welcome back'), findsNothing);
       expect(find.text('Operations overview'), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
       // Complete the async restoration from Supabase
       completer.complete(restoredSession);
@@ -177,7 +186,15 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1440, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final repo = _FakeRepository(hasSession: false);
+      final repo = _FakeRepository(
+        hasSession: false,
+        session: const AdminSession(
+          name: 'LGU evaluator',
+          email: 'lgu@example.test',
+          role: AdminRole.lgu,
+          connected: true,
+        ),
+      );
 
       await tester.pumpWidget(
         ProviderScope(
@@ -189,8 +206,11 @@ void main() {
 
       // Redirected to login with ?from=/admins
       expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('Use local demo'), findsNothing);
 
-      // Sign in via local demo
+      // Sign in with an administrator account.
+      await tester.enterText(find.byType(TextFormField).at(0), 'lgu@example.test');
+      await tester.enterText(find.byType(TextFormField).at(1), 'synthetic-password');
       await tester.tap(find.text('Open console'));
       await tester.pumpAndSettle();
 

@@ -218,9 +218,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       children: [
         PageHeading(
           title: 'Live dispatch map',
-          subtitle: state.connected
-              ? 'Inspect live commuter requests and driver GPS.'
-              : 'Inspect synthetic ride positions and driver GPS.',
+          subtitle: 'Inspect live commuter requests and driver GPS.',
         ),
         const SizedBox(height: 18),
         LayoutBuilder(
@@ -236,9 +234,8 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                     children: [
                       Positioned.fill(
                         child: Semantics(
-                          label: state.connected
-                              ? 'Interactive MapLibre dispatch map with ${scopedRides.length} visible live rides'
-                              : 'Interactive MapLibre dispatch map with ${scopedRides.length} visible simulated rides',
+                          label:
+                              'Interactive MapLibre dispatch map with ${scopedRides.length} visible live rides',
                           child: MapLibreMap(
                             styleString: styleUrl,
                             initialCameraPosition: CameraPosition(
@@ -334,11 +331,14 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Active rides',
-                              style: Theme.of(context).textTheme.titleLarge,
+                            Expanded(
+                              child: Text(
+                                'Active rides',
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             StatusPill(
                               '${scopedRides.length} visible',
                               tone: StatusTone.brand,
@@ -558,9 +558,8 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
 
   @override
   Widget build(BuildContext context) {
-    final label = widget.connected
-        ? 'Interactive dispatch map with ${widget.rides.length} live rides'
-        : 'Interactive dispatch map with ${widget.rides.length} simulated rides';
+    final label =
+        'Interactive dispatch map with ${widget.rides.length} live rides';
     if (!kIsWeb || failed) {
       return ColoredBox(
         color: context.adminColor(AdminColors.surface),

@@ -52,13 +52,7 @@ class DriversScreen extends ConsumerWidget {
           // old passive "Applications submitted in the driver app" pill,
           // which encoded the wrong model: nothing in this app has ever
           // let a driver self-apply.
-          action: !state.connected
-              ? FilledButton.icon(
-                  onPressed: () => _showEnrollment(context, ref),
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text('Enroll driver'),
-                )
-              : auth.value!.role == AdminRole.lgu
+          action: auth.value!.role == AdminRole.lgu
               ? FilledButton.icon(
                   onPressed: () => _showDriverEnrollment(
                     context,
@@ -77,9 +71,10 @@ class DriversScreen extends ConsumerWidget {
           const _PendingDriverInvitesPanel(),
           const SizedBox(height: 18),
         ],
-        Material(
-          type: MaterialType.transparency,
+        Panel(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -166,7 +161,11 @@ class DriversScreen extends ConsumerWidget {
                                   '${driver.toda} · ${driver.plate}\n${driverStatusLabel(driver.status)} · ${driver.documents}/4 documents',
                                 ),
                                 isThreeLine: true,
-                                trailing: const Icon(Icons.chevron_right),
+                                trailing: TextButton(
+                                  onPressed: () =>
+                                      _showDriver(context, ref, driver),
+                                  child: const Text('Manage'),
+                                ),
                                 onTap: () => _showDriver(context, ref, driver),
                               ),
                               const Divider(height: 1),
@@ -175,63 +174,76 @@ class DriversScreen extends ConsumerWidget {
                         )
                       : SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columnSpacing: 28,
-                            dataRowMinHeight: state.compactDensity ? 48 : 60,
-                            dataRowMaxHeight: state.compactDensity ? 48 : 60,
-                            columns: const [
-                              DataColumn(label: Text('Driver')),
-                              DataColumn(label: Text('TODA')),
-                              DataColumn(label: Text('Plate')),
-                              DataColumn(label: Text('Documents')),
-                              DataColumn(label: Text('Status')),
-                              DataColumn(label: Text('Action')),
-                            ],
-                            rows: [
-                              for (final driver in drivers)
-                                DataRow(
-                                  cells: [
-                                    DataCell(
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            driver.name,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.titleMedium,
-                                          ),
-                                          Text(
-                                            driver.enrollmentCode,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                        ],
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: constraints.maxWidth,
+                            ),
+                            child: DataTable(
+                              columnSpacing: 28,
+                              dataRowMinHeight: state.compactDensity ? 48 : 60,
+                              dataRowMaxHeight: state.compactDensity ? 48 : 60,
+                              columns: const [
+                                DataColumn(label: Text('Driver')),
+                                DataColumn(label: Text('TODA')),
+                                DataColumn(label: Text('Plate')),
+                                DataColumn(label: Text('Documents')),
+                                DataColumn(label: Text('Status')),
+                                DataColumn(label: Text('Action')),
+                              ],
+                              rows: [
+                                for (final driver in drivers)
+                                  DataRow(
+                                    cells: [
+                                      DataCell(
+                                        Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              driver.name,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.titleMedium,
+                                            ),
+                                            Text(
+                                              driver.enrollmentCode,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    DataCell(Text(driver.toda)),
-                                    DataCell(Text(driver.plate)),
-                                    DataCell(Text('${driver.documents}/4')),
-                                    DataCell(
-                                      StatusPill(
-                                        driverStatusLabel(driver.status),
-                                        tone: driverTone(driver.status),
+                                      DataCell(Text(driver.toda)),
+                                      DataCell(Text(driver.plate)),
+                                      DataCell(Text('${driver.documents}/4')),
+                                      DataCell(
+                                        StatusPill(
+                                          driverStatusLabel(driver.status),
+                                          tone: driverTone(driver.status),
+                                        ),
                                       ),
-                                    ),
-                                    DataCell(
-                                      OutlinedButton(
-                                        onPressed: () =>
-                                            _showDriver(context, ref, driver),
-                                        child: const Text('Review'),
+                                      DataCell(
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            OutlinedButton(
+                                              onPressed: () => _showDriver(
+                                                context,
+                                                ref,
+                                                driver,
+                                              ),
+                                              child: const Text('Manage'),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                            ],
+                                    ],
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                 ),
@@ -245,7 +257,7 @@ class DriversScreen extends ConsumerWidget {
           childrenPadding: EdgeInsets.only(bottom: 16),
           children: [
             Text(
-              'Enrolled → Documents submitted → Under review → Approved. Rejected, suspended, and expired records require follow-up before returning to service.',
+              'Enrolled → Documents submitted → Under review → Approved. Suspended and expired records require follow-up before returning to service.',
             ),
           ],
         ),
@@ -630,228 +642,517 @@ class _DriverEnrollmentDialogState
   }
 }
 
-Future<void> _showEnrollment(BuildContext context, WidgetRef ref) async {
-  final formKey = GlobalKey<FormState>();
-  final name = TextEditingController();
-  final phone = TextEditingController();
-  final plate = TextEditingController();
-  String toda = auth.value!.toda ?? 'Brgy. Real';
-  final submitted = await showDialog<bool>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: const Text('Enroll a driver'),
-        content: SizedBox(
-          width: 460,
-          child: Form(
-            key: formKey,
+Future<void> _showDriver(
+  BuildContext screenContext,
+  WidgetRef ref,
+  Driver initialDriver,
+) async {
+  await showDialog<void>(
+    context: screenContext,
+    builder: (dialogContext) => Consumer(
+      builder: (consumerContext, ref, _) {
+        final state = ref.watch(adminProvider);
+        final driver = state.drivers.firstWhere(
+          (d) => d.id == initialDriver.id,
+          orElse: () => initialDriver,
+        );
+        final theme = Theme.of(consumerContext);
+        final expiry = driver.licenseExpiresOn == null
+            ? 'Not recorded'
+            : '${driver.licenseExpiresOn!.year}-'
+                  '${driver.licenseExpiresOn!.month.toString().padLeft(2, '0')}-'
+                  '${driver.licenseExpiresOn!.day.toString().padLeft(2, '0')}';
+        return AlertDialog(
+          titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      driver.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Driver record · ${driver.enrollmentCode}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              StatusPill(
+                driverStatusLabel(driver.status),
+                tone: driverTone(driver.status),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 600,
             child: SingleChildScrollView(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
-                    controller: name,
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: 'Full name'),
-                    validator: (value) => (value?.trim().length ?? 0) >= 3
-                        ? null
-                        : 'Enter the driver name.',
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    decoration: BoxDecoration(
+                      color: consumerContext.adminColor(AdminColors.background),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, box) {
+                        final column = (box.maxWidth - 16) / 2;
+                        return Wrap(
+                          spacing: 16,
+                          runSpacing: 10,
+                          children: [
+                            LabelValue(
+                              'Enrollment',
+                              driver.enrollmentCode,
+                              width: column,
+                            ),
+                            LabelValue('TODA', driver.toda, width: column),
+                            LabelValue('Phone', driver.phone, width: column),
+                            LabelValue('Plate', driver.plate, width: column),
+                            LabelValue(
+                              'Body number',
+                              driver.bodyNumber ?? 'Not recorded',
+                              width: column,
+                            ),
+                            LabelValue('License expiry', expiry, width: column),
+                            OutlinedButton.icon(
+                              onPressed: () => _showManageDriverRecord(
+                                screenContext,
+                                ref,
+                                driver,
+                                ref.read(adminProvider).todaZoneOptions,
+                                canReassign: auth.value?.role == AdminRole.lgu,
+                              ),
+                              icon: const Icon(
+                                Icons.manage_accounts_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Manage details'),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: toda,
-                    decoration: const InputDecoration(labelText: 'TODA'),
-                    items: [
-                      for (final item
-                          in auth.value!.role == AdminRole.toda
-                              ? [auth.value!.toda!]
-                              : ['Brgy. Real', 'Parian', 'Canlubang'])
-                        DropdownMenuItem(value: item, child: Text(item)),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Submitted documents',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                      Text(
+                        '${driver.approvedDocuments} of 4 required approved',
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ],
-                    onChanged: (value) => setDialogState(() => toda = value!),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Mobile number',
+                  const SizedBox(height: 8),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: consumerContext.adminColor(AdminColors.border),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    validator: (value) =>
-                        (value?.replaceAll(RegExp(r'\D'), '').length ?? 0) >= 10
-                        ? null
-                        : 'Enter a valid mobile number.',
+                    child: Column(
+                      children: [
+                        for (final item in const [
+                          ('drivers_license', 'Driver’s license'),
+                          ('mtop_franchise', 'MTOP / franchise permit'),
+                          ('toda_membership', 'TODA membership endorsement'),
+                          ('or_cr', 'Vehicle OR / CR registration'),
+                          (
+                            'barangay_clearance',
+                            'Barangay clearance (optional)',
+                          ),
+                          ('vehicle_photo', 'Vehicle photo (optional)'),
+                        ].indexed) ...[
+                          if (item.$1 > 0) const Divider(height: 1),
+                          _DriverDocumentRow(
+                            driver: driver,
+                            documentType: item.$2.$1,
+                            label: item.$2.$2,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: plate,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Plate / body number',
-                    ),
-                    validator: (value) => (value?.trim().length ?? 0) >= 3
-                        ? null
-                        : 'Enter the plate or body number.',
+                  const SizedBox(height: 10),
+                  Text(
+                    'Uploaded on the driver’s behalf after their paper submission is checked in person. Only this administrator’s view mints a signed link to a file -- never a public URL, and it expires in 5 minutes.',
+                    style: theme.textTheme.bodySmall,
                   ),
                 ],
               ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Create enrollment'),
-          ),
-        ],
-      ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton(
+                        onPressed:
+                            driver.approvedDocuments < 4 ||
+                                driver.status == DriverStatus.approved ||
+                                driver.status == DriverStatus.suspended
+                            ? null
+                            : () => _applyDriverAction(
+                                screenContext,
+                                ref,
+                                driver,
+                                DriverStatus.approved,
+                                'Required driver documents reviewed and accepted',
+                              ),
+                        child: const Text('Approve'),
+                      ),
+                      if (auth.value?.role == AdminRole.lgu &&
+                          driver.status == DriverStatus.suspended)
+                        OutlinedButton(
+                          onPressed: () => _applyDriverAction(
+                            screenContext,
+                            ref,
+                            driver,
+                            DriverStatus.approved,
+                            'Reinstated after administrator review',
+                          ),
+                          child: const Text('Reinstate'),
+                        )
+                      else if (auth.value?.role == AdminRole.lgu)
+                        OutlinedButton(
+                          onPressed: () => _confirmDriverAction(
+                            screenContext,
+                            ref,
+                            driver,
+                            DriverStatus.suspended,
+                          ),
+                          child: const Text('Suspend'),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     ),
   );
-  if (submitted == true && context.mounted) {
-    final driver = ref
-        .read(adminProvider.notifier)
-        .enrollDriver(
-          name: name.text,
-          toda: toda,
-          phone: phone.text,
-          plate: plate.text,
-        );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Enrollment ${driver.enrollmentCode} created.')),
-    );
-  }
-  name.dispose();
-  phone.dispose();
-  plate.dispose();
 }
 
-Future<void> _showDriver(
+Future<void> _showManageDriverRecord(
   BuildContext context,
   WidgetRef ref,
   Driver driver,
-) async {
-  await showDialog<void>(
+  List<(String id, String name)> zones, {
+  required bool canReassign,
+}) async {
+  final updated = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Row(
-        children: [
-          Expanded(child: Text(driver.name)),
-          StatusPill(
-            driverStatusLabel(driver.status),
-            tone: driverTone(driver.status),
-          ),
-        ],
-      ),
+    builder: (dialogContext) => _ManageDriverRecordDialog(
+      driver: driver,
+      zones: zones,
+      canReassign: canReassign,
+    ),
+  );
+  if (updated == true && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Driver record updated.')));
+  }
+}
+
+class _ManageDriverRecordDialog extends ConsumerStatefulWidget {
+  const _ManageDriverRecordDialog({
+    required this.driver,
+    required this.zones,
+    required this.canReassign,
+  });
+
+  final Driver driver;
+  final List<(String id, String name)> zones;
+  final bool canReassign;
+
+  @override
+  ConsumerState<_ManageDriverRecordDialog> createState() =>
+      _ManageDriverRecordDialogState();
+}
+
+class _ManageDriverRecordDialogState
+    extends ConsumerState<_ManageDriverRecordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
+  late final TextEditingController _phone;
+  late final TextEditingController _plate;
+  late final TextEditingController _bodyNumber;
+  String? _zoneId;
+  DateTime? _licenseExpiresOn;
+  bool _clearExpiry = false;
+  bool _saving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final driver = widget.driver;
+    _firstName = TextEditingController(text: driver.effectiveFirstName);
+    _lastName = TextEditingController(text: driver.effectiveLastName);
+    _phone = TextEditingController(text: driver.phone);
+    _plate = TextEditingController(
+      text: driver.plate == 'Not recorded' ? '' : driver.plate,
+    );
+    _bodyNumber = TextEditingController(text: driver.bodyNumber ?? '');
+    _zoneId = widget.zones.any((zone) => zone.$1 == driver.todaZoneId)
+        ? driver.todaZoneId
+        : null;
+    _licenseExpiresOn = driver.licenseExpiresOn;
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _phone.dispose();
+    _plate.dispose();
+    _bodyNumber.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickLicenseExpiry() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _licenseExpiresOn ?? now,
+      firstDate: DateTime(1970),
+      lastDate: DateTime(2100),
+      helpText: 'Select license expiry date',
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _licenseExpiresOn = selected;
+        _clearExpiry = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _errorMessage = null;
+    });
+    try {
+      await ref
+          .read(adminProvider.notifier)
+          .updateDriverRecord(
+            driverId: widget.driver.id,
+            firstName: _firstName.text,
+            lastName: _lastName.text,
+            plateNumber: _plate.text,
+            bodyNumber: _bodyNumber.text,
+            todaZoneId: _zoneId,
+            licenseExpiresOn: _licenseExpiresOn,
+            clearLicenseExpiry: _clearExpiry,
+          );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _errorMessage = error.toString().replaceFirst(
+          RegExp(r'^Exception:s*'),
+          '',
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expiryLabel = _licenseExpiresOn == null
+        ? 'Not recorded'
+        : '${_licenseExpiresOn!.year.toString().padLeft(4, '0')}-'
+              '${_licenseExpiresOn!.month.toString().padLeft(2, '0')}-'
+              '${_licenseExpiresOn!.day.toString().padLeft(2, '0')}';
+    return AlertDialog(
+      title: const Text('Manage driver details'),
       content: SizedBox(
-        width: 580,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 24,
-                runSpacing: 14,
+        width: 520,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .65,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LabelValue('Enrollment', driver.enrollmentCode),
-                  LabelValue('TODA', driver.toda),
-                  LabelValue('Phone', driver.phone),
-                  LabelValue('Plate', driver.plate),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _firstName,
+                          decoration: const InputDecoration(
+                            labelText: 'First name',
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Enter the driver’s first name.'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _lastName,
+                          decoration: const InputDecoration(
+                            labelText: 'Last name',
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Enter the driver’s last name.'
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone number',
+                      helperText:
+                          'The driver must verify a phone change by OTP from their account.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _plate,
+                          decoration: const InputDecoration(
+                            labelText: 'Plate number',
+                          ),
+                          textCapitalization: TextCapitalization.characters,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _bodyNumber,
+                          decoration: const InputDecoration(
+                            labelText: 'Body number',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (widget.canReassign && widget.zones.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      initialValue: _zoneId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'TODA'),
+                      items: [
+                        for (final zone in widget.zones)
+                          DropdownMenuItem(
+                            value: zone.$1,
+                            child: Text(zone.$2),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() => _zoneId = value),
+                      validator: (value) =>
+                          value == null ? 'Choose a TODA.' : null,
+                    )
+                  else
+                    InputDecorator(
+                      decoration: const InputDecoration(labelText: 'TODA'),
+                      child: Text(widget.driver.toda),
+                    ),
+                  const SizedBox(height: 12),
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'License expiry',
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(expiryLabel)),
+                        TextButton(
+                          onPressed: _pickLicenseExpiry,
+                          child: const Text('Choose date'),
+                        ),
+                        if (_licenseExpiresOn != null)
+                          IconButton(
+                            tooltip: 'Clear license expiry',
+                            onPressed: () => setState(() {
+                              _licenseExpiresOn = null;
+                              _clearExpiry = true;
+                            }),
+                            icon: const Icon(Icons.clear),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 22),
-              Text(
-                'Submitted documents',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              for (final item in const [
-                ('drivers_license', 'Driver’s license'),
-                ('mtop_franchise', 'MTOP / franchise permit'),
-                ('toda_membership', 'TODA membership endorsement'),
-                ('or_cr', 'Vehicle OR / CR registration'),
-                ('barangay_clearance', 'Barangay clearance (optional)'),
-                ('vehicle_photo', 'Vehicle photo (optional)'),
-              ].indexed)
-                _DriverDocumentRow(
-                  driver: driver,
-                  documentType: item.$2.$1,
-                  label: item.$2.$2,
-                  demoIndex: item.$1,
-                  connected: auth.value?.connected ?? false,
-                ),
-              const SizedBox(height: 12),
-              Text(
-                auth.value?.connected ?? false
-                    ? 'Uploaded on the driver’s behalf after their paper submission is checked in person. Only this administrator’s view mints a signed link to a file -- never a public URL, and it expires in 5 minutes.'
-                    : 'Local demo mode has no Storage bucket or RPC to call -- upload, view, and review are disabled here.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+            ),
           ),
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
-        if (auth.value?.role == AdminRole.lgu &&
-            driver.status == DriverStatus.suspended)
-          OutlinedButton(
-            onPressed: () => _applyDriverAction(
-              context,
-              ref,
-              driver,
-              DriverStatus.approved,
-              'Reinstated after administrator review',
-            ),
-            child: const Text('Reinstate'),
-          )
-        else if (auth.value?.role == AdminRole.lgu)
-          OutlinedButton(
-            onPressed: () => _confirmDriverAction(
-              context,
-              ref,
-              driver,
-              DriverStatus.suspended,
-            ),
-            child: const Text('Suspend'),
-          ),
-        if (auth.value?.role == AdminRole.lgu)
-          OutlinedButton(
-            onPressed: () => _confirmDriverAction(
-              context,
-              ref,
-              driver,
-              DriverStatus.rejected,
-            ),
-            child: const Text('Reject'),
-          ),
         FilledButton(
-          onPressed:
-              driver.approvedDocuments < 4 ||
-                  driver.status == DriverStatus.suspended
-              ? null
-              : () => _applyDriverAction(
-                  context,
-                  ref,
-                  driver,
-                  DriverStatus.approved,
-                  'Required driver documents reviewed and accepted',
-                ),
-          child: const Text('Approve'),
+          onPressed: _saving ? null : _submit,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save changes'),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class _DriverDocumentRow extends ConsumerStatefulWidget {
@@ -859,15 +1160,11 @@ class _DriverDocumentRow extends ConsumerStatefulWidget {
     required this.driver,
     required this.documentType,
     required this.label,
-    required this.demoIndex,
-    required this.connected,
   });
 
   final Driver driver;
   final String documentType;
   final String label;
-  final int demoIndex;
-  final bool connected;
 
   @override
   ConsumerState<_DriverDocumentRow> createState() => _DriverDocumentRowState();
@@ -876,11 +1173,7 @@ class _DriverDocumentRow extends ConsumerStatefulWidget {
 class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
   bool _busy = false;
 
-  String? get _status => widget.connected
-      ? widget.driver.documentStatuses[widget.documentType]
-      : widget.demoIndex < widget.driver.documents
-      ? 'approved'
-      : null;
+  String? get _status => widget.driver.documentStatuses[widget.documentType];
 
   Future<void> _upload() async {
     final picked = await ImagePicker().pickImage(
@@ -981,9 +1274,7 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
   @override
   Widget build(BuildContext context) {
     final status = _status;
-    final path = widget.connected
-        ? widget.driver.documentPaths[widget.documentType]
-        : null;
+    final path = widget.driver.documentPaths[widget.documentType];
     final approved = status == 'approved';
     final rejected = status == 'rejected';
     final description = switch (status) {
@@ -992,8 +1283,14 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
       'rejected' => 'Rejected',
       _ => 'Missing',
     };
+    final tone = switch (status) {
+      'approved' => StatusTone.success,
+      'pending' => StatusTone.warning,
+      'rejected' => StatusTone.danger,
+      _ => StatusTone.neutral,
+    };
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1005,56 +1302,63 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
                     : rejected
                     ? Icons.cancel
                     : Icons.radio_button_unchecked,
+                size: 20,
                 color: approved
                     ? context.adminColor(AdminColors.success)
                     : rejected
                     ? context.adminColor(AdminColors.danger)
                     : context.adminColor(AdminColors.muted),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   widget.label,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              Text(description, style: Theme.of(context).textTheme.bodySmall),
+              StatusPill(description, tone: tone),
+              const SizedBox(width: 6),
+              TextButton.icon(
+                onPressed: _busy ? null : _upload,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(40, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                icon: const Icon(Icons.upload_file, size: 17),
+                label: Text(path == null ? 'Upload' : 'Replace'),
+              ),
             ],
           ),
-          if (path != null) ...[
-            const SizedBox(height: 6),
+          if (path != null)
             Padding(
-              padding: const EdgeInsets.only(left: 32),
-              child: _DriverDocumentPhoto(path: path),
-            ),
-          ],
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.only(left: 32),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _busy || !widget.connected ? null : _upload,
-                  icon: const Icon(Icons.upload_file, size: 18),
-                  label: Text(path == null ? 'Upload' : 'Replace'),
-                ),
-                if (widget.connected &&
-                    status == 'pending' &&
-                    path != null) ...[
-                  FilledButton(
-                    onPressed: _busy ? null : () => _review(approve: true),
-                    child: const Text('Approve'),
-                  ),
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _review(approve: false),
-                    child: const Text('Reject'),
-                  ),
+              padding: const EdgeInsets.only(left: 30, top: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  _DriverDocumentPhoto(path: path),
+                  if (status == 'pending') ...[
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: _busy ? null : () => _review(approve: true),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(40, 38),
+                      ),
+                      child: const Text('Approve'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _busy ? null : () => _review(approve: false),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(40, 38),
+                      ),
+                      child: const Text('Reject'),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1095,7 +1399,8 @@ class _DriverDocumentPhotoState extends ConsumerState<_DriverDocumentPhoto> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const SizedBox(
-            height: 100,
+            height: 96,
+            width: 96,
             child: Center(
               child: SizedBox(
                 width: 20,
@@ -1115,7 +1420,7 @@ class _DriverDocumentPhotoState extends ConsumerState<_DriverDocumentPhoto> {
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
             snapshot.data!,
-            height: 160,
+            height: 96,
             fit: BoxFit.contain,
             alignment: Alignment.centerLeft,
           ),

@@ -4,18 +4,22 @@ import 'package:arangcada_admin/screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 /// Overrides lookupDriverInvite/acceptDriverInvite so this public screen
 /// can be exercised without a live Supabase connection -- same reasoning
 /// driver_enrollment_test.dart's fixture controller uses.
 class _DriverInviteAcceptFixtureController extends AdminController {
   @override
-  AdminState build() => seedAdminState();
+  AdminState build() => testAdminState();
 
   @override
   Future<({String email, String todaZoneName})> lookupDriverInvite(
     String token,
-  ) async => (email: 'invited.driver@example.test', todaZoneName: 'Calamba Poblacion TODA');
+  ) async => (
+    email: 'invited.driver@example.test',
+    todaZoneName: 'Calamba Poblacion TODA',
+  );
 
   @override
   Future<void> acceptDriverInvite({
@@ -27,9 +31,7 @@ class _DriverInviteAcceptFixtureController extends AdminController {
 }
 
 void main() {
-  testWidgets('shows a clear error when the link has no token', (
-    tester,
-  ) async {
+  testWidgets('shows a clear error when the link has no token', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: AcceptDriverInviteScreen(token: null)),
@@ -37,10 +39,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('This invite link is missing its token.'),
-      findsOneWidget,
-    );
+    expect(find.text('This invite link is missing its token.'), findsOneWidget);
   });
 
   testWidgets(
@@ -72,7 +71,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            adminProvider.overrideWith(_DriverInviteAcceptFixtureController.new),
+            adminProvider.overrideWith(
+              _DriverInviteAcceptFixtureController.new,
+            ),
           ],
           child: const MaterialApp(
             home: AcceptDriverInviteScreen(token: 'sometoken'),
@@ -81,18 +82,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('invited.driver@example.test'),
-        findsWidgets,
-      );
-      expect(
-        find.textContaining('Calamba Poblacion TODA'),
-        findsWidgets,
-      );
+      expect(find.textContaining('invited.driver@example.test'), findsWidgets);
+      expect(find.textContaining('Calamba Poblacion TODA'), findsWidgets);
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Full name'),
-        'Juan Dela Cruz',
+        find.widgetWithText(TextFormField, 'First name'),
+        'Juan',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Last name'),
+        'Dela Cruz',
       );
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Mobile number'),

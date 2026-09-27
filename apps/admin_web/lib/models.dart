@@ -107,9 +107,13 @@ class Driver {
     this.latitude,
     this.longitude,
     this.todaZoneId,
+    this.bodyNumber,
+    this.licenseExpiresOn,
     this.documentStatuses = const {},
     this.documentIds = const {},
     this.documentPaths = const {},
+    this.firstName,
+    this.lastName,
   });
 
   factory Driver.fromRow(Map<String, dynamic> row) {
@@ -166,6 +170,9 @@ class Driver {
           row['display_name'] as String? ??
           profile['display_name'] as String? ??
           'Unnamed driver',
+      firstName:
+          row['first_name'] as String? ?? profile['first_name'] as String?,
+      lastName: row['last_name'] as String? ?? profile['last_name'] as String?,
       toda:
           row['toda_name'] as String? ??
           zone['name'] as String? ??
@@ -174,7 +181,11 @@ class Driver {
           row['phone'] as String? ??
           profile['phone'] as String? ??
           'Not shared',
-      plate: row['plate_number'] as String? ?? body ?? 'Not recorded',
+      plate: row['plate_number'] as String? ?? 'Not recorded',
+      bodyNumber: body,
+      licenseExpiresOn: DateTime.tryParse(
+        row['license_expires_on']?.toString() ?? '',
+      ),
       status: status,
       documents: (row['documents'] as num?)?.toInt() ?? documentStatuses.length,
       enrollmentCode: body == null
@@ -195,6 +206,8 @@ class Driver {
 
   final String id;
   final String name;
+  final String? firstName;
+  final String? lastName;
   final String toda;
   final String phone;
   final String plate;
@@ -206,20 +219,60 @@ class Driver {
   final double? latitude;
   final double? longitude;
   final String? todaZoneId;
+  final String? bodyNumber;
+  final DateTime? licenseExpiresOn;
   final Map<String, String> documentStatuses;
   final Map<String, String> documentIds;
   final Map<String, String> documentPaths;
+
+  String get effectiveFirstName {
+    if (firstName != null && firstName!.trim().isNotEmpty) {
+      return firstName!.trim();
+    }
+    final trimmed = name.trim();
+    final idx = trimmed.indexOf(' ');
+    return idx == -1 ? trimmed : trimmed.substring(0, idx);
+  }
+
+  String get effectiveLastName {
+    if (lastName != null && lastName!.trim().isNotEmpty) {
+      return lastName!.trim();
+    }
+    final trimmed = name.trim();
+    final idx = trimmed.indexOf(' ');
+    return idx == -1 ? '' : trimmed.substring(idx + 1).trim();
+  }
 
   int get approvedDocuments => documentStatuses.isEmpty
       ? documents
       : documentStatuses.values.where((status) => status == 'approved').length;
 
-  Driver copyWith({DriverStatus? status, DateTime? updated}) => Driver(
+  Driver copyWith({
+    DriverStatus? status,
+    DateTime? updated,
+    String? name,
+    String? firstName,
+    String? lastName,
+    String? toda,
+    String? plate,
+    String? bodyNumber,
+    bool clearBodyNumber = false,
+    String? todaZoneId,
+    DateTime? licenseExpiresOn,
+    bool clearLicenseExpiry = false,
+  }) => Driver(
     id: id,
-    name: name,
-    toda: toda,
+    name:
+        name ??
+        (firstName != null || lastName != null
+            ? '${firstName ?? effectiveFirstName} ${lastName ?? effectiveLastName}'
+                  .trim()
+            : this.name),
+    firstName: firstName ?? this.firstName,
+    lastName: lastName ?? this.lastName,
+    toda: toda ?? this.toda,
     phone: phone,
-    plate: plate,
+    plate: plate ?? this.plate,
     status: status ?? this.status,
     documents: documents,
     enrollmentCode: enrollmentCode,
@@ -227,7 +280,11 @@ class Driver {
     online: online,
     latitude: latitude,
     longitude: longitude,
-    todaZoneId: todaZoneId,
+    todaZoneId: todaZoneId ?? this.todaZoneId,
+    bodyNumber: clearBodyNumber ? null : bodyNumber ?? this.bodyNumber,
+    licenseExpiresOn: clearLicenseExpiry
+        ? null
+        : licenseExpiresOn ?? this.licenseExpiresOn,
     documentStatuses: documentStatuses,
     documentIds: documentIds,
     documentPaths: documentPaths,
@@ -372,8 +429,8 @@ class FareClassClaim {
     created:
         DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal() ??
         DateTime.now(),
-    rejectionReason: (row['rejection_reason'] as String?)?.trim().isEmpty ??
-            true
+    rejectionReason:
+        (row['rejection_reason'] as String?)?.trim().isEmpty ?? true
         ? null
         : (row['rejection_reason'] as String).trim(),
   );

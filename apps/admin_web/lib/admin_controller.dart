@@ -31,13 +31,21 @@ class AdminController extends Notifier<AdminState> {
   bool _refreshPending = false;
 
   @override
-  AdminState build() => seedAdminState();
+  AdminState build() => emptyAdminState;
+
+  /// The live repository for a write, or a clear error when there is no
+  /// signed-in, connected administrator session to act with.
+  SupabaseAdminRepository _live(String action) {
+    final repository = ref.read(adminRepositoryProvider);
+    if (!state.connected || repository == null) {
+      throw StateError('$action requires a signed-in administrator session.');
+    }
+    return repository;
+  }
 
   Future<void> connect(AdminSession session) async {
     if (!session.connected) {
-      _connectedSession = null;
-      state = seedAdminState();
-      return;
+      throw StateError('Only a signed-in administrator session can connect.');
     }
     if (ref.read(adminRepositoryProvider) == null) {
       throw StateError('The Supabase administrator connection is unavailable.');
@@ -95,7 +103,7 @@ class AdminController extends Notifier<AdminState> {
         // fareClassClaims was fetched into every AdminSnapshot from the
         // start, but never actually wired into state here -- ClaimsScreen
         // read state.fareClassClaims forever, which stayed at its
-        // seedAdminState() default (empty).
+        // empty default.
         fareClassClaims: snapshot.fareClassClaims,
         reportedChats: snapshot.reportedChats,
         rides: snapshot.rides,
@@ -135,7 +143,7 @@ class AdminController extends Notifier<AdminState> {
     final session = _connectedSession;
     _connectedSession = null;
     if (session != null) await ref.read(adminRepositoryProvider)?.signOut();
-    state = seedAdminState();
+    state = emptyAdminState;
   }
 
   void _notifyNewSafetyReport() {
@@ -288,29 +296,6 @@ class AdminController extends Notifier<AdminState> {
     return repository.updateAvatarPath(path);
   }
 
-  void recordDemoFeedbackResponse(AdminSession session, String toda) {
-    if (state.connected) {
-      throw StateError('Connected feedback can only be submitted by drivers.');
-    }
-    if (session.role == AdminRole.toda && session.toda != toda) {
-      throw StateError('Feedback must stay within the assigned TODA.');
-    }
-    final count = state.feedbackCounts[toda];
-    if (count == null) throw ArgumentError.value(toda, 'toda', 'Unknown TODA');
-    state = state.copyWith(
-      feedbackCounts: {...state.feedbackCounts, toda: count + 1},
-      audit: [
-        AuditEvent(
-          'Driver app feedback received',
-          '$toda · unique driver participant',
-          DateTime.now(),
-          toda: toda,
-        ),
-        ...state.audit,
-      ],
-    );
-  }
-
   void resetViewFilters() => state = state.copyWith(
     driverQuery: '',
     driverStatus: 'All statuses',
@@ -318,85 +303,73 @@ class AdminController extends Notifier<AdminState> {
     clearSelectedRide: true,
   );
 
-  Driver enrollDriver({
-    required String name,
-    required String toda,
-    required String phone,
-    required String plate,
-  }) {
-    if (state.connected) {
-      throw StateError('Connected driver onboarding starts in the mobile app.');
-    }
-    final id =
-        state.drivers.fold<int>(0, (max, item) {
-          final value = int.tryParse(item.id) ?? 0;
-          return value > max ? value : max;
-        }) +
-        1;
-    final driver = Driver(
-      id: id.toString(),
-      name: name.trim(),
-      toda: toda,
-      phone: phone.trim(),
-      plate: plate.trim().toUpperCase(),
-      status: DriverStatus.enrolled,
-      documents: 0,
-      enrollmentCode: 'AC-2026-${id.toString().padLeft(4, '0')}',
-      updated: DateTime.now(),
-    );
-    state = state.copyWith(
-      drivers: [driver, ...state.drivers],
-      audit: [
-        AuditEvent(
-          'Driver enrolled',
-          '${driver.name} · ${driver.toda}',
-          DateTime.now(),
-          toda: driver.toda,
-        ),
-        ...state.audit,
-      ],
-    );
-    return driver;
-  }
-
   Future<void> updateDriver(
     String id,
     DriverStatus status,
     String reason,
   ) async {
     final current = state.drivers.firstWhere((driver) => driver.id == id);
+    final repository = _live('Updating a driver');
     final session = _connectedSession;
-    if (state.connected) {
-      if (session == null) throw StateError('Administrator session expired.');
-      await ref
-          .read(adminRepositoryProvider)!
-          .updateDriver(
-            driver: current,
-            status: status,
-            reason: reason,
-            session: session,
-          );
-      await refresh();
-      return;
-    }
-    state = state.copyWith(
-      drivers: [
-        for (final driver in state.drivers)
-          if (driver.id == id)
-            driver.copyWith(status: status, updated: DateTime.now())
-          else
-            driver,
-      ],
-      audit: [
-        AuditEvent(
-          '${driverStatusLabel(status)} driver',
-          '${current.name} · $reason',
-          DateTime.now(),
-          toda: current.toda,
-        ),
-        ...state.audit,
-      ],
+    if (session == null) throw StateError('Administrator session expired.');
+    await repository.updateDriver(
+      driver: current,
+      status: status,
+      reason: reason,
+      session: session,
     );
+    await refresh();
+  }
+
+  Future<void> updateDriverName({
+    required String driverId,
+    required String firstName,
+    required String lastName,
+    String? reason,
+  }) async {
+    final first = firstName.trim();
+    final last = lastName.trim();
+    if (first.isEmpty || last.isEmpty) {
+      throw ArgumentError('First and last name are required.');
+    }
+    await _live('Renaming a driver').updateDriverName(
+      driverId: driverId,
+      firstName: first,
+      lastName: last,
+      reason: reason,
+    );
+    await refresh();
+  }
+
+  Future<void> updateDriverRecord({
+    required String driverId,
+    required String firstName,
+    required String lastName,
+    required String plateNumber,
+    required String bodyNumber,
+    String? todaZoneId,
+    DateTime? licenseExpiresOn,
+    bool clearLicenseExpiry = false,
+  }) async {
+    final first = firstName.trim();
+    final last = lastName.trim();
+    if (first.isEmpty || last.isEmpty) {
+      throw ArgumentError('First and last name are required.');
+    }
+    final current = state.drivers.firstWhere((driver) => driver.id == driverId);
+    final zoneId = todaZoneId ?? current.todaZoneId;
+    final repository = _live('Updating a driver record');
+    if (zoneId == null) throw StateError('Choose an active TODA.');
+    await repository.updateDriverRecord(
+      driverId: driverId,
+      firstName: first,
+      lastName: last,
+      plateNumber: plateNumber,
+      bodyNumber: bodyNumber,
+      todaZoneId: zoneId,
+      licenseExpiresOn: clearLicenseExpiry ? null : licenseExpiresOn,
+    );
+    await refresh();
   }
 
   Future<void> transitionReport(
@@ -404,47 +377,16 @@ class AdminController extends Notifier<AdminState> {
     ReportStatus status,
     String note,
   ) async {
-    final current = state.reports.firstWhere((report) => report.id == id);
+    final repository = _live('Updating a safety report');
     final session = _connectedSession;
-    if (state.connected) {
-      if (session == null) throw StateError('Administrator session expired.');
-      await ref
-          .read(adminRepositoryProvider)!
-          .updateSafetyReport(
-            reportId: id,
-            status: status,
-            note: note,
-            session: session,
-          );
-      await refresh();
-      return;
-    }
-    state = state.copyWith(
-      reports: [
-        for (final report in state.reports)
-          if (report.id == id)
-            report.copyWith(
-              status: status,
-              notes: [
-                ...report.notes,
-                note.trim().isEmpty
-                    ? 'Status changed to ${reportStatusLabel(status)}.'
-                    : note.trim(),
-              ],
-            )
-          else
-            report,
-      ],
-      audit: [
-        AuditEvent(
-          'Safety report updated',
-          '$id · ${reportStatusLabel(status)}',
-          DateTime.now(),
-          toda: current.toda,
-        ),
-        ...state.audit,
-      ],
+    if (session == null) throw StateError('Administrator session expired.');
+    await repository.updateSafetyReport(
+      reportId: id,
+      status: status,
+      note: note,
+      session: session,
     );
+    await refresh();
   }
 
   Future<void> transitionComplaint(
@@ -452,44 +394,12 @@ class AdminController extends Notifier<AdminState> {
     ReportStatus status,
     String note,
   ) async {
-    final current = state.complaints.firstWhere(
-      (complaint) => complaint.id == id,
+    await _live('Updating a complaint').updateComplaint(
+      complaintId: id,
+      status: status,
+      note: note,
     );
-    final session = _connectedSession;
-    if (state.connected) {
-      if (session == null) throw StateError('Administrator session expired.');
-      await ref
-          .read(adminRepositoryProvider)!
-          .updateComplaint(complaintId: id, status: status, note: note);
-      await refresh();
-      return;
-    }
-    state = state.copyWith(
-      complaints: [
-        for (final complaint in state.complaints)
-          if (complaint.id == id)
-            complaint.copyWith(
-              status: status,
-              notes: [
-                ...complaint.notes,
-                note.trim().isEmpty
-                    ? 'Status changed to ${reportStatusLabel(status)}.'
-                    : note.trim(),
-              ],
-            )
-          else
-            complaint,
-      ],
-      audit: [
-        AuditEvent(
-          'Complaint updated',
-          '$id · ${reportStatusLabel(status)}',
-          DateTime.now(),
-          toda: current.toda,
-        ),
-        ...state.audit,
-      ],
-    );
+    await refresh();
   }
 
   /// A short-lived signed URL for a claim's submitted ID photo. Thin
@@ -505,16 +415,14 @@ class AdminController extends Notifier<AdminState> {
       // completes with one -- a synchronous throw here crashed the whole
       // console instead (caught by a widget test, not manually).
       return Future.error(
-        StateError('Viewing a claim photo requires the live Supabase connection.'),
+        StateError(
+          'Viewing a claim photo requires the live Supabase connection.',
+        ),
       );
     }
     return repository.fareClassClaimPhotoUrl(path);
   }
 
-  /// Real-data-only, unlike transitionComplaint above: there is no seeded
-  /// demo claim to mutate (seedAdminState() carries none, matching how
-  /// reportedChats stays empty in demo mode too), so this always requires the
-  /// live Supabase connection rather than offering a local-mutation fallback.
   Future<void> reviewFareClassClaim({
     required String claimId,
     required bool approve,
@@ -542,15 +450,14 @@ class AdminController extends Notifier<AdminState> {
     final repository = ref.read(adminRepositoryProvider);
     if (repository == null) {
       return Future.error(
-        StateError('Viewing a driver document requires the live Supabase connection.'),
+        StateError(
+          'Viewing a driver document requires the live Supabase connection.',
+        ),
       );
     }
     return repository.driverDocumentPhotoUrl(path);
   }
 
-  /// Real-data-only, matching reviewFareClassClaim above -- local demo mode
-  /// has no Storage bucket and no RPC to call, so this always requires the
-  /// live Supabase connection rather than a local-mutation fallback.
   Future<void> uploadDriverDocument({
     required String driverId,
     required String documentType,
@@ -613,23 +520,14 @@ class AdminController extends Notifier<AdminState> {
     }
     final target = respondentTarget ?? state.respondentTarget;
     final repeat = repeatFeedback ?? state.repeatFeedback;
-    if (state.connected) {
-      await ref
-          .read(adminRepositoryProvider)!
-          .updateFeedbackSettings(
-            feedbackInterval: feedbackInterval,
-            respondentTarget: target,
-            repeatFeedback: repeat,
-          );
-      await refresh();
-      return;
-    }
-    state = state.copyWith(
+    await _live('Changing feedback settings').updateFeedbackSettings(
       feedbackInterval: feedbackInterval,
       respondentTarget: target,
       repeatFeedback: repeat,
     );
+    await refresh();
   }
+
   /// LGU-only. Loaded on demand by AdminsScreen, not part of the main
   /// refresh() snapshot -- same reasoning refreshReportedChats already
   /// establishes for its own LGU-only, low-frequency data.
@@ -652,8 +550,6 @@ class AdminController extends Notifier<AdminState> {
     }
   }
 
-  /// Real-data-only, matching reviewFareClassClaim/reviewDriverDocument
-  /// above -- there is no seeded demo admin roster to mutate.
   Future<void> sendAdminInvite({
     required String email,
     required String scope,
@@ -716,9 +612,7 @@ class AdminController extends Notifier<AdminState> {
   }
 
   /// Existing-account candidates for an email, for the enroll-driver
-  /// dialog's first step. Real-data-only -- there is no seeded demo
-  /// candidate list to fake, same reasoning reviewFareClassClaim/
-  /// reviewDriverDocument already establish.
+  /// dialog's first step.
   Future<List<DriverCandidate>> previewDriverCandidate(String email) async {
     if (!state.connected) {
       throw StateError(
@@ -797,7 +691,6 @@ class AdminController extends Notifier<AdminState> {
     );
   }
 
-
   /// Thin pass-throughs for the public accept-driver-invite screen, which
   /// runs before any admin session exists -- no state to refresh, same
   /// rejected-Future-not-a-throw shape lookupAdminInvite (Spec 19) uses.
@@ -834,236 +727,13 @@ class AdminController extends Notifier<AdminState> {
   }
 }
 
-AdminState seedAdminState() {
-  final now = DateTime(2026, 8, 22, 10, 30);
-  return AdminState(
-    feedbackCounts: const {'Brgy. Real': 8, 'Parian': 7, 'Canlubang': 5},
-    drivers: [
-      Driver(
-        id: '123',
-        name: 'Ramon Dela Cruz',
-        toda: 'Brgy. Real',
-        phone: '0917 555 0123',
-        plate: 'TRI-123',
-        status: DriverStatus.approved,
-        documents: 4,
-        enrollmentCode: 'AC-2026-0123',
-        updated: now.subtract(const Duration(hours: 2)),
-      ),
-      Driver(
-        id: '124',
-        name: 'Joel Mendoza',
-        toda: 'Brgy. Real',
-        phone: '0918 555 0124',
-        plate: 'TRI-124',
-        status: DriverStatus.review,
-        documents: 3,
-        enrollmentCode: 'AC-2026-0124',
-        updated: now.subtract(const Duration(hours: 5)),
-      ),
-      Driver(
-        id: '125',
-        name: 'Mario Santos',
-        toda: 'Parian',
-        phone: '0919 555 0125',
-        plate: 'TRI-125',
-        status: DriverStatus.submitted,
-        documents: 4,
-        enrollmentCode: 'AC-2026-0125',
-        updated: now.subtract(const Duration(days: 1)),
-      ),
-      Driver(
-        id: '126',
-        name: 'Benjie Reyes',
-        toda: 'Canlubang',
-        phone: '0920 555 0126',
-        plate: 'TRI-126',
-        status: DriverStatus.suspended,
-        documents: 4,
-        enrollmentCode: 'AC-2026-0126',
-        updated: now.subtract(const Duration(days: 2)),
-      ),
-      Driver(
-        id: '127',
-        name: 'Arturo Lim',
-        toda: 'Brgy. Real',
-        phone: '0921 555 0127',
-        plate: 'TRI-127',
-        status: DriverStatus.rejected,
-        documents: 2,
-        enrollmentCode: 'AC-2026-0127',
-        updated: now.subtract(const Duration(days: 4)),
-      ),
-    ],
-    reports: [
-      SafetyReport(
-        id: 'SR-1042',
-        rider: 'Ana Reyes',
-        driver: 'Ramon Dela Cruz',
-        toda: 'Brgy. Real',
-        summary: 'Driver took an unexpected turn during the trip.',
-        status: ReportStatus.newReport,
-        created: now.subtract(const Duration(minutes: 18)),
-        notes: const ['Report submitted through the active trip safety flow.'],
-      ),
-      SafetyReport(
-        id: 'SR-1041',
-        rider: 'Lea Garcia',
-        driver: 'Mario Santos',
-        toda: 'Parian',
-        summary: 'Rider reported aggressive driving near the junction.',
-        status: ReportStatus.investigating,
-        created: now.subtract(const Duration(hours: 3)),
-        notes: const [
-          'Acknowledged by the LGU evaluator.',
-          'Driver statement requested.',
-        ],
-      ),
-      SafetyReport(
-        id: 'SR-1038',
-        rider: 'Paolo Cruz',
-        driver: 'Joel Mendoza',
-        toda: 'Brgy. Real',
-        summary: 'Dispute about the recorded pickup point.',
-        status: ReportStatus.resolved,
-        created: now.subtract(const Duration(days: 1)),
-        notes: const [
-          'Trip data reviewed.',
-          'Rider and TODA coordinator notified of resolution.',
-        ],
-      ),
-    ],
-    complaints: [
-      Complaint(
-        id: 'CPL-2091',
-        tripId: 'R-2208',
-        complainantName: 'Ana Reyes',
-        complainantRole: 'commuter',
-        respondentName: 'Ramon Dela Cruz',
-        toda: 'Brgy. Real',
-        category: 'driver_late',
-        description: 'Waited about 20 minutes past the confirmed pickup time.',
-        status: ReportStatus.newReport,
-        created: now.subtract(const Duration(hours: 1)),
-        notes: const [],
-      ),
-      Complaint(
-        id: 'CPL-2088',
-        tripId: 'R-2205',
-        complainantName: 'Joel Mendoza',
-        complainantRole: 'driver',
-        respondentName: 'Mika Flores',
-        toda: 'Brgy. Real',
-        category: 'disputed_fare',
-        description: 'Passenger disputed the fare shown on the app after arrival.',
-        status: ReportStatus.resolved,
-        created: now.subtract(const Duration(days: 2)),
-        notes: const ['Fare confirmed correct against the published matrix.'],
-      ),
-    ],
-    ratings: [
-      TripRating(
-        id: 'RTG-3301',
-        tripId: 'R-2208',
-        raterName: 'Ana Reyes',
-        raterRole: 'commuter',
-        rateeName: 'Ramon Dela Cruz',
-        toda: 'Brgy. Real',
-        stars: 4,
-        comment: 'Safe ride, a bit late to pick up.',
-        created: now.subtract(const Duration(hours: 1)),
-      ),
-      TripRating(
-        id: 'RTG-3298',
-        tripId: 'R-2205',
-        raterName: 'Joel Mendoza',
-        raterRole: 'driver',
-        rateeName: 'Mika Flores',
-        toda: 'Brgy. Real',
-        stars: 5,
-        comment: null,
-        created: now.subtract(const Duration(days: 2)),
-      ),
-    ],
-    rides: const [
-      Ride(
-        id: 'R-2208',
-        driver: 'Ramon Dela Cruz',
-        rider: 'Ana Reyes',
-        toda: 'Brgy. Real',
-        status: 'En route',
-        latitude: 14.2119,
-        longitude: 121.1654,
-        updatedMinutes: 1,
-      ),
-      Ride(
-        id: 'R-2207',
-        driver: 'Joel Mendoza',
-        rider: 'Mika Flores',
-        toda: 'Brgy. Real',
-        status: 'Arriving',
-        latitude: 14.2088,
-        longitude: 121.1701,
-        updatedMinutes: 2,
-      ),
-      Ride(
-        id: 'R-2206',
-        driver: 'Mario Santos',
-        rider: 'Lea Garcia',
-        toda: 'Parian',
-        status: 'On trip',
-        latitude: 14.2021,
-        longitude: 121.1592,
-        updatedMinutes: 1,
-      ),
-    ],
-    // Categorical, not brand-decorative: these three overlays sit on top of
-    // each other on the same map, so they are spread across hue *and*
-    // lightness rather than being three steps of one blue ramp. The home
-    // TODA keeps the brand blue; the other two take a teal and a violet far
-    // enough away to stay separable.
-    boundaries: const [
-      Boundary('Brgy. Real', 0xFF1262D0, [
-        [121.1570, 14.2060],
-        [121.1690, 14.2060],
-        [121.1690, 14.2160],
-        [121.1570, 14.2160],
-        [121.1570, 14.2060],
-      ]),
-      Boundary('Parian', 0xFF0E9384, [
-        [121.1510, 14.1970],
-        [121.1630, 14.1970],
-        [121.1630, 14.2070],
-        [121.1510, 14.2070],
-        [121.1510, 14.1970],
-      ]),
-      Boundary('Canlubang', 0xFF9A4FBF, [
-        [121.1640, 14.1960],
-        [121.1760, 14.1960],
-        [121.1760, 14.2060],
-        [121.1640, 14.2060],
-        [121.1640, 14.1960],
-      ]),
-    ],
-    audit: [
-      AuditEvent(
-        'Safety report acknowledged',
-        'SR-1041 · LGU evaluator',
-        now.subtract(const Duration(hours: 2)),
-        toda: 'Parian',
-      ),
-      AuditEvent(
-        'Driver sent for review',
-        'Joel Mendoza · Brgy. Real',
-        now.subtract(const Duration(hours: 5)),
-        toda: 'Brgy. Real',
-      ),
-      AuditEvent(
-        'Driver suspended',
-        'Benjie Reyes · document review',
-        now.subtract(const Duration(days: 2)),
-        toda: 'Canlubang',
-      ),
-    ],
-  );
-}
+/// Before sign-in and after sign-out there are no records at all -- the
+/// console only ever shows live Supabase data.
+const emptyAdminState = AdminState(
+  drivers: [],
+  reports: [],
+  rides: [],
+  boundaries: [],
+  audit: [],
+  feedbackCounts: {},
+);

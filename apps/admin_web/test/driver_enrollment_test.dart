@@ -6,6 +6,7 @@ import 'package:arangcada_admin/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 /// Same fixture-injection pattern admin_invites_test.dart uses, plus method
 /// overrides so the two-step dialog's async steps (previewDriverCandidate,
@@ -18,7 +19,7 @@ class _DriverInviteFixtureController extends AdminController {
   String? lastRevokedInviteId;
 
   @override
-  AdminState build() => seedAdminState().copyWith(
+  AdminState build() => testAdminState().copyWith(
     connected: true,
     todaZoneOptions: const [('zone-1', 'Calamba Poblacion TODA')],
     driverInvites: [

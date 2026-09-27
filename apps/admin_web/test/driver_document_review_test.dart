@@ -5,6 +5,7 @@ import 'package:arangcada_admin/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 /// Same fixture-injection pattern claims_screen_test.dart uses: connected:
 /// true so the redesigned dialog's connected-mode branch (Upload/Replace,
@@ -12,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// local-demo placeholder text.
 class _DriverDocumentFixtureController extends AdminController {
   @override
-  AdminState build() => seedAdminState().copyWith(
+  AdminState build() => testAdminState().copyWith(
     connected: true,
     drivers: [
       Driver(
@@ -71,7 +72,7 @@ void main() {
 
     await tester.tap(find.text('Drivers'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Review'));
+    await tester.tap(find.text('Manage'));
     await tester.pumpAndSettle();
   }
 
@@ -90,18 +91,35 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a pending document with a file shows Approve and Reject',
-    (tester) async {
-      await openDriverDialog(tester);
+  testWidgets('a pending document with a file shows Approve and Reject', (
+    tester,
+  ) async {
+    await openDriverDialog(tester);
 
-      // Two of each: the whole-driver Approve/Reject at the bottom of the
-      // dialog (pre-existing, unrelated to this redesign) plus the one
-      // this document row now offers.
-      expect(find.text('Approve'), findsNWidgets(2));
-      expect(find.text('Reject'), findsNWidgets(2));
-    },
-  );
+    // Drivers are approved or suspended; only a document can be rejected.
+    expect(find.text('Approve'), findsNWidgets(2));
+    expect(find.text('Reject'), findsOneWidget);
+    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect(
+      find.descendant(
+        of: find.byWidget(dialog.actions!.single),
+        matching: find.text('Reject'),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.getTopLeft(find.text('Manage details')).dy,
+      lessThan(tester.getTopLeft(find.text('Submitted documents')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Approve').last).dx,
+      lessThan(tester.getTopLeft(find.text('Suspend')).dx),
+    );
+    expect(
+      tester.getTopLeft(find.text('Suspend')).dx,
+      lessThan(tester.getTopLeft(find.text('Close')).dx),
+    );
+  });
 
   testWidgets(
     'an approved document shows Replace but not Approve/Reject for that row',
@@ -115,16 +133,15 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a document with no file at all offers Upload, not Replace',
-    (tester) async {
-      await openDriverDialog(tester);
+  testWidgets('a document with no file at all offers Upload, not Replace', (
+    tester,
+  ) async {
+    await openDriverDialog(tester);
 
-      // or_cr, barangay_clearance, and vehicle_photo have no path in the
-      // fixture (only drivers_license/mtop_franchise/toda_membership do).
-      expect(find.text('Upload'), findsNWidgets(3));
-    },
-  );
+    // or_cr, barangay_clearance, and vehicle_photo have no path in the
+    // fixture (only drivers_license/mtop_franchise/toda_membership do).
+    expect(find.text('Upload'), findsNWidgets(3));
+  });
 
   testWidgets(
     'the old "files remain private" copy is gone -- documents are viewable '
@@ -132,14 +149,8 @@ void main() {
     (tester) async {
       await openDriverDialog(tester);
 
-      expect(
-        find.textContaining('Files remain private'),
-        findsNothing,
-      );
-      expect(
-        find.textContaining('mints a signed link'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Files remain private'), findsNothing);
+      expect(find.textContaining('mints a signed link'), findsOneWidget);
     },
   );
 }

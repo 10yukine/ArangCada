@@ -66,8 +66,23 @@ class SupabaseAdminRepository {
   /// longer needed for this. Supabase does not reveal whether the address
   /// belongs to an account either way, matching how every other auth
   /// surface in this project avoids account-enumeration.
+  ///
+  /// The email link returns to this console's /reset-password page, where
+  /// the person chooses a new password (see ResetPasswordScreen). The URL must
+  /// be in Supabase Auth's allowed redirect URLs; otherwise Supabase falls
+  /// back to the project's Site URL.
   Future<void> sendPasswordReset(String email) async {
-    await client.auth.resetPasswordForEmail(email.trim());
+    await client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: kIsWeb ? '${Uri.base.origin}/reset-password' : null,
+    );
+  }
+
+  /// Sets the new password with the short-lived recovery session from the
+  /// reset link, then ends that session so the person signs in normally.
+  Future<void> completePasswordReset(String newPassword) async {
+    await client.auth.updateUser(UserAttributes(password: newPassword));
+    await client.auth.signOut();
   }
 
   Future<AdminSession> signIn({
@@ -190,10 +205,10 @@ class SupabaseAdminRepository {
       throw StateError('Sign in again to change your photo.');
     }
     try {
-      await client.from('profiles').update({'avatar_path': path}).eq(
-        'id',
-        user.id,
-      );
+      await client
+          .from('profiles')
+          .update({'avatar_path': path})
+          .eq('id', user.id);
     } on PostgrestException {
       throw StateError('Could not save your photo. Try again.');
     }
@@ -481,11 +496,6 @@ class SupabaseAdminRepository {
       );
       return;
     }
-    if (status == DriverStatus.rejected && session.role != AdminRole.lgu) {
-      throw StateError(
-        'TODA administrators may approve, but cannot reject, drivers.',
-      );
-    }
     if (driver.status == DriverStatus.suspended &&
         status == DriverStatus.approved) {
       if (session.role != AdminRole.lgu) {
@@ -504,7 +514,6 @@ class SupabaseAdminRepository {
 
     final decision = switch (status) {
       DriverStatus.approved => 'approve',
-      DriverStatus.rejected => 'reject',
       _ => throw StateError('This driver transition is not available.'),
     };
     await client.rpc(
@@ -513,6 +522,48 @@ class SupabaseAdminRepository {
         'p_driver_id': driver.id,
         'p_decision': decision,
         'p_reason': reason.trim(),
+      },
+    );
+  }
+
+  Future<void> updateDriverName({
+    required String driverId,
+    required String firstName,
+    required String lastName,
+    String? reason,
+  }) async {
+    await client.rpc(
+      'admin_update_driver_name',
+      params: {
+        'p_driver_id': driverId,
+        'p_first_name': firstName.trim(),
+        'p_last_name': lastName.trim(),
+        'p_reason': reason?.trim(),
+      },
+    );
+  }
+
+  Future<void> updateDriverRecord({
+    required String driverId,
+    required String firstName,
+    required String lastName,
+    required String plateNumber,
+    required String bodyNumber,
+    required String todaZoneId,
+    DateTime? licenseExpiresOn,
+  }) async {
+    await client.rpc(
+      'admin_update_driver_record',
+      params: {
+        'p_driver_id': driverId,
+        'p_first_name': firstName.trim(),
+        'p_last_name': lastName.trim(),
+        'p_plate_number': plateNumber.trim(),
+        'p_body_number': bodyNumber.trim(),
+        'p_toda_zone_id': todaZoneId,
+        'p_license_expires_on': licenseExpiresOn == null
+            ? null
+            : '${licenseExpiresOn.year.toString().padLeft(4, '0')}-${licenseExpiresOn.month.toString().padLeft(2, '0')}-${licenseExpiresOn.day.toString().padLeft(2, '0')}',
       },
     );
   }
@@ -606,9 +657,7 @@ class SupabaseAdminRepository {
   }) async {
     final path =
         '$driverId/$documentType-${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-    await client.storage
-        .from('driver-documents')
-        .uploadBinary(path, bytes);
+    await client.storage.from('driver-documents').uploadBinary(path, bytes);
     await client.rpc(
       'admin_upsert_driver_document',
       params: {
@@ -669,7 +718,11 @@ class SupabaseAdminRepository {
           )
           .eq('status', 'pending')
           .order('created_at', ascending: false),
-      client.from('toda_zones').select('id, name').order('name'),
+      client
+          .from('toda_zones')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name'),
       // Traces each existing admin back to whoever invited them, for the
       // Admins screen's own accountability trail -- an account that
       // predates the invite system (e.g. a direct database promotion)
@@ -699,8 +752,10 @@ class SupabaseAdminRepository {
       for (final row in profileRows)
         AdminAccount.fromRow(
           {...row, 'scope': scopeByAdmin[row['id'].toString()]?['scope']},
-          toda: (scopeByAdmin[row['id'].toString()]?['toda_zones'] as Map?)?['name']
-              ?.toString(),
+          toda:
+              (scopeByAdmin[row['id'].toString()]?['toda_zones']
+                      as Map?)?['name']
+                  ?.toString(),
         ),
     ];
     final accountsById = {for (final account in accounts) account.id: account};
@@ -715,8 +770,7 @@ class SupabaseAdminRepository {
             firstName: account.firstName,
             lastName: account.lastName,
             toda: account.toda,
-            invitedByName:
-                accountsById[invitedByAdminId[account.id]]?.name,
+            invitedByName: accountsById[invitedByAdminId[account.id]]?.name,
           ),
       ],
       invites: [
@@ -748,7 +802,9 @@ class SupabaseAdminRepository {
         body: {'email': email, 'scope': scope, 'toda_zone_id': todaZoneId},
       );
     } on FunctionException catch (error) {
-      throw StateError(_functionErrorMessage(error) ?? 'The invite could not be sent.');
+      throw StateError(
+        _functionErrorMessage(error) ?? 'The invite could not be sent.',
+      );
     }
   }
 
@@ -791,7 +847,9 @@ class SupabaseAdminRepository {
         },
       );
     } on FunctionException catch (error) {
-      throw StateError(_functionErrorMessage(error) ?? 'The account could not be created.');
+      throw StateError(
+        _functionErrorMessage(error) ?? 'The account could not be created.',
+      );
     }
   }
 
@@ -879,7 +937,9 @@ class SupabaseAdminRepository {
     final results = await Future.wait<dynamic>([
       client
           .from('driver_invites')
-          .select('id, email, toda_zone_id, body_number, status, created_at, toda_zones(name)')
+          .select(
+            'id, email, toda_zone_id, body_number, status, created_at, toda_zones(name)',
+          )
           .eq('status', 'pending')
           .order('created_at', ascending: false),
       client.from('toda_zones').select('id, name').order('name'),

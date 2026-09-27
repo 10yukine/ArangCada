@@ -49,10 +49,8 @@ class SettingsScreen extends ConsumerWidget {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Local desktop alerts'),
-                    subtitle: Text(
-                      state.connected
-                          ? 'Play an unobtrusive chime for new SOS reports.'
-                          : 'Show local status notifications during evaluation.',
+                    subtitle: const Text(
+                      'Play an unobtrusive chime for new SOS reports.',
                     ),
                     value: state.desktopAlerts,
                     onChanged: controller.setDesktopAlerts,
@@ -105,16 +103,14 @@ class SettingsScreen extends ConsumerWidget {
                   _SettingRow(
                     icon: Icons.layers_outlined,
                     title: 'TODA boundaries',
-                    detail: state.connected
-                        ? 'Server-defined jurisdictions; developer test boundary is provisional.'
-                        : 'Prototype boundary · evaluation only',
+                    detail:
+                        'Server-defined jurisdictions managed by the LGU.',
                   ),
                   _SettingRow(
                     icon: Icons.storage_outlined,
                     title: 'Admin records',
-                    detail: state.connected
-                        ? 'Supabase records secured by administrator scope and row-level security.'
-                        : 'Synthetic in-memory records; refresh resets changes.',
+                    detail:
+                        'Supabase records secured by administrator scope and row-level security.',
                   ),
                 ],
               ),
@@ -375,16 +371,16 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         Text(
-                          session.email ?? 'Local demo account',
+                          session.email ?? '',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    StatusPill(session.roleLabel, tone: StatusTone.brand),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              StatusPill(session.roleLabel, tone: StatusTone.brand),
             ],
           ),
         );

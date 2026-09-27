@@ -34,13 +34,15 @@ class ReviewWorkspace extends StatelessWidget {
           ],
         );
       }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 320, child: queue),
-          const SizedBox(width: 24),
-          Expanded(child: detail),
-        ],
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: 320, child: queue),
+            const SizedBox(width: 24),
+            Expanded(child: detail),
+          ],
+        ),
       );
     },
   );
@@ -101,17 +103,17 @@ class ProgressRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: value,
-            minHeight: 9,
+            minHeight: 8,
             backgroundColor: context.adminColor(AdminColors.surface),
             color: context.adminColor(AdminColors.primary),
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(caption, style: Theme.of(context).textTheme.bodySmall),
       ],
     ),
@@ -119,12 +121,13 @@ class ProgressRow extends StatelessWidget {
 }
 
 class LabelValue extends StatelessWidget {
-  const LabelValue(this.label, this.value, {super.key});
+  const LabelValue(this.label, this.value, {super.key, this.width = 180});
   final String label;
   final String value;
+  final double width;
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 180,
+    width: width,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -132,9 +135,9 @@ class LabelValue extends StatelessWidget {
           label.toUpperCase(),
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(letterSpacing: .7),
+          ).textTheme.bodySmall?.copyWith(letterSpacing: .7, fontSize: 11.5),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(value, style: Theme.of(context).textTheme.titleMedium),
       ],
     ),

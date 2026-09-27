@@ -3,11 +3,26 @@ import 'package:arangcada_admin/models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/admin_fixture.dart';
+
 void main() {
+  test('the console ships no sample records before sign-in', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final state = container.read(adminProvider);
+
+    expect(state.connected, isFalse);
+    expect(state.drivers, isEmpty);
+    expect(state.reports, isEmpty);
+    expect(state.rides, isEmpty);
+    expect(state.audit, isEmpty);
+    expect(state.feedbackCounts, isEmpty);
+  });
+
   test(
     'dashboard scope stays independent from driver filters and audit leaks',
     () {
-      final container = ProviderContainer();
+      final container = ProviderContainer(overrides: fixtureOverrides);
       addTearDown(container.dispose);
       final controller = container.read(adminProvider.notifier);
       const lguSession = AdminSession(
@@ -45,94 +60,49 @@ void main() {
     },
   );
 
-  test('local admin mutations stay scoped and auditable', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final controller = container.read(adminProvider.notifier);
-    const todaSession = AdminSession(
-      name: 'Coordinator',
-      role: AdminRole.toda,
-      toda: 'Brgy. Real',
-    );
-
-    expect(
-      controller
-          .visibleDrivers(todaSession)
-          .every((driver) => driver.toda == 'Brgy. Real'),
-      isTrue,
-    );
-    final driver = controller.enrollDriver(
-      name: 'Test Driver',
-      toda: 'Brgy. Real',
-      phone: '09171234567',
-      plate: 'TEST-1',
-    );
-    expect(driver.enrollmentCode, 'AC-2026-0128');
-
-    controller.updateDriver(
-      driver.id,
-      DriverStatus.approved,
-      'Test review complete',
-    );
-    expect(
-      container
-          .read(adminProvider)
-          .drivers
-          .firstWhere((item) => item.id == driver.id)
-          .status,
-      DriverStatus.approved,
-    );
-
-    controller.transitionReport(
-      'SR-1042',
-      ReportStatus.resolved,
-      'Verified in test',
-    );
-    final report = container
-        .read(adminProvider)
-        .reports
-        .firstWhere((item) => item.id == 'SR-1042');
-    expect(report.status, ReportStatus.resolved);
-    expect(report.notes.last, 'Verified in test');
-    expect(
-      container.read(adminProvider).audit.first.title,
-      'Safety report updated',
-    );
-  });
-
   test(
-    'demo feedback participants stay scoped and reject cross-TODA writes',
-    () {
-      final container = ProviderContainer();
+    'writes without a live session fail instead of changing local records',
+    () async {
+      final container = ProviderContainer(overrides: fixtureOverrides);
       addTearDown(container.dispose);
       final controller = container.read(adminProvider.notifier);
-      const todaSession = AdminSession(
-        name: 'Coordinator',
-        role: AdminRole.toda,
-        toda: 'Brgy. Real',
-      );
+      final before = container.read(adminProvider);
 
-      controller.recordDemoFeedbackResponse(todaSession, 'Brgy. Real');
-
-      expect(container.read(adminProvider).feedbackCounts['Brgy. Real'], 9);
-      expect(
-        () => controller.recordDemoFeedbackResponse(todaSession, 'Parian'),
+      await expectLater(
+        controller.updateDriver('124', DriverStatus.approved, 'Checked'),
         throwsStateError,
       );
-      expect(container.read(adminProvider).feedbackCounts['Parian'], 7);
+      await expectLater(
+        controller.transitionReport(
+          'SR-1042',
+          ReportStatus.resolved,
+          'Checked',
+        ),
+        throwsStateError,
+      );
+      await expectLater(
+        controller.transitionComplaint(
+          'CPL-2091',
+          ReportStatus.acknowledged,
+          'Checked',
+        ),
+        throwsStateError,
+      );
+
+      final after = container.read(adminProvider);
+      expect(after.drivers, same(before.drivers));
+      expect(after.reports, same(before.reports));
+      expect(after.complaints, same(before.complaints));
+      expect(after.audit, same(before.audit));
     },
   );
 
   test(
     'only LGU administrators can update the global feedback interval',
     () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(overrides: fixtureOverrides);
       addTearDown(container.dispose);
       final controller = container.read(adminProvider.notifier);
-      const lguSession = AdminSession(
-        name: 'LGU evaluator',
-        role: AdminRole.lgu,
-      );
       const todaSession = AdminSession(
         name: 'Coordinator',
         role: AdminRole.toda,
@@ -140,24 +110,19 @@ void main() {
       );
 
       expect(container.read(adminProvider).feedbackInterval, 1);
-      await controller.updateFeedbackSettings(
-        session: lguSession,
-        feedbackInterval: 3,
-      );
-      expect(container.read(adminProvider).feedbackInterval, 3);
       await expectLater(
         controller.updateFeedbackSettings(
           session: todaSession,
-          feedbackInterval: 1,
+          feedbackInterval: 3,
         ),
         throwsStateError,
       );
-      expect(container.read(adminProvider).feedbackInterval, 3);
+      expect(container.read(adminProvider).feedbackInterval, 1);
     },
   );
 
   test('complaints and reviews stay scoped to the assigned TODA', () {
-    final container = ProviderContainer();
+    final container = ProviderContainer(overrides: fixtureOverrides);
     addTearDown(container.dispose);
     final controller = container.read(adminProvider.notifier);
     const lguSession = AdminSession(
@@ -170,7 +135,7 @@ void main() {
       toda: 'Brgy. Real',
     );
 
-    // Both seeded complaints and both seeded ratings are in Brgy. Real, so a
+    // Both fixture complaints and both fixture ratings are in Brgy. Real, so a
     // scoped TODA administrator sees exactly the same count an unscoped LGU
     // administrator does here -- the real proof is that a DIFFERENT TODA
     // sees none, covered next.
@@ -188,34 +153,7 @@ void main() {
     expect(controller.visibleRatings(otherTodaSession), isEmpty);
   });
 
-  test('transitioning a complaint updates its status and notes locally', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final controller = container.read(adminProvider.notifier);
-    const lguSession = AdminSession(
-      name: 'LGU evaluator',
-      role: AdminRole.lgu,
-    );
-    final before = controller.visibleComplaints(lguSession).firstWhere(
-      (complaint) => complaint.id == 'CPL-2091',
-    );
-    expect(before.status, ReportStatus.newReport);
-
-    controller.transitionComplaint(
-      'CPL-2091',
-      ReportStatus.acknowledged,
-      'Spoke with the driver.',
-    );
-
-    final after = container
-        .read(adminProvider.notifier)
-        .visibleComplaints(lguSession)
-        .firstWhere((complaint) => complaint.id == 'CPL-2091');
-    expect(after.status, ReportStatus.acknowledged);
-    expect(after.notes, contains('Spoke with the driver.'));
-  });
-
-  test('demo sessions cannot change an account password', () async {
+  test('sessions without a connected account cannot change a password', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 

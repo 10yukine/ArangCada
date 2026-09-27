@@ -6,13 +6,14 @@ import 'package:arangcada_admin/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 /// Same fixture-injection pattern driver_document_review_test.dart uses:
 /// connected: true so AdminsScreen's connected-mode branch (real lists,
 /// enabled Invite button) is what renders.
 class _AdminAccountsFixtureController extends AdminController {
   @override
-  AdminState build() => seedAdminState().copyWith(
+  AdminState build() => testAdminState().copyWith(
     connected: true,
     adminAccounts: const [
       AdminAccount(

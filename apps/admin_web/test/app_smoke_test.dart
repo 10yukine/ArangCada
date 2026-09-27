@@ -3,12 +3,14 @@ import 'package:arangcada_admin/main.dart';
 import 'package:arangcada_admin/models.dart';
 import 'package:arangcada_admin/session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/admin_fixture.dart';
 
 class _ReportedChatFixtureController extends AdminController {
   @override
-  AdminState build() => seedAdminState().copyWith(
+  AdminState build() => testAdminState().copyWith(
     reportedChats: [
       ReportedTripChat.fromRow({
         'id': 'chat-report-1',
@@ -38,6 +40,40 @@ class _ReportedChatFixtureController extends AdminController {
 }
 
 void main() {
+  testWidgets('email focus exposes both credentials to autofill', (tester) async {
+    await tester.pumpWidget(const ProviderScope(
+      child: MaterialApp(home: LoginScreen()),
+    ));
+    await tester.pumpAndSettle();
+    final fields = find.byType(EditableText);
+    await tester.showKeyboard(fields.first);
+    final configuration = tester.testTextInput.setClientArgs!;
+    final autofillFields = configuration['fields'] as List<dynamic>;
+    expect(autofillFields, hasLength(2));
+    final values = <String, dynamic>{};
+    for (final dynamic field in autofillFields) {
+      final autofill = field['autofill'] as Map<dynamic, dynamic>;
+      final hints = autofill['hints'] as List<dynamic>;
+      final value = hints.contains(AutofillHints.password)
+          ? 'saved-password'
+          : 'saved@example.com';
+      values[autofill['uniqueIdentifier'] as String] =
+          TextEditingValue(text: value).toJSON();
+    }
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      SystemChannels.textInput.name,
+      SystemChannels.textInput.codec.encodeMethodCall(
+        MethodCall('TextInputClient.updateEditingStateWithTag', [0, values]),
+      ),
+      (_) {},
+    );
+    await tester.pump();
+    expect(tester.widget<EditableText>(fields.first).controller.text,
+        'saved@example.com');
+    expect(tester.widget<EditableText>(fields.last).controller.text,
+        'saved-password');
+  });
+
   testWidgets('phone overview and driver queue work with larger text', (
     tester,
   ) async {
@@ -53,7 +89,7 @@ void main() {
       tester.platformDispatcher.clearTextScaleFactorTestValue();
       await tester.binding.setSurfaceSize(null);
     });
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
     expect(find.text('Operations overview'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -66,9 +102,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('demo login opens the merged six-section console', (
-    tester,
-  ) async {
+  testWidgets('the login offers no local demo', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 900));
     auth.value = null;
     addTearDown(() async {
@@ -79,8 +113,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
-    await tester.ensureVisible(find.text('Open console'));
-    await tester.tap(find.text('Open console'));
+    expect(find.text('Use local demo'), findsNothing);
+    expect(find.byType(SegmentedButton<AdminRole>), findsNothing);
+    final fields = find.byType(EditableText);
+    expect(tester.widget<EditableText>(fields.first).controller.text, isEmpty);
+    expect(tester.widget<EditableText>(fields.last).controller.text, isEmpty);
+  });
+
+  testWidgets('a signed-in console opens the merged six-section navigation', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+    addTearDown(() async {
+      auth.value = null;
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
 
     expect(find.text('Operations overview'), findsOneWidget);
@@ -104,7 +153,7 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     });
 
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
 
     expect(find.text('Operations overview'), findsOneWidget);
@@ -125,7 +174,7 @@ void main() {
         await tester.binding.setSurfaceSize(null);
       });
 
-      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
       await tester.pumpAndSettle();
 
       expect(find.text('Live dispatch map'), findsOneWidget);
@@ -180,7 +229,7 @@ void main() {
         await tester.binding.setSurfaceSize(null);
       });
 
-      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Evaluation'));
       await tester.pumpAndSettle();
@@ -191,10 +240,26 @@ void main() {
       expect(find.text('Parian'), findsNothing);
       expect(find.text('Canlubang'), findsNothing);
       expect(find.text('Record response'), findsNothing);
+
+      // Each study instrument has its own sub-page inside the Evaluation tab.
+      await tester.tap(find.text('Driver feedback'));
+      await tester.pumpAndSettle();
+      expect(find.text('Participation by TODA'), findsOneWidget);
       expect(
         find.text('8 of 10 unique drivers · 8 total responses'),
         findsOneWidget,
       );
+      expect(find.text('Parian'), findsNothing);
+      expect(find.text('Evaluation'), findsAtLeastNWidgets(1));
+
+      await tester.tap(find.textContaining('Responses ('));
+      await tester.pumpAndSettle();
+      expect(find.text('No submitted driver app feedback yet.'), findsOneWidget);
+
+      await tester.tap(find.text('ISO/IEC 25010'));
+      await tester.pumpAndSettle();
+      expect(find.text('Quality characteristics'), findsOneWidget);
+      expect(find.text('Manual baseline comparison'), findsOneWidget);
 
       await tester.tap(find.text('Dashboard'));
       await tester.pumpAndSettle();
@@ -215,7 +280,7 @@ void main() {
         auth.value = null;
         await tester.binding.setSurfaceSize(null);
       });
-      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Safety reports'));
       await tester.pumpAndSettle();
@@ -246,7 +311,7 @@ void main() {
         auth.value = null;
         await tester.binding.setSurfaceSize(null);
       });
-      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Safety reports'));
       await tester.pumpAndSettle();
@@ -265,7 +330,7 @@ void main() {
   ) async {
     auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
     addTearDown(() => auth.value = null);
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
 
     expect(find.text('Complaints'), findsNothing);
@@ -278,7 +343,7 @@ void main() {
       auth.value = null;
       await tester.binding.setSurfaceSize(null);
     });
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Reviews'));
     await tester.pumpAndSettle();
@@ -396,7 +461,7 @@ void main() {
       auth.value = null;
       await tester.binding.setSurfaceSize(null);
     });
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Settings'));
     await tester.pumpAndSettle();
@@ -421,11 +486,11 @@ void main() {
         auth.value = null;
         await tester.binding.setSurfaceSize(null);
       });
-      await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+      await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Drivers'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Review').first);
+      await tester.tap(find.text('Manage').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Approve'), findsOneWidget);
@@ -451,7 +516,7 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     });
 
-    await tester.pumpWidget(const ProviderScope(child: AdminApp()));
+    await tester.pumpWidget(ProviderScope(overrides: fixtureOverrides, child: const AdminApp()));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Settings'));
     await tester.pumpAndSettle();

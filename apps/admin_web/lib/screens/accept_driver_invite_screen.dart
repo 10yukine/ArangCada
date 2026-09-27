@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../admin_controller.dart';
 import '../theme.dart';
@@ -23,7 +22,8 @@ class AcceptDriverInviteScreen extends ConsumerStatefulWidget {
 class _AcceptDriverInviteScreenState
     extends ConsumerState<AcceptDriverInviteScreen> {
   final formKey = GlobalKey<FormState>();
-  final fullName = TextEditingController();
+  final firstName = TextEditingController();
+  final lastName = TextEditingController();
   final mobileNumber = TextEditingController();
   final password = TextEditingController();
   final confirmPassword = TextEditingController();
@@ -44,7 +44,8 @@ class _AcceptDriverInviteScreenState
 
   @override
   void dispose() {
-    fullName.dispose();
+    firstName.dispose();
+    lastName.dispose();
     mobileNumber.dispose();
     password.dispose();
     confirmPassword.dispose();
@@ -95,7 +96,7 @@ class _AcceptDriverInviteScreenState
           .read(adminProvider.notifier)
           .acceptDriverInvite(
             token: token,
-            displayName: fullName.text,
+            displayName: '${firstName.text.trim()} ${lastName.text.trim()}',
             mobileNumber: mobileNumber.text,
             password: password.text,
           );
@@ -197,12 +198,20 @@ class _AcceptDriverInviteScreenState
               ),
               const SizedBox(height: 20),
               TextFormField(
-                controller: fullName,
+                controller: firstName,
                 autofocus: true,
-                decoration: const InputDecoration(labelText: 'Full name'),
+                decoration: const InputDecoration(labelText: 'First name'),
                 validator: (value) => (value?.trim().isNotEmpty ?? false)
                     ? null
-                    : 'Enter your full name.',
+                    : 'Enter your first name.',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: lastName,
+                decoration: const InputDecoration(labelText: 'Last name'),
+                validator: (value) => (value?.trim().isNotEmpty ?? false)
+                    ? null
+                    : 'Enter your last name.',
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -281,20 +290,7 @@ class _AcceptDriverInviteScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AdminColors.rail,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: SvgPicture.asset(
-                    'assets/branding/arangcada-mark-dark.svg',
-                    width: 32,
-                    height: 32,
-                  ),
-                ),
+                const BrandTile(size: 64),
                 const SizedBox(height: 14),
                 Text(
                   'ArangCada',

@@ -1,7 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'models.dart';
 import 'theme.dart';
+
+/// The ArangCada app tile -- the same white rounded square as the mobile
+/// splash and login badge (ArangCadaMark in apps/mobile): ~22% corner,
+/// mark at ~90% of the tile, soft ink shadow.
+class BrandTile extends StatelessWidget {
+  const BrandTile({super.key, this.size = 40});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(size * .215),
+      boxShadow: [
+        BoxShadow(color: const Color(0x1F0F1A28), blurRadius: size * .15, offset: Offset(0, size * .05)),
+      ],
+    ),
+    child: SvgPicture.asset('assets/branding/arangcada-mark.svg',
+      width: size * .9, height: size * .9),
+  );
+}
+
+/// The splash moment: the app tile on a soft radial halo. Decorative only.
+class BrandStage extends StatelessWidget {
+  const BrandStage({super.key, this.size = 360, this.onBrand = false});
+  final double size;
+
+  /// On the blue brand gradient the halo is white; on light surfaces it is
+  /// the mobile splash's pale blue.
+  final bool onBrand;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: SizedBox.square(
+      dimension: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(colors: onBrand
+              ? [Colors.white.withValues(alpha: .30), Colors.white.withValues(alpha: 0)]
+              : const [Color(0xFFE4F0FE), Color(0x00E4F0FE)]),
+        ),
+        child: Center(child: BrandTile(size: size * .46)),
+      ),
+    ),
+  );
+}
 
 class PageHeading extends StatelessWidget {
   const PageHeading({
@@ -21,12 +72,14 @@ class PageHeading extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: context.adminColor(AdminColors.muted)),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: context.adminColor(AdminColors.muted)),
+            ),
           ),
         ],
       );
@@ -34,14 +87,19 @@ class PageHeading extends StatelessWidget {
       if (constraints.maxWidth < 560) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [heading, const SizedBox(height: 14), action!],
+          children: [heading, const SizedBox(height: 16), action!],
         );
       }
       return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(child: heading),
-          action!,
+          const SizedBox(width: 16),
+          // A long note in the action slot shortens instead of overflowing.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth * .45),
+            child: action!,
+          ),
         ],
       );
     },
@@ -52,7 +110,7 @@ class Panel extends StatelessWidget {
   const Panel({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = const EdgeInsets.all(22),
     this.onTap,
   });
   final Widget child;
@@ -86,18 +144,23 @@ class StatusPill extends StatelessWidget {
     return Semantics(
       label: 'Status: $label',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: foreground,
-            fontWeight: FontWeight.w600,
+        padding: const EdgeInsets.fromLTRB(8, 5, 11, 5),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(6)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 6, height: 6,
+            decoration: BoxDecoration(color: foreground, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-        ),
+        ]),
       ),
     );
   }
@@ -159,54 +222,45 @@ class MetricCard extends StatelessWidget {
     excludeSemantics: true,
     child: Panel(
       onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(18, 16, 16, 14),
-      child: Stack(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Container(
-              width: 38,
-              height: 38,
+          Row(children: [
+            Container(
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: context.adminColor(tone).withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: context.adminColor(tone), size: 20),
+              child: Icon(icon, color: context.adminColor(tone), size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: context.adminColor(AdminColors.muted)),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              fontSize: 32,
+              height: 1,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 42),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: .55,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontSize: 35,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -219,15 +273,26 @@ class EmptyState extends StatelessWidget {
   final String message;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
     child: Center(
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyLarge?.copyWith(color: context.adminColor(AdminColors.muted)),
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            color: context.adminColor(AdminColors.primaryTint), borderRadius: BorderRadius.circular(12)),
+          child: Icon(Icons.inbox_outlined, size: 22, color: context.adminColor(AdminColors.primary)),
+        ),
+        const SizedBox(height: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: context.adminColor(AdminColors.muted)),
+          ),
+        ),
+      ]),
     ),
   );
 }
