@@ -1,5 +1,5 @@
 """Regenerate apps/web/public/terms.html and policy.html from the reviewed
-markdown source in docs/legal/. Run this whenever TERMS_OF_SERVICE.md or
+markdown source in apps/web/legal/. Run this whenever TERMS_OF_SERVICE.md or
 PRIVACY_POLICY.md changes, so the publicly served pages never drift from the
 document that was actually reviewed.
 
@@ -16,7 +16,7 @@ import re
 import markdown
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-LEGAL_DIR = ROOT / "docs" / "legal"
+LEGAL_DIR = ROOT / "apps" / "web" / "legal"
 OUT_DIR = ROOT / "apps" / "web" / "public"
 
 HTML_TEMPLATE = """<!doctype html>

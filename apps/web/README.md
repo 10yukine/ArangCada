@@ -1,65 +1,45 @@
-# `apps/web` — ArangCada root/marketing site
+# ArangCada public website
 
-Serves `arangcada.app` and `www.arangcada.app`. Split off `apps/track_web`
-on 4 September 2026 so the apex domain can be the public marketing/legal
-site instead of the ride-tracking tool — see `.pipeline/specs.md` "Split
-arangcada.app" and `docs/DOMAIN_DNS_RUNBOOK.md`'s "Part 8" addendum.
+Static HTML, CSS and JavaScript for the public information and legal pages.
+`wrangler.jsonc` configures the `arangcada-web` Worker and its custom domains.
+Only `public/` is served.
 
+| Path | Page |
+| --- | --- |
+| `/ph` | Main website |
+| `/terms` | Terms of Service |
+| `/policy` | Privacy Policy |
+
+## Local preview
+
+From the repository root:
+
+```sh
+python -m http.server 8000 --directory apps/web/public
 ```
-https://arangcada.app          -> redirects to /ph
-https://arangcada.app/ph       -> main webpage
-https://arangcada.app/terms    -> Terms of Service
-https://arangcada.app/policy   -> Privacy Policy
-```
 
-**No page design yet.** The owner's instruction for this pass was "page
-design not required as of now, just the handles" — every page here is a
-plain, unstyled-beyond-legibility placeholder or a rendered legal document,
-not a themed site. Do not treat this as the final look.
+Open `/ph.html` for the local preview. Cloudflare handles extensionless paths
+and the root redirect in the deployed site.
 
-## Why this is not Flutter, and not one project with `apps/track_web`
+## Legal content
 
-Same reasoning as `apps/track_web/README.md`: this is a public, no-account
-surface, so it should stay small and framework-free rather than shipping
-Flutter Web's ~2 MB CanvasKit payload for three static pages. It is a
-**separate** Cloudflare project from `apps/track_web` on purpose — the two
-now live on different (sub)domains (`arangcada.app` vs
-`track.arangcada.app`) and have different jobs; folding them into one
-project would recouple two things that were just deliberately split apart.
+Edit the Markdown in `legal/`, then regenerate the public pages from the
+repository root using Python with the `markdown` package installed:
 
-## Files
-
-| File | Purpose |
-|---|---|
-| `public/_redirects` | Root -> `/ph` only. An earlier draft also had a legacy `/t/<token>` -> `track.arangcada.app` redirect; removed 4 Sep 2026 since no real tracking link had been shared yet (still in dev) — see `.pipeline/changes.md` if that ever needs to come back |
-| `public/ph.html` | Main webpage placeholder |
-| `public/terms.html` | Terms of Service — **generated**, not hand-authored |
-| `public/policy.html` | Privacy Policy — **generated**, not hand-authored |
-| `wrangler.jsonc` | Workers static-assets deploy config, `arangcada.app` + `www` custom domains |
-
-## Keeping the legal pages in sync
-
-`terms.html` and `policy.html` are rendered from `docs/legal/*.md` by
-`scripts/render_legal_html.py` (run from the repo root). **Never hand-edit
-either HTML file** — edit the markdown source, then re-run:
-
-```bash
+```sh
 python scripts/render_legal_html.py
 ```
 
-Both markdown files are still marked `DRAFT — internal capstone review
-only` with open `[⚠️ LEGAL REVIEW REQUIRED]` items as of this writing (see
-`CLAUDE.md`'s "Legal and Compliance Docs" section). Publishing this site
-does not resolve that status — the rendered HTML carries the same draft
-banner and warning callouts the markdown has.
+Review the generated changes before publishing. Preserve any draft status and
+review notices in the source documents.
 
-## Deploying
+## Deployment
 
-See `docs/DOMAIN_DNS_RUNBOOK.md` Part 8: deploy this as a new Workers
-project (`arangcada-web`), which claims `arangcada.app` / `www.arangcada.app`
-once `arangcada-track` has released them by redeploying with its updated
-config, then attach `track.arangcada.app` to `arangcada-track`. Also update
-the MapTiler key's allowed-origin restriction to `track.arangcada.app/*`
-once the move happens — the tracking page's map tiles will silently stop
-loading until that dashboard setting is updated, since a code change cannot
-do it.
+With the intended Cloudflare account configured:
+
+```sh
+npx wrangler deploy --config apps/web/wrangler.jsonc
+```
+
+Recipients must configure their own hosting account and domains. Keep deployment
+tokens out of source and public assets.

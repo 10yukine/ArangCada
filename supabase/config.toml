@@ -9,12 +9,7 @@ entrypoint = "./functions/dispatch_fcm/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/dispatch_fcm/*.html" ]
 
-# Declared so the GitHub integration deploys them. The integration deploys the
-# functions listed HERE, not everything found in supabase/functions/ -- and
-# both of these were missing, which is exactly how send-sms-hook came to be
-# written, committed, and never deployed while CLAUDE.md called the feature
-# done. A deploy path that silently skips two of three functions is not a
-# safety net.
+# List deployed Edge Functions explicitly for the GitHub integration.
 
 [functions.send-sms-hook]
 enabled = true

@@ -43,14 +43,6 @@ GoogleService-Info.plist
 skills-lock.json
 
 # ---------------------------------------------------------------------------
-# Large binaries kept locally rather than in Git history
-# ---------------------------------------------------------------------------
-# docs/legacy/ holds superseded document revisions (currently a 5 MB PDF of
-# SRS v1.1). Binaries never leave Git history once committed, so archive them
-# outside the repo. Commit deliberately, or use Git LFS, if one must ship.
-docs/legacy/
-
-# ---------------------------------------------------------------------------
 # Flutter / Dart
 # ---------------------------------------------------------------------------
 build/
@@ -98,30 +90,19 @@ apps/track_web/public/config.js
 /SAFETY.md
 /TOOLS.md
 /design-qa.md
-/docs/AGENT_TOOLING.md
-/docs/CLAUDE_CODE_CODEX_HANDOFF.md
-/docs/CLIENT_MEETING_QUESTIONS.md
-/docs/CODEX_SETUP.md
-/docs/COMPETITOR_TECH_DECISIONS.md
-/docs/DESIGN_TARGET.md
-/docs/FARE_STRATEGY_DEFENSE.md
-/docs/GRAPHIFY_OBSIDIAN_SETUP.md
-/docs/KNOWN_ADVISOR_FINDINGS.md
-/docs/LLM_WIKI.md
-/docs/MEMORY_SETUP.md
-/docs/MULTI_AGENT_REVIEW.md
-/docs/PROJECT_DECISIONS.md
-/docs/SRS.md
-/docs/MOBILE_APP_WORKFLOW.md
-/docs/MOBILE_UI_EXPLORATION_GUIDE.md
 /.pipeline/
 /.codex-evidence/
 /design-plans/
 /research/
-/docs/audits/
-/docs/figma/
-/docs/research/
-/docs/review/
-/docs/ui/
 /screen_*.png
 /ui_*.xml
+
+# Local reference archive and optional developer tooling.
+/CLAUDE.md
+/.mcp.json.example
+/scripts/md_to_pdf.py
+/scripts/setup_paymongo_keys.ps1
+/apps/admin_web/design-qa.md
+/docs/
+/scripts/check_agent_config.py
+/secrets/providers.local.json.example

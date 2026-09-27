@@ -91,7 +91,7 @@ flutter test
   and destination. openrouteservice road distance and duration are display-only
   and structurally cannot reach the fare engine.
 - The predictive ETA never influences fare.
-- Amounts come from `docs/LGU_FARE_MATRIX.md` (Calamba City Ordinance No. 743,
+- Amounts come from the fare matrix in `lib/domain/fare/` (Calamba City Ordinance No. 743,
   s. 2022), transcribed verbatim as integer centavos — all 76 published values.
   The discount column is **not** a flat 20%: Regular 4 km prints ₱15.50 and
   16 km prints ₱34.00. Never compute the discount.

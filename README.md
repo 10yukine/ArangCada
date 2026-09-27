@@ -51,7 +51,6 @@ flows use simulated data and do not demonstrate a live backend connection.
 | [`apps/web`](apps/web) | Public information and legal pages |
 | [`supabase`](supabase) | Database migrations, Edge Functions and database tests |
 | [`scripts`](scripts) | Setup and verification utilities |
-| [`docs`](docs) | Architecture, service setup and operating references |
 
 ## Run the mobile app
 
@@ -77,7 +76,7 @@ See the component guides for further setup:
 [mobile](apps/mobile/README.md) · [admin](apps/admin_web/README.md) ·
 [tracking](apps/track_web/README.md) · [public pages](apps/web/README.md).
 
-See [website hosting](docs/HOSTING.md) for the configured Cloudflare projects.
+Each web app’s `wrangler.jsonc` defines its Cloudflare Workers hosting configuration.
 
 ## Verify changes
 
@@ -105,8 +104,8 @@ be extracted from a built app; handover builds must use recipient-owned configur
 
 - [Mobile handover and acceptance checklist](apps/mobile/HANDOVER.md)
 - [Security boundaries](SECURITY.md)
-- [System architecture](docs/ARCHITECTURE.md)
-- [Fare matrix](docs/LGU_FARE_MATRIX.md)
+- [System architecture](ARCHITECTURE.md)
+- [Fare calculation](apps/mobile/lib/domain/fare/fare_calculator.dart)
 
 ## AI assistance disclosure
 
