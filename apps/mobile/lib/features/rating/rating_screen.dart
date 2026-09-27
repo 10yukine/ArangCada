@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
 
@@ -15,6 +14,9 @@ class RatingScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<RatingScreen> createState() => _RatingScreenState();
 }
+
+/// Said back under the stars, so a tap gets an answer in words.
+const _starWords = ['Poor', 'Fair', 'Okay', 'Good', 'Great'];
 
 class _RatingScreenState extends ConsumerState<RatingScreen> {
   final _commentController = TextEditingController();
@@ -82,12 +84,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                const Icon(
-                  Icons.favorite_outline,
-                  size: 52,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   submitted == null
                       ? 'How was your ride?'
@@ -102,61 +99,69 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                   style: AppTypography.caption,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                SectionCard(
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          for (var star = 1; star <= 5; star++)
-                            if (submitted == null)
-                              IconButton(
-                                tooltip: '$star star${star == 1 ? '' : 's'}',
-                                onPressed: () =>
-                                    setState(() => _selectedStars = star),
-                                icon: Icon(
-                                  star <= _selectedStars
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            else
-                              Icon(
-                                star <= submitted
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                color: AppColors.primary,
-                                size: 34,
-                              ),
-                        ],
-                      ),
-                      if (submitted == null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          controller: _commentController,
-                          minLines: 3,
-                          maxLines: 5,
-                          maxLength: 240,
-                          decoration: const InputDecoration(
-                            labelText: 'Comment (optional)',
-                            hintText: 'Tell us about your ride',
-                            alignLabelWithHint: true,
+                // Big stars: this is the one tap the screen exists for.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var star = 1; star <= 5; star++)
+                      if (submitted == null)
+                        IconButton(
+                          tooltip: '$star star${star == 1 ? '' : 's'}',
+                          iconSize: 40,
+                          onPressed: () =>
+                              setState(() => _selectedStars = star),
+                          icon: Icon(
+                            star <= _selectedStars
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            star <= submitted
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: AppColors.primary,
+                            size: 36,
                           ),
                         ),
-                      ] else if (state.tripRatingComment != null) ...[
-                        const Divider(height: AppSpacing.xl),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            state.tripRatingComment!,
-                            style: AppTypography.body,
-                          ),
-                        ),
-                      ],
-                    ],
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  switch (submitted ?? _selectedStars) {
+                    0 => 'Tap a star',
+                    final n => _starWords[n - 1],
+                  },
+                  textAlign: TextAlign.center,
+                  style: AppTypography.label.copyWith(
+                    color: (submitted ?? _selectedStars) == 0
+                        ? AppColors.textMuted
+                        : AppColors.primary,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                if (submitted == null)
+                  TextField(
+                    controller: _commentController,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 240,
+                    decoration: const InputDecoration(
+                      labelText: 'Comment (optional)',
+                      hintText: 'Tell us about your ride',
+                      alignLabelWithHint: true,
+                    ),
+                  )
+                else if (state.tripRatingComment != null)
+                  Text(
+                    state.tripRatingComment!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body,
+                  ),
                 const SizedBox(height: AppSpacing.lg),
                 if (submitted == null) ...[
                   FilledButton(

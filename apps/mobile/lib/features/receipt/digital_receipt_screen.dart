@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
+import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
@@ -54,10 +55,13 @@ class DigitalReceiptScreen extends ConsumerWidget {
             final rawFare = trip?['final_fare'] ?? trip?['fare_estimate'];
             final reference = connectedReceipt
                 ? (trip!['receipt_ref'] as String? ?? 'TRIP-${trip['id']}')
-                : booking!.receiptReference ?? 'SBX-RIDE-024';
-            final route = connectedReceipt
-                ? '${trip!['pickup_label'] ?? 'Pickup'} → ${trip['destination_label'] ?? 'Destination'}'
-                : '${booking!.pickupName} → ${booking.destinationName}';
+                : booking!.receiptReference ?? 'Not issued';
+            final pickupName = connectedReceipt
+                ? trip!['pickup_label'] as String? ?? 'Pickup'
+                : booking!.pickupName;
+            final destinationName = connectedReceipt
+                ? trip!['destination_label'] as String? ?? 'Destination'
+                : booking!.destinationName;
             final ride = connectedReceipt
                 ? trip!['ride_type']
                 : booking!.rideType.name;
@@ -89,11 +93,24 @@ class DigitalReceiptScreen extends ConsumerWidget {
                       SectionCard(
                         child: Column(
                           children: [
+                            ArangRouteStop(
+                              destination: false,
+                              label: 'Pickup',
+                              name: pickupName,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            ArangRouteStop(
+                              destination: true,
+                              label: 'Drop-off',
+                              name: destinationName,
+                            ),
+                            const Divider(height: AppSpacing.lg),
                             _ReceiptRow(label: 'Reference', value: reference),
-                            _ReceiptRow(label: 'Route', value: route),
                             _ReceiptRow(
                               label: 'Ride',
-                              value: ride == 'pooling' ? 'Pooling' : 'Special',
+                              value: ride == 'pooling'
+                                  ? 'Regular na Byahe'
+                                  : 'Espesyal na Byahe',
                             ),
                             if (!connectedReceipt)
                               _ReceiptRow(

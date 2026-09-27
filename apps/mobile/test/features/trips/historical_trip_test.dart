@@ -92,7 +92,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('View Summary'));
       await tester.pumpAndSettle();
-      expect(find.text('Old pickup → Old destination'), findsWidgets);
+      // The summary names the selected trip's stops, not the newest trip's:
+      // the commuter receipt as pickup/drop-off rows, the driver sheet as a
+      // one-line route.
+      if (role == DemoRole.driver) {
+        expect(find.text('Old pickup → Old destination'), findsWidgets);
+      } else {
+        expect(find.text('Old pickup'), findsWidgets);
+        expect(find.text('Old destination'), findsWidgets);
+      }
       expect(find.text('₱82.50'), findsOneWidget);
       expect(state.liveTripId, 'new-trip');
       expect(state.activeBooking, isNull);
