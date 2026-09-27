@@ -6,7 +6,6 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/driver_app_feedback.dart';
 
@@ -85,6 +84,10 @@ class _DriverAppFeedbackScreenState
   @override
   Widget build(BuildContext context) {
     final complete = _consented && DriverAppFeedback.hasValidAnswers(_answers);
+    final total = DriverAppFeedback.questions.length;
+    final answered = DriverAppFeedback.questions
+        .where((question) => _answers.containsKey(question.key))
+        .length;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -94,119 +97,122 @@ class _DriverAppFeedbackScreenState
         ),
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             children: [
-              const Icon(
-                Icons.assignment_turned_in_outlined,
-                size: 48,
-                color: AppColors.primary,
+              const Text('Help improve ArangCada', style: AppTypography.display),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Answer each item before accepting another ride.\n'
+                'Sagutin ang bawat tanong bago tumanggap ng susunod na biyahe.',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               const Text(
-                'Help improve ArangCada',
-                textAlign: TextAlign.center,
-                style: AppTypography.display,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Answer each item before accepting another ride.\n'
-                'Sagutin ang bawat tanong bago tumanggap ng susunod na biyahe.',
-                textAlign: TextAlign.center,
+                'Your answers support adviser-reviewed app and ISO/IEC 25010 '
+                'evaluation. Anonymous is selected by default; your TODA and '
+                'completed trip are still linked privately for accurate '
+                'research counts.',
                 style: AppTypography.caption,
               ),
               const SizedBox(height: AppSpacing.md),
-              const SectionCard(
-                child: Text(
-                  'Your answers support adviser-reviewed app and ISO/IEC '
-                  '25010 evaluation. Anonymous is selected by default; '
-                  'your TODA and completed trip are still linked privately '
-                  'for accurate research counts.',
-                ),
+              // Progress keeps a long questionnaire feeling finishable.
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: total == 0 ? 0 : answered / total,
+                        minHeight: 6,
+                        color: AppColors.primary,
+                        backgroundColor: AppColors.primaryFill,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '$answered of $total answered',
+                    style: AppTypography.caption,
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.xs),
+              // Flat questions divided by rules, not one box per question.
               for (final question in DriverAppFeedback.questions) ...[
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(question.english, style: AppTypography.label),
-                      const SizedBox(height: 4),
-                      Text(question.filipino, style: AppTypography.caption),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          for (var score = 1; score <= 5; score++)
-                            Semantics(
-                              label: '${question.english}, score $score of 5',
-                              selected: _answers[question.key] == score,
-                              button: true,
-                              child: ChoiceChip(
-                                label: Text('$score'),
-                                selected: _answers[question.key] == score,
-                                onSelected: _submitting
-                                    ? null
-                                    : (_) => setState(
-                                        () => _answers[question.key] = score,
-                                      ),
-                              ),
-                            ),
-                        ],
+                const Divider(height: AppSpacing.xl),
+                Text(question.english, style: AppTypography.label),
+                const SizedBox(height: 2),
+                Text(question.filipino, style: AppTypography.caption),
+                const SizedBox(height: AppSpacing.sm),
+                Semantics(
+                  label: '${question.english}, 1 disagree to 5 agree',
+                  child: SegmentedButton<int>(
+                    emptySelectionAllowed: true,
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
-                      const SizedBox(height: 4),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Disagree', style: AppTypography.caption),
-                          Text('Agree', style: AppTypography.caption),
-                        ],
-                      ),
+                      selectedBackgroundColor: AppColors.primaryFill,
+                      selectedForegroundColor: AppColors.primaryText,
+                    ),
+                    segments: [
+                      for (var score = 1; score <= 5; score++)
+                        ButtonSegment(value: score, label: Text('$score')),
                     ],
+                    selected: {?_answers[question.key]},
+                    onSelectionChanged: _submitting
+                        ? null
+                        : (values) => setState(() {
+                            if (values.isEmpty) return;
+                            _answers[question.key] = values.single;
+                          }),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              SectionCard(
-                child: Column(
+                const SizedBox(height: 4),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Submit anonymously'),
-                      subtitle: const Text(
-                        'Hindi ipapakita ang iyong pangalan',
-                      ),
-                      value: _anonymous,
-                      onChanged: _submitting
-                          ? null
-                          : (value) => setState(() => _anonymous = value),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    TextField(
-                      controller: _comment,
-                      enabled: !_submitting,
-                      minLines: 3,
-                      maxLines: 5,
-                      maxLength: 500,
-                      decoration: const InputDecoration(
-                        labelText: 'Suggestions / Mga mungkahi (optional)',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: const Text(
-                        'I understand these answers will be used for app '
-                        'improvement and capstone evaluation.',
-                      ),
-                      value: _consented,
-                      onChanged: _submitting
-                          ? null
-                          : (value) =>
-                                setState(() => _consented = value == true),
-                    ),
+                    Text('Disagree', style: AppTypography.caption),
+                    Text('Agree', style: AppTypography.caption),
                   ],
                 ),
+              ],
+              const Divider(height: AppSpacing.xl),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Submit anonymously'),
+                subtitle: const Text('Hindi ipapakita ang iyong pangalan'),
+                value: _anonymous,
+                onChanged: _submitting
+                    ? null
+                    : (value) => setState(() => _anonymous = value),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              TextField(
+                controller: _comment,
+                enabled: !_submitting,
+                minLines: 3,
+                maxLines: 5,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  labelText: 'Suggestions / Mga mungkahi (optional)',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text(
+                  'I understand these answers will be used for app '
+                  'improvement and capstone evaluation.',
+                ),
+                value: _consented,
+                onChanged: _submitting
+                    ? null
+                    : (value) => setState(() => _consented = value == true),
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.sm),
@@ -222,15 +228,28 @@ class _DriverAppFeedbackScreenState
                 onPressed: _submitting
                     ? null
                     : (!complete
-                        ? () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please answer all questions and check the consent box to continue.'),
-                              ),
-                            );
-                          }
-                        : _submit),
+                          ? () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please answer all questions and check '
+                                    'the consent box to continue.',
+                                  ),
+                                ),
+                              );
+                            }
+                          : _submit),
               ),
+              if (!complete) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  answered < total
+                      ? '${total - answered} left to answer'
+                      : 'Check the consent box to continue',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption,
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
             ],
           ),
