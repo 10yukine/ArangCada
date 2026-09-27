@@ -44,14 +44,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
     DemoBooking booking,
   ) async {
     final liveRides = ref.read(liveRideRepositoryProvider);
-    if (booking.paymentMethod == PaymentMethod.digital) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Digital payments are not available. Choose Cash.'),
-        ),
-      );
-      return;
-    }
     if (liveRides != null && booking.rideType != RideType.special) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -221,8 +213,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                       '${(quote.distanceMeters / 1000).toStringAsFixed(1)} km'
                       ' · billed as ${quote.chargeableKm} km',
                 ),
-                // Cash is the only method in beta. A plain row says so; a
-                // selector with a permanently disabled "Digital" did not.
+                // Cash is the only payment method, so a plain row says so.
                 const _ReviewRow(label: 'Payment', value: 'Cash · pay your driver'),
                 const SizedBox(height: AppSpacing.xs),
                 const Divider(height: 1),

@@ -14,9 +14,7 @@ import '../remote/supabase_chat_repository.dart';
 import '../remote/supabase_ride_repository.dart';
 import '../mock/local_chat_repository.dart';
 import '../mock/mock_fare_repository.dart';
-import '../mock/mock_payment_repository.dart';
 import '../mock/mock_safety_repository.dart';
-import '../mock/mock_wallet_repository.dart';
 import '../remote/hive_notifications_repository.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/hybrid_auth_repository.dart';
@@ -27,9 +25,7 @@ import '../repositories/location_repository.dart';
 import '../repositories/notifications_repository.dart';
 import '../repositories/routing_repository.dart';
 import '../repositories/fare_repository.dart';
-import '../repositories/payment_repository.dart';
 import '../repositories/safety_repository.dart';
-import '../repositories/wallet_repository.dart';
 import '../repositories/saved_places_repository.dart';
 import '../repositories/driver_documents_repository.dart';
 import '../remote/supabase_driver_documents_repository.dart';
@@ -98,14 +94,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final fareRepositoryProvider = Provider<FareRepository>((ref) {
   return const MockFareRepository();
-});
-
-final walletRepositoryProvider = Provider<WalletRepository>((ref) {
-  return MockWalletRepository(ref.watch(demoStateProvider));
-});
-
-final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  return MockPaymentRepository(ref.watch(demoStateProvider));
 });
 
 final safetyRepositoryProvider = Provider<SafetyRepository>((ref) {

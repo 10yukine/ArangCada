@@ -5,7 +5,6 @@ import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/domain/fare/fare_matrix.dart';
 import 'package:arangcada/domain/models/booking.dart';
 import 'package:arangcada/features/receipt/digital_receipt_screen.dart';
-import 'package:arangcada/features/wallet/wallet_sheets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,21 +40,14 @@ void main() {
     );
   }
 
-  testWidgets('cash receipt never calls its fare a sandbox payment', (
+  testWidgets('receipt states cash and nothing about sandbox money', (
     tester,
   ) async {
     await render(tester, PaymentMethod.cash);
 
     expect(find.text('Cash'), findsOneWidget);
-    expect(find.text(demoFundsDisclosure), findsNothing);
-  });
-
-  testWidgets('digital demo receipts keep their sandbox disclosure', (
-    tester,
-  ) async {
-    await render(tester, PaymentMethod.digital);
-
-    expect(find.text(demoFundsDisclosure), findsOneWidget);
+    expect(find.textContaining('sandbox'), findsNothing);
+    expect(find.textContaining('balance'), findsNothing);
   });
 
   // Asserted as an absence on purpose. The receipt renders after the rating

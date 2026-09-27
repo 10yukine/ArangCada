@@ -216,7 +216,7 @@ class AppSettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.restart_alt, color: AppColors.danger),
             title: const Text('Clear Local Data'),
             subtitle: const Text(
-              'Clear locally simulated trip and wallet data.',
+              'Clear locally simulated trip data.',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _reset(context, ref),
@@ -253,8 +253,8 @@ class AppSettingsScreen extends ConsumerWidget {
               ),
               title: const Text('Demo Tools'),
               subtitle: const Text(
-                'Force driver match, incoming requests, wallet balance, and '
-                'other forced outcomes for a walkthrough.',
+                'Force driver match, incoming requests and other outcomes '
+                'for a walkthrough.',
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push(_demoToolsRoute),

@@ -18,7 +18,6 @@ import '../../core/widgets/trip_share_sheet.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/remote/supabase_ride_repository.dart';
-import '../../data/repositories/payment_repository.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/models/booking.dart';
 import '../../core/widgets/arang_dialog.dart';
@@ -109,12 +108,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
 
   int _secondsLeft = 0;
 
-  void _retryAutomaticCompletion() {
-    if (!mounted) return;
-    _completionStarted = false;
-    _scheduleCompletion();
-  }
-
   @override
   void dispose() {
     _liveState?.removeListener(_handleLiveTripChange);
@@ -200,60 +193,9 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       }
       return;
     }
+    // Cash is paid to the driver in person; there is nothing to charge.
     final state = ref.read(demoStateProvider);
-    if (state.forcePaymentFailure &&
-        booking.paymentMethod == PaymentMethod.digital) {
-      final switchToCash = await showDialog<bool>(
-        context: context,
-        builder: (context) => ArangDialog(
-          title: 'Sandbox payment failed',
-          content: const Text(
-            'The payment provider declined this simulated charge. No funds moved.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Retry'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Switch to Cash'),
-            ),
-          ],
-        ),
-      );
-      if (switchToCash != true || !mounted) {
-        _retryAutomaticCompletion();
-        return;
-      }
-      state.setPaymentFallbackToCash(true);
-    } else {
-      try {
-        await ref.read(paymentRepositoryProvider).completeRidePayment(booking);
-      } on InsufficientBalanceException {
-        if (!mounted) return;
-        await showDialog<void>(
-          context: context,
-          builder: (context) => ArangDialog(
-            title: 'Digital payment failed',
-            content: const Text(
-              'The sandbox balance changed after confirmation. Top up from Wallet, then retry completion. No charge was made.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        _retryAutomaticCompletion();
-        return;
-      }
-    }
-    booking
-      ..completeTrip()
-      ..receiptReference = 'SBX-RIDE-20260815-024';
+    booking.completeTrip();
     state.bookingChanged();
     ref.read(chatRepositoryProvider).closeActiveTripThread();
     if (mounted) context.go('/rating');

@@ -98,7 +98,7 @@ class _AboutArangCadaScreenState extends State<AboutArangCadaScreen> {
             const SizedBox(height: AppSpacing.sm),
             const SectionCard(
               child: Text(
-                'ArangCada does not hold or custody customer funds. Any production digital balance would be held and processed by a payment provider.',
+                'Rides are paid in cash, directly to the driver. ArangCada never holds or handles anyone\'s money.',
               ),
             ),
             const SizedBox(height: AppSpacing.lg),

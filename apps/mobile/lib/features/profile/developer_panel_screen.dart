@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../app/theme/app_typography.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/mock/local_chat_repository.dart';
 import '../../data/providers/repository_providers.dart';
@@ -22,28 +21,10 @@ class DeveloperPanelScreen extends ConsumerStatefulWidget {
 }
 
 class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
-  final _balanceController = TextEditingController(text: '350');
 
   @override
   void dispose() {
-    _balanceController.dispose();
     super.dispose();
-  }
-
-  void _setBalance() {
-    final pesos = int.tryParse(_balanceController.text.trim());
-    if (pesos == null || pesos < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a whole-peso amount of 0 or more.'),
-        ),
-      );
-      return;
-    }
-    ref.read(demoStateProvider).setWalletBalanceForDemo(pesos * 100);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Demo balance set to P$pesos.00.')));
   }
 
   Future<void> _reset() async {
@@ -154,34 +135,6 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Wallet', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: AppSpacing.xs),
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Set digital balance',
-                        style: AppTypography.h2,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      TextField(
-                        controller: _balanceController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          prefixText: 'P ',
-                          hintText: 'Whole pesos',
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      FilledButton(
-                        onPressed: _setBalance,
-                        child: const Text('Set Demo Balance'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
                 Text(
                   'Forced outcomes',
                   style: Theme.of(context).textTheme.titleLarge,
@@ -194,9 +147,9 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                       SwitchListTile.adaptive(
                         title: const Text('Load sample content'),
                         subtitle: const Text(
-                          'Fills chats and the wallet ledger with example '
-                          'records for a walkthrough. Off by default so a '
-                          'fresh install shows nothing that did not happen.',
+                          'Fills chats with example conversations for a '
+                          'walkthrough. Off by default so a fresh install '
+                          'shows nothing that did not happen.',
                         ),
                         value: state.sampleContentEnabled,
                         onChanged: (value) {
@@ -211,12 +164,6 @@ class _DeveloperPanelScreenState extends ConsumerState<DeveloperPanelScreen> {
                         title: const Text('Force no drivers available'),
                         value: state.forceNoDriversAvailable,
                         onChanged: state.setForceNoDriversAvailable,
-                      ),
-                      const Divider(),
-                      SwitchListTile.adaptive(
-                        title: const Text('Force payment failure'),
-                        value: state.forcePaymentFailure,
-                        onChanged: state.setForcePaymentFailure,
                       ),
                       const Divider(),
                       SwitchListTile.adaptive(

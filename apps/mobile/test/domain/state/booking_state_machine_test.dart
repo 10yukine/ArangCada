@@ -32,7 +32,7 @@ void main() {
     final booking = draft()..confirm();
 
     expect(
-      () => booking.changePaymentMethod(PaymentMethod.digital),
+      () => booking.changePaymentMethod(PaymentMethod.cash),
       throwsStateError,
     );
   });

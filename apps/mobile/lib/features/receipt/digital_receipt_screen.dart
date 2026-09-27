@@ -10,7 +10,6 @@ import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/booking.dart';
-import '../wallet/wallet_sheets.dart';
 
 class DigitalReceiptScreen extends ConsumerWidget {
   const DigitalReceiptScreen({this.tripId, super.key});
@@ -123,8 +122,6 @@ class DigitalReceiptScreen extends ConsumerWidget {
                                   ? (payment == 'cash'
                                         ? 'Cash'
                                         : payment?.toString() ?? 'Unavailable')
-                                  : state.paymentFallbackToCash
-                                  ? 'Cash · switched after sandbox payment failure'
                                   : booking!.paymentMethod.label,
                             ),
                             const Divider(height: AppSpacing.lg),
@@ -144,23 +141,6 @@ class DigitalReceiptScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      if (!connectedReceipt &&
-                          booking!.paymentMethod == PaymentMethod.digital) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryFill,
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(AppRadii.md),
-                            ),
-                          ),
-                          child: const Text(
-                            demoFundsDisclosure,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: AppSpacing.lg),
                       // No button here leads back into the rating flow, in
                       // either state. Rating is over by the time the receipt

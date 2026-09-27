@@ -16,12 +16,14 @@ extension UserFareClassDetails on UserFareClass {
       : DiscountClass.discounted;
 }
 
-enum PaymentMethod { cash, digital }
+/// Cash only. Digital payments are not offered: the city withdrew its
+/// sponsorship, and a self-funded project cannot meet the business
+/// registration (BIR/TIN) a payment provider requires.
+enum PaymentMethod { cash }
 
 extension PaymentMethodDetails on PaymentMethod {
   String get label => switch (this) {
     PaymentMethod.cash => 'Cash',
-    PaymentMethod.digital => 'Digital balance',
   };
 }
 

@@ -5,7 +5,6 @@ import '../../core/geo/haversine.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
-import '../../domain/models/wallet_transaction.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
 /// The single mutable state holder shared by every demo repository.
@@ -19,7 +18,6 @@ class DemoState extends ChangeNotifier {
 
   DemoUser? _currentUser;
 
-  int walletBalanceCentavos = 0;
   DemoPlace pickup = DemoData.calambaCrossing;
   bool hasPickup = false;
   DemoPlace? destination;
@@ -31,9 +29,7 @@ class DemoState extends ChangeNotifier {
   DemoBooking? activeBooking;
   bool demoSafetyAlertRecorded = false;
   bool forceNoDriversAvailable = false;
-  bool forcePaymentFailure = false;
   bool forceEtaFallback = false;
-  bool paymentFallbackToCash = false;
   int? tripRating;
   String? tripRatingComment;
   int? driverTripRating;
@@ -55,42 +51,10 @@ class DemoState extends ChangeNotifier {
   String? pendingFeedbackTripId;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
 
-  /// Sample content is OFF by default. Pre-populated chats and a pre-filled
-  /// ledger read as things that actually happened, which is misleading on a
-  /// first run. Demo Tools turns them on for a walkthrough.
+  /// Sample content is OFF by default. Pre-populated chats read as things
+  /// that actually happened, which is misleading on a first run. Demo Tools
+  /// turns them on for a walkthrough.
   bool sampleContentEnabled = false;
-
-  final List<WalletTransaction> _walletTransactions = [];
-
-  static List<WalletTransaction> _seedTransactions() => [
-    WalletTransaction(
-      id: 'DEMO-TOPUP-20260815-001',
-      title: 'Top Up',
-      amountCentavos: 50000,
-      occurredAt: DateTime.utc(2026, 8, 15, 9, 30),
-      kind: WalletTransactionKind.topUp,
-      status: 'Completed',
-    ),
-    WalletTransaction(
-      id: 'DEMO-RIDE-20260815-024',
-      title: 'Ride Payment',
-      amountCentavos: -7600,
-      occurredAt: DateTime.utc(2026, 8, 15, 8, 10),
-      kind: WalletTransactionKind.ridePayment,
-      status: 'Completed',
-    ),
-    WalletTransaction(
-      id: 'DEMO-REFUND-20260815-001',
-      title: 'Refund',
-      amountCentavos: 1200,
-      occurredAt: DateTime.utc(2026, 8, 14, 16, 45),
-      kind: WalletTransactionKind.refund,
-      status: 'Completed',
-    ),
-  ];
-
-  List<WalletTransaction> get walletTransactions =>
-      List.unmodifiable(_walletTransactions);
 
   void setCurrentUser(DemoUser? user) {
     if (identical(_currentUser, user)) return;
@@ -151,30 +115,14 @@ class DemoState extends ChangeNotifier {
     activeBooking = booking;
     tripRating = null;
     tripRatingComment = null;
-    paymentFallbackToCash = false;
     notifyListeners();
   }
 
   void bookingChanged() => notifyListeners();
 
-  /// Loads or clears the sample ledger. Balance follows suit so a cleared
-  /// wallet does not show money with no transactions explaining it.
   void setSampleContent(bool enabled) {
     if (sampleContentEnabled == enabled) return;
     sampleContentEnabled = enabled;
-    _walletTransactions.clear();
-    if (enabled) {
-      _walletTransactions.addAll(_seedTransactions());
-      walletBalanceCentavos = 35000;
-    } else {
-      walletBalanceCentavos = 0;
-    }
-    notifyListeners();
-  }
-
-  void setWalletBalanceForDemo(int amountCentavos) {
-    if (amountCentavos < 0) throw ArgumentError.value(amountCentavos);
-    walletBalanceCentavos = amountCentavos;
     notifyListeners();
   }
 
@@ -183,20 +131,11 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setForcePaymentFailure(bool value) {
-    forcePaymentFailure = value;
-    notifyListeners();
-  }
-
   void setForceEtaFallback(bool value) {
     forceEtaFallback = value;
     notifyListeners();
   }
 
-  void setPaymentFallbackToCash(bool value) {
-    paymentFallbackToCash = value;
-    notifyListeners();
-  }
 
   void submitTripRating(int stars, String? comment) {
     if (activeBooking?.status != BookingStatus.completed) {
@@ -259,40 +198,6 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
-  WalletTransaction addWalletTopUp(int amountCentavos) {
-    walletBalanceCentavos += amountCentavos;
-    final transaction = WalletTransaction(
-      id: 'SBX-TOPUP-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
-      title: 'Balance top-up',
-      amountCentavos: amountCentavos,
-      occurredAt: DateTime.now().toUtc(),
-      kind: WalletTransactionKind.topUp,
-      status: 'Completed',
-    );
-    _walletTransactions.insert(0, transaction);
-    notifyListeners();
-    return transaction;
-  }
-
-  void debitRidePayment(int amountCentavos, String destinationName) {
-    if (amountCentavos > walletBalanceCentavos) {
-      throw StateError('Insufficient sandbox balance.');
-    }
-    walletBalanceCentavos -= amountCentavos;
-    _walletTransactions.insert(
-      0,
-      WalletTransaction(
-        id: 'SBX-RIDE-20260815-${(_walletTransactions.length + 1).toString().padLeft(3, '0')}',
-        title: 'Ride to $destinationName',
-        amountCentavos: -amountCentavos,
-        occurredAt: DateTime.now().toUtc(),
-        kind: WalletTransactionKind.ridePayment,
-        status: 'Completed',
-      ),
-    );
-    notifyListeners();
-  }
-
   void recordSafetyAlert() {
     demoSafetyAlertRecorded = true;
     notifyListeners();
@@ -302,7 +207,6 @@ class DemoState extends ChangeNotifier {
 
   void reset() {
     _currentUser = null;
-    walletBalanceCentavos = 0;
     pickup = DemoData.calambaCrossing;
     hasPickup = false;
     destination = null;
@@ -311,9 +215,7 @@ class DemoState extends ChangeNotifier {
     activeBooking = null;
     demoSafetyAlertRecorded = false;
     forceNoDriversAvailable = false;
-    forcePaymentFailure = false;
     forceEtaFallback = false;
-    paymentFallbackToCash = false;
     tripRating = null;
     tripRatingComment = null;
     driverTripRating = null;
@@ -328,7 +230,6 @@ class DemoState extends ChangeNotifier {
     driverFeedbackPending = false;
     pendingFeedbackTripId = null;
     sampleContentEnabled = false;
-    _walletTransactions.clear();
     driverTrip.reset();
     notifyListeners();
   }

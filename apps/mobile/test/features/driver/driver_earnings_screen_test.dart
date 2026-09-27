@@ -58,7 +58,7 @@ void main() {
       expect(find.text('₱999.00'), findsNothing);
       expect(find.text('₱478.00'), findsNothing);
       expect(find.text('Cabuyao → Calamba'), findsOneWidget);
-      expect(find.text('Digital payments'), findsOneWidget);
+      expect(find.text('Digital payments'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
