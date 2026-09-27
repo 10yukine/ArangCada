@@ -114,8 +114,8 @@ void main() {
       expect(router().routeInformationProvider.value.uri.path, '/verify-phone');
       expect(state.currentUser!.mobileNumber, '+639171234567');
       expect(state.currentUser!.needsPhoneVerification, isTrue);
-      await tester.ensureVisible(find.text('Change number'));
-      await tester.tap(find.text('Change number'));
+      await tester.ensureVisible(find.text('Wrong number? Change number'));
+      await tester.tap(find.text('Wrong number? Change number'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(
@@ -140,7 +140,7 @@ void main() {
     state.setCurrentUser(admin.withPendingPhone('+639171234567'));
     await mount(tester);
     expect(router().routeInformationProvider.value.uri.path, '/verify-phone');
-    expect(find.text('Change number'), findsOneWidget);
+    expect(find.text('Wrong number? Change number'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 

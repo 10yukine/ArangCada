@@ -181,32 +181,29 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     }
   }
 
-  /// Leaves verification and returns to the registration form.
+  /// Opens the phone-setup screen so a mistyped number can be corrected
+  /// without deleting the account and retyping every sign-up field.
+  void _changeNumber() {
+    if (_busy) return;
+    context.go('/complete-mobile-profile');
+  }
+
+  /// Abandons a new registration and returns to the sign-up form.
   ///
   /// Signing out first is not optional today: this screen is only reachable
   /// once the account exists and is signed in, so without ending the session
   /// the router's verification gate redirects straight back here. `/signup` is
-  /// an auth path, so a signed-out user is allowed to land on it.
-  ///
-  /// Once registration defers account creation until the code is accepted
-  /// (specs.md Spec 10) there is no session to end and this becomes a plain
-  /// pop. Written as sign-out-then-navigate so it behaves correctly either way.
-  Future<void> _goBack() async {
+  /// an auth path, so a signed-out user is allowed to land on it. Never shown
+  /// to a website admin: that account is not a registration to abandon.
+  Future<void> _cancelSignUp() async {
     if (_busy) return;
     setState(() => _busy = true);
 
     final auth = ref.read(authRepositoryProvider);
-    if (auth.currentUser?.isAdminAccount == true) {
-      // This is an existing website account, never an abandoned registration.
-      setState(() => _busy = false);
-      context.go('/complete-mobile-profile');
-      return;
-    }
     try {
       // Delete first, sign out second. Deleting needs the session that names
       // the account, so signing out first would leave the row behind with no
-      // way for this device to reach it again -- the exact orphan this button
-      // exists to prevent.
+      // way for this device to reach it again.
       await auth.abandonUnverifiedRegistration();
     } on Exception {
       // Deliberately swallowed. If the delete fails -- offline, or the account
@@ -225,227 +222,270 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     }
   }
 
-  /// A static circle. This briefly cross-faded to a green checkmark on success,
-  /// which was pointless: the router redirect fires the moment
-  /// needsPhoneVerification flips, so the app is already on the dashboard
-  /// before a 300ms animation can finish. Landing on the dashboard IS the
-  /// confirmation. Removed rather than slowed down, because delaying a correct
-  /// login to show a tick is a worse trade than showing nothing.
-  Widget _statusBadge() {
-    return const Center(
-      child: SizedBox.square(
-        dimension: 72,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.primaryFill,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.sms_outlined,
-            size: 32,
-            color: AppColors.primaryText,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final phone = _phone;
-    final masked = phone == null
+    // In full, not masked: this is the moment a typo has to be spotted, and
+    // the number is the user's own, on their own screen.
+    // Non-breaking spaces keep the number on one line at narrow widths.
+    final shown = phone == null
         ? 'your mobile number'
-        : normalizePhMobile(phone).masked;
+        : normalizePhMobile(phone).display.replaceAll(' ', '\u00A0');
+    final isAdmin =
+        ref.watch(demoStateProvider).currentUser?.isAdminAccount == true;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     // The pin row is the one thing on this screen that cannot wrap. Six fixed
     // 48 px cells plus their separators overflow a 320 dp handset once the
     // screen margins are taken out, and a fixed 56 px height clips the digit
-    // at the app's 1.3x text-scale ceiling. Both now follow what is actually
-    // available (CLAUDE.md rule 11).
+    // at the app's 1.3x text-scale ceiling. Both follow what is available.
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final cellHeight = (56.0 * textScale).clamp(56.0, 76.0);
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(
-        title: const Text('Verify your number'),
-        backgroundColor: AppColors.screenBackground,
-        elevation: 0,
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSpacing.md),
-              _statusBadge(),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Enter the 6-digit code',
-                style: AppTypography.h2,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                'We sent it by SMS to $masked.',
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = AppSpacing.xs;
-                  final cellWidth =
-                      ((constraints.maxWidth - gap * (_codeLength - 1)) /
-                              _codeLength)
-                          .clamp(38.0, 52.0);
-                  final defaultPinTheme = PinTheme(
-                    width: cellWidth,
-                    height: cellHeight,
-                    textStyle: AppTypography.h2.copyWith(color: AppColors.ink),
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill,
-                      borderRadius: BorderRadius.circular(AppRadii.input),
-                      border: Border.all(color: AppColors.border),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Column(
+              children: [
+                // Registration's fourth and final step: the bar continues
+                // from where the sign-up form left it and fills on arrival.
+                if (!isAdmin)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      0,
                     ),
-                  );
-
-                  return AnimatedBuilder(
-                    animation: _shake,
-                    builder: (context, child) {
-                      // Damped sine: three passes that decay to nothing, so
-                      // the row settles rather than stopping mid-swing.
-                      final t = _shake.value;
-                      final dx = math.sin(t * math.pi * 3) * 8 * (1 - t);
-                      return Transform.translate(
-                        offset: Offset(dx, 0),
-                        child: child,
-                      );
-                    },
-                    child: Pinput(
-                      length: _codeLength,
-                      controller: _pinController,
-                      focusNode: _pinFocus,
-                      autofocus: true,
-                      enabled: !_busy && !_verified,
-                      defaultPinTheme: defaultPinTheme,
-                      separatorBuilder: (index) => const SizedBox(width: gap),
-                      focusedPinTheme: defaultPinTheme.copyWith(
-                        decoration: defaultPinTheme.decoration!.copyWith(
-                          border: Border.all(
+                    child: Semantics(
+                      label: 'Step 4 of 4',
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.75, end: 1),
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 420),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: value,
+                            minHeight: 8,
                             color: AppColors.primary,
-                            width: 2,
+                            backgroundColor: AppColors.primaryFill,
                           ),
                         ),
                       ),
-                      errorPinTheme: defaultPinTheme.copyWith(
-                        decoration: defaultPinTheme.decoration!.copyWith(
-                          color: AppColors.dangerFill,
-                          border: Border.all(color: AppColors.dangerBorder),
-                        ),
-                      ),
-                      forceErrorState: _error != null,
-                      keyboardType: TextInputType.number,
-                      // No smsRetriever: pinput 6 wants a SmsRetriever
-                      // implementation backed by another package (smart_auth)
-                      // for automatic SMS pickup. Not worth a dependency here
-                      // -- Pinput's default autofillHints already include
-                      // oneTimeCode, which is Android's
-                      // AUTOFILL_HINT_SMS_OTP_CODE, so the keyboard offers the
-                      // code straight from the notification. A dedicated Paste
-                      // button used to sit below; it was removed because long
-                      // pressing the field already gives the platform's own
-                      // paste affordance, and the app reading the clipboard
-                      // unprompted is worse than the user choosing to.
-                      onCompleted: _submit,
                     ),
-                  );
-                },
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: AppTypography.bodySm.copyWith(color: AppColors.danger),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              if (_notice != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _notice!,
-                  style: AppTypography.bodySm.copyWith(color: AppColors.green),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-
-              const SizedBox(height: AppSpacing.lg),
-              ArangButton(
-                label: _busy || _verified ? 'Checking...' : 'Verify',
-                onPressed:
-                    _busy ||
-                        _verified ||
-                        _pinController.text.length < _codeLength
-                    ? null
-                    : () => _submit(_pinController.text),
-              ),
-
-              // Paste and Resend belong to the Verify action, so they sit one
-              // small gap from it. The account-level escape hatch below is a
-              // different group, so it gets a gap twice as large. Space does
-              // the grouping now; the Divider that used to attempt it is gone
-              // (a line where space would do reads as structure that is not
-              // there).
-              // A countdown is not a control. Rendering it as a disabled
-              // button invited a tap that could never work; while it runs it
-              // is plain text, and the button only exists once it is pressable.
-              if (_secondsLeft > 0)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    'Resend code in ${_secondsLeft}s',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
-                )
-              else
-                TextButton(
-                  onPressed: _busy || _verified ? null : _resend,
-                  child: const Text('Resend code'),
-                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          isAdmin ? 'Verify your number' : 'Step 4 of 4',
+                          style: AppTypography.label.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        const Text(
+                          'Check your texts',
+                          style: AppTypography.display,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Enter the 6-digit code we sent to $shown.',
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: _busy || _verified
+                                ? null
+                                : _changeNumber,
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 40),
+                            ),
+                            child: const Text('Wrong number? Change number'),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            const gap = AppSpacing.xs;
+                            final cellWidth =
+                                ((constraints.maxWidth -
+                                            gap * (_codeLength - 1)) /
+                                        _codeLength)
+                                    .clamp(38.0, 52.0);
+                            final defaultPinTheme = PinTheme(
+                              width: cellWidth,
+                              height: cellHeight,
+                              textStyle: AppTypography.h2.copyWith(
+                                color: AppColors.ink,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.inputFill,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.input,
+                                ),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                            );
 
-              const SizedBox(height: AppSpacing.xxl),
-
-              // A typo in the mobile number would otherwise strand the account:
-              // the code goes to a number the user does not hold, and there is
-              // no other way back. This is that way back, and it returns to
-              // registration rather than to a login screen -- there is nothing
-              // to log in to yet.
-              Text(
-                'Using the wrong number?',
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textMuted,
+                            return AnimatedBuilder(
+                              animation: _shake,
+                              builder: (context, child) {
+                                // Damped sine: three passes that decay to
+                                // nothing, so the row settles.
+                                final t = _shake.value;
+                                final dx =
+                                    math.sin(t * math.pi * 3) * 8 * (1 - t);
+                                return Transform.translate(
+                                  offset: Offset(dx, 0),
+                                  child: child,
+                                );
+                              },
+                              child: Pinput(
+                                length: _codeLength,
+                                controller: _pinController,
+                                focusNode: _pinFocus,
+                                autofocus: true,
+                                enabled: !_busy && !_verified,
+                                defaultPinTheme: defaultPinTheme,
+                                separatorBuilder: (index) =>
+                                    const SizedBox(width: gap),
+                                focusedPinTheme: defaultPinTheme.copyWith(
+                                  decoration: defaultPinTheme.decoration!
+                                      .copyWith(
+                                        border: Border.all(
+                                          color: AppColors.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                ),
+                                errorPinTheme: defaultPinTheme.copyWith(
+                                  decoration: defaultPinTheme.decoration!
+                                      .copyWith(
+                                        color: AppColors.dangerFill,
+                                        border: Border.all(
+                                          color: AppColors.dangerBorder,
+                                        ),
+                                      ),
+                                ),
+                                forceErrorState: _error != null,
+                                keyboardType: TextInputType.number,
+                                // Pinput's default autofillHints include
+                                // oneTimeCode (Android's SMS OTP hint), so the
+                                // keyboard offers the code from the
+                                // notification without an extra dependency or
+                                // the app reading the clipboard.
+                                onCompleted: _submit,
+                              ),
+                            );
+                          },
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            _error!,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.danger,
+                            ),
+                          ),
+                        ],
+                        if (_notice != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            _notice!,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.green,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        // A countdown is not a control: while it runs it is
+                        // plain text, and the button only exists once the
+                        // server would accept the resend.
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: AppSpacing.xxs,
+                          children: [
+                            Text(
+                              "Didn't get it?",
+                              style: AppTypography.bodySm.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            if (_secondsLeft > 0)
+                              Text(
+                                'Resend code in ${_secondsLeft}s',
+                                style: AppTypography.bodySm.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              )
+                            else
+                              TextButton(
+                                onPressed: _busy || _verified ? null : _resend,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 40),
+                                ),
+                                child: const Text('Resend code'),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              TextButton(
-                onPressed: _busy || _verified ? null : _goBack,
-                child: Text(
-                  ref.watch(demoStateProvider).currentUser?.isAdminAccount ==
-                          true
-                      ? 'Change number'
-                      : 'Go Back',
+                // Bottom-pinned like the sign-up steps, so the action sits in
+                // the same place and rides above the keyboard.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xs,
+                    AppSpacing.xl,
+                    AppSpacing.xs,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ArangButton(
+                        label: _busy || _verified ? 'Checking...' : 'Verify',
+                        onPressed:
+                            _busy ||
+                                _verified ||
+                                _pinController.text.length < _codeLength
+                            ? null
+                            : () => _submit(_pinController.text),
+                      ),
+                      if (!isAdmin)
+                        TextButton(
+                          onPressed: _busy || _verified ? null : _cancelSignUp,
+                          child: const Text('Cancel sign-up'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

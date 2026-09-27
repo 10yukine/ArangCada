@@ -161,23 +161,25 @@ void main() {
             path: '/signup',
             builder: (_, _) => const Scaffold(body: Text('signup form')),
           ),
+          GoRoute(
+            path: '/complete-mobile-profile',
+            builder: (_, _) => const Scaffold(body: Text('change number')),
+          ),
         ],
       ),
     ),
   );
 
-  testWidgets('shows the number masked, not in full', (tester) async {
+  testWidgets('shows the number in full so a typo can be spotted', (
+    tester,
+  ) async {
     await tester.pumpWidget(harness());
     await tester.pump();
 
-    // Enough for the user to recognise their own number; not enough for
-    // someone glancing over their shoulder to read it.
-    expect(find.textContaining('+63 917 *** 4567'), findsOneWidget);
-    expect(
-      find.textContaining('9171234567'),
-      findsNothing,
-      reason: 'the full number must not be printed on screen',
-    );
+    // Masking hid exactly the digits a user needs to check right after
+    // typing them; it is their own number on their own screen.
+    expect(find.textContaining('0917\u00A0123\u00A04567'), findsOneWidget);
+    expect(find.text('Step 4 of 4'), findsOneWidget);
   });
 
   testWidgets('submits automatically once six digits are entered', (
@@ -279,9 +281,9 @@ void main() {
     // "Sign out" was the old label. It described the mechanism rather than the
     // intent, and pointed at a login screen the user has no account for yet.
     expect(find.text('Sign out'), findsNothing);
-    expect(find.text('Go Back'), findsOneWidget);
+    expect(find.text('Cancel sign-up'), findsOneWidget);
 
-    await tester.tap(find.text('Go Back'));
+    await tester.tap(find.text('Cancel sign-up'));
     await tester.pump();
     await tester.pump();
 
@@ -294,5 +296,20 @@ void main() {
     // Leaving it behind is what locked a user out of their own email address
     // after mistyping their number.
     expect(auth.abandonCalls, 1);
+  });
+
+  testWidgets('wrong number opens phone setup and keeps the account', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pump();
+
+    await tester.tap(find.text('Wrong number? Change number'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('change number'), findsOneWidget);
+    expect(state.currentUser, isNotNull);
+    expect(auth.abandonCalls, 0);
   });
 }

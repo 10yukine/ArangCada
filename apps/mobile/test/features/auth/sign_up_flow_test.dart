@@ -85,7 +85,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Step 1 (Identity) checks
-      expect(find.text('Step 1 of 3'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
       expect(find.text('First Name'), findsOneWidget);
       expect(find.text('Last Name'), findsOneWidget);
 
@@ -113,7 +113,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 2. Step 2 (Contact) checks
-      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
       expect(find.text('Nice to meet you, Maria!'), findsOneWidget);
       expect(find.text('Mobile Number'), findsOneWidget);
       expect(find.text('Email Address'), findsOneWidget);
@@ -121,14 +121,14 @@ void main() {
       // Test back button returning to Step 1 and preserving name
       await tester.tap(backBtn);
       await tester.pumpAndSettle();
-      expect(find.text('Step 1 of 3'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
       expect(find.text('Maria'), findsOneWidget);
       expect(find.text('Santos'), findsOneWidget);
 
       // Advance to Step 2 again
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
 
       // Fill invalid mobile
       final step2Fields = find.byType(TextField);
@@ -148,7 +148,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 3. Step 3 (Security) checks
-      expect(find.text('Step 3 of 3'), findsOneWidget);
+      expect(find.text('Step 3 of 4'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
       expect(find.text('Repeat Password'), findsOneWidget);
       expect(find.text('Create Account'), findsOneWidget);
@@ -156,14 +156,14 @@ void main() {
       // Test back button returning to Step 2 and preserving phone & email
       await tester.tap(backBtn);
       await tester.pumpAndSettle();
-      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
       expect(find.text('09171234567'), findsOneWidget);
       expect(find.text('maria@example.com'), findsOneWidget);
 
       // Advance back to Step 3
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text('Step 3 of 3'), findsOneWidget);
+      expect(find.text('Step 3 of 4'), findsOneWidget);
 
       // Try submit without legal agreement
       final step3Fields = find.byType(TextField);

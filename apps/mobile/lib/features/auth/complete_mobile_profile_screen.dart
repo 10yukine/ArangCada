@@ -29,7 +29,11 @@ class _CompleteMobileProfileScreenState
   @override
   void initState() {
     super.initState();
-    _phone.text = ref.read(demoStateProvider).currentUser?.mobileNumber ?? '';
+    // Local format (0917 123 4567), the way people type and read it.
+    final current = normalizePhMobile(
+      ref.read(demoStateProvider).currentUser?.mobileNumber,
+    );
+    _phone.text = current.isValid ? current.display : '';
   }
 
   @override
@@ -83,15 +87,27 @@ class _CompleteMobileProfileScreenState
   Widget build(BuildContext context) {
     final user = ref.watch(demoStateProvider).currentUser;
     if (user == null) return const Scaffold();
+    // A number already on file means the user came from the code screen to
+    // correct it; back returns there instead of signing them out.
+    final changing =
+        user.mobileNumber != null && user.mobileNumber!.trim().isNotEmpty;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _signOut();
+        if (didPop) return;
+        changing ? context.go('/verify-phone') : _signOut();
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Set up mobile access'),
+          title: Text(changing ? 'Change number' : 'Set up mobile access'),
           automaticallyImplyLeading: false,
+          leading: changing
+              ? IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _busy ? null : () => context.go('/verify-phone'),
+                )
+              : null,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -111,6 +127,8 @@ class _CompleteMobileProfileScreenState
                     Text(
                       user.isAdminAccount
                           ? 'Your admin account already exists'
+                          : changing
+                          ? 'Fix your mobile number'
                           : 'Add your mobile number',
                       style: AppTypography.h2,
                     ),
@@ -118,6 +136,8 @@ class _CompleteMobileProfileScreenState
                     Text(
                       user.isAdminAccount
                           ? 'Add and verify your mobile number to book rides with this account. Your website admin access stays the same.'
+                          : changing
+                          ? 'Correct the number below and we will text a new code. Everything else you entered is kept.'
                           : 'Verify a mobile number to start using your existing account.',
                       style: AppTypography.bodySm,
                     ),

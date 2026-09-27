@@ -20,7 +20,9 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  static const _stepCount = 3;
+  /// Three form steps here, then SMS verification as step 4 on its own
+  /// screen, which continues this progress bar.
+  static const _stepCount = 4;
 
   int _step = 0;
 
