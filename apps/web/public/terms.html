@@ -100,9 +100,7 @@ incorporates by reference for all data-handling questions.</p>
 <li>The in-app <strong>SOS button</strong> notifies our administrators — it is <strong>not</strong> a
   replacement for calling local emergency services directly.</li>
 <li>Because this is a student project, there is <strong>no commercial warranty or
-  guaranteed uptime</strong>, and payments are currently limited to cash, GCash
-  reference, QR transfer reference, and PayMongo in test mode (no live money
-  moves through PayMongo yet).</li>
+  guaranteed uptime</strong>, and rides are paid in cash only.</li>
 </ul>
 <hr />
 <h2 id="1-acceptance-of-these-terms">1. Acceptance of these terms<a class="anchor" href="#1-acceptance-of-these-terms" title="Link to this section">#</a></h2>
@@ -175,21 +173,15 @@ functions), not by the app alone.</p>
 <ul>
 <li>Fares follow the published LGU ordinance (Calamba City Ordinance No. 743,
   s. 2022). Neither party may negotiate a different fare inside the app.</li>
-<li>Accepted payment methods in this version: <strong>cash, GCash payment reference,
-  and QR transfer reference.</strong> While PayMongo integration scaffolding exists
-  in the codebase, live payment processing is disabled; no real-money credit
-  card or digital wallet transactions are executed through PayMongo in this
-  build. Direct cash payment is handed directly to the tricycle driver upon
-  arrival, and GCash/QR transfers are direct peer-to-peer transfers between
-  the commuter and driver. Third-party gateway terms, merchant processing
-  liabilities, and digital chargeback rules are deferred until a live gateway
-  is formally enabled.</li>
+<li>Payment is <strong>cash only</strong>, handed directly to the tricycle driver at the end
+  of the trip. ArangCada does not process, hold, or transfer money and has no
+  payment gateway.</li>
 <li>Final fare and payment-completion logic is verified server-side; the app
   displaying a number is a preview, not a binding quote independent of the
   server calculation.</li>
 <li><strong>Fare or ride disputes:</strong></li>
 <li><strong>Filing window:</strong> Any fare discrepancy, improper overcharge, incomplete
-    trip, or disputed payment reference must be reported via the in-app
+    trip, or disputed payment must be reported via the in-app
     "Report Issue" tool or submitted to <code>support@arangcada.app</code> within
     <strong>seventy-two (72) hours</strong> of trip completion.</li>
 <li><strong>Mediation &amp; resolution:</strong> ArangCada records server-side trip telemetry,

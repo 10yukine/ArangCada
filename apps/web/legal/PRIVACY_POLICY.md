@@ -45,9 +45,8 @@ Pilot)
 - We do **not sell** your data. We do **not** show ads. We do **not** log
   your full name, phone number, government ID numbers, or your full GPS
   trail in plain system logs.
-- Payments in this version are **cash, GCash reference, QR transfer
-  reference, and PayMongo in test mode only** — no live money moves through
-  PayMongo in this app yet.
+- Rides are paid **in cash only**, directly to the driver. ArangCada never
+  handles your money and does not use any payment provider.
 - You have rights under Philippine law (the **Data Privacy Act of 2012, RA
   10173**) to see, correct, or ask us to delete your data, and to complain to
   the **National Privacy Commission (NPC)** if you think we mishandled it.
@@ -76,7 +75,7 @@ ArangCada has three kinds of users:
 | Driver verification documents | Driver's license, vehicle OR/CR, profile photo | `driver_documents` table + private Supabase Storage bucket (not public) | LGU/TODA admin review only |
 | Trip records | Pickup/destination, ride type (currently always Special), passenger count (1–4), fare amount, status history | `trips` table | You, your matched driver, TODA/LGU admin |
 | Ride-tracking link data | An unguessable link code, the trip it points to, when it was created or revoked | `ride_share_links` table | You (the creator); anyone holding the link sees only a limited live view — see Section 6a |
-| Payment records | Cash acknowledgment, GCash reference number, QR transfer reference, PayMongo test-mode reference/status | `payments` table | You and admins (no raw card numbers — PayMongo tokenizes card data on its own systems, we only ever store its reference IDs) |
+| Payment method | Always cash; the fare is stored with the trip | `trips` table | You, your matched driver, TODA/LGU admin |
 | Emergency/safety reports | SOS event, linked ride, location snapshot at time of report | `emergency_reports` table | LGU/TODA admin review |
 | Complaints | Commuter or driver complaint text | `complaints` table | LGU/TODA admin review |
 | ISO/IEC 25010 evaluation responses | Your ratings/answers comparing the app to the manual dispatch baseline | Evaluation dataset (admin console) | Capstone research + LGU/TODA program review |
@@ -216,9 +215,6 @@ not a full copy of your account):
   cross-border transfer requiring specific data transfer mechanisms; this
   remains inactive. Active routing continues to be serviced by European
   providers operating under EU GDPR adequacy.
-- **PayMongo** — receives payment details only if/when a PayMongo payment is
-  actually initiated; today that only happens in test mode, and no live
-  transaction is wired into the app (see Section 9).
 - **Semaphore** (SOMBRA, Inc., Philippines) — designed to receive your mobile
   number and a one-time verification code in order to deliver that code by
   SMS when you register. **Not active for real messages yet**: verification
@@ -269,8 +265,8 @@ In compliance with the Data Privacy Act of 2012 and NPC Circular 2020-03:
 - Row Level Security (RLS) is enabled on every table holding user, driver,
   trip, document, complaint, location, or emergency data — the database
   itself enforces who can read or write each row, not just the app's UI.
-- Driver documents and any GCash/QR proof images are stored in **private**
-  Supabase Storage buckets, never public.
+- Driver documents are stored in **private** Supabase Storage buckets, never
+  public.
 - We do not write your full name, phone number, government ID, license file
   contents, full GPS trail, or emergency contact details into application
   logs.
@@ -299,15 +295,12 @@ purposes:
 
 ## 9. Payments
 
-Supported payment methods in this version: **cash, GCash payment
-reference, QR transfer reference, and PayMongo in test mode.** PayMongo live
-API keys exist for this project (kept outside the app, in a gitignored
-secrets file) but are **not called by the app**, and no real payment has been
-or can currently be processed through it. If that changes in a future
-version, this section and the corresponding consent flow will be updated
-*before* any live transaction is enabled — final fare and payment
-confirmation logic will remain server-side, never trusted to the client
-alone.
+Rides are paid **in cash only**, handed directly to the driver when the trip
+ends. ArangCada does not process, hold, or transfer money and is not
+connected to any payment provider. The only payment information kept is the
+fare and the fact that the trip was paid in cash, stored with the trip
+record. The fare itself is calculated on the server from the LGU fare
+matrix, never trusted to the app alone.
 
 ## 10. Sharing with the Calamba City LGU/TODA office
 

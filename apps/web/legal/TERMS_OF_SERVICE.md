@@ -44,9 +44,7 @@ Pilot)
 - The in-app **SOS button** notifies our administrators — it is **not** a
   replacement for calling local emergency services directly.
 - Because this is a student project, there is **no commercial warranty or
-  guaranteed uptime**, and payments are currently limited to cash, GCash
-  reference, QR transfer reference, and PayMongo in test mode (no live money
-  moves through PayMongo yet).
+  guaranteed uptime**, and rides are paid in cash only.
 
 ---
 
@@ -125,21 +123,15 @@ functions), not by the app alone.
 
 - Fares follow the published LGU ordinance (Calamba City Ordinance No. 743,
   s. 2022). Neither party may negotiate a different fare inside the app.
-- Accepted payment methods in this version: **cash, GCash payment reference,
-  and QR transfer reference.** While PayMongo integration scaffolding exists
-  in the codebase, live payment processing is disabled; no real-money credit
-  card or digital wallet transactions are executed through PayMongo in this
-  build. Direct cash payment is handed directly to the tricycle driver upon
-  arrival, and GCash/QR transfers are direct peer-to-peer transfers between
-  the commuter and driver. Third-party gateway terms, merchant processing
-  liabilities, and digital chargeback rules are deferred until a live gateway
-  is formally enabled.
+- Payment is **cash only**, handed directly to the tricycle driver at the end
+  of the trip. ArangCada does not process, hold, or transfer money and has no
+  payment gateway.
 - Final fare and payment-completion logic is verified server-side; the app
   displaying a number is a preview, not a binding quote independent of the
   server calculation.
 - **Fare or ride disputes:**
   - **Filing window:** Any fare discrepancy, improper overcharge, incomplete
-    trip, or disputed payment reference must be reported via the in-app
+    trip, or disputed payment must be reported via the in-app
     "Report Issue" tool or submitted to `support@arangcada.app` within
     **seventy-two (72) hours** of trip completion.
   - **Mediation & resolution:** ArangCada records server-side trip telemetry,
