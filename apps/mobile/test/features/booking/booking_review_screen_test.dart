@@ -71,6 +71,16 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(find.text('Digital'), 200);
+      final paymentOptions = tester.widget<SegmentedButton<PaymentMethod>>(
+        find.byType(SegmentedButton<PaymentMethod>),
+      );
+      expect(
+        paymentOptions.segments.singleWhere(
+          (segment) => segment.value == PaymentMethod.digital,
+        ).enabled,
+        isFalse,
+      );
       expect(find.text('Confirm Booking').hitTestable(), findsOneWidget);
       await tester.tap(find.text('Confirm Booking'));
       await tester.tap(find.text('Confirm Booking'));

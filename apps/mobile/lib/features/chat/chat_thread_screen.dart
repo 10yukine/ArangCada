@@ -226,13 +226,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   thread,
                   viewerIsDriver: viewerIsDriver,
                 ),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'profile', child: Text('View profile')),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'profile',
+                    child: Text('View profile'),
+                  ),
                   PopupMenuItem(
                     value: 'report',
                     child: Text(
-                      'Report conversation',
-                      style: TextStyle(color: AppColors.danger),
+                      viewerIsDriver ? 'Report commuter' : 'Report driver',
+                      style: const TextStyle(color: AppColors.danger),
                     ),
                   ),
                 ],
@@ -373,7 +376,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => ArangDialog(
-            title: 'Report this conversation',
+            title: viewerIsDriver ? 'Report commuter' : 'Report driver',
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

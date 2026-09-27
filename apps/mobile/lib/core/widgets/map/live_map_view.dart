@@ -51,6 +51,7 @@ class LiveMapViewController {
   double get bottomInset => panelKey.currentContext?.size?.height ?? 0;
 
   Future<void> fitRoute() => _state?._fitRoute() ?? Future.value();
+  Future<void> recenter() => _state?._recenter() ?? Future.value();
 }
 
 @visibleForTesting
@@ -450,7 +451,7 @@ class _LiveMapViewState extends State<LiveMapView> {
             scrollGesturesEnabled: widget.interactive,
             zoomGesturesEnabled: widget.interactive,
             rotateGesturesEnabled: widget.interactive,
-            tiltGesturesEnabled: false,
+            tiltGesturesEnabled: widget.interactive,
             onMapClick: widget.onMapTap == null
                 ? null
                 : (point, latLng) => widget.onMapTap!(

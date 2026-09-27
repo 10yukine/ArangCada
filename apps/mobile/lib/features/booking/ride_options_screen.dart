@@ -8,6 +8,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../core/widgets/map/live_map_view.dart';
 import '../../core/widgets/map/route_preview_map.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
 import '../../data/providers/repository_providers.dart';
@@ -36,6 +37,8 @@ class RideOptionsScreen extends ConsumerStatefulWidget {
 }
 
 class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
+  final _mapController = LiveMapViewController();
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
@@ -91,17 +94,25 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
 
         return Scaffold(
           body: DragSheetScaffold(
+            sheetKey: _mapController.panelKey,
             // Tall enough that the collapsed peek already shows the addresses,
             // the passenger picker and the Review bar. The fare breakdown is
             // what expanding is for.
             collapsedHeight: 340,
             handleSemanticLabel: 'Show fare breakdown',
             background: RoutePreviewMap(
+              controller: _mapController,
               from: state.pickup.coordinate,
               to: destination.coordinate,
               height: double.infinity,
               borderRadius: BorderRadius.zero,
               showCaption: false,
+              interactive: true,
+            ),
+            aboveSheet: ArangIconButton(
+              icon: Icons.center_focus_strong,
+              tooltip: 'Center route',
+              onPressed: () => _mapController.fitRoute(),
             ),
             overlay: [
               Positioned(

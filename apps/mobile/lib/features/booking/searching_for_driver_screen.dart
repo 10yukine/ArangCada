@@ -29,6 +29,7 @@ class SearchingForDriverScreen extends ConsumerStatefulWidget {
 
 class _SearchingForDriverScreenState
     extends ConsumerState<SearchingForDriverScreen> {
+  final _mapController = LiveMapViewController();
   DemoSimulationRun? _matchRun;
   DemoState? _liveState;
   Timer? _retryTimer;
@@ -212,15 +213,17 @@ class _SearchingForDriverScreenState
           }
           final noDrivers = state.forceNoDriversAvailable;
           return DragSheetScaffold(
+            sheetKey: _mapController.panelKey,
             collapsedHeight: 360,
             handleSemanticLabel: 'Search details',
             background: LiveMapView(
+              controller: _mapController,
               // Live tiles, same as every other map surface. No routing
               // request here: nothing is routed while we are still looking
               // for a driver, so asking ORS would be a wasted call.
               center: state.pickup.coordinate,
               borderRadius: BorderRadius.zero,
-              interactive: false,
+              interactive: true,
               markers: [
                 MapMarker(
                   coordinate: state.pickup.coordinate,
@@ -228,6 +231,11 @@ class _SearchingForDriverScreenState
                   radius: 9,
                 ),
               ],
+            ),
+            aboveSheet: ArangIconButton(
+              icon: Icons.center_focus_strong,
+              tooltip: 'Center pickup',
+              onPressed: () => _mapController.recenter(),
             ),
             footer: ArangButton(
               label: noDrivers ? 'Cancel request' : 'Cancel ride request',

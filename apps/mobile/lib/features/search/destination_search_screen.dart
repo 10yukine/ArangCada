@@ -169,8 +169,12 @@ class _DestinationSearchScreenState
                           ),
                           title: Text(
                             state.hasPickup
-                                ? state.pickup.name
-                                : 'Choose pickup location',
+                                ? (!ServiceArea.contains(
+                                        state.pickup.coordinate,
+                                      )
+                                      ? 'Out of Service Area'
+                                      : state.pickup.name)
+                                : 'Current location',
                           ),
                           subtitle: const Text('Pickup'),
                         ),

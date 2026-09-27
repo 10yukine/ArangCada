@@ -509,6 +509,8 @@ class SupabaseRideRepository extends ChangeNotifier {
     try {
       final fix = await _location.currentLocation();
       if (_disposed || !_state.driverTrip.isOnline || fix.isCoarse) return;
+      _state.liveDriverLocation = fix.coordinate;
+      _state.driverChanged();
       final tripId = _state.liveTripId;
       if (tripId == null ||
           _state.driverTrip.status == DriverTripStatus.available) {

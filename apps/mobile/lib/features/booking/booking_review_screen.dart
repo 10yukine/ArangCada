@@ -6,11 +6,9 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
-import '../../data/repositories/payment_repository.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
-import '../wallet/wallet_sheets.dart';
 import '../../core/widgets/arang_dialog.dart';
 
 class BookingReviewScreen extends ConsumerStatefulWidget {
@@ -44,28 +42,20 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
     DemoBooking booking,
   ) async {
     final liveRides = ref.read(liveRideRepositoryProvider);
-    if (liveRides != null &&
-        (booking.rideType != RideType.special ||
-            booking.paymentMethod != PaymentMethod.cash)) {
+    if (booking.paymentMethod == PaymentMethod.digital) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Digital payments are disabled during beta testing. Choose Cash.'),
+        ),
+      );
+      return;
+    }
+    if (liveRides != null && booking.rideType != RideType.special) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Connected testing currently supports Special + Cash.'),
         ),
       );
-      return;
-    }
-    try {
-      ref.read(paymentRepositoryProvider).ensureCanConfirm(booking);
-    } on InsufficientBalanceException catch (exception) {
-      if (!context.mounted) return;
-      final action = await showInsufficientBalanceSheet(context, exception);
-      if (!context.mounted || action == null) return;
-      if (action == InsufficientBalanceAction.topUp) {
-        await showTopUpSheet(context, ref);
-      } else {
-        booking.changePaymentMethod(PaymentMethod.cash);
-        ref.read(demoStateProvider).bookingChanged();
-      }
       return;
     }
 
@@ -147,7 +137,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
         }
         final quote = booking.fareQuote;
         final colors = Theme.of(context).colorScheme;
-        final connected = ref.read(liveRideRepositoryProvider) != null;
         return Scaffold(
           appBar: AppBar(title: const Text('Review booking')),
           bottomNavigationBar: SafeArea(
@@ -237,49 +226,40 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 const SizedBox(height: 24),
                 Text('Payment', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
-                if (connected)
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.payments_outlined),
-                    title: Text('Cash'),
-                    subtitle: Text('Pay your driver after the ride.'),
-                  )
-                else
-                  SegmentedButton<PaymentMethod>(
-                    style: SegmentedButton.styleFrom(
-                      selectedBackgroundColor: colors.primaryContainer,
-                      selectedForegroundColor: colors.onPrimaryContainer,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                SegmentedButton<PaymentMethod>(
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: colors.primaryContainer,
+                    selectedForegroundColor: colors.onPrimaryContainer,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    segments: const [
-                      ButtonSegment(
-                        value: PaymentMethod.cash,
-                        icon: Icon(Icons.payments_outlined),
-                        label: Text('Cash'),
-                      ),
-                      ButtonSegment(
-                        value: PaymentMethod.digital,
-                        icon: Icon(Icons.account_balance_wallet_outlined),
-                        label: Text('Digital'),
-                      ),
-                    ],
-                    selected: {booking.paymentMethod},
-                    onSelectionChanged: booking.isFareLocked || _submitting
-                        ? null
-                        : (selection) {
-                            booking.changePaymentMethod(selection.single);
-                            state.bookingChanged();
-                          },
                   ),
-                if (booking.paymentMethod == PaymentMethod.digital) ...[
-                  const SizedBox(height: 12),
-                  _ReviewRow(
-                    label: 'Account balance',
-                    value: formatCentavos(state.walletBalanceCentavos),
-                  ),
-                ],
+                  segments: const [
+                    ButtonSegment(
+                      value: PaymentMethod.cash,
+                      icon: Icon(Icons.payments_outlined),
+                      label: Text('Cash'),
+                    ),
+                    ButtonSegment(
+                      value: PaymentMethod.digital,
+                      icon: Icon(Icons.account_balance_wallet_outlined),
+                      label: Text('Digital'),
+                      enabled: false,
+                    ),
+                  ],
+                  selected: {booking.paymentMethod},
+                  onSelectionChanged: booking.isFareLocked || _submitting
+                      ? null
+                      : (selection) {
+                          booking.changePaymentMethod(selection.single);
+                          state.bookingChanged();
+                        },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Digital payments are disabled during beta testing. Pay your driver in cash.',
+                  style: TextStyle(color: colors.onSurfaceVariant),
+                ),
                 const SizedBox(height: 24),
                 Text(
                   'Driver availability and arrival time are confirmed after dispatch.',

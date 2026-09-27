@@ -88,7 +88,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
-      expect(find.text('Report conversation'), findsOneWidget);
+      final reportLabel = role == DemoRole.driver
+          ? 'Report commuter'
+          : 'Report driver';
+      expect(find.text(reportLabel), findsOneWidget);
       await tester.tap(find.text('View profile'));
       await tester.pumpAndSettle();
       final sheet = find.byType(BottomSheet);
@@ -112,7 +115,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Report conversation'));
+      await tester.tap(find.text(reportLabel));
       await tester.pumpAndSettle();
       expect(
         find.textContaining('No report will be sent or recorded'),

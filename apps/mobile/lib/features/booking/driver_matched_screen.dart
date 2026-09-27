@@ -57,6 +57,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
   /// How long a commuter may cancel without it counting against them.
   static const _cancelWindowSeconds = 60;
 
+  final _mapController = LiveMapViewController();
   DemoSimulationRun? _approachRun;
   DemoSimulationRun? _arrivalRun;
   Timer? _liveTransition;
@@ -317,9 +318,11 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
           final cancellable = !_arrived && _cancelSecondsRemaining > 0;
 
           return DragSheetScaffold(
+            sheetKey: _mapController.panelKey,
             collapsedHeight: 400,
             handleSemanticLabel: 'Driver details',
             background: LiveMapView(
+              controller: _mapController,
               // Centred on the driver, not the route. Where they are now is the
               // only thing the commuter can act on while waiting.
               center: state.liveDriverLocation ?? state.pickup.coordinate,
@@ -338,6 +341,11 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                     radius: 10,
                   ),
               ],
+            ),
+            aboveSheet: ArangIconButton(
+              icon: Icons.center_focus_strong,
+              tooltip: 'Center map',
+              onPressed: () => _mapController.recenter(),
             ),
             footer: TextButton(
               style: TextButton.styleFrom(

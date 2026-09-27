@@ -30,8 +30,8 @@ class _LocationSpy implements LocationRepository {
   _LocationSpy({
     this.fail = false,
     this.coordinate = const GeoCoordinate(
-      latitude: 14.2825,
-      longitude: 121.115,
+      latitude: 14.2085,
+      longitude: 121.1555,
     ),
   });
 
@@ -125,7 +125,7 @@ void main() {
     expect(location.requests, 0);
   });
 
-  testWidgets('automatic GPS does not replace a manually chosen pickup', (
+  testWidgets('GPS does not replace a manually chosen pickup', (
     tester,
   ) async {
     final state = await render(
@@ -141,6 +141,27 @@ void main() {
     );
 
     expect(state.pickup, same(DemoData.places.last));
+  });
+
+  testWidgets('when GPS is outside Calamba City, pickup shows Out of Service Area', (
+    tester,
+  ) async {
+    final location = _LocationSpy(
+      coordinate: const GeoCoordinate(latitude: 14.2825, longitude: 121.115),
+    );
+    await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+        isInternalTester: true,
+      ),
+      location: location,
+    );
+
+    expect(location.requests, 1);
+    expect(find.text('Out of Service Area'), findsOneWidget);
   });
 
   group('notification bell dot', () {
@@ -233,7 +254,7 @@ void main() {
 
     expect(state.hasPickup, isFalse);
     expect(find.text('Calamba Crossing Terminal'), findsNothing);
-    expect(find.text('Choose pickup location'), findsOneWidget);
+    expect(find.text('Location unavailable'), findsWidgets);
     expect(find.text('GPS unavailable'), findsOneWidget);
   });
 

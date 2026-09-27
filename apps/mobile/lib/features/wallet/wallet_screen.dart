@@ -19,54 +19,6 @@ import 'wallet_sheets.dart';
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
 
-  void _showTransactions(
-    BuildContext context,
-    List<WalletTransaction> transactions,
-  ) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            0,
-            AppSpacing.md,
-            AppSpacing.md,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Transactions',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (transactions.isEmpty)
-                const EmptyStateCard(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'No wallet transactions',
-                  message:
-                      'Sandbox top-ups and ride payments will appear here.',
-                )
-              else
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: transactions.length,
-                    separatorBuilder: (context, index) => const Divider(),
-                    itemBuilder: (context, index) =>
-                        _TransactionTile(transactions[index]),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
@@ -76,92 +28,130 @@ class WalletScreen extends ConsumerWidget {
         leading: const DashboardBackButton(isDriver: false),
         title: const Text('Wallet'),
       ),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: state,
-          builder: (context, _) {
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Digital balance',
-                        style: AppTypography.label.copyWith(
+      body: Stack(
+        children: [
+          ExcludeSemantics(
+            child: SafeArea(
+              child: ListenableBuilder(
+                listenable: state,
+                builder: (context, _) {
+                  return ListView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Digital balance',
+                              style: AppTypography.label.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          // Status chip rather than a "Demo" label in the field
+                          // name: the screen reads like a product, and the
+                          // sandbox nature is still stated, once.
+                          const ArangBadge(
+                            'SANDBOX',
+                            tone: ArangBadgeTone.amber,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        formatCentavos(wallet.balanceCentavos),
+                        style: AppTypography.display,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      const Text(demoFundsDisclosure),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'ArangCada does not hold or custody funds. Production '
+                        'digital balances are provider-held.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
-                    // Status chip rather than a "Demo" label in the field
-                    // name: the screen reads like a product, and the
-                    // sandbox nature is still stated, once.
-                    const ArangBadge('SANDBOX', tone: ArangBadgeTone.amber),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  formatCentavos(wallet.balanceCentavos),
-                  style: AppTypography.display,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(demoFundsDisclosure),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'ArangCada does not hold or custody funds. Production '
-                  'digital balances are provider-held.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: null,
+                              icon: const Icon(Icons.add_card),
+                              label: const Text('Top Up'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: null,
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              label: const Text('Transactions'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'Transaction history',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      if (wallet.transactions.isEmpty)
+                        // No actionLabel here: the Top Up button immediately above
+                        // is already the one clear top-up action on this screen: a
+                        // second Top Up button inside the empty state duplicated it.
+                        const EmptyStateCard(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No wallet transactions',
+                          message:
+                              'Sandbox top-ups and ride payments will appear here.',
+                        )
+                      else ...[
+                        const Divider(height: 1),
+                        for (final transaction in wallet.transactions) ...[
+                          _TransactionTile(transaction),
+                          const Divider(height: 1),
+                        ],
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          ModalBarrier(
+            key: const Key('wallet-coming-soon-barrier'),
+            dismissible: false,
+            color: Colors.grey.withValues(alpha: 0.72),
+          ),
+          Center(
+            child: Card(
+              margin: const EdgeInsets.all(AppSpacing.lg),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => showTopUpSheet(context, ref),
-                        icon: const Icon(Icons.add_card),
-                        label: const Text('Top Up'),
-                      ),
+                    const Icon(Icons.account_balance_wallet_outlined, size: 40),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Wallet unavailable during beta testing',
+                      style: Theme.of(context).textTheme.titleLarge,
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _showTransactions(context, wallet.transactions),
-                        icon: const Icon(Icons.receipt_long_outlined),
-                        label: const Text('Transactions'),
-                      ),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text(
+                      'Waiting for full implementation. Top-ups and digital payments are disabled. Pay your driver in cash.',
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Transaction history',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                if (wallet.transactions.isEmpty)
-                  // No actionLabel here: the Top Up button immediately above
-                  // is already the one clear top-up action on this screen: a
-                  // second Top Up button inside the empty state duplicated it.
-                  const EmptyStateCard(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'No wallet transactions',
-                    message:
-                        'Sandbox top-ups and ride payments will appear here.',
-                  )
-                else ...[
-                  const Divider(height: 1),
-                  for (final transaction in wallet.transactions) ...[
-                    _TransactionTile(transaction),
-                    const Divider(height: 1),
-                  ],
-                ],
-              ],
-            );
-          },
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

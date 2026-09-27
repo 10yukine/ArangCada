@@ -1,4 +1,5 @@
 import 'package:arangcada/core/widgets/arang_ui.dart';
+import 'package:arangcada/core/widgets/map/route_preview_map.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/demo/demo_data.dart';
@@ -88,5 +89,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(state.passengerCount, 4);
+  });
+  testWidgets('route preview map is interactive with center route button', (
+    tester,
+  ) async {
+    final state = bookingState();
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(harness(state));
+    await tester.pumpAndSettle();
+
+    final previewMap = tester.widget<RoutePreviewMap>(
+      find.byType(RoutePreviewMap),
+    );
+    expect(previewMap.interactive, isTrue);
+
+    expect(find.byTooltip('Center route'), findsOneWidget);
+    expect(find.byIcon(Icons.center_focus_strong), findsOneWidget);
   });
 }

@@ -39,7 +39,8 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   // PROFILE
-  late final TextEditingController _name;
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
   bool _savingName = false;
   String? _nameError;
   String? _nameSaveError;
@@ -62,7 +63,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = ref.read(demoStateProvider).currentUser;
-    _name = TextEditingController(text: user?.displayName ?? '');
+    final name = (user?.displayName ?? '').trim();
+    final separator = name.indexOf(' ');
+    _firstName = TextEditingController(
+      text: separator < 0 ? name : name.substring(0, separator),
+    );
+    _lastName = TextEditingController(
+      text: separator < 0 ? '' : name.substring(separator + 1).trim(),
+    );
     _mobile = TextEditingController(
       text: user?.mobileNumber == null
           ? ''
@@ -73,7 +81,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
     _mobile.dispose();
     _email.dispose();
     _contactPassword.dispose();
@@ -88,11 +97,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     // presentation widget with an errorText slot, not a FormField, and wrapping
     // the app's own field in a Form to gain a validator would mean maintaining
     // two ways of showing the same error.
-    final trimmed = _name.text.trim();
-    final invalid = trimmed.isEmpty
-        ? 'Enter your name'
-        : trimmed.length < 2
-        ? 'That name looks too short'
+    final first = _firstName.text.trim();
+    final last = _lastName.text.trim();
+    final invalid = first.isEmpty || last.isEmpty
+        ? 'Enter both your first and last name'
         : null;
     if (invalid != null) {
       setState(() => _nameError = invalid);
@@ -106,7 +114,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).updateDisplayName(_name.text);
+      await ref.read(authRepositoryProvider).updateDisplayName('$first $last');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -147,7 +155,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       return;
     }
 
-    if (!emailChanged && !mobileChanged) return;
+    if (!emailChanged && !mobileChanged) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No contact changes to save.')),
+      );
+      return;
+    }
 
     if (_contactPassword.text.isEmpty) {
       setState(() => _contactError = 'Enter your current password.');
@@ -262,12 +275,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   LabeledTextField(
-                    label: 'Full Name',
-                    controller: _name,
+                    label: 'First Name',
+                    controller: _firstName,
                     icon: Icons.person_outline,
-                    hintText: 'Juan dela Cruz',
-                    textInputAction: TextInputAction.done,
+                    hintText: 'Juan',
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.givenName],
                     errorText: _nameError,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  LabeledTextField(
+                    label: 'Last Name',
+                    controller: _lastName,
+                    icon: Icons.person_outline,
+                    hintText: 'dela Cruz',
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.familyName],
                     onSubmitted: (_) => _saveName(),
                   ),
                   if (_nameSaveError != null) ...[

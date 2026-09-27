@@ -17,6 +17,7 @@ import '../../core/widgets/sheet_drag_handle.dart';
 import '../../core/nav/external_navigation.dart';
 import '../../core/widgets/sos_hold_button.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/remote/supabase_ride_repository.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -28,7 +29,8 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverHomeScreen> createState() => _DriverHomeScreenState();
 }
 
-class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
+class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
+    with WidgetsBindingObserver {
   final _mapController = LiveMapViewController();
   Timer? _countdownTimer;
   Timer? _completionTicker;
@@ -37,10 +39,23 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   VoidCallback? _removeLiveStateListener;
   bool _actionPending = false;
   bool _expirePending = false;
+  Timer? _gpsTimer;
+  LocationFix? _dashboardFix;
+  LocationFailure? _locationError;
+  bool _locating = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          ref.read(demoStateProvider).currentUser?.isDemoAccount != false) {
+        return;
+      }
+      _locateDriver();
+      _startGpsTimer();
+    });
     final state = ref.read(demoStateProvider);
     if (ref.read(liveRideRepositoryProvider) != null) {
       state.addListener(_handleLiveDriverState);
@@ -52,6 +67,52 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       _startCountdown();
     } else if (state.driverTrip.status == DriverTripStatus.available) {
       _scheduleRequest();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (ref.read(demoStateProvider).currentUser?.isDemoAccount != false) return;
+    if (state == AppLifecycleState.resumed) {
+      _locateDriver();
+      _startGpsTimer();
+    } else {
+      _gpsTimer?.cancel();
+    }
+  }
+
+  void _startGpsTimer() {
+    _gpsTimer?.cancel();
+    _gpsTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _locateDriver(),
+    );
+  }
+
+  Future<void> _locateDriver() async {
+    if (_locating || !mounted) return;
+    setState(() => _locating = true);
+    try {
+      final fix = await ref.read(locationRepositoryProvider).currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _dashboardFix = fix.isCoarse ? null : fix;
+        _locationError = fix.isCoarse
+            ? const LocationFailure(
+                LocationFailureReason.unavailable,
+                'GPS is approximate. Enable precise location and try again.',
+              )
+            : null;
+      });
+    } on LocationFailure catch (failure) {
+      if (mounted) {
+        setState(() {
+          _dashboardFix = null;
+          _locationError = failure;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
   }
 
@@ -272,6 +333,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _gpsTimer?.cancel();
     _removeLiveStateListener?.call();
     _countdownTimer?.cancel();
     _completionTicker?.cancel();
@@ -323,11 +386,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 // driver-side audit entry.
                 Row(
                   children: [
-                    ArangAvatar(
-                      name: state.currentUser?.displayName ?? 'Driver',
-                      background: AppColors.primary,
-                      foreground: Colors.white,
-                      imageUrl: state.currentUser?.avatarUrl,
+                    Semantics(
+                      button: true,
+                      label: 'Profile',
+                      child: InkWell(
+                        onTap: () => context.push('/driver/profile'),
+                        borderRadius: BorderRadius.circular(24),
+                        child: ArangAvatar(
+                          name: state.currentUser?.displayName ?? 'Driver',
+                          background: AppColors.primary,
+                          foreground: Colors.white,
+                          imageUrl: state.currentUser?.avatarUrl,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
@@ -345,7 +416,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                             ),
                           ),
                           Text(
-                            'Verified driver - ${state.liveTodaName ?? 'Calamba TODA'}',
+                            state.liveTodaName == null
+                                ? 'Driver account'
+                                : 'Driver · ${state.liveTodaName}',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -423,23 +496,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     onFinish: state.finishDriverTrip,
                   ),
                 const SizedBox(height: AppSpacing.md),
-                LiveMapView(
-                  center: state.liveDriverLocation ?? state.pickup.coordinate,
-                  height: 280,
-                  zoom: 13.3,
-                  showUserLocation: false,
-                  interactive: false,
-                  markers: [
-                    MapMarker(
-                      coordinate:
-                          state.liveDriverLocation ?? state.pickup.coordinate,
-                      color: AppColors.primary,
-                      radius: 8,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Divider(),
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   leading: const Icon(
@@ -451,6 +507,59 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   trailing: const Icon(Icons.arrow_forward),
                   onTap: () => context.push('/driver/earnings'),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Your location',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    ArangBadge(
+                      _dashboardFix == null ? 'GPS unavailable' : 'Live GPS',
+                      tone: _dashboardFix == null
+                          ? ArangBadgeTone.neutral
+                          : ArangBadgeTone.brand,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (_dashboardFix != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: LiveMapView(
+                      center: _dashboardFix!.coordinate,
+                      height: 180,
+                      zoom: 14.5,
+                      showUserLocation: true,
+                      interactive: true,
+                      markers: [
+                        MapMarker(
+                          coordinate: _dashboardFix!.coordinate,
+                          color: AppColors.primary,
+                          radius: 8,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  const SizedBox(
+                    height: 180,
+                    child: Center(child: Text('Waiting for device GPS…')),
+                  ),
+                if (_locationError != null)
+                  ListTile(
+                    leading: const Icon(Icons.location_off_outlined),
+                    title: Text(_locationError!.message),
+                    trailing: TextButton(
+                      onPressed: _locating ? null : _locateDriver,
+                      child: const Text('Try again'),
+                    ),
+                  ),
               ],
             );
           },
@@ -536,16 +645,16 @@ class _IncomingRequestCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${state.liveCommuterName ?? 'Joshua Adia'} · 1 passenger · Special',
-          ),
+          Text('${state.liveCommuterName ?? 'Passenger'} · Special'),
           Text(
             '${state.pickup.name} → '
-            '${state.destination?.name ?? 'Calamba City Hall'}',
+            '${state.destination?.name ?? 'Destination'}',
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${formatCentavos(fare == null ? 9200 : (fare * 100).round())} cash fare',
+            fare == null
+                ? 'Fare unavailable'
+                : '${formatCentavos((fare * 100).round())} cash fare',
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -619,7 +728,7 @@ class _PickupModeCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _PassengerRow(
-                  name: state.liveCommuterName ?? 'Joshua Adia',
+                  name: state.liveCommuterName ?? 'Passenger',
                   detail: '${state.pickup.name} · Cash',
                   imageUrl: state.liveCounterpartAvatarUrl,
                 ),
@@ -696,9 +805,8 @@ class _DriverTripModeCard extends ConsumerWidget {
                 const ArangBadge('On trip', tone: ArangBadgeTone.green),
                 const SizedBox(height: AppSpacing.sm),
                 _PassengerRow(
-                  name: state.liveCommuterName ?? 'Joshua Adia',
-                  detail:
-                      '${state.destination?.name ?? 'Calamba City Hall'} · Cash',
+                  name: state.liveCommuterName ?? 'Passenger',
+                  detail: '${state.destination?.name ?? 'Destination'} · Cash',
                   imageUrl: state.liveCounterpartAvatarUrl,
                 ),
                 if (state.completionAvailableAt != null) ...[

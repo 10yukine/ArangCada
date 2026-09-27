@@ -10,6 +10,8 @@ import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/mock/demo_state.dart';
+import '../../data/remote/supabase_ride_repository.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
@@ -37,10 +39,11 @@ class TripsScreen extends ConsumerWidget {
             // Illustrative sandbox history for the pre-connection demo only.
             // Once a real Supabase session is live, actual trip records
             // always win -- this branch never runs when liveRides != null.
-            if (liveRides == null && state.sampleContentEnabled) {
-              return isDriver
-                  ? const _DriverSampleHistory()
-                  : const _CommuterSampleHistory();
+            if (liveRides == null &&
+                !isDriver &&
+                state.currentUser?.isDemoAccount == true &&
+                state.sampleContentEnabled) {
+              return const _CommuterSampleHistory();
             }
             if (liveRides != null) {
               final trips = liveRides.trips.where((trip) {
@@ -55,8 +58,14 @@ class TripsScreen extends ConsumerWidget {
                     icon: Icons.route_outlined,
                     title: isDriver ? 'No driver trips yet' : 'No trips yet',
                     message: 'Accepted and completed rides will appear here.',
-                    actionLabel: isDriver ? 'Go Online' : 'Book a Ride',
-                    onAction: () => context.go(isDriver ? '/driver' : '/home'),
+                    actionLabel: isDriver
+                        ? state.driverTrip.isOnline
+                              ? 'Open driver dashboard'
+                              : 'Go Online'
+                        : 'Book a Ride',
+                    onAction: () => isDriver
+                        ? _openDriverDashboard(context, state, liveRides)
+                        : context.go('/home'),
                   ),
                 );
               }
@@ -70,7 +79,9 @@ class TripsScreen extends ConsumerWidget {
                   final status = trip['status'] as String;
                   final completed = status == 'completed';
                   final driverCancelled = status == 'cancelled_by_driver';
-                  final route = completed
+                  final route = isDriver
+                      ? '/driver'
+                      : completed
                       ? Uri(
                           path: '/receipt',
                           queryParameters: {'trip': trip['id'] as String},
@@ -137,15 +148,19 @@ class TripsScreen extends ConsumerWidget {
                   status == DriverTripStatus.arrivedAtPickup ||
                   status == DriverTripStatus.inProgress ||
                   status == DriverTripStatus.completed;
-              if (!hasRide) {
+              if (!hasRide ||
+                  (status == DriverTripStatus.completed &&
+                      state.activeBooking == null)) {
                 return Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: EmptyStateCard(
                     icon: Icons.route_outlined,
                     title: 'No driver trips yet',
                     message: 'Accepted and completed rides will appear here.',
-                    actionLabel: 'Go Online',
-                    onAction: () => context.go('/driver'),
+                    actionLabel: state.driverTrip.isOnline
+                        ? 'Open driver dashboard'
+                        : 'Go Online',
+                    onAction: () => _openDriverDashboard(context, state, null),
                   ),
                 );
               }
@@ -162,7 +177,8 @@ class TripsScreen extends ConsumerWidget {
                     title: status == DriverTripStatus.completed
                         ? 'Completed driver trip'
                         : 'Current driver trip',
-                    subtitle: 'Joshua Ramos · Calamba Crossing to SM Calamba',
+                    subtitle:
+                        '${state.liveCommuterName ?? 'Passenger'} · ${state.pickup.name} to ${state.destination?.name ?? 'Destination'}',
                     buttonLabel: status == DriverTripStatus.completed
                         ? 'View Summary'
                         : 'Resume',
@@ -171,10 +187,17 @@ class TripsScreen extends ConsumerWidget {
                         _showDriverTripSummarySheet(
                           context,
                           ref,
-                          route: 'Calamba Crossing → SM Calamba',
-                          passengerName: 'Joshua Ramos',
-                          fare: '₱50.00',
-                          reference: 'SBX-RIDE-024',
+                          route:
+                              '${state.pickup.name} → ${state.destination?.name ?? 'Destination'}',
+                          passengerName: state.liveCommuterName ?? 'Passenger',
+                          fare: state.activeBooking == null
+                              ? 'Unavailable'
+                              : formatCentavos(
+                                  state
+                                      .activeBooking!
+                                      .fareQuote
+                                      .partyTotalCentavos,
+                                ),
                         );
                       } else {
                         context.go('/driver');
@@ -236,6 +259,45 @@ class TripsScreen extends ConsumerWidget {
   };
 }
 
+Future<void> _openDriverDashboard(
+  BuildContext context,
+  DemoState state,
+  SupabaseRideRepository? liveRides,
+) async {
+  if (liveRides == null && state.currentUser?.isDemoAccount != true) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Live driver connection unavailable.')),
+    );
+    return;
+  }
+  if (!state.driverTrip.isOnline) {
+    try {
+      if (liveRides != null) {
+        await liveRides.setDriverOnline(true);
+      } else {
+        if (state.driverTrip.status == DriverTripStatus.declined) {
+          state.driverTrip.goOffline();
+        }
+        state.driverTrip.goOnline();
+        state.driverChanged();
+      }
+    } on Exception {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not go online. Check driver approval, required feedback, '
+              'GPS, and connection.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+  }
+  if (context.mounted) context.go('/driver');
+}
+
 class _TripSummary extends StatelessWidget {
   const _TripSummary({
     required this.icon,
@@ -284,14 +346,12 @@ class _SampleTrip {
     required this.type,
     required this.fare,
     required this.dateLabel,
-    this.commuterName,
   });
 
   final String route;
   final String type; // 'Special' or 'Pooling'
   final String fare;
   final String dateLabel;
-  final String? commuterName;
 }
 
 /// Illustrative sandbox history so the commuter Trips screen is not empty
@@ -366,49 +426,6 @@ class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
   }
 }
 
-/// Illustrative driver-side trip records; same sandbox-only scope as the
-/// commuter sample history above.
-class _DriverSampleHistory extends StatelessWidget {
-  const _DriverSampleHistory();
-
-  static const _trips = [
-    _SampleTrip(
-      route: 'Crossing Market → City Hall',
-      type: 'Special',
-      fare: '₱60.00',
-      dateLabel: 'Jul 3',
-    ),
-    _SampleTrip(
-      route: 'Brgy. Real → Crossing Market',
-      type: 'Special',
-      fare: '₱60.00',
-      dateLabel: 'Jun 29',
-    ),
-    _SampleTrip(
-      route: 'Calamba Crossing → SM Calamba',
-      type: 'Pooling',
-      fare: '₱15.00',
-      dateLabel: 'Jun 20',
-      commuterName: 'Rico C.',
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        Text('Trip records', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: AppSpacing.md),
-        for (final trip in _trips) ...[
-          _SampleTripTile(trip: trip),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}
-
 class _SampleTripTile extends StatelessWidget {
   const _SampleTripTile({required this.trip});
 
@@ -423,11 +440,7 @@ class _SampleTripTile extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Text(trip.route, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          trip.commuterName == null
-              ? '${trip.type} · ${trip.dateLabel}'
-              : 'Commuter: ${trip.commuterName} · ${trip.type}',
-        ),
+        Text('${trip.type} · ${trip.dateLabel}'),
         const SizedBox(height: AppSpacing.xs),
         Text(
           trip.fare,

@@ -1,248 +1,126 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
-import '../../core/widgets/app_row_icon.dart';
 import '../../core/widgets/dashboard_back_button.dart';
-import '../../core/widgets/status_badge.dart';
+import '../../data/providers/repository_providers.dart';
 
-/// Mirrors the approved driver's earnings screen while retaining the stronger
-/// cash/digital breakdown and honest sandbox-settlement disclosure.
-class DriverEarningsScreen extends StatelessWidget {
+/// Cash earnings from this driver's completed server trips only.
+class DriverEarningsScreen extends ConsumerWidget {
   const DriverEarningsScreen({super.key});
 
+  int? _fare(Map<String, dynamic> trip) {
+    final pesos = trip['final_fare'];
+    return pesos is num ? (pesos * 100).round() : null;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(demoStateProvider);
+    final rides = ref.watch(liveRideRepositoryProvider);
     return Scaffold(
       appBar: AppBar(
         leading: const DashboardBackButton(isDriver: true),
         title: const Text('Earnings'),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: Text(
-                'Sample earnings · live totals are not connected',
-                style: AppTypography.caption,
-              ),
-            ),
-            const _TodayEarnings(total: 47800, tripCount: 9),
-            const SizedBox(height: AppSpacing.sm),
-            const Row(
-              children: [
-                Expanded(
-                  child: _EarningsMetric(label: 'This week', value: 268500),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([state, rides]),
+          builder: (context, _) {
+            if (rides == null) {
+              return const Center(
+                child: Text(
+                  'Connect your driver account to see real earnings.',
                 ),
-                SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: _EarningsMetric(label: 'Avg per trip', value: 5311),
+              );
+            }
+            final completed = rides.trips
+                .where((trip) => trip['status'] == 'completed')
+                .toList();
+            final now = DateTime.now();
+            final today = completed.where((trip) {
+              final date = DateTime.tryParse(
+                trip['completed_at'] as String? ?? '',
+              )?.toLocal();
+              return date != null &&
+                  date.year == now.year &&
+                  date.month == now.month &&
+                  date.day == now.day;
+            }).toList();
+            int total(List<Map<String, dynamic>> trips) =>
+                trips.fold(0, (sum, trip) => sum + (_fare(trip) ?? 0));
+            return ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                Text(
+                  'Cash earnings',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                const Text('Based on completed trips in your account.'),
+                const SizedBox(height: AppSpacing.lg),
+                Text('Today', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  formatCentavos(total(today)),
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
+                Text(
+                  '${today.length} completed ${today.length == 1 ? 'trip' : 'trips'}',
+                ),
+                const Divider(height: AppSpacing.xl),
+                Text(
+                  'All completed trips',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  formatCentavos(total(completed)),
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Recent trips',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.go('/driver/trips'),
+                      child: const Text('Trip history'),
+                    ),
+                  ],
+                ),
+                if (completed.isEmpty)
+                  const Text('No completed trips yet.')
+                else
+                  for (final trip in completed.take(3))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        '${trip['pickup_label'] ?? 'Pickup'} → ${trip['destination_label'] ?? 'Destination'}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Text(
+                        _fare(trip) == null
+                            ? 'Fare unavailable'
+                            : formatCentavos(_fare(trip)!),
+                      ),
+                    ),
+                const Divider(height: AppSpacing.xl),
+                const ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.account_balance_wallet_outlined),
+                  title: Text('Digital payments'),
+                  subtitle: Text('In development. Rides currently use cash.'),
                 ),
               ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Recent trips',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/driver/trips'),
-                  child: const Text('Trip history'),
-                ),
-              ],
-            ),
-            const _RecentTrips(),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Payment breakdown',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const _EarningsRow(label: 'Cash rides', value: 29400),
-            const _EarningsRow(label: 'Digital rides', value: 18400),
-            const _EarningsRow(label: "This week's cash", value: 167300),
-            const _EarningsRow(label: "This week's digital", value: 101200),
-            const SizedBox(height: AppSpacing.md),
-            const Divider(height: 1),
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: AppRowIcon(Icons.sync_alt),
-              title: Text('Settlement status'),
-              subtitle: Text(
-                'Digital earnings settle through the payment provider once connected. '
-                'Sandbox only - no funds moved.',
-              ),
-              trailing: StatusBadge(
-                'Pending',
-                variant: StatusBadgeVariant.amber,
-              ),
-            ),
-          ],
+            );
+          },
         ),
-      ),
-    );
-  }
-}
-
-class _TodayEarnings extends StatelessWidget {
-  const _TodayEarnings({required this.total, required this.tripCount});
-
-  final int total;
-  final int tripCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.dividerLight)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.lg,
-        ),
-        child: Column(
-          children: [
-            Text(
-              'Today',
-              style: AppTypography.bodySm.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              formatCentavos(total),
-              style: AppTypography.display.copyWith(fontSize: 32),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              '$tripCount trips · 6.5 hrs online',
-              style: AppTypography.caption,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EarningsMetric extends StatelessWidget {
-  const _EarningsMetric({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: const Border(bottom: BorderSide(color: AppColors.dividerLight)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppTypography.caption),
-            const SizedBox(height: 2),
-            Text(formatCentavos(value), style: AppTypography.h2),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentTrips extends StatelessWidget {
-  const _RecentTrips();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: const Border(
-          top: BorderSide(color: AppColors.dividerLight),
-          bottom: BorderSide(color: AppColors.dividerLight),
-        ),
-      ),
-      child: const Column(
-        children: [
-          _RecentTripRow(time: '1:45 PM', name: 'Rico C.', fare: 1500),
-          Divider(height: 1),
-          _RecentTripRow(time: '11:20 AM', name: 'Nena V.', fare: 6000),
-          Divider(height: 1),
-          _RecentTripRow(time: '9:05 AM', name: 'Ana S.', fare: 6000),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentTripRow extends StatelessWidget {
-  const _RecentTripRow({
-    required this.time,
-    required this.name,
-    required this.fare,
-  });
-
-  final String time;
-  final String name;
-  final int fare;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '$time · $name',
-              style: AppTypography.bodySm.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Text(formatCentavos(fare), style: AppTypography.bodySm),
-        ],
-      ),
-    );
-  }
-}
-
-class _EarningsRow extends StatelessWidget {
-  const _EarningsRow({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
-          Text(formatCentavos(value)),
-        ],
       ),
     );
   }

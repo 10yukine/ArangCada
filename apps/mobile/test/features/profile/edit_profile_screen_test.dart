@@ -159,10 +159,16 @@ void main() {
     child: const MaterialApp(home: EditProfileScreen()),
   );
 
+  Future<void> pumpProfile(WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(harness());
+  }
+
   testWidgets('starts pre-filled with the current name, number, and email', (
     tester,
   ) async {
-    await tester.pumpWidget(harness());
+    await pumpProfile(tester);
     await tester.pump();
 
     String textOf(int index) => tester
@@ -170,16 +176,18 @@ void main() {
         .controller
         .text;
 
-    expect(textOf(0), 'Juan Dela Cruz');
-    expect(textOf(1), '0917 123 4567');
-    expect(textOf(2), 'juan@example.test');
+    expect(textOf(0), 'Juan');
+    expect(textOf(1), 'Dela Cruz');
+    expect(textOf(2), '0917 123 4567');
+    expect(textOf(3), 'juan@example.test');
   });
 
   testWidgets('saving the name needs no password', (tester) async {
-    await tester.pumpWidget(harness());
+    await pumpProfile(tester);
     await tester.pump();
 
-    await tester.enterText(find.byType(EditableText).first, 'New Name');
+    await tester.enterText(find.byType(EditableText).first, 'New');
+    await tester.enterText(find.byType(EditableText).at(1), 'Name');
     await tester.tap(find.text('Save name'));
     await tester.pump();
     await tester.pump();
@@ -189,7 +197,7 @@ void main() {
   });
 
   testWidgets('an unchanged contact section saves nothing', (tester) async {
-    await tester.pumpWidget(harness());
+    await pumpProfile(tester);
     await tester.pump();
 
     await tester.tap(find.text('Save contact info'));
@@ -204,11 +212,11 @@ void main() {
   testWidgets('changing the email without a password is refused', (
     tester,
   ) async {
-    await tester.pumpWidget(harness());
+    await pumpProfile(tester);
     await tester.pump();
 
     final fields = find.byType(EditableText);
-    await tester.enterText(fields.at(2), 'new@example.test');
+    await tester.enterText(fields.at(3), 'new@example.test');
     await tester.tap(find.text('Save contact info'));
     await tester.pump();
     await tester.pump();
@@ -222,12 +230,12 @@ void main() {
     (tester) async {
       auth.failReauthWith = 'That password is incorrect.';
 
-      await tester.pumpWidget(harness());
+      await pumpProfile(tester);
       await tester.pump();
 
       final fields = find.byType(EditableText);
-      await tester.enterText(fields.at(2), 'new@example.test');
-      await tester.enterText(fields.at(3), 'wrongpass');
+      await tester.enterText(fields.at(3), 'new@example.test');
+      await tester.enterText(fields.at(4), 'wrongpass');
       await tester.tap(find.text('Save contact info'));
       await tester.pump();
       await tester.pump();
@@ -241,12 +249,12 @@ void main() {
     'a correct password updates the email immediately -- no OTP, by design '
     '(Spec 11 §3 revision)',
     (tester) async {
-      await tester.pumpWidget(harness());
+      await pumpProfile(tester);
       await tester.pump();
 
       final fields = find.byType(EditableText);
-      await tester.enterText(fields.at(2), 'new@example.test');
-      await tester.enterText(fields.at(3), 'correctpass');
+      await tester.enterText(fields.at(3), 'new@example.test');
+      await tester.enterText(fields.at(4), 'correctpass');
       await tester.tap(find.text('Save contact info'));
       await tester.pump();
       await tester.pump();
@@ -263,15 +271,16 @@ void main() {
     'changing email and mobile together: a phone-step failure still reports '
     'the email change that already succeeded on the server',
     (tester) async {
-      auth.failSendOtpWith = 'please wait a minute before requesting another code';
+      auth.failSendOtpWith =
+          'please wait a minute before requesting another code';
 
-      await tester.pumpWidget(harness());
+      await pumpProfile(tester);
       await tester.pump();
 
       final fields = find.byType(EditableText);
-      await tester.enterText(fields.at(1), '0917 000 1111');
-      await tester.enterText(fields.at(2), 'new@example.test');
-      await tester.enterText(fields.at(3), 'correctpass');
+      await tester.enterText(fields.at(2), '0917 000 1111');
+      await tester.enterText(fields.at(3), 'new@example.test');
+      await tester.enterText(fields.at(4), 'correctpass');
       await tester.tap(find.text('Save contact info'));
       await tester.pump();
       await tester.pump();
@@ -280,44 +289,34 @@ void main() {
       expect(auth.updateEmailCalls, ['new@example.test']);
       // The user must be told the email change went through, not just shown
       // the throttle error as if nothing happened.
-      expect(
-        find.textContaining('Email updated.'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('please wait a minute'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Email updated.'), findsOneWidget);
+      expect(find.textContaining('please wait a minute'), findsOneWidget);
       // No OTP card: the phone step never got far enough to send a code.
       expect(find.text('Verify'), findsNothing);
     },
   );
 
-  testWidgets(
-    'clearing the mobile field is refused, not silently ignored',
-    (tester) async {
-      await tester.pumpWidget(harness());
-      await tester.pump();
+  testWidgets('clearing the mobile field is refused, not silently ignored', (
+    tester,
+  ) async {
+    await pumpProfile(tester);
+    await tester.pump();
 
-      final fields = find.byType(EditableText);
-      await tester.enterText(fields.at(1), '');
-      await tester.tap(find.text('Save contact info'));
-      await tester.pump();
-      await tester.pump();
+    final fields = find.byType(EditableText);
+    await tester.enterText(fields.at(2), '');
+    await tester.tap(find.text('Save contact info'));
+    await tester.pump();
+    await tester.pump();
 
-      expect(
-        find.text('Mobile number cannot be removed here.'),
-        findsOneWidget,
-      );
-      expect(auth.reauthCalls, isEmpty);
-    },
-  );
+    expect(find.text('Mobile number cannot be removed here.'), findsOneWidget);
+    expect(auth.reauthCalls, isEmpty);
+  });
 
   group('mobile number change', () {
     Future<void> changeNumber(WidgetTester tester) async {
       final fields = find.byType(EditableText);
-      await tester.enterText(fields.at(1), '0917 000 1111');
-      await tester.enterText(fields.at(3), 'correctpass');
+      await tester.enterText(fields.at(2), '0917 000 1111');
+      await tester.enterText(fields.at(4), 'correctpass');
       await tester.tap(find.text('Save contact info'));
       await tester.pump();
       await tester.pump();
@@ -326,7 +325,7 @@ void main() {
     testWidgets(
       'sends the code and reveals an inline verify card -- no separate page',
       (tester) async {
-        await tester.pumpWidget(harness());
+        await pumpProfile(tester);
         await tester.pump();
 
         await changeNumber(tester);
@@ -341,7 +340,7 @@ void main() {
     testWidgets('Cancel dismisses the card without verifying anything', (
       tester,
     ) async {
-      await tester.pumpWidget(harness());
+      await pumpProfile(tester);
       await tester.pump();
 
       await changeNumber(tester);
@@ -357,7 +356,7 @@ void main() {
     testWidgets('entering the code verifies it and clears the card', (
       tester,
     ) async {
-      await tester.pumpWidget(harness());
+      await pumpProfile(tester);
       await tester.pump();
 
       await changeNumber(tester);

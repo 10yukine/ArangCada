@@ -95,10 +95,9 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
       final repository = ref.read(locationRepositoryProvider);
       final fix = await repository.currentLocation();
       if (!mounted) return;
-      // A GPS request may finish after the rider has chosen a pickup.
       if (!fix.isCoarse &&
           identical(state.pickup, pickupBeforeRequest) &&
-          (!state.hasPickup || _usesAutomaticPickup(state.pickup))) {
+          (!state.hasPickup || state.pickup.id == 'gps')) {
         state.setPickup(
           DemoPlace(
             id: 'gps',
@@ -115,7 +114,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
         _locationError = fix.isCoarse
             ? const LocationFailure(
                 LocationFailureReason.unavailable,
-                'GPS is approximate. Enable precise location or choose a pickup manually.',
+                'GPS is approximate. Enable precise location.',
               )
             : null;
       });
@@ -202,11 +201,15 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    _locating && _fix == null && !state.hasPickup
+                                    _locating &&
+                                            _fix == null &&
+                                            !state.hasPickup
                                         ? 'Finding your location…'
-                                        : state.hasPickup
-                                        ? _pickupLabel(state.pickup.name)
-                                        : 'Choose pickup location',
+                                        : _pickupLabel(
+                                            state.hasPickup
+                                                ? state.pickup.name
+                                                : 'Current location',
+                                          ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -378,10 +381,11 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                         'Drivers Nearby You',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -448,29 +452,24 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
     );
   }
 
-  /// A coarse fix is never promoted to the booking pickup, so the label says
-  /// so instead of implying precision the device did not provide.
   String _pickupLabel(String configuredName) {
-    if (_fix == null || ref.read(demoStateProvider).pickup.id != 'gps') {
+    if (ref.read(demoStateProvider).hasPickup &&
+        ref.read(demoStateProvider).pickup.id != 'gps') {
       return configuredName;
     }
-    final internalTester =
-        ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
-    if (!ServiceArea.contains(
-      _fix!.coordinate,
-      allowCabuyaoTestException: internalTester,
-    )) {
-      return 'Current location · outside service area';
+    if (_fix != null) {
+      if (!ServiceArea.contains(_fix!.coordinate)) {
+        return 'Out of Service Area';
+      }
+      return _fix!.isCoarse
+          ? '$configuredName · approximate location only'
+          : configuredName;
     }
-    return _fix!.isCoarse
-        ? '$configuredName · approximate location only'
-        : configuredName;
+    if (_locationError != null) {
+      return 'Location unavailable';
+    }
+    return configuredName;
   }
-
-  bool _usesAutomaticPickup(DemoPlace pickup) =>
-      pickup.id == 'gps' ||
-      pickup.id == DemoData.calambaCrossing.id ||
-      pickup.id.startsWith('live-pickup-');
 }
 
 class _HomeHeader extends StatelessWidget {
