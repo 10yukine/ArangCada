@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/dashboard_back_button.dart';
 import '../../core/widgets/empty_state_card.dart';
@@ -70,15 +72,21 @@ class TripsScreen extends ConsumerWidget {
                 );
               }
               return ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 itemCount: trips.length,
                 separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1, indent: 66),
                 itemBuilder: (context, index) {
                   final trip = trips[index];
                   final status = trip['status'] as String;
                   final completed = status == 'completed';
                   final driverCancelled = status == 'cancelled_by_driver';
+                  final rawFare = trip['final_fare'] ?? trip['fare_estimate'];
+                  final when = DateTime.tryParse(
+                    (trip['completed_at'] ?? trip['requested_at'])
+                            as String? ??
+                        '',
+                  )?.toLocal();
                   final route = isDriver
                       ? '/driver'
                       : completed
@@ -102,16 +110,25 @@ class TripsScreen extends ConsumerWidget {
                         ? AppColors.green
                         : driverCancelled
                         ? AppColors.danger
-                        : AppColors.sky,
-                    title: completed
-                        ? 'Completed trip'
-                        : driverCancelled
-                        ? 'Driver-cancelled trip'
-                        : 'Active booking',
-                    subtitle:
-                        '${trip['pickup_label'] ?? 'Pickup'} → '
-                        '${trip['destination_label'] ?? 'Destination'}',
-                    buttonLabel: completed ? 'View Summary' : 'View',
+                        : AppColors.primary,
+                    // Pickup is the rider's GPS spot, so the drop-off is the
+                    // name that tells trips apart.
+                    title:
+                        trip['destination_label'] as String? ?? 'Destination',
+                    subtitle: [
+                      completed
+                          ? 'Completed'
+                          : driverCancelled
+                          ? 'Cancelled by driver'
+                          : 'In progress',
+                      if (when != null)
+                        DateFormat('MMM d · h:mm a').format(when),
+                    ].join(' · '),
+                    // Only a completed trip was actually paid.
+                    amount: completed && rawFare is num
+                        ? formatCentavos((rawFare * 100).round())
+                        : null,
+                    buttonLabel: completed ? 'View summary' : 'Open trip',
                     onButtonPressed: () {
                       if (isDriver && completed) {
                         final rawPesos =
@@ -165,7 +182,7 @@ class TripsScreen extends ConsumerWidget {
                 );
               }
               return ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 children: [
                   _TripSummary(
                     icon: status == DriverTripStatus.completed
@@ -173,15 +190,14 @@ class TripsScreen extends ConsumerWidget {
                         : Icons.directions_run,
                     iconColor: status == DriverTripStatus.completed
                         ? AppColors.green
-                        : AppColors.sky,
-                    title: status == DriverTripStatus.completed
-                        ? 'Completed driver trip'
-                        : 'Current driver trip',
+                        : AppColors.primary,
+                    title: state.destination?.name ?? 'Destination',
                     subtitle:
-                        '${state.liveCommuterName ?? 'Passenger'} · ${state.pickup.name} to ${state.destination?.name ?? 'Destination'}',
+                        '${status == DriverTripStatus.completed ? 'Completed' : 'In progress'}'
+                        ' · ${state.liveCommuterName ?? 'Passenger'}',
                     buttonLabel: status == DriverTripStatus.completed
-                        ? 'View Summary'
-                        : 'Resume',
+                        ? 'View summary'
+                        : 'Resume trip',
                     onButtonPressed: () {
                       if (status == DriverTripStatus.completed) {
                         _showDriverTripSummarySheet(
@@ -221,7 +237,7 @@ class TripsScreen extends ConsumerWidget {
               );
             }
             return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               children: [
                 _TripSummary(
                   icon: booking.status == BookingStatus.completed
@@ -229,15 +245,17 @@ class TripsScreen extends ConsumerWidget {
                       : Icons.directions_run,
                   iconColor: booking.status == BookingStatus.completed
                       ? AppColors.green
-                      : AppColors.sky,
-                  title: booking.status == BookingStatus.completed
-                      ? 'Completed trip'
-                      : 'Active booking',
-                  subtitle:
-                      '${booking.pickupName} → ${booking.destinationName}',
+                      : AppColors.primary,
+                  title: booking.destinationName,
+                  subtitle: booking.status == BookingStatus.completed
+                      ? 'Completed'
+                      : 'In progress',
+                  amount: formatCentavos(
+                    booking.fareQuote.partyTotalCentavos,
+                  ),
                   buttonLabel: booking.status == BookingStatus.completed
-                      ? 'View Receipt'
-                      : 'Resume',
+                      ? 'View receipt'
+                      : 'Resume trip',
                   onButtonPressed: () => context.go(_routeFor(booking.status)),
                 ),
               ],
@@ -298,6 +316,9 @@ Future<void> _openDriverDashboard(
   if (context.mounted) context.go('/driver');
 }
 
+/// One trip in the history: route, status and date, fare, and a chevron.
+/// The whole row opens the trip; [buttonLabel] names that action for screen
+/// readers instead of drawing a full-width button per trip.
 class _TripSummary extends StatelessWidget {
   const _TripSummary({
     required this.icon,
@@ -306,6 +327,7 @@ class _TripSummary extends StatelessWidget {
     required this.subtitle,
     required this.buttonLabel,
     required this.onButtonPressed,
+    this.amount,
   });
 
   final IconData icon;
@@ -314,28 +336,71 @@ class _TripSummary extends StatelessWidget {
   final String subtitle;
   final String buttonLabel;
   final VoidCallback onButtonPressed;
+  final String? amount;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(height: 1),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Icon(icon, color: iconColor),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-            ),
-          ],
+    return Semantics(
+      button: true,
+      label: '$title, $subtitle${amount == null ? '' : ', $amount'}. '
+          '$buttonLabel',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onButtonPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: AppSizes.rowIcon,
+                height: AppSizes.rowIcon,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySm.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppTypography.caption),
+                  ],
+                ),
+              ),
+              if (amount != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  amount!,
+                  style: AppTypography.bodySm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+              const SizedBox(width: AppSpacing.xxs),
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(subtitle),
-        const SizedBox(height: AppSpacing.md),
-        FilledButton(onPressed: onButtonPressed, child: Text(buttonLabel)),
-      ],
+      ),
     );
   }
 }

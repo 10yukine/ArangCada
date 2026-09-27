@@ -90,7 +90,8 @@ void main() {
       rides.loaded = true;
       rides.notifyListeners();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('View Summary'));
+      // The whole history row opens the trip.
+      await tester.tap(find.text('Old destination'));
       await tester.pumpAndSettle();
       // The summary names the selected trip's stops, not the newest trip's:
       // the commuter receipt as pickup/drop-off rows, the driver sheet as a
@@ -101,7 +102,17 @@ void main() {
         expect(find.text('Old pickup'), findsWidgets);
         expect(find.text('Old destination'), findsWidgets);
       }
-      expect(find.text('₱82.50'), findsOneWidget);
+      // The driver summary is a sheet over the list, which shows the fare
+      // too; the commuter receipt replaces the list.
+      expect(
+        role == DemoRole.driver
+            ? find.descendant(
+                of: find.byType(BottomSheet),
+                matching: find.text('₱82.50'),
+              )
+            : find.text('₱82.50'),
+        findsOneWidget,
+      );
       expect(state.liveTripId, 'new-trip');
       expect(state.activeBooking, isNull);
       await tester.ensureVisible(find.text('Report an issue with this trip'));
