@@ -115,7 +115,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.account_balance_wallet_outlined),
                   title: Text('Digital payments'),
-                  subtitle: Text('In development. Rides currently use cash.'),
+                  subtitle: Text('Not offered. Passengers pay in cash.'),
                 ),
               ],
             );

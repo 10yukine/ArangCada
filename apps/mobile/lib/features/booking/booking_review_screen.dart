@@ -47,7 +47,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
     if (booking.paymentMethod == PaymentMethod.digital) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Digital payments are disabled during beta testing. Choose Cash.'),
+          content: Text('Digital payments are not available. Choose Cash.'),
         ),
       );
       return;
@@ -228,8 +228,8 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 const Divider(height: 1),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Digital payments are off during beta. Your driver and '
-                  'arrival time are confirmed after you request.',
+                  'Your driver and arrival time are confirmed after you '
+                  'request.',
                   style: AppTypography.caption.copyWith(height: 1.45),
                 ),
                 const SizedBox(height: AppSpacing.sm),
