@@ -99,7 +99,10 @@ class _DriverAppFeedbackScreenState
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             children: [
-              const Text('Help improve ArangCada', style: AppTypography.display),
+              const Text(
+                'Help improve ArangCada',
+                style: AppTypography.display,
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Answer each item before accepting another ride.\n'
@@ -147,7 +150,8 @@ class _DriverAppFeedbackScreenState
                 Text(question.filipino, style: AppTypography.caption),
                 const SizedBox(height: AppSpacing.sm),
                 Semantics(
-                  label: '${question.english}, 1 disagree to 5 agree',
+                  label:
+                      '${question.english}, 1 strongly disagree to 5 strongly agree',
                   child: SegmentedButton<int>(
                     emptySelectionAllowed: true,
                     showSelectedIcon: false,
@@ -175,8 +179,8 @@ class _DriverAppFeedbackScreenState
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Disagree', style: AppTypography.caption),
-                    Text('Agree', style: AppTypography.caption),
+                    Text('Strongly disagree', style: AppTypography.caption),
+                    Text('Strongly agree', style: AppTypography.caption),
                   ],
                 ),
               ],
