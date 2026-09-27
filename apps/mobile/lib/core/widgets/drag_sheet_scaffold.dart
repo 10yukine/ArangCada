@@ -170,6 +170,20 @@ class _DragSheetScaffoldState extends ConsumerState<DragSheetScaffold>
     _setExpanded(expand);
   }
 
+  /// Expanded only: a pull past the top of the body drags the sheet down, and
+  /// letting go settles it like a handle drag would.
+  bool _onBodyScroll(ScrollNotification notification) {
+    if (!_expanded) return false;
+    if (notification is OverscrollNotification &&
+        notification.overscroll < 0 &&
+        notification.dragDetails != null) {
+      _drag(-notification.overscroll);
+    } else if (notification is ScrollEndNotification && _reveal.value < 1) {
+      _endDrag(notification.dragDetails?.primaryVelocity ?? 0);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
@@ -283,18 +297,42 @@ class _DragSheetScaffoldState extends ConsumerState<DragSheetScaffold>
                         trailing: widget.handleTrailing,
                         semanticLabel: widget.handleSemanticLabel,
                       ),
-                      // Scrolls rather than overflows: the collapsed peek is
-                      // deliberately shorter than its content, and a fixed-height
-                      // box around growing text is how a translated string clips.
+                      // The whole panel is a drag surface, not just the
+                      // handle. Collapsed: a vertical swipe anywhere moves the
+                      // sheet (taps on its buttons are unaffected). Expanded:
+                      // the body scrolls, and pulling down past its top closes
+                      // the sheet, the way system sheets behave.
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.lg,
-                            AppSpacing.xs,
-                            AppSpacing.lg,
-                            AppSpacing.md,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onVerticalDragUpdate: _expanded
+                              ? null
+                              : (details) => _drag(details.delta.dy),
+                          onVerticalDragEnd: _expanded
+                              ? null
+                              : (details) =>
+                                    _endDrag(details.primaryVelocity ?? 0),
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: _onBodyScroll,
+                            child: SingleChildScrollView(
+                              // Collapsed, the body hands every drag to the
+                              // sheet; expanded, it always accepts one so a
+                              // pull at the top can reach _onBodyScroll even
+                              // when the content fits.
+                              physics: _expanded
+                                  ? const AlwaysScrollableScrollPhysics(
+                                      parent: ClampingScrollPhysics(),
+                                    )
+                                  : const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                AppSpacing.xs,
+                                AppSpacing.lg,
+                                AppSpacing.md,
+                              ),
+                              child: widget.sheetBuilder(context, _expanded),
+                            ),
                           ),
-                          child: widget.sheetBuilder(context, _expanded),
                         ),
                       ),
                       if (widget.footer != null)

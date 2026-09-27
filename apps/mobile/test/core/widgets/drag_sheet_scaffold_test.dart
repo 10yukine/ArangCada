@@ -190,4 +190,19 @@ void main() {
       reason: 'the next sheet should open the way the last one was left',
     );
   });
+
+  testWidgets('the whole panel drags, not only the handle', (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Swipe up on the body text, well away from the handle.
+    await tester.drag(find.text('collapsed body'), const Offset(0, -220));
+    await tester.pumpAndSettle();
+    expect(find.text('expanded body'), findsOneWidget);
+
+    // Expanded: pulling down past the top of the body closes it again.
+    await tester.drag(find.text('expanded body'), const Offset(0, 260));
+    await tester.pumpAndSettle();
+    expect(find.text('collapsed body'), findsOneWidget);
+  });
 }
