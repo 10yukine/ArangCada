@@ -1093,7 +1093,11 @@ class AdminAccount {
       firstName,
       lastName,
     ].where((part) => part != null && part.isNotEmpty);
-    return parts.isEmpty ? 'Unnamed administrator' : parts.join(' ');
+    if (parts.isNotEmpty) return parts.join(' ');
+    // The account that predates invites is the one that started it all.
+    return invitedByName == null
+        ? 'Founding administrator'
+        : 'Unnamed administrator';
   }
 }
 
