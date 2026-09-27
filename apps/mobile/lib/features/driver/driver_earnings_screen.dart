@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_dimensions.dart';
 import '../../core/format/money_format.dart';
-import '../../core/widgets/dashboard_back_button.dart';
 import '../../data/providers/repository_providers.dart';
 
 /// Cash earnings from this driver's completed server trips only.
@@ -21,10 +20,7 @@ class DriverEarningsScreen extends ConsumerWidget {
     final state = ref.watch(demoStateProvider);
     final rides = ref.watch(liveRideRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(
-        leading: const DashboardBackButton(isDriver: true),
-        title: const Text('Earnings'),
-      ),
+      appBar: AppBar(title: const Text('Earnings')),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: Listenable.merge([state, rides]),
@@ -110,13 +106,6 @@ class DriverEarningsScreen extends ConsumerWidget {
                             : formatCentavos(_fare(trip)!),
                       ),
                     ),
-                const Divider(height: AppSpacing.xl),
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.account_balance_wallet_outlined),
-                  title: Text('Digital payments'),
-                  subtitle: Text('Not offered. Passengers pay in cash.'),
-                ),
               ],
             );
           },

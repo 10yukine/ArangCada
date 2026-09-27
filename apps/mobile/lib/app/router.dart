@@ -239,6 +239,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _screenPage(state, const DriverRatingScreen()),
       ),
+      // Opened from the Earnings row on Driver Home, so both roles share the
+      // same four tabs (Home / Chat / Trips / Profile).
+      GoRoute(
+        path: '/driver/earnings',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DriverEarningsScreen()),
+      ),
       GoRoute(
         path: '/driver/app-feedback',
         pageBuilder: (context, state) =>
@@ -409,15 +416,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/driver/trips',
                 pageBuilder: (context, state) =>
                     _screenPage(state, const TripsScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/driver/earnings',
-                pageBuilder: (context, state) =>
-                    _screenPage(state, const DriverEarningsScreen()),
               ),
             ],
           ),

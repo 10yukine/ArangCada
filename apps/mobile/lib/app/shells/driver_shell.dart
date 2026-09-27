@@ -6,10 +6,9 @@ import '../../core/widgets/app_tab_bar.dart';
 import '../../data/providers/repository_providers.dart';
 import 'commuter_shell.dart' show AdaptiveTabShell;
 
-/// Driver tab tree: Home / Chat / Earnings / Profile.
+/// Driver tab tree: Home / Chat / Trips / Profile, the same four as the
+/// commuter. Earnings opens from its row on Driver Home.
 ///
-/// The commuter Wallet deliberately does not appear here. A driver's digital
-/// money lives under Earnings as settlement, not as a spendable balance.
 class DriverShell extends ConsumerWidget {
   const DriverShell({required this.navigationShell, super.key});
 
@@ -46,11 +45,6 @@ class DriverShell extends ConsumerWidget {
             icon: Icons.access_time,
             selectedIcon: Icons.access_time_filled,
             label: 'Trips',
-          ),
-          const AppTabDestination(
-            icon: Icons.payments_outlined,
-            selectedIcon: Icons.payments,
-            label: 'Earnings',
           ),
           const AppTabDestination(
             icon: Icons.person_outline,
