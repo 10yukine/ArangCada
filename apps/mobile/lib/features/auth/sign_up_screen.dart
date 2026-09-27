@@ -366,11 +366,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilledButton(onPressed: _primaryAction, child: Text(_primaryLabel)),
-          AuthSwitchLink(
-            question: 'Already have an account?',
-            actionLabel: 'Log In',
-            onTap: () => context.go('/login'),
-          ),
+          // Hidden while typing: with the keyboard up it only covers the
+          // field being filled in (seen on a Galaxy S20 FE).
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            AuthSwitchLink(
+              question: 'Already have an account?',
+              actionLabel: 'Log In',
+              onTap: () => context.go('/login'),
+            ),
         ],
       ),
     );

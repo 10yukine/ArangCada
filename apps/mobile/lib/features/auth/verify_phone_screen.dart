@@ -476,7 +476,10 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                             ? null
                             : () => _submit(_pinController.text),
                       ),
-                      if (!isAdmin)
+                      // Hidden while typing the code, so it cannot crowd the
+                      // cells or be hit by accident.
+                      if (!isAdmin &&
+                          MediaQuery.viewInsetsOf(context).bottom == 0)
                         TextButton(
                           onPressed: _busy || _verified ? null : _cancelSignUp,
                           child: const Text('Cancel sign-up'),
