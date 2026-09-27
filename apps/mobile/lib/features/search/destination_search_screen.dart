@@ -22,18 +22,15 @@ import '../../domain/geo/service_area.dart';
 /// never reach the network, because a geocoder fired on every keystroke is
 /// both slow and wasteful. Saved and popular places are local accelerators,
 /// not a substitute for search.
+///
+/// Destination only: pickup always comes from the device's GPS (see
+/// `PinOnMapScreen.pickupAnchor`), so a booking cannot start somewhere the
+/// commuter is not.
 class DestinationSearchScreen extends ConsumerStatefulWidget {
-  const DestinationSearchScreen({
-    this.pickingPickup = false,
-    this.selectOnly = false,
-    super.key,
-  });
+  const DestinationSearchScreen({this.selectOnly = false, super.key});
 
   /// Return a place to the caller without changing the current booking.
   final bool selectOnly;
-
-  /// When true the screen sets the PICKUP instead of the destination.
-  final bool pickingPickup;
 
   @override
   ConsumerState<DestinationSearchScreen> createState() =>
@@ -111,18 +108,9 @@ class _DestinationSearchScreenState
       Navigator.of(context).pop(place);
       return;
     }
-    final state = ref.read(demoStateProvider);
-    if (widget.pickingPickup) {
-      state.setPickup(place);
-      if (state.destination != null) {
-        context.go('/home/ride-options');
-      } else {
-        context.pop();
-      }
-      return;
-    }
-    state.setDestination(place);
-    context.go(state.hasPickup ? '/home/ride-options' : '/home/choose-pickup');
+    ref.read(demoStateProvider).setDestination(place);
+    // Ride options explains itself if GPS has not produced a pickup yet.
+    context.go('/home/ride-options');
   }
 
   Future<void> _pinOnMap() async {
@@ -142,11 +130,7 @@ class _DestinationSearchScreenState
         appBar: AppBar(
           leading: const TooltipVisibility(visible: false, child: BackButton()),
           title: Text(
-            widget.selectOnly
-                ? 'Save a place'
-                : widget.pickingPickup
-                ? 'Choose pickup'
-                : 'Choose destination',
+            widget.selectOnly ? 'Save a place' : 'Choose destination',
           ),
         ),
         body: SafeArea(
@@ -160,7 +144,7 @@ class _DestinationSearchScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!widget.selectOnly && !widget.pickingPickup)
+                      if (!widget.selectOnly)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(
@@ -185,9 +169,7 @@ class _DestinationSearchScreenState
                         textInputAction: TextInputAction.search,
                         onChanged: _onChanged,
                         decoration: InputDecoration(
-                          hintText: widget.pickingPickup
-                              ? 'Search pickup location…'
-                              : 'Search destination in Calamba…',
+                          hintText: 'Search destination in Calamba…',
                           hintStyle: const TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 15,

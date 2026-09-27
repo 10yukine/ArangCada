@@ -11,14 +11,41 @@ import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../demo/demo_data.dart';
 
-/// Drop a pin to choose a destination the geocoder does not know.
-///
-/// The centre of the viewport is the selection, which is why the crosshair is
-/// drawn as a fixed overlay rather than a map annotation. Reverse geocoding
-/// labels the point when it can; when it cannot, the coordinate itself is the
-/// label. Selection is never blocked on the geocoder answering.
+/// Farthest a pickup pin may sit from the device's GPS fix. Pickup is always
+/// where the commuter actually is (fake bookings for somewhere else are the
+/// thing this prevents); the short leash only corrects GPS drift, e.g. the
+/// right side of the street or the mall entrance instead of the roof.
+const double pickupAdjustRadiusMeters = 100;
+
+/// Place id of a pickup the commuter nudged away from the raw GPS point.
+const String adjustedPickupId = 'gps-adjusted';
+
+/// [point], pulled back along the line from [anchor] so it is at most
+/// [maxMeters] away. At this scale a straight lat/lng interpolation is well
+/// within GPS error, so no great-circle bearing math is needed.
+GeoCoordinate clampToRadius(
+  GeoCoordinate anchor,
+  GeoCoordinate point,
+  double maxMeters,
+) {
+  final distance = haversineDistanceMeters(anchor, point);
+  if (distance <= maxMeters) return point;
+  final t = maxMeters / distance;
+  return GeoCoordinate(
+    latitude: anchor.latitude + (point.latitude - anchor.latitude) * t,
+    longitude: anchor.longitude + (point.longitude - anchor.longitude) * t,
+  );
+}
+
+/// Drop a pin to choose a destination the geocoder does not know, or, with
+/// [pickupAnchor], to fine-tune the pickup within [pickupAdjustRadiusMeters]
+/// of the GPS fix. Reverse geocoding labels the point when it can; selection
+/// is never blocked on the geocoder answering.
 class PinOnMapScreen extends ConsumerStatefulWidget {
-  const PinOnMapScreen({super.key});
+  const PinOnMapScreen({this.pickupAnchor, super.key});
+
+  /// The GPS fix a pickup adjustment is leashed to. Null for destinations.
+  final GeoCoordinate? pickupAnchor;
 
   @override
   ConsumerState<PinOnMapScreen> createState() => _PinOnMapScreenState();
@@ -30,7 +57,26 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
   bool _resolving = false;
   int _resolveToken = 0;
 
-  Future<void> _onTap(GeoCoordinate coordinate) async {
+  bool get _adjustingPickup => widget.pickupAnchor != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final anchor = widget.pickupAnchor;
+    if (anchor != null) {
+      // Start on the GPS point; label it once the first frame is up.
+      _picked = anchor;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onTap(anchor);
+      });
+    }
+  }
+
+  Future<void> _onTap(GeoCoordinate tapped) async {
+    final anchor = widget.pickupAnchor;
+    final coordinate = anchor == null
+        ? tapped
+        : clampToRadius(anchor, tapped, pickupAdjustRadiusMeters);
     final token = ++_resolveToken;
     setState(() {
       _picked = coordinate;
@@ -53,10 +99,12 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
   void _confirm() {
     final coordinate = _picked;
     if (coordinate == null) return;
-    final label = _label ?? 'Pinned location';
+    final label = _label ?? (_adjustingPickup ? 'Near you' : 'Pinned location');
     Navigator.of(context).pop(
       DemoPlace(
-        id: 'pin-${coordinate.latitude},${coordinate.longitude}',
+        id: _adjustingPickup
+            ? adjustedPickupId
+            : 'pin-${coordinate.latitude},${coordinate.longitude}',
         name: label,
         address:
             '${coordinate.latitude.toStringAsFixed(5)}, '
@@ -70,9 +118,12 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     final centre = _picked ?? state.pickup.coordinate;
+    final anchor = widget.pickupAnchor;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pin on map')),
+      appBar: AppBar(
+        title: Text(_adjustingPickup ? 'Adjust pickup' : 'Pin on map'),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -85,6 +136,13 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                     borderRadius: BorderRadius.zero,
                     onMapTap: _onTap,
                     markers: [
+                      // Where GPS says you are, so the leash is visible.
+                      if (anchor != null)
+                        MapMarker(
+                          coordinate: anchor,
+                          color: AppColors.skySoft,
+                          radius: 6,
+                        ),
                       if (_picked != null)
                         MapMarker(
                           coordinate: _picked!,
@@ -121,7 +179,10 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _picked == null
+                    _adjustingPickup
+                        ? 'Tap the map to move the pin to the exact spot. '
+                              'It stays within ${pickupAdjustRadiusMeters.round()} m of your location.'
+                        : _picked == null
                         ? 'Tap anywhere on the map to drop a pin.'
                         : '${_picked!.latitude.toStringAsFixed(5)}, '
                               '${_picked!.longitude.toStringAsFixed(5)}',
@@ -129,7 +190,9 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   ArangButton(
-                    label: 'Use this location',
+                    label: _adjustingPickup
+                        ? 'Set pickup here'
+                        : 'Use this location',
                     onPressed: _picked == null ? null : _confirm,
                   ),
                 ],

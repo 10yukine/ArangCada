@@ -11,7 +11,9 @@ import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../domain/geo/service_area.dart';
+import '../../core/geo/haversine.dart';
 import '../../demo/demo_data.dart';
+import '../search/pin_on_map_screen.dart';
 import '../../core/widgets/philippine_peso_icon.dart';
 
 /// Commuter dashboard: streamlined, transit-first interface.
@@ -95,9 +97,16 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
       final repository = ref.read(locationRepositoryProvider);
       final fix = await repository.currentLocation();
       if (!mounted) return;
+      // Pickup follows GPS. A nudged pin is kept only while the commuter is
+      // still near it; walk away and pickup snaps back to where they are.
+      final nudgedButStale =
+          state.hasPickup &&
+          state.pickup.id == adjustedPickupId &&
+          haversineDistanceMeters(fix.coordinate, state.pickup.coordinate) >
+              pickupAdjustRadiusMeters * 1.5;
       if (!fix.isCoarse &&
           identical(state.pickup, pickupBeforeRequest) &&
-          (!state.hasPickup || state.pickup.id == 'gps')) {
+          (!state.hasPickup || state.pickup.id == 'gps' || nudgedButStale)) {
         state.setPickup(
           DemoPlace(
             id: 'gps',
@@ -222,14 +231,15 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Choose pickup',
+                              tooltip: 'Adjust pickup pin',
                               icon: const Icon(
-                                Icons.edit_outlined,
+                                Icons.edit_location_alt_outlined,
                                 size: 20,
                                 color: AppColors.primary,
                               ),
-                              onPressed: () =>
-                                  context.push('/home/choose-pickup'),
+                              onPressed: _fix == null || _fix!.isCoarse
+                                  ? null
+                                  : _adjustPickup,
                             ),
                           ],
                         ),
@@ -454,6 +464,17 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
         );
       },
     );
+  }
+
+  Future<void> _adjustPickup() async {
+    final fix = _fix;
+    if (fix == null) return;
+    final place = await context.push<DemoPlace>(
+      '/home/adjust-pickup',
+      extra: fix.coordinate,
+    );
+    if (!mounted || place == null) return;
+    ref.read(demoStateProvider).setPickup(place);
   }
 
   String _pickupLabel(String configuredName) {

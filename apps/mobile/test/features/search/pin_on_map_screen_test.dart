@@ -5,11 +5,9 @@ import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/repositories/geocoding_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/features/search/pin_on_map_screen.dart';
-import 'package:arangcada/features/search/destination_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 
 class _Geocoder implements GeocodingRepository {
   @override
@@ -63,60 +61,66 @@ void main() {
     expect(state.destination, isNull);
   });
 
-  testWidgets('pin selected from pickup search changes pickup and returns', (
+  test('clampToRadius keeps near points and pulls far ones to the edge', () {
+    const anchor = GeoCoordinate(latitude: 14.2085, longitude: 121.1555);
+    const near = GeoCoordinate(latitude: 14.2088, longitude: 121.1556);
+    expect(clampToRadius(anchor, near, 100), near);
+
+    const far = GeoCoordinate(latitude: 14.2185, longitude: 121.1655);
+    final clamped = clampToRadius(anchor, far, 100);
+    expect(haversineDistanceMeters(anchor, clamped), closeTo(100, 1));
+  });
+
+  testWidgets('pickup adjustment starts at GPS and cannot leave 100 m', (
     tester,
   ) async {
     final state = DemoState();
     addTearDown(state.dispose);
-    final router = GoRouter(
-      initialLocation: '/home',
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, route) => Scaffold(
-            body: TextButton(
-              onPressed: () => context.push('/home/choose-pickup'),
-              child: const Text('Choose pickup'),
-            ),
-          ),
-          routes: [
-            GoRoute(
-              path: 'choose-pickup',
-              builder: (context, route) =>
-                  const DestinationSearchScreen(pickingPickup: true),
-            ),
-            GoRoute(
-              path: 'pin-on-map',
-              pageBuilder: (context, route) =>
-                  const MaterialPage<DemoPlace>(child: PinOnMapScreen()),
-            ),
-          ],
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
+    const anchor = GeoCoordinate(latitude: 14.2085, longitude: 121.1555);
+    DemoPlace? picked;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           demoStateProvider.overrideWithValue(state),
           geocodingRepositoryProvider.overrideWithValue(_Geocoder()),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  picked = await Navigator.of(context).push<DemoPlace>(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const PinOnMapScreen(pickupAnchor: anchor),
+                    ),
+                  );
+                },
+                child: const Text('Adjust'),
+              ),
+            ),
+          ),
+        ),
       ),
     );
-    await tester.tap(find.text('Choose pickup'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Pin on map'));
+    await tester.tap(find.text('Adjust'));
     await tester.pumpAndSettle();
 
-    const coordinate = GeoCoordinate(latitude: 14.21, longitude: 121.16);
-    tester.widget<LiveMapView>(find.byType(LiveMapView)).onMapTap!(coordinate);
+    expect(find.text('Adjust pickup'), findsOneWidget);
+    // A tap about 1.5 km away lands on the 100 m edge instead.
+    tester.widget<LiveMapView>(find.byType(LiveMapView)).onMapTap!(
+      const GeoCoordinate(latitude: 14.2185, longitude: 121.1655),
+    );
     await tester.pump();
-    await tester.tap(find.text('Use this location'));
+    await tester.tap(find.text('Set pickup here'));
     await tester.pumpAndSettle();
 
-    expect(state.pickup.coordinate, coordinate);
+    expect(picked?.id, adjustedPickupId);
+    expect(
+      haversineDistanceMeters(anchor, picked!.coordinate),
+      lessThanOrEqualTo(pickupAdjustRadiusMeters + 0.5),
+    );
+    // The screen hands the place back; it never edits the booking itself.
     expect(state.destination, isNull);
-    expect(find.text('Choose pickup'), findsOneWidget);
   });
 }

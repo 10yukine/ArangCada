@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/widgets/adaptive_screen_frame.dart';
 import '../data/providers/repository_providers.dart';
+import '../core/geo/haversine.dart';
 import '../demo/demo_data.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -323,11 +324,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     pageBuilder: (context, state) =>
                         _screenPage(state, const DestinationSearchScreen()),
                   ),
+                  // Pickup is always the device's GPS position; this only
+                  // nudges it within a short radius. Without a fix to leash
+                  // to (e.g. a deep link) there is nothing to adjust.
                   GoRoute(
-                    path: 'choose-pickup',
-                    pageBuilder: (context, state) => _screenPage(
+                    path: 'adjust-pickup',
+                    redirect: (context, state) =>
+                        state.extra is GeoCoordinate ? null : '/home',
+                    pageBuilder: (context, state) => _screenPage<DemoPlace>(
                       state,
-                      const DestinationSearchScreen(pickingPickup: true),
+                      PinOnMapScreen(
+                        pickupAnchor: state.extra! as GeoCoordinate,
+                      ),
                     ),
                   ),
                   GoRoute(

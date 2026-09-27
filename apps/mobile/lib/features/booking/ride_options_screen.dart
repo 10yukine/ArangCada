@@ -49,10 +49,31 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
         if (!state.hasPickup) {
           return Scaffold(
             appBar: AppBar(title: const Text('Select a ride')),
+            // Pickup is the device's GPS position, never typed in.
             body: Center(
-              child: TextButton(
-                onPressed: () => context.go('/home/choose-pickup'),
-                child: const Text('Choose pickup location'),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'We need your location for pickup',
+                      style: AppTypography.h2,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text(
+                      'Turn on precise location, then try again from Home.',
+                      style: AppTypography.bodySm,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextButton(
+                      onPressed: () => context.go('/home'),
+                      child: const Text('Back to Home'),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
