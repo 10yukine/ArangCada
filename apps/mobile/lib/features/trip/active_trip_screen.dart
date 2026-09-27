@@ -364,9 +364,14 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
               sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
                 booking: booking,
                 expanded: expanded,
-                eta: state.forceEtaFallback ? '15–20 min' : '12–16 min',
+                // No invented minutes: nothing computes an arrival time
+                // yet, so the header shows the live status instead.
+                eta: ref.read(liveRideRepositoryProvider) != null
+                    ? 'Live GPS'
+                    : '',
                 etaFallback: state.forceEtaFallback,
-                driverName: state.liveDriverName ?? 'Marco Dela Cruz',
+                driverName: state.liveDriverName ?? 'Your driver',
+                todaName: state.liveTodaName,
                 driverAvatarUrl: state.liveCounterpartAvatarUrl,
                 awaitingConfirmation: _awaitingConfirmation,
                 secondsLeft: _secondsLeft,
@@ -441,6 +446,7 @@ class _ActiveTripSheetBody extends StatelessWidget {
     required this.booking,
     required this.expanded,
     required this.eta,
+    required this.todaName,
     required this.etaFallback,
     required this.driverName,
     this.driverAvatarUrl,
@@ -457,6 +463,7 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final DemoBooking booking;
   final bool expanded;
   final String eta;
+  final String? todaName;
   final bool etaFallback;
   final String driverName;
   final String? driverAvatarUrl;
@@ -528,8 +535,10 @@ class _ActiveTripSheetBody extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     etaFallback
-                        ? 'Route estimate unavailable · fallback ETA'
-                        : 'Marco Dela Cruz · Body no. 024',
+                        ? 'Route estimate unavailable'
+                        : todaName == null
+                        ? driverName
+                        : '$driverName · $todaName',
                     style: AppTypography.caption,
                   ),
                 ],

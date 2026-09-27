@@ -306,8 +306,9 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
             );
           }
 
-          final driverName = state.liveDriverName ?? 'Marco Dela Cruz';
-          final toda = state.liveTodaName ?? 'Calamba TODA';
+          // Never an invented person: unknown details stay generic.
+          final driverName = state.liveDriverName ?? 'Your driver';
+          final toda = state.liveTodaName;
           final live = ref.read(liveRideRepositoryProvider) != null;
           final eta = _arrived
               ? 'Arrived'
@@ -395,7 +396,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(driverName, style: AppTypography.h2),
-                          Text('Tricycle · $toda'),
+                          Text(toda == null ? 'Tricycle' : 'Tricycle · $toda'),
                         ],
                       ),
                     ),

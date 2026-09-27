@@ -119,7 +119,7 @@ class _SearchingForDriverScreenState
         .read(chatRepositoryProvider)
         .ensureActiveTripThread(
           commuterName: state.currentUser?.displayName ?? 'Commuter',
-          driverName: state.liveDriverName ?? 'Marco Dela Cruz',
+          driverName: state.liveDriverName ?? 'Your driver',
           bodyNumber: '024',
           todaName: state.liveTodaName ?? 'Calamba TODA',
         );
@@ -263,10 +263,7 @@ class _SearchingForDriverScreenState
                   noDrivers
                       ? 'No drivers available right now'
                       : 'Searching for a nearby driver',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.display,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -283,24 +280,61 @@ class _SearchingForDriverScreenState
                 ],
                 const SizedBox(height: 24),
                 const Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.my_location),
-                  title: const Text('Pickup'),
-                  subtitle: Text(booking.pickupName),
+                const SizedBox(height: AppSpacing.xs),
+                _Stop(
+                  destination: false,
+                  label: 'Pickup',
+                  name: booking.pickupName,
                 ),
-                if (expanded)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.place_outlined),
-                    title: const Text('Destination'),
-                    subtitle: Text(booking.destinationName),
-                  ),
+                const SizedBox(height: AppSpacing.sm),
+                _Stop(
+                  destination: true,
+                  label: 'Drop-off',
+                  name: booking.destinationName,
+                ),
               ],
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _Stop extends StatelessWidget {
+  const _Stop({
+    required this.destination,
+    required this.label,
+    required this.name,
+  });
+
+  final bool destination;
+  final String label;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ArangRouteMarker(destination: destination),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTypography.caption),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.bodySm.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
