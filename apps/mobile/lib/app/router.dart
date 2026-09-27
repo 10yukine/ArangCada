@@ -11,6 +11,7 @@ import '../features/auth/verify_phone_screen.dart';
 import '../features/profile/change_password_screen.dart';
 import '../features/profile/edit_profile_screen.dart';
 import '../features/auth/login_screen.dart';
+import '../features/auth/complete_mobile_profile_screen.dart';
 import '../features/auth/sign_up_screen.dart';
 import '../features/booking/ride_options_screen.dart';
 import '../features/booking/booking_review_screen.dart';
@@ -112,6 +113,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final user = demoState.currentUser;
       if (path == '/splash') {
         if (user == null) return '/login';
+        if (user.needsPhoneSetup) return '/complete-mobile-profile';
         if (user.needsPhoneVerification) return '/verify-phone';
         return user.role == DemoRole.commuter ? '/home' : '/driver';
       }
@@ -127,9 +129,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // unverified account server-side, so forcing past this redirect gains a
       // tampered client nothing (CLAUDE.md rule 6).
       if (user.needsPhoneVerification) {
+        if (path == '/complete-mobile-profile') return null;
+        if (user.needsPhoneSetup) return '/complete-mobile-profile';
         return path == '/verify-phone' ? null : '/verify-phone';
       }
-      if (path == '/verify-phone') {
+      if (path == '/verify-phone' || path == '/complete-mobile-profile') {
         return user.role == DemoRole.commuter ? '/home' : '/driver';
       }
 
@@ -160,13 +164,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const LoginScreen()),
+        pageBuilder: (context, state) => _screenPage(
+          state,
+          LoginScreen(existingAccountEmail: state.extra as String?),
+        ),
       ),
       GoRoute(
         path: '/forgot-password',
         pageBuilder: (context, state) =>
             _screenPage(state, const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: '/complete-mobile-profile',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const CompleteMobileProfileScreen()),
       ),
       GoRoute(
         path: '/verify-phone',

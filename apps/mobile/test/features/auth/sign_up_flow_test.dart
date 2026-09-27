@@ -14,6 +14,7 @@ class _FakeAuthRepo implements AuthRepository {
   String? signedUpEmail;
   String? signedUpPassword;
   int sendOtpCalls = 0;
+  bool existingAccount = false;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -28,6 +29,7 @@ class _FakeAuthRepo implements AuthRepository {
     required String email,
     required String password,
   }) async {
+    if (existingAccount) throw const ExistingAccountException();
     signedUpName = displayName;
     signedUpPhone = mobileNumber;
     signedUpEmail = email;
@@ -51,141 +53,194 @@ class _FakeAuthRepo implements AuthRepository {
 }
 
 void main() {
-  testWidgets('3-step signup wizard navigates forward, backward, and preserves data', (
-    tester,
-  ) async {
-    final fakeRepo = _FakeAuthRepo();
+  testWidgets(
+    '3-step signup wizard navigates forward, backward, and preserves data',
+    (tester) async {
+      final fakeRepo = _FakeAuthRepo();
 
-    final router = GoRouter(
-      initialLocation: '/signup',
-      routes: [
-        GoRoute(
-          path: '/signup',
-          builder: (_, _) => const SignUpScreen(),
-        ),
-        GoRoute(
-          path: '/verify-phone',
-          builder: (_, state) => const Scaffold(body: Text('verify-phone')),
-        ),
-        GoRoute(
-          path: '/login',
-          builder: (_, _) => const Scaffold(body: Text('login')),
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(fakeRepo),
+      final router = GoRouter(
+        initialLocation: '/signup',
+        routes: [
+          GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
+          GoRoute(
+            path: '/verify-phone',
+            builder: (_, state) => const Scaffold(body: Text('verify-phone')),
+          ),
+          GoRoute(
+            path: '/login',
+            builder: (_, _) => const Scaffold(body: Text('login')),
+          ),
         ],
-        child: MaterialApp.router(
-          theme: AppTheme.light,
-          routerConfig: router,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [authRepositoryProvider.overrideWithValue(fakeRepo)],
+          child: MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    // 1. Step 1 (Identity) checks
-    expect(find.text('STEP 1 OF 3: IDENTITY'), findsOneWidget);
-    expect(find.text('First Name'), findsOneWidget);
-    expect(find.text('Last Name'), findsOneWidget);
+      // 1. Step 1 (Identity) checks
+      expect(find.text('Step 1 of 3'), findsOneWidget);
+      expect(find.text('First Name'), findsOneWidget);
+      expect(find.text('Last Name'), findsOneWidget);
 
-    // Verify back button is present and does not overlap with content
-    final backBtn = find.byTooltip('Back');
-    expect(backBtn, findsOneWidget);
-    final backBtnRect = tester.getRect(backBtn);
-    final titleRect = tester.getRect(find.text('Create Account'));
-    // Content title must be strictly below back button
-    expect(titleRect.top, greaterThanOrEqualTo(backBtnRect.bottom));
+      // Verify back button is present and does not overlap with content
+      final backBtn = find.byTooltip('Back');
+      expect(backBtn, findsOneWidget);
+      final backBtnRect = tester.getRect(backBtn);
+      final titleRect = tester.getRect(find.text("Let's get you riding"));
+      // Content title must be strictly below back button
+      expect(titleRect.top, greaterThanOrEqualTo(backBtnRect.bottom));
 
-    // Try tapping Continue with empty fields
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Please enter both your first and last name.'), findsOneWidget);
+      // Try tapping Continue with empty fields
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Please enter both your first and last name.'),
+        findsOneWidget,
+      );
 
-    // Enter name
-    final textFields = find.byType(TextField);
-    await tester.enterText(textFields.at(0), 'Maria');
-    await tester.enterText(textFields.at(1), 'Santos');
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+      // Enter name
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(0), 'Maria');
+      await tester.enterText(textFields.at(1), 'Santos');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
 
-    // 2. Step 2 (Contact) checks
-    expect(find.text('STEP 2 OF 3: CONTACT'), findsOneWidget);
-    expect(find.text('Mobile Number'), findsOneWidget);
-    expect(find.text('Email Address'), findsOneWidget);
+      // 2. Step 2 (Contact) checks
+      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('Nice to meet you, Maria!'), findsOneWidget);
+      expect(find.text('Mobile Number'), findsOneWidget);
+      expect(find.text('Email Address'), findsOneWidget);
 
-    // Test back button returning to Step 1 and preserving name
-    await tester.tap(backBtn);
-    await tester.pumpAndSettle();
-    expect(find.text('STEP 1 OF 3: IDENTITY'), findsOneWidget);
-    expect(find.text('Maria'), findsOneWidget);
-    expect(find.text('Santos'), findsOneWidget);
+      // Test back button returning to Step 1 and preserving name
+      await tester.tap(backBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Step 1 of 3'), findsOneWidget);
+      expect(find.text('Maria'), findsOneWidget);
+      expect(find.text('Santos'), findsOneWidget);
 
-    // Advance to Step 2 again
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('STEP 2 OF 3: CONTACT'), findsOneWidget);
+      // Advance to Step 2 again
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Step 2 of 3'), findsOneWidget);
 
-    // Fill invalid mobile
-    final step2Fields = find.byType(TextField);
-    await tester.enterText(step2Fields.at(0), '12345');
-    await tester.enterText(step2Fields.at(1), 'maria@example.com');
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Enter a Philippine mobile number, like 0917 123 4567.'),
-      findsOneWidget,
-    );
+      // Fill invalid mobile
+      final step2Fields = find.byType(TextField);
+      await tester.enterText(step2Fields.at(0), '12345');
+      await tester.enterText(step2Fields.at(1), 'maria@example.com');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Enter a Philippine mobile number, like 0917 123 4567.'),
+        findsOneWidget,
+      );
 
-    // Fill valid Philippine mobile and valid email
-    await tester.enterText(step2Fields.at(0), '09171234567');
-    await tester.enterText(step2Fields.at(1), 'maria@example.com');
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+      // Fill valid Philippine mobile and valid email
+      await tester.enterText(step2Fields.at(0), '09171234567');
+      await tester.enterText(step2Fields.at(1), 'maria@example.com');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
 
-    // 3. Step 3 (Security) checks
-    expect(find.text('STEP 3 OF 3: SECURITY'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
-    expect(find.text('Repeat Password'), findsOneWidget);
-    expect(find.text('Create Account'), findsOneWidget);
+      // 3. Step 3 (Security) checks
+      expect(find.text('Step 3 of 3'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Repeat Password'), findsOneWidget);
+      expect(find.text('Create Account'), findsOneWidget);
 
-    // Test back button returning to Step 2 and preserving phone & email
-    await tester.tap(backBtn);
-    await tester.pumpAndSettle();
-    expect(find.text('STEP 2 OF 3: CONTACT'), findsOneWidget);
-    expect(find.text('09171234567'), findsOneWidget);
-    expect(find.text('maria@example.com'), findsOneWidget);
+      // Test back button returning to Step 2 and preserving phone & email
+      await tester.tap(backBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('09171234567'), findsOneWidget);
+      expect(find.text('maria@example.com'), findsOneWidget);
 
-    // Advance back to Step 3
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('STEP 3 OF 3: SECURITY'), findsOneWidget);
+      // Advance back to Step 3
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Step 3 of 3'), findsOneWidget);
 
-    // Try submit without legal agreement
-    final step3Fields = find.byType(TextField);
-    await tester.enterText(step3Fields.at(0), 'supersecret123');
-    await tester.enterText(step3Fields.at(1), 'supersecret123');
-    await tester.tap(find.text('Create Account'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('You must agree to the Terms of Service and Privacy Policy.'),
-      findsOneWidget,
-    );
+      // Try submit without legal agreement
+      final step3Fields = find.byType(TextField);
+      await tester.enterText(step3Fields.at(0), 'supersecret123');
+      await tester.enterText(step3Fields.at(1), 'supersecret12');
+      await tester.pump();
+      // Live checks: length met, mismatch not yet met.
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      await tester.enterText(step3Fields.at(1), 'supersecret123');
+      await tester.pump();
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(2));
+      await tester.tap(find.text('Create Account'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('You must agree to the Terms of Service and Privacy Policy.'),
+        findsOneWidget,
+      );
 
-    // Agree to legal and submit
-    await tester.tap(find.byType(Checkbox));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Create Account'));
-    await tester.pump();
+      // Agree to legal and submit
+      await tester.tap(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Account'));
+      await tester.pump();
 
-    // Verify repository received full combined name and formatted details
-    expect(fakeRepo.signedUpName, 'Maria Santos');
-    expect(fakeRepo.signedUpPhone, '+639171234567');
-    expect(fakeRepo.signedUpEmail, 'maria@example.com');
-    expect(fakeRepo.signedUpPassword, 'supersecret123');
-    expect(fakeRepo.sendOtpCalls, 1);
-  });
+      // Verify repository received full combined name and formatted details
+      expect(fakeRepo.signedUpName, 'Maria Santos');
+      expect(fakeRepo.signedUpPhone, '+639171234567');
+      expect(fakeRepo.signedUpEmail, 'maria@example.com');
+      expect(fakeRepo.signedUpPassword, 'supersecret123');
+      expect(fakeRepo.sendOtpCalls, 1);
+    },
+  );
+  testWidgets(
+    'existing account signup returns to password login with email only',
+    (tester) async {
+      final repo = _FakeAuthRepo()..existingAccount = true;
+      final router = GoRouter(
+        initialLocation: '/signup',
+        routes: [
+          GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
+          GoRoute(
+            path: '/login',
+            builder: (_, state) =>
+                Scaffold(body: Text('Existing login: ${state.extra}')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [authRepositoryProvider.overrideWithValue(repo)],
+          child: MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'Someone');
+      await tester.enterText(find.byType(TextField).at(1), 'Else');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), '09171234567');
+      await tester.enterText(
+        find.byType(TextField).at(1),
+        'admin@example.test',
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'existing-password');
+      await tester.enterText(find.byType(TextField).at(1), 'existing-password');
+      await tester.tap(find.byType(Checkbox));
+      await tester.tap(find.text('Create Account'));
+      await tester.pumpAndSettle();
+      expect(find.text('Existing login: admin@example.test'), findsOneWidget);
+      expect(repo.sendOtpCalls, 0);
+      expect(repo.signedUpName, isNull);
+    },
+  );
 }

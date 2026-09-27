@@ -12,7 +12,9 @@ import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({this.existingAccountEmail, super.key});
+
+  final String? existingAccountEmail;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -26,6 +28,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   static const _padVertical = AppSpacing.md;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.existingAccountEmail ?? '';
+  }
 
   @override
   void dispose() {
@@ -79,6 +87,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (widget.existingAccountEmail != null) ...[
+                          const Text(
+                            'Sign in with your existing password to continue. '
+                            'You can add your mobile number after signing in.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
                         const Center(child: ArangCadaMark(badge: true)),
                         const SizedBox(height: AppSpacing.xs),
                         Text(

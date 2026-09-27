@@ -42,6 +42,7 @@ class SupabaseAuthRepository implements AuthRepository {
           ? DemoRole.driver
           : DemoRole.commuter,
       isInternalTester: isInternalTester,
+      isAdminAccount: profileRole == 'admin',
       mobileNumber: mobileNumber,
       phoneVerified: phoneVerified,
       avatarUrl: avatarUrl,
@@ -84,14 +85,8 @@ class SupabaseAuthRepository implements AuthRepository {
         .eq('id', user.id)
         .single();
     final role = profile['role'] as String?;
-    // An LGU/TODA admin account is still a real person who commutes --
-    // owner's explicit call. It maps to DemoRole.commuter below exactly
-    // like a plain commuter account does (mapIdentity() already treats
-    // anything that is not 'driver' as commuter); admin grants nothing
-    // extra here, this app has no admin-specific UI or capability at all.
-    // An invite-created admin has no phone on record (Spec 19 exemption),
-    // so it still cannot book a ride until one is added and verified via
-    // Account & Security, same requirement every commuter already has.
+    // Website admins keep their server role and use commuter features here.
+    // Those without a mobile number complete phone setup before SMS verification.
     if (role != 'commuter' && role != 'driver' && role != 'admin') {
       throw const DemoAuthException(
         'This account could not be loaded. Contact a developer.',
@@ -180,9 +175,12 @@ class SupabaseAuthRepository implements AuthRepository {
         requiresEmailConfirmation: response.session == null,
         user: mapped,
       );
-    } on AuthException {
+    } on AuthException catch (error) {
+      if (error.code == 'user_already_exists' || error.code == 'email_exists') {
+        throw const ExistingAccountException();
+      }
       throw const DemoAuthException(
-        'Account creation is unavailable. Check the details and try again.',
+        'Account creation is unavailable. Check the details or sign in if you already have an account.',
       );
     }
   }
@@ -209,7 +207,10 @@ class SupabaseAuthRepository implements AuthRepository {
       // Supabase Auth call that actually verifies a password against the
       // account, and it is what the spec names as step 1. A wrong password
       // must fail here, not at updateUser -- see .pipeline/specs.md Spec 11 §1.
-      await _client.auth.signInWithPassword(email: email, password: currentPassword);
+      await _client.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
     } on AuthException {
       throw const DemoAuthException('That password is incorrect.');
     }
@@ -259,7 +260,19 @@ class SupabaseAuthRepository implements AuthRepository {
       // flow, which is why verifyPhoneOtp uses OtpType.phoneChange. Changing an
       // already-verified number goes through the exact same call -- the caller
       // is expected to have re-authenticated first.
-      await _client.auth.updateUser(UserAttributes(phone: e164Phone));
+      final current = _state.currentUser;
+      final unverified = current != null && !current.phoneVerified;
+      await _client.auth.updateUser(
+        UserAttributes(
+          phone: e164Phone,
+          // Pending contact only; verification still comes from Supabase Auth.
+          // Persist it so interrupted onboarding can resume after an app restart.
+          data: unverified ? {'mobile_number': e164Phone} : null,
+        ),
+      );
+      if (unverified && _state.currentUser?.email == current.email) {
+        _state.setCurrentUser(current.withPendingPhone(e164Phone));
+      }
     } on PostgrestException catch (error) {
       // The throttle speaks in sentences meant for the user, so pass it
       // through rather than replacing it with something vaguer.

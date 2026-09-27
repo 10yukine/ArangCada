@@ -38,8 +38,14 @@ void main() {
         await tester.pump();
         expect(router.routeInformationProvider.value.uri.path, '/splash');
         // An unverified account must still pass the existing verification gate.
+        // With a number on file; a missing number goes to phone setup first.
         state.setCurrentUser(
-          DemoUser(email: 'test@example.com', displayName: 'Test', role: role),
+          DemoUser(
+            email: 'test@example.com',
+            displayName: 'Test',
+            role: role,
+            mobileNumber: '+639171234567',
+          ),
         );
         await tester.pump();
         expect(find.text('Log In'), findsNothing);

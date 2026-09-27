@@ -6,6 +6,7 @@ class DemoUser {
     required this.displayName,
     required this.role,
     this.isInternalTester = false,
+    this.isAdminAccount = false,
     this.mobileNumber,
     this.phoneVerified = false,
     this.avatarUrl,
@@ -15,6 +16,10 @@ class DemoUser {
   final String displayName;
   final DemoRole role;
   final bool isInternalTester;
+
+  /// Server-resolved account type, used for mobile onboarding only.
+  /// Admin capabilities remain on the website.
+  final bool isAdminAccount;
 
   /// E.164, as stored on the account. Null when the account predates phone
   /// collection or the number was never set.
@@ -46,6 +51,7 @@ class DemoUser {
     displayName: value,
     role: role,
     isInternalTester: isInternalTester,
+    isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
     avatarUrl: avatarUrl,
@@ -56,10 +62,26 @@ class DemoUser {
     displayName: displayName,
     role: role,
     isInternalTester: isInternalTester,
+    isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
     avatarUrl: value,
   );
+
+  DemoUser withPendingPhone(String number) => DemoUser(
+    email: email,
+    displayName: displayName,
+    role: role,
+    isInternalTester: isInternalTester,
+    isAdminAccount: isAdminAccount,
+    mobileNumber: number,
+    phoneVerified: false,
+    avatarUrl: avatarUrl,
+  );
+
+  bool get needsPhoneSetup =>
+      needsPhoneVerification &&
+      (mobileNumber == null || mobileNumber!.trim().isEmpty);
 
   /// True when the app should hold this account on the verify screen.
   ///
@@ -67,7 +89,8 @@ class DemoUser {
   /// have no real SIM behind them. The same exemption exists server-side, and
   /// `is_internal_tester` is not self-service -- the profiles privilege guard
   /// stops an ordinary account granting itself the flag.
-  bool get needsPhoneVerification => !phoneVerified && !isInternalTester;
+  bool get needsPhoneVerification =>
+      !phoneVerified && (isAdminAccount || !isInternalTester);
 
   /// The seeded `@arangcada.demo` accounts, and only those accounts. Used to
   /// gate walkthrough-only affordances in App Settings.

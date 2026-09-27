@@ -18,10 +18,12 @@ class SignUpScreenSinglePage extends ConsumerStatefulWidget {
   const SignUpScreenSinglePage({super.key});
 
   @override
-  ConsumerState<SignUpScreenSinglePage> createState() => _SignUpScreenSinglePageState();
+  ConsumerState<SignUpScreenSinglePage> createState() =>
+      _SignUpScreenSinglePageState();
 }
 
-class _SignUpScreenSinglePageState extends ConsumerState<SignUpScreenSinglePage> {
+class _SignUpScreenSinglePageState
+    extends ConsumerState<SignUpScreenSinglePage> {
   final _name = TextEditingController();
   final _mobile = TextEditingController();
   final _email = TextEditingController();
@@ -67,7 +69,10 @@ class _SignUpScreenSinglePageState extends ConsumerState<SignUpScreenSinglePage>
       return;
     }
     if (!_agreedToLegal) {
-      setState(() => _error = 'You must agree to the Terms of Service and Privacy Policy.');
+      setState(
+        () => _error =
+            'You must agree to the Terms of Service and Privacy Policy.',
+      );
       return;
     }
     FocusScope.of(context).unfocus();
@@ -89,8 +94,8 @@ class _SignUpScreenSinglePageState extends ConsumerState<SignUpScreenSinglePage>
       if (result.requiresEmailConfirmation) {
         setState(
           () => _error =
-              'Your account was created, but this project still requires email '
-              'confirmation. Turn off "Confirm email" in Supabase, then sign in.',
+              'Check your email to continue. If you already have an account, '
+              'log in with your existing password.',
         );
         return;
       }
@@ -109,6 +114,8 @@ class _SignUpScreenSinglePageState extends ConsumerState<SignUpScreenSinglePage>
       } else {
         context.go('/verify-phone', extra: sendFailure);
       }
+    } on ExistingAccountException {
+      if (mounted) context.go('/login', extra: _email.text.trim());
     } on DemoAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -294,12 +301,16 @@ class _SignUpScreenSinglePageState extends ConsumerState<SignUpScreenSinglePage>
                                 height: 24,
                                 child: Checkbox(
                                   value: _agreedToLegal,
-                                  onChanged: (value) => setState(() => _agreedToLegal = value ?? false),
+                                  onChanged: (value) => setState(
+                                    () => _agreedToLegal = value ?? false,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               const Expanded(
-                                child: AuthLegalNotice(prefixText: 'I agree to the '),
+                                child: AuthLegalNotice(
+                                  prefixText: 'I agree to the ',
+                                ),
                               ),
                             ],
                           ),

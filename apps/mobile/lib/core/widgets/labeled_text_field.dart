@@ -23,6 +23,7 @@ class LabeledTextField extends StatefulWidget {
     this.onSubmitted,
     this.suffixIcon,
     this.errorText,
+    this.autofocus = false,
     super.key,
   });
 
@@ -41,6 +42,7 @@ class LabeledTextField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final Widget? suffixIcon;
   final String? errorText;
+  final bool autofocus;
 
   @override
   State<LabeledTextField> createState() => _LabeledTextFieldState();
@@ -75,6 +77,7 @@ class _LabeledTextFieldState extends State<LabeledTextField> {
         TextField(
           controller: widget.controller,
           focusNode: _focusNode,
+          autofocus: widget.autofocus,
           keyboardType: widget.keyboardType,
           autofillHints: widget.autofillHints,
           textInputAction: widget.textInputAction,

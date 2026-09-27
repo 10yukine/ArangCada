@@ -52,7 +52,6 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     with SingleTickerProviderStateMixin {
   static const _codeLength = 6;
 
-
   /// Matches `record_otp_send()`'s 60-second server-side rule. The countdown is
   /// a courtesy so the user is not invited to press a button that will be
   /// refused; it is not the throttle itself.
@@ -197,6 +196,12 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     setState(() => _busy = true);
 
     final auth = ref.read(authRepositoryProvider);
+    if (auth.currentUser?.isAdminAccount == true) {
+      // This is an existing website account, never an abandoned registration.
+      setState(() => _busy = false);
+      context.go('/complete-mobile-profile');
+      return;
+    }
     try {
       // Delete first, sign out second. Deleting needs the session that names
       // the account, so signing out first would leave the row behind with no
@@ -315,8 +320,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                       // Damped sine: three passes that decay to nothing, so
                       // the row settles rather than stopping mid-swing.
                       final t = _shake.value;
-                      final dx =
-                          math.sin(t * math.pi * 3) * 8 * (1 - t);
+                      final dx = math.sin(t * math.pi * 3) * 8 * (1 - t);
                       return Transform.translate(
                         offset: Offset(dx, 0),
                         child: child,
@@ -329,8 +333,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                       autofocus: true,
                       enabled: !_busy && !_verified,
                       defaultPinTheme: defaultPinTheme,
-                      separatorBuilder: (index) =>
-                          const SizedBox(width: gap),
+                      separatorBuilder: (index) => const SizedBox(width: gap),
                       focusedPinTheme: defaultPinTheme.copyWith(
                         decoration: defaultPinTheme.decoration!.copyWith(
                           border: Border.all(
@@ -403,9 +406,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               // is plain text, and the button only exists once it is pressable.
               if (_secondsLeft > 0)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: Text(
                     'Resend code in ${_secondsLeft}s',
                     style: AppTypography.caption.copyWith(
@@ -437,7 +438,12 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               const SizedBox(height: AppSpacing.xxs),
               TextButton(
                 onPressed: _busy || _verified ? null : _goBack,
-                child: const Text('Go Back'),
+                child: Text(
+                  ref.watch(demoStateProvider).currentUser?.isAdminAccount ==
+                          true
+                      ? 'Change number'
+                      : 'Go Back',
+                ),
               ),
             ],
           ),

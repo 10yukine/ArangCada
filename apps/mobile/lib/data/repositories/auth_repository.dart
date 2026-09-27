@@ -141,3 +141,9 @@ class DemoAuthException implements Exception {
   @override
   String toString() => message;
 }
+
+/// No account identity or role is exposed until the existing password is checked.
+class ExistingAccountException extends DemoAuthException {
+  const ExistingAccountException()
+    : super('Sign in with your existing password to continue.');
+}

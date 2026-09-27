@@ -8,7 +8,6 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/ph_mobile.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
-import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
@@ -21,7 +20,13 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  static const _stepCount = 3;
+
   int _step = 0;
+
+  /// Direction of the last step change, so the new step slides in from the
+  /// side the user is travelling towards (and back out the way it came).
+  bool _forward = true;
 
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
@@ -36,11 +41,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _agreedToLegal = false;
   String? _error;
 
-  /// Content top padding ensures title/indicators start neatly below
-  /// the pinned back button (top: 8, height: 48 => Y: 56).
-  static const double _padTop = 64.0;
-  static const double _padBottom = AppSpacing.md;
-
   @override
   void dispose() {
     _firstName.dispose();
@@ -52,12 +52,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     super.dispose();
   }
 
+  void _goTo(int step) {
+    setState(() {
+      _forward = step > _step;
+      _step = step;
+      _error = null;
+    });
+  }
+
   void _handleBack() {
     if (_step > 0) {
-      setState(() {
-        _step--;
-        _error = null;
-      });
+      _goTo(_step - 1);
     } else {
       context.pop();
     }
@@ -70,11 +75,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       setState(() => _error = 'Please enter both your first and last name.');
       return;
     }
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _error = null;
-      _step = 1;
-    });
+    _goTo(1);
   }
 
   void _nextFromStep1() {
@@ -88,11 +89,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       setState(() => _error = 'Please enter a valid email address.');
       return;
     }
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _error = null;
-      _step = 2;
-    });
+    _goTo(2);
   }
 
   Future<void> _submit() async {
@@ -142,8 +139,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (result.requiresEmailConfirmation) {
         setState(
           () => _error =
-              'Your account was created, but this project still requires email '
-              'confirmation. Turn off "Confirm email" in Supabase, then sign in.',
+              'Check your email to continue. If you already have an account, '
+              'log in with your existing password.',
         );
         return;
       }
@@ -163,12 +160,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       } else {
         context.go('/verify-phone', extra: sendFailure);
       }
+    } on ExistingAccountException {
+      if (mounted) context.go('/login', extra: _email.text.trim());
     } on DemoAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
+
+  VoidCallback? get _primaryAction => switch (_step) {
+    0 => _nextFromStep0,
+    1 => _nextFromStep1,
+    _ => _submitting ? null : _submit,
+  };
+
+  String get _primaryLabel => switch (_step) {
+    0 || 1 => 'Continue',
+    _ => _submitting ? 'Creating account…' : 'Create Account',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -180,379 +190,357 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       },
       child: Scaffold(
         body: SafeArea(
-          child: Stack(
-            children: [
-              Positioned.fill(child: _content(context)),
-              Positioned(
-                top: AppSpacing.xs,
-                left: AppSpacing.sm,
-                child: IconButton(
-                  onPressed: _handleBack,
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: 'Back',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: AppColors.ink,
-                    side: BorderSide.none,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                children: [
+                  _topBar(),
+                  Expanded(child: _content(context)),
+                  _bottomActions(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Back and progress share one row, so the bar reads as "how far along"
+  /// rather than as another heading competing with the title.
+  Widget _topBar() {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.xl,
+        0,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _handleBack,
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: AppColors.ink,
+              side: BorderSide.none,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Semantics(
+              label: 'Step ${_step + 1} of $_stepCount',
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: (_step + 1) / _stepCount),
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 420),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: value,
+                    minHeight: 8,
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.primaryFill,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _content(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return SingleChildScrollView(
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xl,
-        _padTop,
         AppSpacing.xl,
-        _padBottom,
+        AppSpacing.xl,
+        AppSpacing.md,
       ),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: AutofillGroup(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _stepProgressBar(),
-                const SizedBox(height: AppSpacing.md),
-                _stepHeader(),
-                const SizedBox(height: AppSpacing.md),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(_step),
-                    child: _currentStepCard(context),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                AuthSwitchLink(
-                  question: 'Already have an account?',
-                  actionLabel: 'Log In',
-                  onTap: () => context.go('/login'),
-                ),
-              ],
-            ),
+      child: AutofillGroup(
+        child: AnimatedSwitcher(
+          duration: reduceMotion ? Duration.zero : AppMotion.sheet,
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeOutCubic,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previous, ?current],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _stepProgressBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _step == 0
-                  ? 'STEP 1 OF 3: IDENTITY'
-                  : _step == 1
-                      ? 'STEP 2 OF 3: CONTACT'
-                      : 'STEP 3 OF 3: SECURITY',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                letterSpacing: 0.8,
-              ),
-            ),
-            Text(
-              '${_step + 1} of 3',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          children: List.generate(3, (index) {
-            final isCompletedOrCurrent = index <= _step;
-            return Expanded(
-              child: Container(
-                height: 4,
-                margin: EdgeInsets.only(
-                  right: index < 2 ? AppSpacing.xs : 0,
-                ),
-                decoration: BoxDecoration(
-                  color: isCompletedOrCurrent
-                      ? AppColors.primary
-                      : AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+          transitionBuilder: (child, animation) {
+            // The incoming step enters from the direction of travel; the
+            // outgoing one (animation running in reverse) leaves the
+            // opposite way. A short distance keeps it calm, not dizzying.
+            final incoming = child.key == ValueKey<int>(_step);
+            final dx = (_forward == incoming ? 1 : -1) * 0.12;
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween(
+                  begin: Offset(dx, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
               ),
             );
-          }),
+          },
+          child: KeyedSubtree(
+            key: ValueKey<int>(_step),
+            child: _stepBody(context),
+          ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _stepHeader() {
-    final title = _step == 0
-        ? 'Create Account'
-        : _step == 1
-            ? 'Contact Details'
-            : 'Set Password';
-    final subtitle = _step == 0
-        ? 'Commuter sign-up — book tricycle rides across Calamba.'
-        : _step == 1
-            ? 'We will send a 6-digit SMS verification code to your phone.'
-            : 'Create a secure password to protect your account.';
+  Widget _stepBody(BuildContext context) {
+    final (title, subtitle, fields) = switch (_step) {
+      0 => (
+        "Let's get you riding",
+        'So your driver knows who to pick up.',
+        _nameFields(),
+      ),
+      1 => (
+        'Nice to meet you, ${_firstName.text.trim()}!',
+        "We'll text a 6-digit code to confirm it.",
+        _contactFields(),
+      ),
+      _ => (
+        'Almost there',
+        'Set a password to keep your account safe.',
+        _passwordFields(),
+      ),
+    };
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          title,
-          textAlign: TextAlign.center,
-          style: AppTypography.display,
+          'Step ${_step + 1} of $_stepCount',
+          style: AppTypography.label.copyWith(color: AppColors.primary),
         ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(title, style: AppTypography.display),
         const SizedBox(height: AppSpacing.xs),
-        Center(
-          child: SizedBox(
-            width: 320,
-            child: Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
+        Text(
+          subtitle,
+          style: AppTypography.bodySm.copyWith(
+            color: AppColors.textSecondary,
           ),
         ),
+        const SizedBox(height: AppSpacing.xl),
+        ...fields,
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _error!,
+            style: AppTypography.bodySm.copyWith(color: AppColors.danger),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _currentStepCard(BuildContext context) {
-    switch (_step) {
-      case 0:
-        return _step0Card(context);
-      case 1:
-        return _step1Card(context);
-      case 2:
-      default:
-        return _step2Card(context);
-    }
-  }
-
-  /// Step 1 (Identity): First Name and Last Name are explicitly separated into
-  /// distinct input fields for clearer, structured data capture and autofill support.
-  /// They are validated individually and concatenated into a single display name
-  /// on final submission.
-  Widget _step0Card(BuildContext context) {
-    return SectionCard(
+  /// Bottom-pinned so the next action sits in the same place on every step
+  /// and rides above the keyboard.
+  Widget _bottomActions() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.xs,
+        AppSpacing.xl,
+        AppSpacing.xs,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LabeledTextField(
-            label: 'First Name',
-            hintText: 'Juan',
-            controller: _firstName,
-            icon: Icons.person_outline,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.givenName],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          LabeledTextField(
-            label: 'Last Name',
-            hintText: 'dela Cruz',
-            controller: _lastName,
-            icon: Icons.person_outline,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _nextFromStep0(),
-            autofillHints: const [AutofillHints.familyName],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _error!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.danger),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: _nextFromStep0,
-            child: const Text('Continue'),
+          FilledButton(onPressed: _primaryAction, child: Text(_primaryLabel)),
+          AuthSwitchLink(
+            question: 'Already have an account?',
+            actionLabel: 'Log In',
+            onTap: () => context.go('/login'),
           ),
         ],
       ),
     );
   }
 
-  Widget _step1Card(BuildContext context) {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  /// First and last name are captured separately for autofill and joined
+  /// into the display name on submission.
+  List<Widget> _nameFields() => [
+    LabeledTextField(
+      label: 'First Name',
+      hintText: 'Juan',
+      controller: _firstName,
+      icon: Icons.person_outline,
+      textInputAction: TextInputAction.next,
+      autofillHints: const [AutofillHints.givenName],
+    ),
+    const SizedBox(height: AppSpacing.md),
+    LabeledTextField(
+      label: 'Last Name',
+      hintText: 'dela Cruz',
+      controller: _lastName,
+      icon: Icons.person_outline,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _nextFromStep0(),
+      autofillHints: const [AutofillHints.familyName],
+    ),
+  ];
+
+  List<Widget> _contactFields() => [
+    LabeledTextField(
+      label: 'Mobile Number',
+      hintText: '0917 123 4567',
+      controller: _mobile,
+      icon: Icons.phone_outlined,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.next,
+      autofillHints: const [AutofillHints.telephoneNumber],
+      autofocus: true,
+    ),
+    const SizedBox(height: AppSpacing.md),
+    LabeledTextField(
+      label: 'Email Address',
+      hintText: 'you@example.com',
+      controller: _email,
+      icon: Icons.email_outlined,
+      keyboardType: TextInputType.emailAddress,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _nextFromStep1(),
+      autofillHints: const [AutofillHints.email],
+    ),
+  ];
+
+  List<Widget> _passwordFields() => [
+    LabeledTextField(
+      label: 'Password',
+      hintText: 'Create a password',
+      controller: _password,
+      icon: Icons.lock_outline,
+      obscureText: _obscure,
+      textInputAction: TextInputAction.next,
+      autofillHints: const [AutofillHints.newPassword],
+      autofocus: true,
+      suffixIcon: _visibilityToggle(
+        obscured: _obscure,
+        onPressed: () => setState(() => _obscure = !_obscure),
+      ),
+    ),
+    const SizedBox(height: AppSpacing.md),
+    LabeledTextField(
+      label: 'Repeat Password',
+      hintText: 'Re-enter your password',
+      controller: _repeatPassword,
+      icon: Icons.lock_outline,
+      obscureText: _obscureRepeat,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _submit(),
+      autofillHints: const [AutofillHints.newPassword],
+      suffixIcon: _visibilityToggle(
+        obscured: _obscureRepeat,
+        onPressed: () => setState(() => _obscureRepeat = !_obscureRepeat),
+      ),
+    ),
+    const SizedBox(height: AppSpacing.sm),
+    // Live checks: people see each requirement tick off as they type
+    // instead of learning about a typo only after tapping Create Account.
+    ListenableBuilder(
+      listenable: Listenable.merge([_password, _repeatPassword]),
+      builder: (context, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LabeledTextField(
-            label: 'Mobile Number',
-            hintText: '0917 123 4567',
-            controller: _mobile,
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.telephoneNumber],
+          _Requirement(
+            met: _password.text.length >= 8,
+            label: 'At least 8 characters',
           ),
-          const SizedBox(height: AppSpacing.sm),
-          LabeledTextField(
-            label: 'Email Address',
-            hintText: 'you@example.com',
-            controller: _email,
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _nextFromStep1(),
-            autofillHints: const [AutofillHints.email],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _error!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.danger),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: _nextFromStep1,
-            child: const Text('Continue'),
+          const SizedBox(height: AppSpacing.xxs),
+          _Requirement(
+            met:
+                _repeatPassword.text.isNotEmpty &&
+                _repeatPassword.text == _password.text,
+            label: 'Both passwords match',
           ),
         ],
+      ),
+    ),
+    const SizedBox(height: AppSpacing.lg),
+    InkWell(
+      onTap: () => setState(() => _agreedToLegal = !_agreedToLegal),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: Row(
+        children: [
+          Checkbox(
+            value: _agreedToLegal,
+            visualDensity: VisualDensity.compact,
+            onChanged: (value) =>
+                setState(() => _agreedToLegal = value ?? false),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          const Expanded(
+            child: AuthLegalNotice(
+              prefixText: 'I agree to the ',
+              textAlign: TextAlign.start,
+              padding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+    ),
+  ];
+
+  Widget _visibilityToggle({
+    required bool obscured,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: obscured ? 'Show password' : 'Hide password',
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        fixedSize: const Size.square(42),
+        iconSize: 19,
+        backgroundColor: Colors.transparent,
+        side: BorderSide.none,
+      ),
+      icon: Icon(
+        obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
       ),
     );
   }
+}
 
-  Widget _step2Card(BuildContext context) {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LabeledTextField(
-            label: 'Password',
-            hintText: 'Create a password',
-            controller: _password,
-            icon: Icons.lock_outline,
-            obscureText: _obscure,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.newPassword],
-            suffixIcon: IconButton(
-              tooltip: _obscure ? 'Show password' : 'Hide password',
-              onPressed: () => setState(() => _obscure = !_obscure),
-              style: IconButton.styleFrom(
-                fixedSize: const Size.square(42),
-                iconSize: 19,
-                backgroundColor: Colors.transparent,
-                side: BorderSide.none,
-              ),
-              icon: Icon(
-                _obscure
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-              ),
-            ),
+class _Requirement extends StatelessWidget {
+  const _Requirement({required this.met, required this.label});
+
+  final bool met;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = met ? AppColors.green : AppColors.textMuted;
+    return Row(
+      children: [
+        AnimatedSwitcher(
+          duration: AppMotion.button,
+          child: Icon(
+            met ? Icons.check_circle : Icons.radio_button_unchecked,
+            key: ValueKey(met),
+            size: 16,
+            color: color,
           ),
-          const SizedBox(height: 2),
-          const Padding(
-            padding: EdgeInsets.only(left: 2),
-            child: Text(
-              'At least 8 characters',
-              style: AppTypography.caption,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          LabeledTextField(
-            label: 'Repeat Password',
-            hintText: 'Re-enter your password',
-            controller: _repeatPassword,
-            icon: Icons.lock_outline,
-            obscureText: _obscureRepeat,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            autofillHints: const [AutofillHints.newPassword],
-            suffixIcon: IconButton(
-              tooltip: _obscureRepeat ? 'Show password' : 'Hide password',
-              onPressed: () =>
-                  setState(() => _obscureRepeat = !_obscureRepeat),
-              style: IconButton.styleFrom(
-                fixedSize: const Size.square(42),
-                iconSize: 19,
-                backgroundColor: Colors.transparent,
-                side: BorderSide.none,
-              ),
-              icon: Icon(
-                _obscureRepeat
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: Checkbox(
-                    value: _agreedToLegal,
-                    onChanged: (value) =>
-                        setState(() => _agreedToLegal = value ?? false),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              const Expanded(
-                child: AuthLegalNotice(
-                  prefixText: 'I agree to the ',
-                  textAlign: TextAlign.start,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _error!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.danger),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: _submitting ? null : _submit,
-            child: Text(
-              _submitting ? 'Creating account…' : 'Create Account',
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(label, style: AppTypography.caption.copyWith(color: color)),
+      ],
     );
   }
 }
