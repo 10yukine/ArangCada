@@ -158,11 +158,12 @@ class _FareTable extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(title, style: AppTypography.displaySm),
-                    ),
+                    Text(title, style: AppTypography.displaySm),
                     ArangBadge(capacity, tone: tone),
                   ],
                 ),

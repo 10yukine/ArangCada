@@ -529,10 +529,15 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Your location',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Expanded(
+                      child: Text(
+                        'Your location',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
+                    const SizedBox(width: AppSpacing.xs),
                     ArangBadge(
                       _dashboardFix == null ? 'GPS unavailable' : 'Live GPS',
                       tone: _dashboardFix == null

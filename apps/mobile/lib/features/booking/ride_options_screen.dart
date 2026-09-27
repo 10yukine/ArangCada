@@ -391,24 +391,20 @@ class _FareSummary extends StatelessWidget {
               const Text('Espesyal na Byahe', style: AppTypography.h2),
               const SizedBox(height: 2),
               Text(
-                'Private trip · ${distanceKm.toStringAsFixed(1)} km'
+                'Private trip · ${distanceKm.toStringAsFixed(1)} km · '
+                'LGU fare, no surge'
                 '${discounted ? ' · discount applied' : ''}',
                 style: AppTypography.caption,
               ),
             ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              amount,
-              style: AppTypography.displaySm.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const Text('LGU fare · no surge', style: AppTypography.caption),
-          ],
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          amount,
+          style: AppTypography.displaySm.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ],
     );
