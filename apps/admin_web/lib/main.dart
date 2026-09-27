@@ -707,10 +707,53 @@ class AdminShell extends ConsumerWidget {
       builder: (context, session, _) {
         if (session == null) {
           return Scaffold(
-            backgroundColor: AdminColors.rail,
-            body: Center(
-              child: CircularProgressIndicator(
-                color: context.adminColor(AdminColors.primary),
+            body: Container(
+              decoration: const BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF083C97), Color(0xFF1683C9)],
+              )),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 5)),
+                        ],
+                      ),
+                      child: SvgPicture.asset('assets/branding/arangcada-mark-dark.svg'),
+                    ),
+                  ),
+                  Positioned(
+                    left: 24,
+                    right: 24,
+                    bottom: 24,
+                    child: SafeArea(
+                      top: false,
+                      child: Center(
+                        child: SizedBox(
+                          width: 160,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: const LinearProgressIndicator(
+                              minHeight: 3,
+                              backgroundColor: Color(0x55FFFFFF),
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              semanticsLabel: 'Loading your console',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
