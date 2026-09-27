@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -17,11 +17,10 @@ Uri tripTrackingUri(String token) =>
 
 /// Lets a rider send family a live link to their current trip.
 ///
-/// Copy covers every chat app (Messenger, Viber, ...) without a share-sheet
-/// dependency; "Send by text" opens the SMS app through url_launcher, which
-/// the app already ships. [createLink] exists for tests; by default the link
-/// comes from the server, which only issues one to the verified rider of an
-/// unfinished trip and reuses it on every tap.
+/// "Share link" opens the phone's own share sheet (Messenger, Viber, SMS,
+/// ...); "Copy link" is the fallback for pasting anywhere. [createLink] exists
+/// for tests; by default the link comes from the server, which only issues one
+/// to the verified rider of an unfinished trip and reuses it on every tap.
 void showTripShareSheet(
   BuildContext context, {
   Future<Uri> Function()? createLink,
@@ -90,13 +89,18 @@ class _TripShareSheetState extends ConsumerState<_TripShareSheet> {
     if (mounted) setState(() => _copied = true);
   }
 
-  Future<void> _sendText(Uri link) async {
-    final body = 'Follow my ArangCada tricycle ride live: $link';
-    final sms = Uri.parse('sms:?body=${Uri.encodeComponent(body)}');
-    if (!await launchUrl(sms, mode: LaunchMode.externalApplication) &&
-        mounted) {
-      setState(() => _error = 'Could not open your messaging app.');
-    }
+  Future<void> _share(BuildContext buttonContext, Uri link) async {
+    // iPad anchors its share popover to the button that opened it.
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: 'Follow my ArangCada tricycle ride live: $link',
+        subject: 'My ArangCada ride',
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
   }
 
   @override
@@ -153,7 +157,15 @@ class _TripShareSheetState extends ConsumerState<_TripShareSheet> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
+              Builder(
+                builder: (buttonContext) => FilledButton.icon(
+                  onPressed: () => _share(buttonContext, link),
+                  icon: const Icon(Icons.share_outlined),
+                  label: const Text('Share link'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              OutlinedButton.icon(
                 onPressed: () => _copy(link),
                 icon: Icon(_copied ? Icons.check : Icons.copy_outlined),
                 label: Text(_copied ? 'Link copied' : 'Copy link'),
@@ -166,12 +178,6 @@ class _TripShareSheetState extends ConsumerState<_TripShareSheet> {
                   style: AppTypography.caption,
                 ),
               ],
-              const SizedBox(height: AppSpacing.xs),
-              OutlinedButton.icon(
-                onPressed: () => _sendText(link),
-                icon: const Icon(Icons.sms_outlined),
-                label: const Text('Send by text'),
-              ),
             ],
           ],
         ),
