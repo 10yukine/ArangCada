@@ -46,23 +46,19 @@ void main() {
     expect(find.text('Crossing Market → City Hall'), findsNothing);
   });
 
-  testWidgets('commuter sample trips match the approved history filters', (
+  testWidgets('commuter sample trips are Espesyal only, with no filter', (
     tester,
   ) async {
     await render(tester, DemoRole.commuter, samples: true);
 
     expect(find.text('Trip history'), findsOneWidget);
     expect(find.text('Latest completed trip: Jul 3'), findsOneWidget);
-    expect(find.text('All'), findsOneWidget);
-    expect(find.text('Special'), findsWidgets);
-    expect(find.text('Pooling'), findsWidgets);
+    // Pooling was withdrawn, so neither a Pooling trip nor a filter remains.
+    expect(find.text('Pooling'), findsNothing);
+    expect(find.text('All'), findsNothing);
     expect(find.text('Calamba Crossing → SM Calamba'), findsOneWidget);
-    expect(find.text('₱60.00'), findsNWidgets(2));
-
-    await tester.tap(find.text('Pooling').first);
-    await tester.pumpAndSettle();
     expect(find.text('City Hall → Crossing Market'), findsOneWidget);
-    expect(find.text('Calamba Crossing → SM Calamba'), findsNothing);
+    expect(find.text('₱60.00'), findsNWidgets(3));
   });
 
   testWidgets('driver history never shows sample trips', (tester) async {

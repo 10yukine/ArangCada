@@ -414,7 +414,7 @@ class _SampleTrip {
   });
 
   final String route;
-  final String type; // 'Special' or 'Pooling'
+  final String type; // Always 'Special' (Espesyal) now
   final String fare;
   final String dateLabel;
 }
@@ -439,8 +439,8 @@ class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
     ),
     _SampleTrip(
       route: 'City Hall → Crossing Market',
-      type: 'Pooling',
-      fare: '₱15.00',
+      type: 'Special',
+      fare: '₱60.00',
       dateLabel: 'Jun 28',
     ),
     _SampleTrip(
@@ -451,13 +451,10 @@ class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
     ),
   ];
 
-  String _filter = 'All';
-
+  // Espesyal is the only ride type, so there is nothing to filter by.
   @override
   Widget build(BuildContext context) {
-    final trips = _filter == 'All'
-        ? _trips
-        : _trips.where((trip) => trip.type == _filter).toList();
+    const trips = _trips;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
@@ -468,18 +465,6 @@ class _CommuterSampleHistoryState extends State<_CommuterSampleHistory> {
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          children: [
-            for (final option in const ['All', 'Special', 'Pooling'])
-              ChoiceChip(
-                label: Text(option),
-                selected: _filter == option,
-                onSelected: (_) => setState(() => _filter = option),
-              ),
-          ],
         ),
         const SizedBox(height: AppSpacing.md),
         for (final trip in trips) ...[

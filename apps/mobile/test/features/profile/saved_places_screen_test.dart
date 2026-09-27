@@ -105,7 +105,7 @@ void main() {
       final previousDestination = DemoData.places.last;
       state.setDestination(previousDestination);
       await tester.pumpWidget(harness(const SavedPlacesScreen()));
-      await tester.tap(find.text('Add a Saved Place'));
+      await tester.tap(find.text('Add a saved place'));
       await tester.pumpAndSettle();
       expect(find.text('Save a place'), findsOneWidget);
       await tester.tap(find.text('Rizal Shrine Calamba'));
@@ -156,7 +156,7 @@ void main() {
   ) async {
     repository = _MemoryPlaces();
     await tester.pumpWidget(harness(const SavedPlacesScreen()));
-    await tester.tap(find.text('Add a Saved Place'));
+    await tester.tap(find.text('Add a saved place'));
     await tester.pumpAndSettle();
     // The picker deliberately hides the visual Back tooltip.
     await tester.tap(find.byType(BackButton));

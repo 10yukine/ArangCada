@@ -261,7 +261,7 @@ class ProfileScreen extends ConsumerWidget {
                 if (!isDriver) ...[
                   _ProfileRow(
                     icon: Icons.bookmark_border,
-                    label: 'Saved Places',
+                    label: 'Saved places',
                     onTap: () => context.push('/profile/saved-places'),
                   ),
                   const Divider(height: 1),
@@ -284,7 +284,7 @@ class ProfileScreen extends ConsumerWidget {
                 if (!isDriver) ...[
                   _ProfileRow(
                     icon: Icons.verified_user_outlined,
-                    label: 'Discount Eligibility',
+                    label: 'Discount eligibility',
                     onTap: () => context.push('/profile/discount-eligibility'),
                   ),
                   const Divider(height: 1),

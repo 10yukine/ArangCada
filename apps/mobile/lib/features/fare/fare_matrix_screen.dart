@@ -40,7 +40,7 @@ class FareMatrixScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _FareTable(
               title: 'Regular na Byahe',
-              subtitle: 'Pooling · shared ride',
+              subtitle: 'Shared ride · ordinance rate, not offered in the app',
               billing: 'Charged PER PASSENGER',
               capacity: 'Up to 4 passengers',
               tone: ArangBadgeTone.green,

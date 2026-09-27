@@ -55,7 +55,7 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
   Widget build(BuildContext context) {
     final places = ref.watch(savedPlacesRepositoryProvider).places;
     return _DetailScaffold(
-      title: 'Saved Places',
+      title: 'Saved places',
       children: [
         const Text('Saved on this device for your account.'),
         const SizedBox(height: AppSpacing.sm),
@@ -67,7 +67,7 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
             icon: Icons.bookmark_border,
             title: 'No saved places',
             message: 'Save a frequent pickup or destination for quicker booking.',
-            actionLabel: 'Add a Saved Place',
+            actionLabel: 'Add a saved place',
             onAction: _busy ? null : _add,
           ),
         for (final place in places)
@@ -95,7 +95,7 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
           FilledButton.icon(
             onPressed: _busy ? null : _add,
             icon: const Icon(Icons.add),
-            label: const Text('Add a Saved Place'),
+            label: const Text('Add a saved place'),
           ),
       ],
     );

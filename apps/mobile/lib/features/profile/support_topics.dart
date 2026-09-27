@@ -26,9 +26,10 @@ const supportTopics = [
     id: 'booking',
     title: 'How do I book a ride?',
     answer:
-        'Choose your destination from Home, check the pickup location, '
-        'then follow the ride options and booking review. '
-        'If your location is inaccurate, tap Try again to refresh your GPS.',
+        'Choose your destination from Home. Pickup is always your current GPS '
+        'location; if the pin is slightly off, use the pin button to move it '
+        'up to 100 m. Then review the fare and request the ride. Rides are '
+        'paid in cash to the driver.',
     keywords: 'book booking ride pickup destination location gps map',
     role: DemoRole.commuter,
     route: '/home/search',
@@ -38,14 +39,14 @@ const supportTopics = [
     id: 'saved-places',
     title: 'How do saved places work?',
     answer:
-        'Open Saved Places and select Add a Saved Place. Choose a location '
+        'Open Saved places and select Add a saved place. Choose a location '
         'to save it. Saved locations also appear in destination '
         'search. They are stored on this device for your account; '
         'the remove button deletes a saved location.',
     keywords: 'save saved places address favorite favourite remove delete',
     role: DemoRole.commuter,
     route: '/profile/saved-places',
-    actionLabel: 'Open Saved Places',
+    actionLabel: 'Open saved places',
   ),
   SupportTopic(
     id: 'driver-documents',
