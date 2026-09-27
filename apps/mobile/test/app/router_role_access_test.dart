@@ -35,7 +35,6 @@ void main() {
     const notShared = [
       '/profile',
       '/home',
-      '/wallet',
       '/trips',
       '/booking/review',
       '/booking/searching',

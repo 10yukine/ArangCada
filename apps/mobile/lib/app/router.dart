@@ -41,7 +41,6 @@ import '../features/search/pin_on_map_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/trips/trips_screen.dart';
 import '../features/trip/active_trip_screen.dart';
-import '../features/wallet/wallet_screen.dart';
 import 'shells/commuter_shell.dart';
 import 'shells/driver_shell.dart';
 import 'theme/app_dimensions.dart';
@@ -367,15 +366,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/trips',
                 pageBuilder: (context, state) =>
                     _screenPage(state, const TripsScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/wallet',
-                pageBuilder: (context, state) =>
-                    _screenPage(state, const WalletScreen()),
               ),
             ],
           ),

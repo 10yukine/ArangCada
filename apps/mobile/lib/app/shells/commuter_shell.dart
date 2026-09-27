@@ -10,9 +10,9 @@ import '../../data/providers/repository_providers.dart';
 
 /// Commuter tab tree.
 ///
-/// Five tabs: the prototype's Home / Chat / History / Profile, plus the
-/// Wallet added by the Flutter build. Chat is not dropped to make room --
-/// it is a primary surface in the approved design.
+/// Four tabs: Home / Chat / Trips / Profile. The Wallet tab was removed
+/// (27 Sep 2026): digital payments will not be offered, so rides are cash
+/// only and a wallet screen could never do anything.
 class CommuterShell extends ConsumerWidget {
   const CommuterShell({required this.navigationShell, super.key});
 
@@ -49,11 +49,6 @@ class CommuterShell extends ConsumerWidget {
             icon: Icons.access_time,
             selectedIcon: Icons.access_time_filled,
             label: 'Trips',
-          ),
-          const AppTabDestination(
-            icon: Icons.account_balance_wallet_outlined,
-            selectedIcon: Icons.account_balance_wallet,
-            label: 'Wallet',
           ),
           const AppTabDestination(
             icon: Icons.person_outline,
