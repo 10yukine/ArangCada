@@ -71,19 +71,12 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull);
-      await tester.scrollUntilVisible(find.text('Digital'), 200);
-      final paymentOptions = tester.widget<SegmentedButton<PaymentMethod>>(
-        find.byType(SegmentedButton<PaymentMethod>),
-      );
-      expect(
-        paymentOptions.segments.singleWhere(
-          (segment) => segment.value == PaymentMethod.digital,
-        ).enabled,
-        isFalse,
-      );
-      expect(find.text('Confirm Booking').hitTestable(), findsOneWidget);
-      await tester.tap(find.text('Confirm Booking'));
-      await tester.tap(find.text('Confirm Booking'));
+      // Beta is cash only: stated plainly, with no dead Digital option.
+      await tester.scrollUntilVisible(find.text('Cash · pay your driver'), 200);
+      expect(find.text('Digital'), findsNothing);
+      expect(find.text('Request Ride').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Request Ride'));
+      await tester.tap(find.text('Request Ride'));
       await tester.pump();
       expect(rides.calls, 1);
       expect(find.text('Sending request…'), findsOneWidget);

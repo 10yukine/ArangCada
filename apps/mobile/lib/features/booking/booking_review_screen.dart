@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
 import '../../core/widgets/arang_dialog.dart';
+import '../../core/widgets/arang_ui.dart';
 
 class BookingReviewScreen extends ConsumerStatefulWidget {
   const BookingReviewScreen({super.key});
@@ -136,7 +138,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           );
         }
         final quote = booking.fareQuote;
-        final colors = Theme.of(context).colorScheme;
+        final espesyal = booking.rideType != RideType.pooling;
         return Scaffold(
           appBar: AppBar(title: const Text('Review booking')),
           bottomNavigationBar: SafeArea(
@@ -147,9 +149,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 onPressed: booking.isFareLocked || _submitting
                     ? null
                     : () => _confirm(context, ref, booking),
-                child: Text(
-                  _submitting ? 'Sending request…' : 'Confirm Booking',
-                ),
+                child: Text(_submitting ? 'Sending request…' : 'Request Ride'),
               ),
             ),
           ),
@@ -158,59 +158,58 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               children: [
-                Text(
-                  'YOUR RIDE',
-                  style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 1.6,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const Text('Fare', style: AppTypography.label),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   formatCentavos(quote.partyTotalCentavos),
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w500,
-                    color: colors.onSurface,
+                  style: AppTypography.display.copyWith(
+                    fontSize: 36,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'Estimated fare · locks on confirmation',
-                  style: TextStyle(color: colors.onSurfaceVariant),
+                  'LGU fare · locked when you request',
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: AppSpacing.xl),
                 _RouteStop(
-                  label: 'PICKUP',
+                  destination: false,
+                  label: 'Pickup',
                   name: booking.pickupName,
-                  icon: Icons.my_location,
                 ),
-                const Align(
+                // A short rail joins the two markers into one route.
+                // Align stops the list from stretching the 2 px rail across.
+                Align(
                   alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: VerticalDivider(),
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 9),
+                    width: 2,
+                    height: 18,
+                    color: AppColors.border,
                   ),
                 ),
                 _RouteStop(
-                  label: 'DESTINATION',
+                  destination: true,
+                  label: 'Drop-off',
                   name: booking.destinationName,
-                  icon: Icons.place_outlined,
                 ),
-                const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.lg),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.xs),
                 _ReviewRow(
                   label: 'Ride',
-                  value: booking.rideType == RideType.pooling
-                      ? 'Pooling · Regular na Byahe'
-                      : 'Special · Espesyal na Byahe',
+                  value: espesyal
+                      ? 'Espesyal na Byahe'
+                      : 'Regular na Byahe',
                 ),
                 _ReviewRow(
                   label: 'Passengers',
-                  value: '${booking.passengerCount}',
+                  value: espesyal
+                      ? '${booking.passengerCount} · same fare'
+                      : '${booking.passengerCount}',
                 ),
                 _ReviewRow(
                   label: 'Fare class',
@@ -219,59 +218,28 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 _ReviewRow(
                   label: 'Distance',
                   value:
-                      '${(quote.distanceMeters / 1000).toStringAsFixed(1)} km · billed as ${quote.chargeableKm} km',
+                      '${(quote.distanceMeters / 1000).toStringAsFixed(1)} km'
+                      ' · billed as ${quote.chargeableKm} km',
                 ),
-                const SizedBox(height: 12),
-                const Divider(),
-                const SizedBox(height: 24),
-                Text('Payment', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 12),
-                SegmentedButton<PaymentMethod>(
-                  style: SegmentedButton.styleFrom(
-                    selectedBackgroundColor: colors.primaryContainer,
-                    selectedForegroundColor: colors.onPrimaryContainer,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  segments: const [
-                    ButtonSegment(
-                      value: PaymentMethod.cash,
-                      icon: Icon(Icons.payments_outlined),
-                      label: Text('Cash'),
-                    ),
-                    ButtonSegment(
-                      value: PaymentMethod.digital,
-                      icon: Icon(Icons.account_balance_wallet_outlined),
-                      label: Text('Digital'),
-                      enabled: false,
-                    ),
-                  ],
-                  selected: {booking.paymentMethod},
-                  onSelectionChanged: booking.isFareLocked || _submitting
-                      ? null
-                      : (selection) {
-                          booking.changePaymentMethod(selection.single);
-                          state.bookingChanged();
-                        },
-                ),
-                const SizedBox(height: 8),
+                // Cash is the only method in beta. A plain row says so; a
+                // selector with a permanently disabled "Digital" did not.
+                const _ReviewRow(label: 'Payment', value: 'Cash · pay your driver'),
+                const SizedBox(height: AppSpacing.xs),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Digital payments are disabled during beta testing. Pay your driver in cash.',
-                  style: TextStyle(color: colors.onSurfaceVariant),
+                  'Digital payments are off during beta. Your driver and '
+                  'arrival time are confirmed after you request.',
+                  style: AppTypography.caption.copyWith(height: 1.45),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  'Driver availability and arrival time are confirmed after dispatch.',
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 12,
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _submitting ? null : () => _cancel(context),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Text('Discard booking'),
                   ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _submitting ? null : () => _cancel(context),
-                  child: const Text('Cancel'),
                 ),
               ],
             ),
@@ -284,40 +252,30 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
 
 class _RouteStop extends StatelessWidget {
   const _RouteStop({
+    required this.destination,
     required this.label,
     required this.name,
-    required this.icon,
   });
+
+  final bool destination;
   final String label;
   final String name;
-  final IconData icon;
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: colors.primary, size: 24),
-        const SizedBox(width: 16),
+        ArangRouteMarker(destination: destination),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
+              Text(label, style: AppTypography.caption),
               Text(
                 name,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: colors.onSurface,
+                style: AppTypography.body.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -342,19 +300,19 @@ class _ReviewRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 112,
+            width: 104,
             child: Text(
               label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.bodySm.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.labelLarge,
+              style: AppTypography.bodySm.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
