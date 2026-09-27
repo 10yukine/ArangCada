@@ -8,6 +8,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/relative_time.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/dashboard_back_button.dart';
+import '../../core/widgets/report_issue_sheet.dart';
 import '../../core/widgets/slidable.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../domain/models/chat.dart';
@@ -153,31 +154,26 @@ class _ThreadRow extends ConsumerWidget {
                     },
                   ),
                   const Divider(height: 1, color: AppColors.dividerLight),
+                  // Real complaint flow, the same one the receipt uses. Mute
+                  // was removed: nothing implemented it, so it only claimed
+                  // to work.
                   _OptionButton(
-                    label: 'Mute notifications',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Notifications muted for ${viewerIsDriver ? thread.commuterName : thread.driverName}.',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, color: AppColors.dividerLight),
-                  _OptionButton(
-                    label: 'Report safety concern',
+                    label: 'Report a problem',
                     danger: true,
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Report recorded for ArangCada administrators.',
-                          ),
-                        ),
+                      final rides = ref.read(liveRideRepositoryProvider);
+                      final tripId = thread.tripId;
+                      showReportIssueFlow(
+                        context: context,
+                        driver: viewerIsDriver,
+                        onSubmit: rides == null || tripId == null
+                            ? null
+                            : (category, description) => rides.createComplaint(
+                                tripId,
+                                category,
+                                description,
+                              ),
                       );
                     },
                   ),
