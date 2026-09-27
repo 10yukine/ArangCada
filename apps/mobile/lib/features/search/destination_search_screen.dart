@@ -10,6 +10,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../core/widgets/arang_ui.dart';
+import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../demo/demo_data.dart';
@@ -119,6 +120,61 @@ class _DestinationSearchScreenState
     _choose(place.name, place.address, place.coordinate);
   }
 
+  String _pickupLabel(DemoState state) {
+    if (!state.hasPickup) return 'Current location';
+    if (!ServiceArea.contains(state.pickup.coordinate)) {
+      return 'Out of Service Area';
+    }
+    return state.pickup.name;
+  }
+
+  /// Destination input. Focused on arrival: typing where you are going is the
+  /// whole point of this screen, so the keyboard is already up.
+  Widget _searchField({required bool framed}) {
+    final borderless = const OutlineInputBorder(borderSide: BorderSide.none);
+    return TextField(
+      controller: _controller,
+      autofocus: true,
+      textInputAction: TextInputAction.search,
+      onChanged: _onChanged,
+      style: AppTypography.body,
+      decoration: InputDecoration(
+        hintText: widget.selectOnly
+            ? 'Search a place in Calamba…'
+            : 'Where are you going?',
+        filled: framed,
+        border: framed ? null : borderless,
+        enabledBorder: framed ? null : borderless,
+        focusedBorder: framed ? null : borderless,
+        prefixIcon: framed
+            ? const Icon(Icons.search, size: 22)
+            : const Padding(
+                padding: EdgeInsets.only(left: 16, right: 14),
+                // Align keeps the 10 px marker from stretching to the
+                // field's full height.
+                child: Align(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: _RouteMarker(square: true),
+                ),
+              ),
+        prefixIconConstraints: framed
+            ? null
+            : const BoxConstraints(minWidth: 40, minHeight: 48),
+        suffixIcon: _controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Clear',
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  _controller.clear();
+                  _onChanged('');
+                },
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
@@ -129,9 +185,7 @@ class _DestinationSearchScreenState
       builder: (context, _) => Scaffold(
         appBar: AppBar(
           leading: const TooltipVisibility(visible: false, child: BackButton()),
-          title: Text(
-            widget.selectOnly ? 'Save a place' : 'Choose destination',
-          ),
+          title: Text(widget.selectOnly ? 'Save a place' : 'Where to?'),
         ),
         body: SafeArea(
           top: false,
@@ -140,71 +194,73 @@ class _DestinationSearchScreenState
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (!widget.selectOnly)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(
-                            Icons.my_location,
-                            color: AppColors.primary,
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                  // The same journey card as Home, opened up: pickup above,
+                  // the destination being typed below it.
+                  child: widget.selectOnly
+                      ? _searchField(framed: true)
+                      : DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            border: Border.all(color: AppColors.border),
                           ),
-                          title: Text(
-                            state.hasPickup
-                                ? (!ServiceArea.contains(
-                                        state.pickup.coordinate,
-                                      )
-                                      ? 'Out of Service Area'
-                                      : state.pickup.name)
-                                : 'Current location',
-                          ),
-                          subtitle: const Text('Pickup'),
-                        ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _controller,
-                        autofocus: false,
-                        textInputAction: TextInputAction.search,
-                        onChanged: _onChanged,
-                        decoration: InputDecoration(
-                          hintText: 'Search destination in Calamba…',
-                          hintStyle: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          prefixIcon: const Icon(Icons.search, size: 24),
-                          suffixIcon: _controller.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear',
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () {
-                                    _controller.clear();
-                                    _onChanged('');
-                                  },
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  12,
+                                  16,
+                                  10,
                                 ),
-                        ),
-                      ),
-                      if (!widget.selectOnly) ...[
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            label: const Text('Pin on map'),
-                            icon: const Icon(Icons.place_outlined, size: 18),
-                            onPressed: _pinOnMap,
+                                child: Row(
+                                  children: [
+                                    const _RouteMarker(square: false),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Pickup',
+                                            style: AppTypography.caption,
+                                          ),
+                                          Text(
+                                            _pickupLabel(state),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTypography.bodySm
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(height: 1, indent: 40),
+                              _searchField(framed: false),
+                            ],
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 12),
-                      const Divider(),
-                    ],
-                  ),
                 ),
               ),
+              if (!widget.selectOnly)
+                SliverToBoxAdapter(
+                  child: ArangRow(
+                    icon: Icons.map_outlined,
+                    iconBackground: AppColors.primaryFill,
+                    iconForeground: AppColors.primary,
+                    title: 'Choose on map',
+                    subtitle: "Drop a pin when search can't find it",
+                    showChevron: false,
+                    onTap: _pinOnMap,
+                  ),
+                ),
               if (hasQuery)
                 _ResultsList(
                   searching: _searching,
@@ -221,6 +277,27 @@ class _DestinationSearchScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RouteMarker extends StatelessWidget {
+  const _RouteMarker({required this.square});
+
+  /// Round for the pickup, square for the destination: the usual pair on a
+  /// route, readable without colour.
+  final bool square;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: square ? AppColors.ink : AppColors.primary,
+        shape: square ? BoxShape.rectangle : BoxShape.circle,
+        borderRadius: square ? BorderRadius.circular(2) : null,
       ),
     );
   }

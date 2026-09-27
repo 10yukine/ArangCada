@@ -38,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TextField).hitTestable(), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Pin on map'),
+      find.text('Choose on map'),
       100,
       scrollable: find
           .descendant(
@@ -47,7 +47,7 @@ void main() {
           )
           .first,
     );
-    expect(find.text('Pin on map').hitTestable(), findsOneWidget);
+    expect(find.text('Choose on map').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
