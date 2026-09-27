@@ -644,36 +644,88 @@ class _IncomingRequestCard extends ConsumerWidget {
     final state = ref.watch(demoStateProvider);
     final trip = ref.read(liveRideRepositoryProvider)?.activeTrip;
     final fare = trip?['fare_estimate'] as num?;
+    // The server gives a driver at most 30 s to answer an offer.
+    const window = 30;
+    final urgent = secondsRemaining <= 10;
+    final timeColor = urgent ? AppColors.danger : AppColors.primary;
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  'Incoming ride request',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+              const Expanded(
+                child: Text('New ride request', style: AppTypography.h2),
               ),
-              CircleAvatar(
-                backgroundColor: AppColors.sky,
-                child: Text('$secondsRemaining'),
+              Text(
+                '${secondsRemaining}s',
+                style: AppTypography.label.copyWith(
+                  color: timeColor,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text('${state.liveCommuterName ?? 'Passenger'} · Special'),
-          Text(
-            '${state.pickup.name} → '
-            '${state.destination?.name ?? 'Destination'}',
-          ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            fare == null
-                ? 'Fare unavailable'
-                : '${formatCentavos((fare * 100).round())} cash fare',
-            style: Theme.of(context).textTheme.labelLarge,
+          // A draining bar reads faster than a number while driving.
+          Semantics(
+            label: 'Respond within $secondsRemaining seconds',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: (secondsRemaining / window).clamp(0.0, 1.0),
+                minHeight: 6,
+                color: timeColor,
+                backgroundColor: AppColors.primaryFill,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.liveCommuterName ?? 'Passenger',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Text(
+                      'Espesyal na Byahe · cash',
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                fare == null
+                    ? 'Fare unavailable'
+                    : formatCentavos((fare * 100).round()),
+                style: fare == null
+                    ? AppTypography.caption
+                    : AppTypography.displaySm.copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ArangRouteStop(
+            destination: false,
+            label: 'Pickup',
+            name: state.pickup.name,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ArangRouteStop(
+            destination: true,
+            label: 'Drop-off',
+            name: state.destination?.name ?? 'Destination',
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -993,6 +1045,19 @@ class _DriverMapSheetState extends State<_DriverMapSheet>
     _setExpanded(expand);
   }
 
+  /// Expanded: a pull past the top of the panel's content closes it.
+  bool _onScroll(ScrollNotification notification) {
+    if (!_expanded) return false;
+    if (notification is OverscrollNotification &&
+        notification.overscroll < 0 &&
+        notification.dragDetails != null) {
+      _drag(-notification.overscroll);
+    } else if (notification is ScrollEndNotification && _reveal.value < 1) {
+      _endDrag(notification.dragDetails?.primaryVelocity ?? 0);
+    }
+    return false;
+  }
+
   @override
   void dispose() {
     _reveal.dispose();
@@ -1019,49 +1084,69 @@ class _DriverMapSheetState extends State<_DriverMapSheet>
             ),
           ),
         ),
-        Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.52,
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(AppRadii.sheet),
+        // The whole panel is a drag surface, not just the handle: collapsed,
+        // a vertical swipe anywhere moves it (taps still reach its buttons);
+        // expanded, the content scrolls and a pull past the top closes it.
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragUpdate: _expanded
+              ? null
+              : (details) => _drag(details.delta.dy),
+          onVerticalDragEnd: _expanded
+              ? null
+              : (details) => _endDrag(details.primaryVelocity ?? 0),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.52,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowLight,
-                blurRadius: 10,
-                offset: Offset(0, -4),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppRadii.sheet),
               ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SheetDragHandle(
-                  expanded: _expanded,
-                  onToggle: () => _setExpanded(!_expanded),
-                  onDragUpdate: _drag,
-                  onDragEnd: _endDrag,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowLight,
+                  blurRadius: 10,
+                  offset: Offset(0, -4),
                 ),
-                widget.header,
-                SizeTransition(
-                  sizeFactor: _reveal,
-                  alignment: Alignment.topCenter,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.md),
-                      ...widget.actions,
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const _VisibleMapAttribution(),
               ],
+            ),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScroll,
+              child: SingleChildScrollView(
+                physics: _expanded
+                    ? const AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
+                      )
+                    : const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SheetDragHandle(
+                      expanded: _expanded,
+                      onToggle: () => _setExpanded(!_expanded),
+                      onDragUpdate: _drag,
+                      onDragEnd: _endDrag,
+                    ),
+                    widget.header,
+                    SizeTransition(
+                      sizeFactor: _reveal,
+                      alignment: Alignment.topCenter,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppSpacing.md),
+                          ...widget.actions,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const _VisibleMapAttribution(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
