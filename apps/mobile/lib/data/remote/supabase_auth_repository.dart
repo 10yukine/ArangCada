@@ -150,6 +150,29 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  }) async {
+    try {
+      final response = await _client.auth.signInWithPassword(
+        phone: phone,
+        password: password,
+      );
+      final user = response.user;
+      if (user == null) throw const AuthException('No user');
+      return await restoreProfile(user);
+    } catch (_) {
+      // Same message whether the number is unknown, unverified or the
+      // password is wrong, so the form never confirms who has an account.
+      throw const DemoAuthException(
+        'Unable to sign in with that number. Check your password, or log in '
+        'with your email if you have not verified this number yet.',
+      );
+    }
+  }
+
+  @override
   Future<RegistrationResult> signUp({
     required String displayName,
     required String mobileNumber,

@@ -42,6 +42,12 @@ class _FakeAuthRepository implements AuthRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  }) => throw UnimplementedError();
+
+  @override
   Future<DemoUser> signIn({required String email, required String password}) =>
       throw UnimplementedError();
 

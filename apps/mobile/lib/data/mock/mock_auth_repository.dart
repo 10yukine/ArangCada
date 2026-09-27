@@ -65,6 +65,22 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  }) async {
+    for (final account in accounts) {
+      if (account.user.phoneVerified &&
+          account.user.mobileNumber == phone &&
+          account.password == password) {
+        _state.setCurrentUser(account.user);
+        return account.user;
+      }
+    }
+    throw const DemoAuthException('Use one of the demo accounts shown below.');
+  }
+
+  @override
   Future<DemoUser> updateDisplayName(String displayName) async {
     final current = _state.currentUser;
     if (current == null) {

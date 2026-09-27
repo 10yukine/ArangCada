@@ -15,6 +15,12 @@ class _SpyLiveAuthRepository implements AuthRepository {
   DemoUser? get currentUser => null;
 
   @override
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  }) => throw UnimplementedError();
+
+  @override
   Future<DemoUser> signIn({required String email, required String password}) =>
       throw UnimplementedError();
 

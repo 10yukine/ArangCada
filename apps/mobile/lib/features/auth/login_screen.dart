@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
+import '../../core/format/ph_mobile.dart';
 import '../../core/widgets/arangcada_mark.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
@@ -21,7 +23,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _errorMessage;
   bool _submitting = false;
@@ -32,12 +34,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _emailController.text = widget.existingAccountEmail ?? '';
+    _identifierController.text = widget.existingAccountEmail ?? '';
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -50,12 +52,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
     try {
-      final user = await ref
-          .read(authRepositoryProvider)
-          .signIn(
-            email: _emailController.text,
-            password: _passwordController.text,
+      final auth = ref.read(authRepositoryProvider);
+      final identifier = _identifierController.text.trim();
+      final password = _passwordController.text;
+      // Anything with an @ is an email; otherwise it must be a PH mobile
+      // number, so people can log in without typing an address.
+      final DemoUser user;
+      if (identifier.contains('@')) {
+        user = await auth.signIn(email: identifier, password: password);
+      } else {
+        final mobile = normalizePhMobile(identifier);
+        if (!mobile.isValid) {
+          throw const DemoAuthException(
+            'Enter your email or a Philippine mobile number, like 0917 123 4567.',
           );
+        }
+        user = await auth.signInWithPhone(
+          phone: mobile.e164!,
+          password: password,
+        );
+      }
       if (!mounted) return;
       context.go(user.role == DemoRole.commuter ? '/home' : '/driver');
     } on DemoAuthException catch (error) {
@@ -88,10 +104,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (widget.existingAccountEmail != null) ...[
-                          const Text(
+                          Text(
                             'Sign in with your existing password to continue. '
                             'You can add your mobile number after signing in.',
                             textAlign: TextAlign.center,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.md),
                         ],
@@ -130,12 +149,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               LabeledTextField(
-                                label: 'Email Address',
-                                hintText: 'you@example.com',
-                                controller: _emailController,
-                                icon: Icons.email_outlined,
+                                label: 'Email or Mobile Number',
+                                hintText: 'you@example.com or 0917…',
+                                controller: _identifierController,
+                                icon: Icons.person_outline,
                                 keyboardType: TextInputType.emailAddress,
-                                autofillHints: const [AutofillHints.email],
+                                autofillHints: const [
+                                  AutofillHints.email,
+                                  AutofillHints.username,
+                                ],
                                 textInputAction: TextInputAction.next,
                               ),
                               const SizedBox(height: AppSpacing.md),

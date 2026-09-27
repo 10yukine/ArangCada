@@ -40,6 +40,13 @@ class HybridAuthRepository implements AuthRepository {
     return _requiredLive.signIn(email: email, password: password);
   }
 
+  /// Local test accounts are email-only, so phone sign-in is always live.
+  @override
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  }) => _requiredLive.signInWithPhone(phone: phone, password: password);
+
   @override
   Future<RegistrationResult> signUp({
     required String displayName,

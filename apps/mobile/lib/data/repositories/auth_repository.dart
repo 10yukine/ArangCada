@@ -6,6 +6,13 @@ abstract interface class AuthRepository {
 
   Future<DemoUser> signIn({required String email, required String password});
 
+  /// Password sign-in by an already verified mobile number ([phone] in
+  /// E.164). An unverified number is refused by Supabase Auth itself.
+  Future<DemoUser> signInWithPhone({
+    required String phone,
+    required String password,
+  });
+
   Future<RegistrationResult> signUp({
     required String displayName,
     required String mobileNumber,
