@@ -78,6 +78,14 @@ select '00000000-0000-0000-0000-0000000060b1', id, 'approved', 'DEV-001',
   from public.toda_zones
  where code = 'DEV-SJVTODA-CABUYAO';
 
+-- Dispatch fixtures satisfy the required-document gate.
+insert into public.driver_documents (driver_id, document_type, storage_path, status)
+select d.id, required.dt, 'test/' || required.dt::text, 'approved'
+from public.driver_profiles d
+cross join unnest(public.driver_required_document_types()) required(dt)
+where d.id::text like '%-0000000060__';
+
+
 select ok(
   public.is_admin('00000000-0000-0000-0000-0000000060c1'),
   'an unscoped active LGU administrator retains existing global permissions'

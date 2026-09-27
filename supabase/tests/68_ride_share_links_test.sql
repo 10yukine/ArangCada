@@ -53,6 +53,14 @@ insert into public.driver_profiles
    '00000000-0000-0000-0000-0000000068a1', 'approved', 'POB-042')
 on conflict (id) do update set body_number = excluded.body_number;
 
+-- Dispatch fixtures satisfy the required-document gate.
+insert into public.driver_documents (driver_id, document_type, storage_path, status)
+select d.id, required.dt, 'test/' || required.dt::text, 'approved'
+from public.driver_profiles d
+cross join unnest(public.driver_required_document_types()) required(dt)
+where d.id::text like '%-0000000068__';
+
+
 insert into public.driver_availability
   (driver_id, toda_zone_id, is_online, latitude, longitude) values
   ('00000000-0000-0000-0000-0000000068b1',

@@ -1,3 +1,9 @@
+-- !! SUPERSEDED 26 SEPTEMBER 2026 -- DO NOT RUN !!
+-- The owner-approved test-account cleanup has been done. Its keep list below
+-- is stale (it would now delete the current administrator accounts) and its
+-- dependent-table list predates complaints, ratings, claims, chat reports,
+-- share links and invites. Write a fresh, reviewed transaction instead.
+--
 -- Account audit and cleanup — run in the Supabase SQL Editor
 --
 -- Purpose: before the pilot beta, remove test/fake accounts from the hosted

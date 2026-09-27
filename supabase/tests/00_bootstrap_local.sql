@@ -20,6 +20,8 @@ create table if not exists auth.users (
   raw_user_meta_data jsonb not null default '{}'::jsonb
 );
 
+alter table auth.users add column if not exists raw_app_meta_data jsonb not null default '{}'::jsonb;
+
 -- Phone verification (31 Aug 2026). Real Supabase auth.users carries these two
 -- columns; the shim gained them when SMS OTP registration landed, because the
 -- trigger that mirrors phone_confirmed_at into public.profiles cannot be tested

@@ -71,6 +71,14 @@ insert into public.driver_profiles (id, toda_zone_id, promoted_by, verification_
    '00000000-0000-0000-0000-0000000066a1', 'approved')
 on conflict (id) do nothing;
 
+-- Dispatch fixtures satisfy the required-document gate.
+insert into public.driver_documents (driver_id, document_type, storage_path, status)
+select d.id, required.dt, 'test/' || required.dt::text, 'approved'
+from public.driver_profiles d
+cross join unnest(public.driver_required_document_types()) required(dt)
+where d.id::text like '%-0000000066__';
+
+
 -- FAR-SAME sits in the pickup's own TODA but at the opposite corner (~2 km).
 -- NEAR-OTHER belongs to Canlubang but is parked ~150 m from the pickup.
 insert into public.driver_availability
