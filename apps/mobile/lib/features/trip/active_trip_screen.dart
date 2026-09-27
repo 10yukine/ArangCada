@@ -364,11 +364,6 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
               sheetBuilder: (context, expanded) => _ActiveTripSheetBody(
                 booking: booking,
                 expanded: expanded,
-                // No invented minutes: nothing computes an arrival time
-                // yet, so the header shows the live status instead.
-                eta: ref.read(liveRideRepositoryProvider) != null
-                    ? 'Live GPS'
-                    : '',
                 etaFallback: state.forceEtaFallback,
                 driverName: state.liveDriverName ?? 'Your driver',
                 todaName: state.liveTodaName,
@@ -445,7 +440,6 @@ class _ActiveTripSheetBody extends StatelessWidget {
   const _ActiveTripSheetBody({
     required this.booking,
     required this.expanded,
-    required this.eta,
     required this.todaName,
     required this.etaFallback,
     required this.driverName,
@@ -462,7 +456,6 @@ class _ActiveTripSheetBody extends StatelessWidget {
 
   final DemoBooking booking;
   final bool expanded;
-  final String eta;
   final String? todaName;
   final bool etaFallback;
   final String driverName;
@@ -515,19 +508,14 @@ class _ActiveTripSheetBody extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // No arrival time here until one is actually computed;
+                      // the "In progress" chip on the map carries the status.
                       Expanded(
                         child: Text(
                           'To ${booking.destinationName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        eta,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.primary,
                         ),
                       ),
                     ],
