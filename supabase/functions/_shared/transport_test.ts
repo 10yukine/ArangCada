@@ -19,14 +19,22 @@ for (const kind of ["admin", "driver"] as const) {
       assert.equal(calls[0].method, "POST");
       assert.deepEqual(calls[0].headers, {Authorization: "Bearer synthetic-key", "Content-Type": "application/json"});
       assert.ok(calls[0].signal instanceof AbortSignal);
-      assert.deepEqual(JSON.parse(calls[0].body as string), {
+      const payload = JSON.parse(calls[0].body as string);
+      assert.deepEqual({ ...payload, html: undefined, text: undefined }, {
         from: "ArangCada <services@info.arangcada.app>",
         to: ["person@example.test"],
         subject: kind === "admin" ? "You're invited to the ArangCada admin console" : "You're invited to drive for ArangCada",
-        html: `<p>You've been invited to create an ArangCada ${kind === "admin" ? "LGU/TODA administrator" : "driver"} account.</p>` +
-          '<p><a href="https://example.test/?token=&lt;a&amp;b&quot;">Accept the invite and create your account</a></p>' +
-          '<p>This link is for one-time use and expires in 7 days. If you were not expecting this invite, you can ignore this email.</p>',
+        html: undefined,
+        text: undefined,
       });
+      assert.match(payload.html, /You're invited to ArangCada/);
+      assert.match(payload.html, /https:\/\/arangcada\.app\/apple-touch-icon\.png/);
+      assert.match(payload.html, new RegExp(kind === "admin" ? "LGU/TODA administrator" : "as a driver"));
+      assert.match(payload.html, /Create your account/);
+      assert.match(payload.html, /expires in 7 days/);
+      assert.equal((payload.html.match(/href="https:\/\/example\.test\/\?token=&lt;a&amp;b&quot;"/g) ?? []).length, 2);
+      assert.ok(!payload.html.includes('href="https://example.test/?token=<a&b"'));
+      assert.match(payload.text, /https:\/\/example\.test\/\?token=<a&b"/);
       fail = true;
       await assert.rejects(sendInviteEmail(kind, "person@example.test", "link", "synthetic-key"), {message: "Resend HTTP 429"});
       assert.deepEqual(logs, [[`send-${kind}-invite: Resend rejected the send (HTTP 429)`, "provider detail"]]);
