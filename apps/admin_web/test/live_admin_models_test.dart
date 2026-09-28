@@ -270,7 +270,8 @@ void main() {
     expect(rideStatusLabel('driver_assigned'), 'En route');
     expect(rideStatusLabel('driver_en_route'), 'En route');
     expect(rideStatusLabel('emergency_reported'), 'Emergency');
-    expect(rideStatusLabel('cancelled_by_rider'), 'Cancelled');
+    expect(rideStatusLabel('cancelled_by_rider'), 'Cancelled by rider');
+    expect(rideStatusLabel('cancelled_by_driver'), 'Cancelled by driver');
     expect(rideStatusLabel('no_driver_available'), 'No driver');
   });
 

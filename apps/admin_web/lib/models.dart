@@ -1034,7 +1034,11 @@ String rideStatusLabel(String value) => switch (value) {
   'arrived' => 'Arriving',
   'started' || 'in_progress' => 'On trip',
   'completed' => 'Completed',
-  'cancelled' || 'cancelled_by_rider' || 'cancelled_by_driver' => 'Cancelled',
+  // Who cancelled matters to TODA/LGU oversight now that drivers can
+  // cancel during pickup (e.g. a passenger no-show).
+  'cancelled_by_rider' => 'Cancelled by rider',
+  'cancelled_by_driver' => 'Cancelled by driver',
+  'cancelled' => 'Cancelled',
   'no_driver' || 'no_driver_available' => 'No driver',
   'emergency' || 'emergency_reported' => 'Emergency',
   _ => value,
