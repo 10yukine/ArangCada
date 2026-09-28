@@ -249,6 +249,11 @@ h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 600; line-height: 1.04; let
   border-bottom: 1px solid var(--border);
 }
 .row:last-child { border-bottom: none; }
+/* A hidden row must stay hidden: the display:flex above would otherwise
+   override the hidden attribute and show an empty "Body number" row. */
+.row[hidden] { display: none; }
+/* Labels are short words; only values may break mid-word. */
+.row > .label { flex-shrink: 0; overflow-wrap: normal; }
 
 /* Route: a timeline, pickup joined to destination. */
 .route {
