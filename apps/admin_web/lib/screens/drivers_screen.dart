@@ -1294,9 +1294,9 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final icon = Icon(
                 approved
                     ? Icons.check_circle
                     : rejected
@@ -1308,26 +1308,53 @@ class _DriverDocumentRowState extends ConsumerState<_DriverDocumentRow> {
                     : rejected
                     ? context.adminColor(AdminColors.danger)
                     : context.adminColor(AdminColors.muted),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.titleSmall,
+              );
+              final label = Text(
+                widget.label,
+                style: Theme.of(context).textTheme.titleSmall,
+              );
+              final controls = [
+                StatusPill(description, tone: tone),
+                const SizedBox(width: 6),
+                TextButton.icon(
+                  onPressed: _busy ? null : _upload,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(40, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  icon: const Icon(Icons.upload_file, size: 17),
+                  label: Text(path == null ? 'Upload' : 'Replace'),
                 ),
-              ),
-              StatusPill(description, tone: tone),
-              const SizedBox(width: 6),
-              TextButton.icon(
-                onPressed: _busy ? null : _upload,
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(40, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                icon: const Icon(Icons.upload_file, size: 17),
-                label: Text(path == null ? 'Upload' : 'Replace'),
-              ),
-            ],
+              ];
+              // Narrow (phone): status and upload go under the name, which
+              // otherwise wrapped a letter per line.
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 10),
+                        Expanded(child: label),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 30, top: 4),
+                      child: Row(children: controls),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Expanded(child: label),
+                  ...controls,
+                ],
+              );
+            },
           ),
           if (path != null)
             Padding(

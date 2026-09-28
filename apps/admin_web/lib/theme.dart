@@ -259,6 +259,10 @@ ThemeData adminTheme({Brightness brightness = Brightness.light}) {
       side: BorderSide(color: border),
     ),
     dialogTheme: DialogThemeData(
+      // Narrow inset: on a phone the default 40 px margins squeezed dialog
+      // content (driver documents wrapped a letter per line). Desktop
+      // dialogs are sized by their content and never reach the margin.
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
       backgroundColor: surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),

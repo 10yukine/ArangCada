@@ -54,7 +54,7 @@ Widget _consolePage(Widget child) => LayoutBuilder(
   builder: (context, constraints) => SingleChildScrollView(
     padding: EdgeInsets.fromLTRB(
       constraints.maxWidth < 600 ? 16 : 32,
-      28,
+      constraints.maxWidth < 600 ? 16 : 28,
       constraints.maxWidth < 600 ? 16 : 32,
       40,
     ),
@@ -841,17 +841,10 @@ class AdminShell extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    if (compact)
-                      Builder(
-                        builder: (context) => IconButton(
-                          tooltip: 'Open navigation',
-                          icon: const Icon(Icons.menu),
-                          onPressed: () => Scaffold.of(context).openDrawer(),
-                        ),
-                      ),
+                    // Phones open the drawer from the More tab below.
                     if (compact)
                       const Padding(
-                        padding: EdgeInsets.only(right: 12),
+                        padding: EdgeInsets.only(left: 8, right: 12),
                         child: BrandTile(size: 32),
                       ),
                     Expanded(
@@ -899,11 +892,48 @@ class AdminShell extends ConsumerWidget {
                   ],
                 ),
               );
+              // Phones: the four most-used sections one tap away, the rest
+              // under More (the drawer). The owner found the drawer-only
+              // console hard to navigate on a phone.
+              final tabs = visible.take(4).toList();
+              final tabIndex = tabs.indexWhere((item) => inSection(item.$1));
               return Scaffold(
                 drawer: compact
                     ? Drawer(
                         width: 280,
                         child: navigation(labels: true, drawer: true),
+                      )
+                    : null,
+                bottomNavigationBar: compact
+                    ? Builder(
+                        builder: (context) => NavigationBar(
+                          height: 64,
+                          labelBehavior:
+                              NavigationDestinationLabelBehavior.alwaysShow,
+                          selectedIndex: tabIndex < 0 ? tabs.length : tabIndex,
+                          onDestinationSelected: (index) {
+                            if (index == tabs.length) {
+                              Scaffold.of(context).openDrawer();
+                            } else {
+                              context.go(tabs[index].$1);
+                            }
+                          },
+                          destinations: [
+                            for (final item in tabs)
+                              NavigationDestination(
+                                icon: Icon(item.$3),
+                                label: switch (item.$1) {
+                                  '/live-map' => 'Map',
+                                  '/safety' => 'Safety',
+                                  _ => item.$2,
+                                },
+                              ),
+                            const NavigationDestination(
+                              icon: Icon(Icons.menu),
+                              label: 'More',
+                            ),
+                          ],
+                        ),
                       )
                     : null,
                 body: Row(

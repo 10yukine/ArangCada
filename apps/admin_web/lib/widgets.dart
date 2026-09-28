@@ -135,27 +135,33 @@ class PageHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      // On a phone the toolbar already names the section, so the heading
+      // steps down a size instead of taking a third of the screen.
+      final phone = constraints.maxWidth < 560;
+      final textTheme = Theme.of(context).textTheme;
       final heading = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: 8),
+          Text(
+            title,
+            style: phone ? textTheme.headlineSmall : textTheme.headlineLarge,
+          ),
+          SizedBox(height: phone ? 4 : 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: context.adminColor(AdminColors.muted),
-              ),
+              style: (phone ? textTheme.bodyMedium : textTheme.bodyLarge)
+                  ?.copyWith(color: context.adminColor(AdminColors.muted)),
             ),
           ),
         ],
       );
       if (action == null) return heading;
-      if (constraints.maxWidth < 560) {
+      if (phone) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [heading, const SizedBox(height: 16), action!],
+          children: [heading, const SizedBox(height: 12), action!],
         );
       }
       return Row(
