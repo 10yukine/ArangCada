@@ -149,8 +149,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               LabeledTextField(
-                                label: 'Phone or Email',
-                                hintText: '',
+                                label: '',
+                                hintText: 'Mobile number or email address',
                                 controller: _identifierController,
                                 icon: Icons.person_outline,
                                 keyboardType: TextInputType.emailAddress,

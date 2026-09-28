@@ -72,8 +72,10 @@ class _LabeledTextFieldState extends State<LabeledTextField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: AppTypography.label),
-        const SizedBox(height: AppSpacing.xs),
+        if (widget.label.isNotEmpty) ...[
+          Text(widget.label, style: AppTypography.label),
+          const SizedBox(height: AppSpacing.xs),
+        ],
         TextField(
           controller: widget.controller,
           focusNode: _focusNode,
@@ -86,6 +88,9 @@ class _LabeledTextFieldState extends State<LabeledTextField> {
           style: const TextStyle(fontSize: 15),
           decoration: InputDecoration(
             hintText: widget.hintText,
+            hintStyle: widget.label.isEmpty
+                ? const TextStyle(fontSize: 13)
+                : null,
             errorText: widget.errorText,
             fillColor: _focusNode.hasFocus
                 ? AppColors.surface
