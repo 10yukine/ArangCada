@@ -11,6 +11,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
+import '../../domain/models/booking.dart';
 import '../../domain/geo/service_area.dart';
 import '../../core/geo/haversine.dart';
 import '../../demo/demo_data.dart';
@@ -105,9 +106,21 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
           state.pickup.id == adjustedPickupId &&
           haversineDistanceMeters(fix.coordinate, state.pickup.coordinate) >
               pickupAdjustRadiusMeters * 1.5;
+      // A finished trip leaves its server pickup in state (found in the live
+      // beta test: Home kept showing the last ride's street). Once that trip
+      // is over, pickup goes back to following GPS.
+      final booking = state.activeBooking;
+      final leftoverTripPickup =
+          state.pickup.id.startsWith('live-pickup-') &&
+          (booking == null ||
+              booking.status == BookingStatus.completed ||
+              booking.status == BookingStatus.cancelled);
       if (!fix.isCoarse &&
           identical(state.pickup, pickupBeforeRequest) &&
-          (!state.hasPickup || state.pickup.id == 'gps' || nudgedButStale)) {
+          (!state.hasPickup ||
+              state.pickup.id == 'gps' ||
+              nudgedButStale ||
+              leftoverTripPickup)) {
         state.setPickup(
           DemoPlace(
             id: 'gps',

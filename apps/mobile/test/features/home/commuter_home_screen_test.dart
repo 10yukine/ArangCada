@@ -125,9 +125,30 @@ void main() {
     expect(location.requests, 0);
   });
 
-  testWidgets('GPS does not replace a manually chosen pickup', (
-    tester,
-  ) async {
+  // Found in the live beta test: Home kept the last ride's pickup street.
+  testWidgets('a finished trip pickup goes back to GPS', (tester) async {
+    final state = await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+        isInternalTester: true,
+      ),
+      location: _LocationSpy(),
+      pickup: const DemoPlace(
+        id: 'live-pickup-old-trip',
+        name: 'Manchester Street',
+        address: 'Live trip pickup',
+        coordinate: GeoCoordinate(latitude: 14.25, longitude: 121.13),
+      ),
+    );
+
+    expect(state.pickup.id, 'gps');
+    expect(find.text('Manchester Street'), findsNothing);
+  });
+
+  testWidgets('GPS does not replace a manually chosen pickup', (tester) async {
     final state = await render(
       tester,
       user: const DemoUser(
@@ -143,29 +164,30 @@ void main() {
     expect(state.pickup, same(DemoData.places.last));
   });
 
-  testWidgets('when GPS is outside Calamba City, pickup shows Out of Service Area', (
-    tester,
-  ) async {
-    final location = _LocationSpy(
-      coordinate: const GeoCoordinate(latitude: 14.2825, longitude: 121.115),
-    );
-    await render(
-      tester,
-      user: const DemoUser(
-        email: 'commuter@example.com',
-        displayName: 'Connected Commuter',
-        role: DemoRole.commuter,
-      ),
-      location: location,
-    );
+  testWidgets(
+    'when GPS is outside Calamba City, pickup shows Out of Service Area',
+    (tester) async {
+      final location = _LocationSpy(
+        coordinate: const GeoCoordinate(latitude: 14.2825, longitude: 121.115),
+      );
+      await render(
+        tester,
+        user: const DemoUser(
+          email: 'commuter@example.com',
+          displayName: 'Connected Commuter',
+          role: DemoRole.commuter,
+        ),
+        location: location,
+      );
 
-    expect(location.requests, 1);
-    expect(find.text('Out of Service Area'), findsOneWidget);
-    expect(
-      find.text('Rides can only be booked inside Calamba City.'),
-      findsOneWidget,
-    );
-  });
+      expect(location.requests, 1);
+      expect(find.text('Out of Service Area'), findsOneWidget);
+      expect(
+        find.text('Rides can only be booked inside Calamba City.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   // Found on a real phone: booking from the Cabuyao test zone worked for a
   // tester while Home still called the pickup out of service.
