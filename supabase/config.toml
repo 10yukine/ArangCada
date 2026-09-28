@@ -66,3 +66,12 @@ enabled = true
 # function itself (driver_invite_lookup / driver_finalize_invited_account).
 verify_jwt = false
 entrypoint = "./functions/accept-driver-invite/index.ts"
+
+[functions.inbound-email]
+enabled = true
+# MUST stay false. Resend calls this webhook with a Svix signature, not a user
+# JWT; the gateway would reject every delivery. Not unauthenticated:
+# verifySignature() rejects anything not signed with
+# RESEND_INBOUND_WEBHOOK_SECRET.
+verify_jwt = false
+entrypoint = "./functions/inbound-email/index.ts"
