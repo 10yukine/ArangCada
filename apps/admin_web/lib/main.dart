@@ -51,7 +51,7 @@ Future<void> main() async {
 }
 
 Widget _consolePage(Widget child) => LayoutBuilder(
-  builder: (context, constraints) => SingleChildScrollView(
+  builder: (context, constraints) => ConsoleScrollView(
     padding: EdgeInsets.fromLTRB(
       constraints.maxWidth < 600 ? 16 : 32,
       constraints.maxWidth < 600 ? 16 : 28,
@@ -810,6 +810,8 @@ class AdminShell extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      // Phones: appearance lives here, not in the toolbar.
+                      if (drawer) const AdminAppearanceButton(inRail: true),
                       Divider(color: Colors.white.withValues(alpha: .16)),
                       const SizedBox(height: 12),
                       _RailAccountFooter(
@@ -857,23 +859,33 @@ class AdminShell extends ConsumerWidget {
                         ),
                       ),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleLarge,
+                      // Phones: tap the title to jump back to the top.
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: compact
+                            ? () => consoleScrollToTop.value++
+                            : null,
+                        child: Semantics(
+                          onTapHint: compact ? 'scroll to top' : null,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              Text(
+                                session.scope,
+                                style: Theme.of(context).textTheme.bodySmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          Text(
-                            session.scope,
-                            style: Theme.of(context).textTheme.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                    const AdminAppearanceButton(),
+                    if (!compact) const AdminAppearanceButton(),
                     IconButton(
                       tooltip: 'Notifications',
                       onPressed: () {

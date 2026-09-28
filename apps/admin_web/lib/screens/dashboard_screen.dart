@@ -75,15 +75,18 @@ class DashboardScreen extends ConsumerWidget {
     final evaluationTarget = todas.length * state.respondentTarget;
 
     // ---------------------------------------------------------------- header
-    final header = PageHeading(
+    // Phones drop the "Open live map" link: the menu already has Live map.
+    Widget heading({bool phone = false}) => PageHeading(
       title: 'Operations overview',
       subtitle: session.role == AdminRole.lgu
           ? 'Calamba City · Dispatch, safety, and driver verification.'
           : '${session.toda} · Your dispatch and review workspace.',
-      action: TextButton(
-        onPressed: () => context.go('/live-map'),
-        child: const Text('Open live map'),
-      ),
+      action: phone
+          ? null
+          : TextButton(
+              onPressed: () => context.go('/live-map'),
+              child: const Text('Open live map'),
+            ),
     );
     final connection = Row(
       children: [
@@ -122,7 +125,7 @@ class DashboardScreen extends ConsumerWidget {
           _Metric(
             label: 'OPEN SAFETY REPORTS',
             value: '${reports.length}',
-            detail: 'Review and follow up',
+            detail: 'View reports',
             icon: const Icon(Icons.shield_outlined),
             compact: compact,
             onTap: () => context.go('/safety'),
@@ -365,7 +368,7 @@ class DashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      header,
+                      heading(),
                       const SizedBox(height: 10),
                       connection,
                       const SizedBox(height: 18),
@@ -466,6 +469,7 @@ class DashboardScreen extends ConsumerWidget {
 
         // ---------------------------------------------- scrolling fallback
         final narrow = constraints.maxWidth < 980;
+        final phone = constraints.maxWidth < 600;
         final dispatch = Panel(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
           child: Column(
@@ -513,7 +517,7 @@ class DashboardScreen extends ConsumerWidget {
         );
         return Material(
           type: MaterialType.transparency,
-          child: SingleChildScrollView(
+          child: ConsoleScrollView(
             padding: EdgeInsets.fromLTRB(pad, 24, pad, 40),
             child: Align(
               alignment: Alignment.topCenter,
@@ -522,13 +526,33 @@ class DashboardScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    header,
-                    const SizedBox(height: 10),
-                    connection,
+                    heading(phone: phone),
+                    // On a phone the healthy "Connected" line is noise; only
+                    // loading or a connection problem is worth the space.
+                    if (!phone ||
+                        state.loading ||
+                        state.connectionError != null) ...[
+                      const SizedBox(height: 10),
+                      connection,
+                    ],
                     const SizedBox(height: 18),
-                    metricsBand(compact: false),
+                    // Phones lead with what needs action; the owner found it
+                    // several screens down, below the stats and the map.
+                    if (phone) ...[
+                      listPanel(
+                        'Needs attention',
+                        'Start with safety, then clear the review queue.',
+                        attentionRows,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    metricsBand(compact: phone),
                     const SizedBox(height: 16),
-                    if (narrow) ...[
+                    if (phone) ...[
+                      dispatch,
+                      const SizedBox(height: 16),
+                      listPanel('Live activity', null, activityRows),
+                    ] else if (narrow) ...[
                       dispatch,
                       const SizedBox(height: 16),
                       work,

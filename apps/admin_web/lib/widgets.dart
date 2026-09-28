@@ -415,3 +415,56 @@ String shortTime(DateTime value) {
   final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
   return '${value.month}/${value.day} · $hour:${value.minute.toString().padLeft(2, '0')} ${value.hour >= 12 ? 'PM' : 'AM'}';
 }
+
+/// Bumped when the phone toolbar title is tapped; the visible console page
+/// scrolls back to the top (the iPhone "tap the top bar" convention).
+final consoleScrollToTop = ValueNotifier<int>(0);
+
+/// The vertical scroll view of a console page. Behaves like
+/// SingleChildScrollView and also answers [consoleScrollToTop].
+class ConsoleScrollView extends StatefulWidget {
+  const ConsoleScrollView({
+    super.key,
+    required this.padding,
+    required this.child,
+  });
+
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+
+  @override
+  State<ConsoleScrollView> createState() => _ConsoleScrollViewState();
+}
+
+class _ConsoleScrollViewState extends State<ConsoleScrollView> {
+  final _controller = ScrollController();
+
+  void _toTop() {
+    if (!_controller.hasClients || _controller.offset == 0) return;
+    _controller.animateTo(
+      0,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    consoleScrollToTop.addListener(_toTop);
+  }
+
+  @override
+  void dispose() {
+    consoleScrollToTop.removeListener(_toTop);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    controller: _controller,
+    padding: widget.padding,
+    child: widget.child,
+  );
+}

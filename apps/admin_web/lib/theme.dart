@@ -308,13 +308,43 @@ ThemeData adminTheme({Brightness brightness = Brightness.light}) {
 }
 
 class AdminAppearanceButton extends StatelessWidget {
-  const AdminAppearanceButton({super.key});
+  const AdminAppearanceButton({super.key, this.inRail = false});
+
+  /// A labelled row in white for the navigation drawer (phones), instead of
+  /// the bare toolbar icon.
+  final bool inRail;
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
     valueListenable: adminThemeMode,
     builder: (context, mode, _) => PopupMenuButton<ThemeMode>(
       tooltip: 'Appearance',
-      icon: Icon(_icon(mode)),
+      icon: inRail ? null : Icon(_icon(mode)),
+      child: inRail
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(_icon(mode), size: 22, color: AdminColors.railText),
+                  const SizedBox(width: 14),
+                  Flexible(
+                    child: Text(
+                      'Appearance · ${switch (mode) {
+                        ThemeMode.system => 'System',
+                        ThemeMode.light => 'Light',
+                        ThemeMode.dark => 'Dark',
+                      }}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AdminColors.railText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
       onSelected: (value) async {
         adminThemeMode.value = value;
         final preferences = await SharedPreferences.getInstance();
@@ -353,7 +383,7 @@ class AdminAppearanceButton extends StatelessWidget {
   );
 
   static IconData _icon(ThemeMode mode) => switch (mode) {
-    ThemeMode.system => Icons.settings_outlined,
+    ThemeMode.system => Icons.brightness_auto_outlined,
     ThemeMode.light => Icons.light_mode_outlined,
     ThemeMode.dark => Icons.dark_mode_outlined,
   };

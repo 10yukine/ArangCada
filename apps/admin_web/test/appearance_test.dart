@@ -11,7 +11,8 @@ void main() {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(body: AdminAppearanceButton()),
     ));
-    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    // Not the gear: that is Settings' icon, and both now sit in the phone menu.
+    expect(find.byIcon(Icons.brightness_auto_outlined), findsOneWidget);
     for (final label in ['Dark', 'Light', 'System']) {
       await tester.tap(find.byTooltip('Appearance'));
       await tester.pumpAndSettle();

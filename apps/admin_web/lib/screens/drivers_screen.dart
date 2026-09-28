@@ -139,7 +139,19 @@ class DriversScreen extends ConsumerWidget {
                         ),
                       ),
                   ];
-                  return Wrap(spacing: 12, runSpacing: 12, children: fields);
+                  if (constraints.maxWidth >= 640) {
+                    return Wrap(spacing: 12, runSpacing: 12, children: fields);
+                  }
+                  // Phones: search stays visible, the dropdowns fold away
+                  // behind a Filters button (they took ~200 px above the
+                  // list). A badge counts the filters in effect.
+                  return _PhoneDriverFilters(
+                    search: fields.first,
+                    filters: fields.sublist(1),
+                    active:
+                        (state.driverStatus != 'All statuses' ? 1 : 0) +
+                        (state.driverToda != 'All TODAs' ? 1 : 0),
+                  );
                 },
               ),
               const SizedBox(height: 16),
@@ -1517,4 +1529,59 @@ Future<void> _confirmDriverAction(
     await _applyDriverAction(dialogContext, ref, driver, status, reason.text);
   }
   reason.dispose();
+}
+
+class _PhoneDriverFilters extends StatefulWidget {
+  const _PhoneDriverFilters({
+    required this.search,
+    required this.filters,
+    required this.active,
+  });
+
+  final Widget search;
+  final List<Widget> filters;
+  final int active;
+
+  @override
+  State<_PhoneDriverFilters> createState() => _PhoneDriverFiltersState();
+}
+
+class _PhoneDriverFiltersState extends State<_PhoneDriverFilters> {
+  // Open when arriving with a filter already set (e.g. from the dashboard's
+  // "Driver applications"), so the narrowed list is never a surprise.
+  late bool _open = widget.active > 0;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          Expanded(child: widget.search),
+          const SizedBox(width: 8),
+          Badge(
+            isLabelVisible: widget.active > 0 && !_open,
+            label: Text('${widget.active}'),
+            child: IconButton.filledTonal(
+              tooltip: _open ? 'Hide filters' : 'Show filters',
+              isSelected: _open,
+              onPressed: () => setState(() => _open = !_open),
+              icon: const Icon(Icons.tune),
+            ),
+          ),
+        ],
+      ),
+      AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: _open
+            ? Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Wrap(runSpacing: 12, children: widget.filters),
+              )
+            : const SizedBox(width: double.infinity),
+      ),
+    ],
+  );
 }
