@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/map/live_map_view.dart';
@@ -314,6 +315,44 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     }
   }
 
+  /// Driver-side cancel while heading to or waiting at the pickup, e.g. a
+  /// passenger who never shows. Found missing in the live two-phone test:
+  /// the rider's cancel window closes after a minute and the driver had no
+  /// exit at all except completing a ride that never happened. The server's
+  /// cancel_ride already accepts the driver; it records cancelled_by_driver
+  /// and the rider's screen shows the ride as cancelled.
+  Future<void> _cancelPickup() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ArangDialog(
+        title: 'Cancel this ride?',
+        content: const Text(
+          'Use this if the passenger did not show up or you cannot reach the '
+          'pickup. The passenger will see that you cancelled.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep ride'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel ride'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await liveRides.cancelRide();
+      ref.read(chatRepositoryProvider).closeActiveTripThread();
+    } on Exception {
+      _showLiveActionError('Could not cancel the ride. Please try again.');
+    }
+  }
+
   Future<void> _completeTrip() async {
     final state = ref.read(demoStateProvider);
     final liveRides = ref.read(liveRideRepositoryProvider);
@@ -358,6 +397,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                 arrived:
                     state.driverTrip.status == DriverTripStatus.arrivedAtPickup,
                 onAction: _advancePickup,
+                // Live trips only: a demo trip has no server ride to cancel.
+                onCancel: ref.read(liveRideRepositoryProvider) == null
+                    ? null
+                    : _cancelPickup,
               );
             }
             if (state.driverTrip.status == DriverTripStatus.inProgress) {
@@ -765,7 +808,10 @@ class _PickupModeCard extends ConsumerWidget {
     required this.mapController,
     required this.arrived,
     required this.onAction,
+    this.onCancel,
   });
+
+  final VoidCallback? onCancel;
 
   final LiveMapViewController mapController;
   final bool arrived;
@@ -826,6 +872,14 @@ class _PickupModeCard extends ConsumerWidget {
                 label: arrived ? 'Start Trip' : 'Arrived at Pickup',
                 onPressed: onAction,
               ),
+              if (onCancel != null)
+                TextButton(
+                  onPressed: onCancel,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.dangerDark,
+                  ),
+                  child: const Text('Cancel ride'),
+                ),
             ],
           ),
         ),
