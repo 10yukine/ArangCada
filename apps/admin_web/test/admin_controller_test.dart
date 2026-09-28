@@ -125,10 +125,7 @@ void main() {
     final container = ProviderContainer(overrides: fixtureOverrides);
     addTearDown(container.dispose);
     final controller = container.read(adminProvider.notifier);
-    const lguSession = AdminSession(
-      name: 'LGU evaluator',
-      role: AdminRole.lgu,
-    );
+    const lguSession = AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
     const todaSession = AdminSession(
       name: 'Coordinator',
       role: AdminRole.toda,
@@ -153,23 +150,26 @@ void main() {
     expect(controller.visibleRatings(otherTodaSession), isEmpty);
   });
 
-  test('sessions without a connected account cannot change a password', () async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  test(
+    'sessions without a connected account cannot change a password',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-    await expectLater(
-      container
-          .read(adminProvider.notifier)
-          .updateOwnPassword(
-            session: const AdminSession(
-              name: 'LGU evaluator',
-              email: 'evaluator@calambacity.gov.ph',
-              role: AdminRole.lgu,
+      await expectLater(
+        container
+            .read(adminProvider.notifier)
+            .updateOwnPassword(
+              session: const AdminSession(
+                name: 'LGU evaluator',
+                email: 'evaluator@calambacity.gov.ph',
+                role: AdminRole.lgu,
+              ),
+              currentPassword: 'current-password',
+              newPassword: 'new-password',
             ),
-            currentPassword: 'current-password',
-            newPassword: 'new-password',
-          ),
-      throwsStateError,
-    );
-  });
+        throwsStateError,
+      );
+    },
+  );
 }

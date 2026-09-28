@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('shows a clear error when the link has no token', (
-    tester,
-  ) async {
+  testWidgets('shows a clear error when the link has no token', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: AcceptInviteScreen(token: null)),
@@ -14,10 +12,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('This invite link is missing its token.'),
-      findsOneWidget,
-    );
+    expect(find.text('This invite link is missing its token.'), findsOneWidget);
   });
 
   testWidgets(
@@ -36,10 +31,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('invalid or has expired'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('invalid or has expired'), findsOneWidget);
       // The password/first-name form never renders for an unresolved invite.
       expect(find.text('Create account'), findsNothing);
     },

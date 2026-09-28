@@ -16,20 +16,20 @@ class _DriverRecordFixtureController extends AdminController {
 
   @override
   AdminState build() => testAdminState().copyWith(
-        drivers: [
-          Driver(
-            id: 'driver-101',
-            name: 'Juan Dela Cruz',
-            toda: 'Calamba Poblacion TODA',
-            phone: '09171234567',
-            plate: 'ABC-1234',
-            status: DriverStatus.approved,
-            documents: 4,
-            enrollmentCode: 'Body 101',
-            updated: DateTime(2026, 9, 1),
-          ),
-        ],
-      );
+    drivers: [
+      Driver(
+        id: 'driver-101',
+        name: 'Juan Dela Cruz',
+        toda: 'Calamba Poblacion TODA',
+        phone: '09171234567',
+        plate: 'ABC-1234',
+        status: DriverStatus.approved,
+        documents: 4,
+        enrollmentCode: 'Body 101',
+        updated: DateTime(2026, 9, 1),
+      ),
+    ],
+  );
 
   @override
   Future<void> updateDriverRecord({
@@ -67,22 +67,25 @@ void main() {
   });
 
   group('Driver name model parsing', () {
-    test('effectiveFirstName and effectiveLastName split full name correctly', () {
-      final driver = Driver(
-        id: '1',
-        name: 'Maria Clara Santos',
-        toda: 'Poblacion',
-        phone: '09123456789',
-        plate: 'XYZ-999',
-        status: DriverStatus.approved,
-        documents: 4,
-        enrollmentCode: 'Body 1',
-        updated: DateTime(2026, 9, 1),
-      );
+    test(
+      'effectiveFirstName and effectiveLastName split full name correctly',
+      () {
+        final driver = Driver(
+          id: '1',
+          name: 'Maria Clara Santos',
+          toda: 'Poblacion',
+          phone: '09123456789',
+          plate: 'XYZ-999',
+          status: DriverStatus.approved,
+          documents: 4,
+          enrollmentCode: 'Body 1',
+          updated: DateTime(2026, 9, 1),
+        );
 
-      expect(driver.effectiveFirstName, 'Maria');
-      expect(driver.effectiveLastName, 'Clara Santos');
-    });
+        expect(driver.effectiveFirstName, 'Maria');
+        expect(driver.effectiveLastName, 'Clara Santos');
+      },
+    );
 
     test('explicit firstName and lastName override split full name', () {
       final driver = Driver(
@@ -146,7 +149,10 @@ void main() {
 
       expect(find.widgetWithText(TextFormField, 'Juan'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Dela Cruz'), findsOneWidget);
-      await tester.enterText(find.widgetWithText(TextFormField, 'Juan'), 'Johnny');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Juan'),
+        'Johnny',
+      );
       await tester.tap(find.text('Save changes'));
       await tester.pumpAndSettle();
 

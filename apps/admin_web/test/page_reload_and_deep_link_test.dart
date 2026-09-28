@@ -42,20 +42,20 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
 
   @override
   Future<AdminSnapshot> load(AdminSession session) async => const AdminSnapshot(
-        drivers: [],
-        reports: [],
-        complaints: [],
-        ratings: [],
-        fareClassClaims: [],
-        reportedChats: [],
-        rides: [],
-        boundaries: [],
-        feedbackSummaries: [],
-        feedbackResponses: [],
-        feedbackInterval: 1,
-        respondentTarget: 10,
-        repeatFeedback: false,
-      );
+    drivers: [],
+    reports: [],
+    complaints: [],
+    ratings: [],
+    fareClassClaims: [],
+    reportedChats: [],
+    rides: [],
+    boundaries: [],
+    feedbackSummaries: [],
+    feedbackResponses: [],
+    feedbackInterval: 1,
+    respondentTarget: 10,
+    repeatFeedback: false,
+  );
 
   @override
   SupabaseClient get client => _FakeClient();
@@ -70,8 +70,8 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
 
   @override
   Future<({List<DriverInvite> invites, List<(String id, String name)> zones})>
-      loadDriverInvites() async =>
-          (invites: <DriverInvite>[], zones: <(String, String)>[]);
+  loadDriverInvites() async =>
+      (invites: <DriverInvite>[], zones: <(String, String)>[]);
 
   @override
   void subscribe({
@@ -139,7 +139,9 @@ void main() {
       expect(find.text('Operations overview'), findsNothing);
       expect(find.text('Admins'), findsAtLeastNWidgets(1));
       expect(
-        find.text('Invite and review LGU and TODA administrator accounts by email.'),
+        find.text(
+          'Invite and review LGU and TODA administrator accounts by email.',
+        ),
         findsOneWidget,
       );
     },
@@ -159,10 +161,7 @@ void main() {
         connected: true,
       );
 
-      final repo = _FakeRepository(
-        hasSession: true,
-        session: restoredSession,
-      );
+      final repo = _FakeRepository(hasSession: true, session: restoredSession);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -209,8 +208,14 @@ void main() {
       expect(find.text('Use local demo'), findsNothing);
 
       // Sign in with an administrator account.
-      await tester.enterText(find.byType(TextFormField).at(0), 'lgu@example.test');
-      await tester.enterText(find.byType(TextFormField).at(1), 'synthetic-password');
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'lgu@example.test',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'synthetic-password',
+      );
       await tester.tap(find.text('Open console'));
       await tester.pumpAndSettle();
 

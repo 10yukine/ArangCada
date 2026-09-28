@@ -246,4 +246,6 @@ class FixtureAdminController extends AdminController {
 }
 
 /// Overrides for a ProviderScope whose console should show the sample data.
-final fixtureOverrides = [adminProvider.overrideWith(FixtureAdminController.new)];
+final fixtureOverrides = [
+  adminProvider.overrideWith(FixtureAdminController.new),
+];

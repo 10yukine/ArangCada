@@ -168,9 +168,7 @@ void main() {
     },
   );
 
-  testWidgets('the enrollment dialog blocks a malformed email', (
-    tester,
-  ) async {
+  testWidgets('the enrollment dialog blocks a malformed email', (tester) async {
     await openDriversScreen(tester);
 
     await tester.tap(find.text('Enroll driver'));
