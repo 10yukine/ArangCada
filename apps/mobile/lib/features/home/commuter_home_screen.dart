@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
@@ -316,6 +317,16 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                     failure: _locationError!,
                     busy: _locating,
                     onRetry: _locate,
+                  ),
+                ],
+                // Found in the live phone test: a commuter outside Calamba
+                // only learned why at ride options. Say it where the
+                // "Out of Service Area" pickup is shown.
+                if (_pickupLabel('') == 'Out of Service Area') ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  const Text(
+                    'Rides can only be booked inside Calamba City.',
+                    style: AppTypography.caption,
                   ),
                 ],
                 const SizedBox(height: 12),

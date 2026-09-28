@@ -161,6 +161,10 @@ void main() {
 
     expect(location.requests, 1);
     expect(find.text('Out of Service Area'), findsOneWidget);
+    expect(
+      find.text('Rides can only be booked inside Calamba City.'),
+      findsOneWidget,
+    );
   });
 
   // Found on a real phone: booking from the Cabuyao test zone worked for a
@@ -183,6 +187,10 @@ void main() {
 
     expect(find.text('Out of Service Area'), findsNothing);
     expect(find.text('Current location'), findsOneWidget);
+    expect(
+      find.text('Rides can only be booked inside Calamba City.'),
+      findsNothing,
+    );
   });
 
   group('notification bell dot', () {
