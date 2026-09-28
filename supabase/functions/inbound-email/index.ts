@@ -7,5 +7,7 @@ Deno.serve((req) =>
     apiKey: Deno.env.get("RESEND_API_KEY") ?? "",
     webhookSecret: Deno.env.get("RESEND_INBOUND_WEBHOOK_SECRET") ?? "",
     forwardTo: Deno.env.get("INBOUND_FORWARD_TO") ?? "",
+    supabaseUrl: Deno.env.get("SUPABASE_URL") ?? "",
+    serviceRoleKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   })
 );
