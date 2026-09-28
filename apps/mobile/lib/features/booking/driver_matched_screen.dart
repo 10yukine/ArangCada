@@ -288,19 +288,34 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   booking.status == BookingStatus.approaching);
           if (!waiting) {
             final cancelled = booking?.status == BookingStatus.cancelled;
+            // A driver can now cancel during pickup (e.g. a no-show). Say
+            // so plainly and offer the obvious next step: book again.
+            final driverCancelled =
+                ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] ==
+                'cancelled_by_driver';
             return SafeArea(
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
-                  EmptyStateCard(
-                    icon: cancelled ? Icons.cancel_outlined : Icons.route,
-                    title: cancelled
-                        ? 'Ride cancelled'
-                        : 'No driver on the way',
-                    message: 'Open Trips to check your latest ride.',
-                    actionLabel: 'View trips',
-                    onAction: () => context.go('/trips'),
-                  ),
+                  if (driverCancelled)
+                    EmptyStateCard(
+                      icon: Icons.cancel_outlined,
+                      title: 'Your driver cancelled',
+                      message:
+                          'Nothing was charged. You can book another ride now.',
+                      actionLabel: 'Book another ride',
+                      onAction: () => context.go('/home'),
+                    )
+                  else
+                    EmptyStateCard(
+                      icon: cancelled ? Icons.cancel_outlined : Icons.route,
+                      title: cancelled
+                          ? 'Ride cancelled'
+                          : 'No driver on the way',
+                      message: 'Open Trips to check your latest ride.',
+                      actionLabel: 'View trips',
+                      onAction: () => context.go('/trips'),
+                    ),
                 ],
               ),
             );

@@ -228,6 +228,68 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('a driver cancel tells the rider and offers a new booking', (
+    tester,
+  ) async {
+    final state = DemoState();
+    addTearDown(state.dispose);
+    final booking =
+        DemoBooking.draft(
+            pickupName: 'Pickup',
+            destinationName: 'Destination',
+            rideType: RideType.special,
+            passengerCount: 1,
+            userFareClass: UserFareClass.regular,
+            paymentMethod: PaymentMethod.cash,
+            fareQuote: const FareCalculator().quote(
+              distanceMeters: 2400,
+              rideType: RideType.special,
+              passengerCount: 1,
+              discountClass: DiscountClass.full,
+            ),
+          )
+          ..confirm()
+          ..beginSearching()
+          ..matchDriver()
+          ..status = BookingStatus.cancelled;
+    state.setActiveBooking(booking);
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const DriverMatchedScreen()),
+        GoRoute(
+          path: '/home',
+          builder: (_, _) => const Scaffold(body: Text('Home')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          demoStateProvider.overrideWithValue(state),
+          liveRideRepositoryProvider.overrideWithValue(_DriverCancelledRide()),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your driver cancelled'), findsOneWidget);
+    await tester.tap(find.text('Book another ride'));
+    await tester.pumpAndSettle();
+    expect(find.text('Home'), findsOneWidget);
+  });
+}
+
+class _DriverCancelledRide implements SupabaseRideRepository {
+  @override
+  Map<String, dynamic>? get activeTrip => {
+    'id': 'trip',
+    'status': 'cancelled_by_driver',
+  };
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _LiveRide implements SupabaseRideRepository {
