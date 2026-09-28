@@ -150,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             children: [
                               LabeledTextField(
                                 label: 'Phone or Email',
-                                hintText: '0917… or email address',
+                                hintText: '',
                                 controller: _identifierController,
                                 icon: Icons.person_outline,
                                 keyboardType: TextInputType.emailAddress,
