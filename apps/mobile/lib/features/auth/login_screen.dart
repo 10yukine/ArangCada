@@ -162,8 +162,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(height: AppSpacing.md),
                               LabeledTextField(
-                                label: 'Password',
-                                hintText: 'Enter your password',
+                                label: '',
+                                hintText: 'Password',
                                 controller: _passwordController,
                                 icon: Icons.lock_outline,
                                 obscureText: _obscurePassword,
