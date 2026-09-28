@@ -828,7 +828,7 @@ class AdminShell extends ConsumerWidget {
                 ),
               );
               final toolbar = Container(
-                constraints: const BoxConstraints(minHeight: 76),
+                constraints: BoxConstraints(minHeight: compact ? 64 : 76),
                 padding: EdgeInsets.symmetric(
                   horizontal: compact ? 8 : 32,
                   vertical: 10,
@@ -841,11 +841,20 @@ class AdminShell extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    // Phones open the drawer from the More tab below.
+                    // Phones: the menu button replaces the side rail (the
+                    // drawer carries the brand), leaving the section title
+                    // room. A bottom tab bar was tried and removed on 28 Sep
+                    // 2026: the owner found the drawer behaves better.
                     if (compact)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8, right: 12),
-                        child: BrandTile(size: 32),
+                      Builder(
+                        builder: (context) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: IconButton(
+                            tooltip: 'Open navigation',
+                            icon: const Icon(Icons.menu),
+                            onPressed: () => Scaffold.of(context).openDrawer(),
+                          ),
+                        ),
                       ),
                     Expanded(
                       child: Column(
@@ -892,48 +901,11 @@ class AdminShell extends ConsumerWidget {
                   ],
                 ),
               );
-              // Phones: the four most-used sections one tap away, the rest
-              // under More (the drawer). The owner found the drawer-only
-              // console hard to navigate on a phone.
-              final tabs = visible.take(4).toList();
-              final tabIndex = tabs.indexWhere((item) => inSection(item.$1));
               return Scaffold(
                 drawer: compact
                     ? Drawer(
                         width: 280,
                         child: navigation(labels: true, drawer: true),
-                      )
-                    : null,
-                bottomNavigationBar: compact
-                    ? Builder(
-                        builder: (context) => NavigationBar(
-                          height: 64,
-                          labelBehavior:
-                              NavigationDestinationLabelBehavior.alwaysShow,
-                          selectedIndex: tabIndex < 0 ? tabs.length : tabIndex,
-                          onDestinationSelected: (index) {
-                            if (index == tabs.length) {
-                              Scaffold.of(context).openDrawer();
-                            } else {
-                              context.go(tabs[index].$1);
-                            }
-                          },
-                          destinations: [
-                            for (final item in tabs)
-                              NavigationDestination(
-                                icon: Icon(item.$3),
-                                label: switch (item.$1) {
-                                  '/live-map' => 'Map',
-                                  '/safety' => 'Safety',
-                                  _ => item.$2,
-                                },
-                              ),
-                            const NavigationDestination(
-                              icon: Icon(Icons.menu),
-                              label: 'More',
-                            ),
-                          ],
-                        ),
                       )
                     : null,
                 body: Row(

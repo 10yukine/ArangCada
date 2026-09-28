@@ -7,9 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/admin_fixture.dart';
 
 void main() {
-  // The owner found the drawer-only console hard to use on a phone: the main
-  // sections are now one tap away and the rest sit under More.
-  testWidgets('phones get a tab bar with the rest under More', (tester) async {
+  // Phones use the menu button and drawer. A bottom tab bar was tried and
+  // removed (owner, 28 Sep 2026: the drawer behaves better on phones).
+  testWidgets('phones open every section from the menu button', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
     addTearDown(() async {
@@ -21,19 +23,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final bar = find.byType(NavigationBar);
-    expect(bar, findsOneWidget);
-    await tester.tap(find.descendant(of: bar, matching: find.text('Safety')));
-    await tester.pumpAndSettle();
-    expect(find.text('Safety reports'), findsWidgets);
-
-    await tester.tap(find.descendant(of: bar, matching: find.text('More')));
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.tap(find.byTooltip('Open navigation'));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);
-    expect(find.text('Evaluation'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Safety reports'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(Drawer), findsNothing);
+    expect(find.text('Safety reports'), findsWidgets);
   });
 
-  testWidgets('desktop keeps the side rail and no tab bar', (tester) async {
+  testWidgets('desktop keeps the side rail and no menu button', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 900));
     auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
     addTearDown(() async {
@@ -44,6 +49,7 @@ void main() {
       ProviderScope(overrides: fixtureOverrides, child: const AdminApp()),
     );
     await tester.pumpAndSettle();
+    expect(find.byTooltip('Open navigation'), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
   });
 }
