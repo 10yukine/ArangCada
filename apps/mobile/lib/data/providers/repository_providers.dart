@@ -125,6 +125,7 @@ final liveRideRepositoryProvider = Provider<SupabaseRideRepository?>((ref) {
     ref.read(demoStateProvider),
     ref.read(locationRepositoryProvider),
     ref.read(fareRepositoryProvider),
+    geocoding: ref.read(geocodingRepositoryProvider),
   );
   ref.onDispose(repository.dispose);
   return repository;

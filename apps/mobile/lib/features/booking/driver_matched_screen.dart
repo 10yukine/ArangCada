@@ -293,30 +293,31 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
             final driverCancelled =
                 ref.read(liveRideRepositoryProvider)?.activeTrip?['status'] ==
                 'cancelled_by_driver';
+            // Centred: a lone card at the top of a blank screen read as
+            // unfinished on the live test.
             return SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  if (driverCancelled)
-                    EmptyStateCard(
-                      icon: Icons.cancel_outlined,
-                      title: 'Your driver cancelled',
-                      message:
-                          'Nothing was charged. You can book another ride now.',
-                      actionLabel: 'Book another ride',
-                      onAction: () => context.go('/home'),
-                    )
-                  else
-                    EmptyStateCard(
-                      icon: cancelled ? Icons.cancel_outlined : Icons.route,
-                      title: cancelled
-                          ? 'Ride cancelled'
-                          : 'No driver on the way',
-                      message: 'Open Trips to check your latest ride.',
-                      actionLabel: 'View trips',
-                      onAction: () => context.go('/trips'),
-                    ),
-                ],
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: driverCancelled
+                      ? EmptyStateCard(
+                          icon: Icons.cancel_outlined,
+                          title: 'Your driver cancelled',
+                          message:
+                              'Nothing was charged. You can book another ride now.',
+                          actionLabel: 'Book another ride',
+                          onAction: () => context.go('/home'),
+                        )
+                      : EmptyStateCard(
+                          icon: cancelled ? Icons.cancel_outlined : Icons.route,
+                          title: cancelled
+                              ? 'Ride cancelled'
+                              : 'No driver on the way',
+                          message: 'Open Trips to check your latest ride.',
+                          actionLabel: 'View trips',
+                          onAction: () => context.go('/trips'),
+                        ),
+                ),
               ),
             );
           }

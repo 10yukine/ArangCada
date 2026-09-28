@@ -15,6 +15,7 @@ import '../../domain/models/driver_app_feedback.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 import '../mock/demo_state.dart';
 import '../repositories/fare_repository.dart';
+import '../repositories/geocoding_repository.dart';
 import '../repositories/location_repository.dart';
 
 /// Mirrors server-authoritative ride rows into the existing mobile screens.
@@ -26,8 +27,9 @@ class SupabaseRideRepository extends ChangeNotifier {
     this._client,
     this._state,
     this._location,
-    this._fares,
-  ) {
+    this._fares, {
+    this._geocoding,
+  }) {
     _subscribeToTrips();
     if (_isDriver) {
       unawaited(refreshFeedbackState());
@@ -42,6 +44,7 @@ class SupabaseRideRepository extends ChangeNotifier {
   final DemoState _state;
   final LocationRepository _location;
   final FareRepository _fares;
+  final GeocodingRepository? _geocoding;
   final Map<DemoBooking, String> _bookingKeys = {};
   // Which trip's counterpart avatar is currently in flight or resolved, so
   // _applyTrip (called on every realtime row update, not just once per
@@ -343,6 +346,23 @@ class SupabaseRideRepository extends ChangeNotifier {
         }, onError: _recordError);
   }
 
+  /// "Current location" means nothing to the driver (found in the live
+  /// beta test), so a GPS pickup is sent as the nearest street or place
+  /// name. The driver also gets the exact pin on the map either way.
+  Future<String> _pickupLabelForDriver() async {
+    final pickup = _state.pickup;
+    if (pickup.id != 'gps') return pickup.name;
+    GeocodedPlace? place;
+    try {
+      place = await _geocoding
+          ?.reverse(pickup.coordinate)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // A slow or failed lookup must not block the booking.
+    }
+    return place?.name ?? "Rider's GPS pin";
+  }
+
   Future<void> requestRide(DemoBooking booking) async {
     if (booking.rideType != RideType.special ||
         booking.paymentMethod != PaymentMethod.cash) {
@@ -353,6 +373,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     final destination = _state.destination;
     if (destination == null) throw StateError('Choose a destination first.');
     final idempotencyKey = _bookingKeys.putIfAbsent(booking, _uuid.v4);
+    final pickupLabel = await _pickupLabelForDriver();
     final dynamic result;
     try {
       result = await _client.rpc(
@@ -362,7 +383,7 @@ class SupabaseRideRepository extends ChangeNotifier {
           'p_pickup_lng': _state.pickup.coordinate.longitude,
           'p_destination_lat': destination.coordinate.latitude,
           'p_destination_lng': destination.coordinate.longitude,
-          'p_pickup_label': _state.pickup.name,
+          'p_pickup_label': pickupLabel,
           'p_destination_label': destination.name,
           'p_idempotency_key': idempotencyKey,
         },
