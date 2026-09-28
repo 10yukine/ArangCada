@@ -8,6 +8,7 @@ import '../core/geo/haversine.dart';
 import '../demo/demo_data.dart';
 import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
+import '../features/auth/reset_password_screen.dart';
 import '../features/auth/verify_phone_screen.dart';
 import '../features/profile/change_password_screen.dart';
 import '../features/profile/edit_profile_screen.dart';
@@ -97,18 +98,27 @@ bool isSharedFullScreenPath(String path) =>
 /// the app uses, instead of maintaining a second navigation mechanism.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Set by main.dart when a password-reset email link opens the app
+/// (Supabase's passwordRecovery event). While set, the only screen is
+/// /reset-password; ResetPasswordScreen clears it and signs out.
+final passwordRecoveryPending = ValueNotifier<bool>(false);
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final demoState = ref.watch(demoStateProvider);
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
-    refreshListenable: demoState,
+    refreshListenable: Listenable.merge([demoState, passwordRecoveryPending]),
     redirect: (context, state) {
       final path = state.uri.path;
       final restoration = ref.read(sessionRestorationProvider);
       if (restoration.isLoading || restoration.hasError) {
         return path == '/splash' ? null : '/splash';
       }
+      if (passwordRecoveryPending.value) {
+        return path == '/reset-password' ? null : '/reset-password';
+      }
+      if (path == '/reset-password') return '/splash';
 
       final user = demoState.currentUser;
       if (path == '/splash') {
@@ -168,6 +178,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state,
           LoginScreen(existingAccountEmail: state.extra as String?),
         ),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const ResetPasswordScreen()),
       ),
       GoRoute(
         path: '/forgot-password',

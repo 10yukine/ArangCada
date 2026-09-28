@@ -8,6 +8,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/router.dart';
 import 'config/app_config.dart';
 import 'data/remote/push/push_notification_service.dart';
 
@@ -59,6 +60,10 @@ Future<void> main() async {
             if (data.session != null) {
               unawaited(PushNotificationService.registerForSession(client));
             }
+          case AuthChangeEvent.passwordRecovery:
+            // The reset email's link came back into the app (see
+            // SupabaseAuthRepository.sendPasswordReset).
+            passwordRecoveryPending.value = true;
           case AuthChangeEvent.signedOut:
             unawaited(PushNotificationService.unregisterForSession(client));
           default:

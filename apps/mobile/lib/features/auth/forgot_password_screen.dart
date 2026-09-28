@@ -91,7 +91,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     _sent
-                        ? 'If an account matches that address, you’ll receive password reset instructions.'
+                        ? 'If an account matches that address, we sent it a reset link. Open the link on this phone to choose a new password.'
                         : 'Enter the email address connected to your ArangCada account.',
                   ),
                   if (!_sent) ...[

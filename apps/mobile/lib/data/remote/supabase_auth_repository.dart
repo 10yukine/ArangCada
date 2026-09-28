@@ -211,7 +211,14 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email.trim());
+      // The link must come back into the app: the client uses PKCE, so the
+      // code in it can only be exchanged by the app that asked for it (a
+      // browser page would show the link as expired). The URL is on the
+      // Supabase Auth redirect allow-list and in AndroidManifest.xml.
+      await _client.auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: 'ph.calamba.arangcada://reset-password',
+      );
     } on AuthException {
       throw const DemoAuthException(
         'Password recovery is unavailable right now.',

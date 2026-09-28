@@ -32,6 +32,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Password-reset email link. supabase_flutter picks it up and
+                 exchanges the code; Flutter's own deep linking is off so
+                 go_router does not also try to route the URL. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ph.calamba.arangcada" android:host="reset-password" />
+            </intent-filter>
         </activity>
         <!-- Required by image_cropper (Spec 15, profile photo crop step):
              its Android implementation launches this activity directly; it
