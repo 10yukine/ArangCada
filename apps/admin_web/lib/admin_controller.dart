@@ -110,6 +110,7 @@ class AdminController extends Notifier<AdminState> {
         boundaries: snapshot.boundaries,
         feedbackSummaries: snapshot.feedbackSummaries,
         feedbackResponses: snapshot.feedbackResponses,
+        driverCancellations: snapshot.driverCancellations,
         feedbackCounts: {
           for (final item in snapshot.feedbackSummaries)
             item.toda: item.uniqueDrivers,
@@ -394,11 +395,9 @@ class AdminController extends Notifier<AdminState> {
     ReportStatus status,
     String note,
   ) async {
-    await _live('Updating a complaint').updateComplaint(
-      complaintId: id,
-      status: status,
-      note: note,
-    );
+    await _live(
+      'Updating a complaint',
+    ).updateComplaint(complaintId: id, status: status, note: note);
     await refresh();
   }
 

@@ -281,7 +281,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                                 width: 9,
                                 height: 9,
                                 decoration: BoxDecoration(
-                                  color: context.adminColor(AdminColors.success),
+                                  color: context.adminColor(
+                                    AdminColors.success,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -308,7 +310,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                                 children: [
                                   Icon(
                                     Icons.warning_amber,
-                                    color: context.adminColor(AdminColors.danger),
+                                    color: context.adminColor(
+                                      AdminColors.danger,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text(mapError!)),
@@ -618,9 +622,13 @@ class _RideCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? context.adminColor(AdminColors.primaryTint) : context.adminColor(AdminColors.background),
+          color: selected
+              ? context.adminColor(AdminColors.primaryTint)
+              : context.adminColor(AdminColors.background),
           border: Border.all(
-            color: selected ? context.adminColor(AdminColors.primary) : context.adminColor(AdminColors.border),
+            color: selected
+                ? context.adminColor(AdminColors.primary)
+                : context.adminColor(AdminColors.border),
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -630,13 +638,12 @@ class _RideCard extends StatelessWidget {
               width: 39,
               height: 39,
               decoration: BoxDecoration(
-                color: selected ? context.adminColor(AdminColors.primary) : AdminColors.rail,
+                color: selected
+                    ? context.adminColor(AdminColors.primary)
+                    : AdminColors.rail,
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: const TricycleIcon(
-                color: Colors.white,
-                size: 21,
-              ),
+              child: const TricycleIcon(color: Colors.white, size: 21),
             ),
             const SizedBox(width: 11),
             Expanded(

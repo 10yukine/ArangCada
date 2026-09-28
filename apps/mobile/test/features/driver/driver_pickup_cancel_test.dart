@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _PickupRide implements SupabaseRideRepository {
   int cancelCalls = 0;
+  String? reason;
 
   @override
   Map<String, dynamic>? get activeTrip => {
@@ -21,7 +22,10 @@ class _PickupRide implements SupabaseRideRepository {
   };
 
   @override
-  Future<void> cancelRide() async => cancelCalls++;
+  Future<void> cancelRideAsDriver(String reason) async {
+    cancelCalls++;
+    this.reason = reason;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -64,7 +68,7 @@ Future<(_PickupRide, DemoState)> _pump(
 }
 
 void main() {
-  testWidgets('driver can cancel during pickup, only after confirming', (
+  testWidgets('driver cancel warns, needs a reason, and sends it', (
     tester,
   ) async {
     final (rides, _) = await _pump(tester, live: true);
@@ -81,9 +85,17 @@ void main() {
 
     await tester.tap(find.text('Cancel ride'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Cancel ride'));
+    expect(find.textContaining('may lead to penalties'), findsOneWidget);
+    // No reason chosen yet: the confirm button is disabled.
+    final confirm = find.widgetWithText(FilledButton, 'Cancel ride');
+    expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+    await tester.tap(find.text('Passenger did not show up'));
+    await tester.pump();
+    await tester.tap(confirm);
     await tester.pumpAndSettle();
     expect(rides.cancelCalls, 1);
+    expect(rides.reason, 'passenger_no_show');
     await tester.pumpWidget(const SizedBox());
   });
 

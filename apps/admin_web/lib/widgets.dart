@@ -20,11 +20,18 @@ class BrandTile extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(size * .215),
       boxShadow: [
-        BoxShadow(color: const Color(0x1F0F1A28), blurRadius: size * .15, offset: Offset(0, size * .05)),
+        BoxShadow(
+          color: const Color(0x1F0F1A28),
+          blurRadius: size * .15,
+          offset: Offset(0, size * .05),
+        ),
       ],
     ),
-    child: SvgPicture.asset('assets/branding/arangcada-mark.svg',
-      width: size * .9, height: size * .9),
+    child: SvgPicture.asset(
+      'assets/branding/arangcada-mark.svg',
+      width: size * .9,
+      height: size * .9,
+    ),
   );
 }
 
@@ -44,9 +51,14 @@ class BrandStage extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(colors: onBrand
-              ? [Colors.white.withValues(alpha: .30), Colors.white.withValues(alpha: 0)]
-              : const [Color(0xFFE4F0FE), Color(0x00E4F0FE)]),
+          gradient: RadialGradient(
+            colors: onBrand
+                ? [
+                    Colors.white.withValues(alpha: .30),
+                    Colors.white.withValues(alpha: 0),
+                  ]
+                : const [Color(0xFFE4F0FE), Color(0x00E4F0FE)],
+          ),
         ),
         child: Center(child: BrandTile(size: size * .46)),
       ),
@@ -63,7 +75,9 @@ class AdminLoadingScreen extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final glow = context.adminColor(AdminColors.primaryTint);
     return Scaffold(
-      backgroundColor: dark ? Theme.of(context).scaffoldBackgroundColor : Colors.white,
+      backgroundColor: dark
+          ? Theme.of(context).scaffoldBackgroundColor
+          : Colors.white,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -73,7 +87,9 @@ class AdminLoadingScreen extends StatelessWidget {
               height: 172,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [glow, glow.withValues(alpha: 0)]),
+                gradient: RadialGradient(
+                  colors: [glow, glow.withValues(alpha: 0)],
+                ),
               ),
               child: const Center(child: BrandTile(size: 84)),
             ),
@@ -129,7 +145,8 @@ class PageHeading extends StatelessWidget {
             child: Text(
               subtitle,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: context.adminColor(AdminColors.muted)),
+                color: context.adminColor(AdminColors.muted),
+              ),
             ),
           ),
         ],
@@ -186,32 +203,59 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = switch (tone) {
-      StatusTone.success => (context.adminColor(AdminColors.successTint), context.adminColor(AdminColors.success)),
-      StatusTone.warning => (context.adminColor(AdminColors.warningTint), context.adminColor(AdminColors.warning)),
-      StatusTone.danger => (context.adminColor(AdminColors.dangerTint), context.adminColor(AdminColors.danger)),
-      StatusTone.brand => (context.adminColor(AdminColors.primaryTint), context.adminColor(AdminColors.primaryPress)),
-      StatusTone.neutral => (context.adminColor(AdminColors.surface), context.adminColor(AdminColors.secondary)),
+      StatusTone.success => (
+        context.adminColor(AdminColors.successTint),
+        context.adminColor(AdminColors.success),
+      ),
+      StatusTone.warning => (
+        context.adminColor(AdminColors.warningTint),
+        context.adminColor(AdminColors.warning),
+      ),
+      StatusTone.danger => (
+        context.adminColor(AdminColors.dangerTint),
+        context.adminColor(AdminColors.danger),
+      ),
+      StatusTone.brand => (
+        context.adminColor(AdminColors.primaryTint),
+        context.adminColor(AdminColors.primaryPress),
+      ),
+      StatusTone.neutral => (
+        context.adminColor(AdminColors.surface),
+        context.adminColor(AdminColors.secondary),
+      ),
     };
     return Semantics(
       label: 'Status: $label',
       child: Container(
         padding: const EdgeInsets.fromLTRB(8, 5, 11, 5),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(6)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 6, height: 6,
-            decoration: BoxDecoration(color: foreground, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
                 color: foreground,
-                fontWeight: FontWeight.w600,
+                shape: BoxShape.circle,
               ),
             ),
-          ),
-        ]),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -277,34 +321,36 @@ class MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: context.adminColor(tone).withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(10),
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: context.adminColor(tone).withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: context.adminColor(tone), size: 18),
               ),
-              child: Icon(icon, color: context.adminColor(tone), size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: context.adminColor(AdminColors.muted)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.adminColor(AdminColors.muted),
+                  ),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontSize: 32,
-              height: 1,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.displaySmall?.copyWith(fontSize: 32, height: 1),
           ),
           const SizedBox(height: 4),
           Text(
@@ -326,24 +372,35 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
     child: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 48, height: 48,
-          decoration: BoxDecoration(
-            color: context.adminColor(AdminColors.primaryTint), borderRadius: BorderRadius.circular(12)),
-          child: Icon(Icons.inbox_outlined, size: 22, color: context.adminColor(AdminColors.primary)),
-        ),
-        const SizedBox(height: 12),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: context.adminColor(AdminColors.muted)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: context.adminColor(AdminColors.primaryTint),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.inbox_outlined,
+              size: 22,
+              color: context.adminColor(AdminColors.primary),
+            ),
           ),
-        ),
-      ]),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: context.adminColor(AdminColors.muted),
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

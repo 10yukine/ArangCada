@@ -16,6 +16,7 @@ class AdminSnapshot {
     required this.boundaries,
     required this.feedbackSummaries,
     required this.feedbackResponses,
+    this.driverCancellations = const [],
     required this.feedbackInterval,
     required this.respondentTarget,
     required this.repeatFeedback,
@@ -31,6 +32,7 @@ class AdminSnapshot {
   final List<Boundary> boundaries;
   final List<TodaFeedbackSummary> feedbackSummaries;
   final List<DriverAppFeedback> feedbackResponses;
+  final List<DriverCancellation> driverCancellations;
   final int feedbackInterval;
   final int respondentTarget;
   final bool repeatFeedback;
@@ -241,7 +243,7 @@ class SupabaseAdminRepository {
             'id, driver_id, toda_zone_id, status, requested_at, '
             'pickup_lat, pickup_lng, destination_lat, destination_lng, '
             'pickup_label, destination_label, rider_display_name, '
-            'driver_display_name, toda_name',
+            'driver_display_name, toda_name, updated_at, cancellation_reason',
           )
           .order('requested_at', ascending: false)
           .limit(100),
@@ -349,6 +351,24 @@ class SupabaseAdminRepository {
       if (path != null) (documentPaths[driverId] ??= {})[type] = path;
     }
 
+    // ponytail: only sees driver cancellations among the 100 most recent
+    // trips; query them separately if volume outgrows that.
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    final driverCancellations = <DriverCancellation>[
+      for (final row in tripRows)
+        if (row['status'] == 'cancelled_by_driver')
+          if (DateTime.tryParse(row['updated_at']?.toString() ?? '')?.toLocal()
+              case final at? when at.isAfter(weekAgo))
+            DriverCancellation(
+              driver: row['driver_display_name']?.toString() ?? 'Driver',
+              toda: row['toda_name']?.toString() ?? 'Assigned TODA',
+              reason: driverCancelReasonLabel(
+                row['cancellation_reason']?.toString(),
+              ),
+              at: at,
+            ),
+    ];
+
     final rides = <Ride>[];
     for (final row in tripRows) {
       if (!isActiveTripStatus(row['status']?.toString())) {
@@ -390,6 +410,7 @@ class SupabaseAdminRepository {
       ],
       reportedChats: reportedChats,
       rides: rides,
+      driverCancellations: driverCancellations,
       boundaries: _boundaries(zoneRows),
       feedbackSummaries: [
         for (final row in summaryRows) TodaFeedbackSummary.fromRow(row),

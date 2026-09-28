@@ -41,6 +41,15 @@ class DashboardScreen extends ConsumerWidget {
               driver.status == DriverStatus.submitted,
         )
         .toList();
+    final cancellations = state.driverCancellations
+        .where(
+          (item) => session.role == AdminRole.lgu || item.toda == session.toda,
+        )
+        .toList();
+    final cancelsByDriver = <String, List<DriverCancellation>>{};
+    for (final item in cancellations) {
+      (cancelsByDriver[item.driver] ??= []).add(item);
+    }
     final approved = drivers
         .where((driver) => driver.status == DriverStatus.approved)
         .length;
@@ -168,7 +177,7 @@ class DashboardScreen extends ConsumerWidget {
 
     // ------------------------------------------------------------ sections
     final attentionRows = <Widget>[
-      if (reports.isEmpty && pending.isEmpty)
+      if (reports.isEmpty && pending.isEmpty && cancellations.isEmpty)
         const EmptyState(
           message:
               'You’re all caught up. New reports and applications will appear here.',
@@ -193,6 +202,28 @@ class DashboardScreen extends ConsumerWidget {
           action: 'Review drivers',
           onTap: openReviews,
         ),
+      if (cancellations.isNotEmpty) ...[
+        if (reports.isNotEmpty || pending.isNotEmpty) const Divider(height: 1),
+        _WorkRow(
+          icon: Icons.cancel_outlined,
+          tone: AdminColors.warning,
+          title:
+              '${cancellations.length} driver '
+              '${cancellations.length == 1 ? 'cancellation' : 'cancellations'}'
+              ' this week',
+          detail: [
+            for (final MapEntry(key: name, value: items)
+                in cancelsByDriver.entries)
+              '$name${items.length > 1 ? ' ×${items.length}' : ''}: '
+                  '${{for (final item in items) item.reason}.join(', ')}',
+          ].join('\n'),
+          action: 'Open drivers',
+          onTap: () {
+            controller.resetViewFilters();
+            context.go('/drivers');
+          },
+        ),
+      ],
     ];
     final activityRows = <Widget>[
       if (audit.isEmpty)

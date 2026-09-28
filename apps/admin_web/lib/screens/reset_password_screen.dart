@@ -99,7 +99,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Choose a new password', style: theme.textTheme.titleLarge),
+                Text(
+                  'Choose a new password',
+                  style: theme.textTheme.titleLarge,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Use at least 8 characters. You will sign in again afterwards.',
@@ -117,7 +120,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     labelText: 'New password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      tooltip: passwordHidden ? 'Show password' : 'Hide password',
+                      tooltip: passwordHidden
+                          ? 'Show password'
+                          : 'Hide password',
                       onPressed: () =>
                           setState(() => passwordHidden = !passwordHidden),
                       icon: Icon(
@@ -141,7 +146,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     labelText: 'Confirm new password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      tooltip: confirmHidden ? 'Show password' : 'Hide password',
+                      tooltip: confirmHidden
+                          ? 'Show password'
+                          : 'Hide password',
                       onPressed: () =>
                           setState(() => confirmHidden = !confirmHidden),
                       icon: Icon(
@@ -196,7 +203,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               children: [
                 const BrandTile(size: 64),
                 const SizedBox(height: 14),
-                Text('Reset your password', style: theme.textTheme.headlineMedium),
+                Text(
+                  'Reset your password',
+                  style: theme.textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 24),
                 body,
               ],
@@ -240,7 +250,11 @@ class _Message extends StatelessWidget {
             child: Icon(icon, color: context.adminColor(tone)),
           ),
           const SizedBox(height: 14),
-          Text(title, style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+          Text(
+            title,
+            style: theme.textTheme.titleLarge,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 6),
           Text(
             message,

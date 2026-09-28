@@ -17,8 +17,7 @@ class AcceptInviteScreen extends ConsumerStatefulWidget {
   final String? token;
 
   @override
-  ConsumerState<AcceptInviteScreen> createState() =>
-      _AcceptInviteScreenState();
+  ConsumerState<AcceptInviteScreen> createState() => _AcceptInviteScreenState();
 }
 
 class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
@@ -99,9 +98,7 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
           );
       final repository = ref.read(adminRepositoryProvider);
       if (repository == null) {
-        throw StateError(
-          'The connected administrator service is unavailable.',
-        );
+        throw StateError('The connected administrator service is unavailable.');
       }
       final session = await repository.signIn(
         email: resolvedEmail,

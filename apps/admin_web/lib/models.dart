@@ -657,6 +657,34 @@ class ReportedChatMessage {
   final DateTime? createdAt;
 }
 
+/// A driver cancelling after accepting a ride. The owner's rule: a driver
+/// who does not want a ride declines it; cancelling after accepting is
+/// reported to administrators and may be penalised. Surfaced on the
+/// dashboard's Needs attention list.
+class DriverCancellation {
+  const DriverCancellation({
+    required this.driver,
+    required this.toda,
+    required this.reason,
+    required this.at,
+  });
+
+  final String driver;
+  final String toda;
+  final String reason;
+  final DateTime at;
+}
+
+/// Keep in sync with cancel_ride_as_driver (migration 20260928050000) and
+/// the mobile SupabaseRideRepository.driverCancelReasons.
+String driverCancelReasonLabel(String? value) => switch (value) {
+  'passenger_no_show' => 'Passenger did not show up',
+  'cannot_reach_pickup' => 'Could not reach the pickup',
+  'vehicle_problem' => 'Vehicle problem',
+  'safety_concern' => 'Safety concern',
+  _ => 'No reason given',
+};
+
 class Ride {
   const Ride({
     required this.id,
@@ -861,6 +889,7 @@ class AdminState {
     this.reportedChats = const [],
     this.feedbackSummaries = const [],
     this.feedbackResponses = const [],
+    this.driverCancellations = const [],
     this.feedbackInterval = 1,
     this.respondentTarget = 10,
     this.repeatFeedback = true,
@@ -892,6 +921,7 @@ class AdminState {
   final List<ReportedTripChat> reportedChats;
   final List<TodaFeedbackSummary> feedbackSummaries;
   final List<DriverAppFeedback> feedbackResponses;
+  final List<DriverCancellation> driverCancellations;
   final int feedbackInterval;
   final int respondentTarget;
   final bool repeatFeedback;
@@ -931,6 +961,7 @@ class AdminState {
     List<ReportedTripChat>? reportedChats,
     List<TodaFeedbackSummary>? feedbackSummaries,
     List<DriverAppFeedback>? feedbackResponses,
+    List<DriverCancellation>? driverCancellations,
     int? feedbackInterval,
     int? respondentTarget,
     bool? repeatFeedback,
@@ -963,6 +994,7 @@ class AdminState {
     reportedChats: reportedChats ?? this.reportedChats,
     feedbackSummaries: feedbackSummaries ?? this.feedbackSummaries,
     feedbackResponses: feedbackResponses ?? this.feedbackResponses,
+    driverCancellations: driverCancellations ?? this.driverCancellations,
     feedbackInterval: feedbackInterval ?? this.feedbackInterval,
     respondentTarget: respondentTarget ?? this.respondentTarget,
     repeatFeedback: repeatFeedback ?? this.repeatFeedback,

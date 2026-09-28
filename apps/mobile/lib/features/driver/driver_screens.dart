@@ -315,38 +315,21 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     }
   }
 
-  /// Driver-side cancel while heading to or waiting at the pickup, e.g. a
-  /// passenger who never shows. Found missing in the live two-phone test:
-  /// the rider's cancel window closes after a minute and the driver had no
-  /// exit at all except completing a ride that never happened. The server's
-  /// cancel_ride already accepts the driver; it records cancelled_by_driver
-  /// and the rider's screen shows the ride as cancelled.
+  /// Driver-side cancel while heading to or waiting at the pickup. A last
+  /// resort: the owner's rule is that a driver who does not want a ride
+  /// declines it rather than accepting it, and a cancellation after
+  /// accepting is reported to TODA/LGU administrators and may be penalised.
+  /// The server requires a reason and records it for their review.
   Future<void> _cancelPickup() async {
     final liveRides = ref.read(liveRideRepositoryProvider);
     if (liveRides == null) return;
-    final confirmed = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => ArangDialog(
-        title: 'Cancel this ride?',
-        content: const Text(
-          'Use this if the passenger did not show up or you cannot reach the '
-          'pickup. The passenger will see that you cancelled.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep ride'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancel ride'),
-          ),
-        ],
-      ),
+      builder: (context) => const _DriverCancelDialog(),
     );
-    if (confirmed != true || !mounted) return;
+    if (reason == null || !mounted) return;
     try {
-      await liveRides.cancelRide();
+      await liveRides.cancelRideAsDriver(reason);
       ref.read(chatRepositoryProvider).closeActiveTripThread();
     } on Exception {
       _showLiveActionError('Could not cancel the ride. Please try again.');
@@ -799,6 +782,76 @@ class _IncomingRequestCard extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Warns that cancelling is reported and may be penalised, and makes the
+/// driver pick a reason before Cancel ride is enabled. Pops the reason key.
+class _DriverCancelDialog extends StatefulWidget {
+  const _DriverCancelDialog();
+
+  @override
+  State<_DriverCancelDialog> createState() => _DriverCancelDialogState();
+}
+
+class _DriverCancelDialogState extends State<_DriverCancelDialog> {
+  String? _reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return ArangDialog(
+      title: 'Cancel this ride?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cancelling after accepting is reported to your TODA and LGU '
+            'administrators and may lead to penalties. If you do not want a '
+            'ride, decline it instead of accepting.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Why are you cancelling?', style: AppTypography.label),
+          const SizedBox(height: AppSpacing.xxs),
+          for (final MapEntry(key: key, value: label)
+              in SupabaseRideRepository.driverCancelReasons.entries)
+            InkWell(
+              onTap: () => setState(() => _reason = key),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Row(
+                  children: [
+                    Icon(
+                      _reason == key
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _reason == key
+                          ? AppColors.primary
+                          : AppColors.textMuted,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(child: Text(label)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Keep ride'),
+        ),
+        FilledButton(
+          onPressed: _reason == null
+              ? null
+              : () => Navigator.pop(context, _reason),
+          child: const Text('Cancel ride'),
+        ),
+      ],
     );
   }
 }

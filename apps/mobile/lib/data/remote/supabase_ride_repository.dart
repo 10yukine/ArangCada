@@ -442,6 +442,29 @@ class SupabaseRideRepository extends ChangeNotifier {
   Future<void> expireRide() => _tripAction('expire_ride');
   Future<void> cancelRide() => _tripAction('cancel_ride');
 
+  /// Driver cancel before the trip starts. The server requires one of the
+  /// [driverCancelReasons] keys, stores it on the trip and logs it for
+  /// TODA/LGU review; drivers can no longer use [cancelRide].
+  Future<void> cancelRideAsDriver(String reason) async {
+    final tripId = _state.liveTripId;
+    if (tripId == null) throw StateError('There is no active server trip.');
+    final result = await _client.rpc(
+      'cancel_ride_as_driver',
+      params: {'p_trip_id': tripId, 'p_reason': reason},
+    );
+    _applyTrip(_row(result));
+    _locationTicker?.cancel();
+  }
+
+  /// Server reason key -> what the driver reads. Keep in sync with
+  /// cancel_ride_as_driver (migration 20260928050000).
+  static const driverCancelReasons = <String, String>{
+    'passenger_no_show': 'Passenger did not show up',
+    'cannot_reach_pickup': "I can't reach the pickup",
+    'vehicle_problem': 'Vehicle problem',
+    'safety_concern': 'Safety concern',
+  };
+
   Future<String?> counterpartPhone(String tripId) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return null;

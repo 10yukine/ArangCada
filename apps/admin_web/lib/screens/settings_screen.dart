@@ -103,8 +103,7 @@ class SettingsScreen extends ConsumerWidget {
                   _SettingRow(
                     icon: Icons.layers_outlined,
                     title: 'TODA boundaries',
-                    detail:
-                        'Server-defined jurisdictions managed by the LGU.',
+                    detail: 'Server-defined jurisdictions managed by the LGU.',
                   ),
                   _SettingRow(
                     icon: Icons.storage_outlined,
@@ -242,7 +241,9 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update your photo. Try again.')),
+        const SnackBar(
+          content: Text('Could not update your photo. Try again.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -303,8 +304,12 @@ class _AccountProfilePanelState extends ConsumerState<_AccountProfilePanel> {
                         children: [
                           CircleAvatar(
                             radius: 26,
-                            backgroundColor: context.adminColor(AdminColors.primaryTint),
-                            foregroundColor: context.adminColor(AdminColors.primaryPress),
+                            backgroundColor: context.adminColor(
+                              AdminColors.primaryTint,
+                            ),
+                            foregroundColor: context.adminColor(
+                              AdminColors.primaryPress,
+                            ),
                             backgroundImage: avatarUrl == null
                                 ? null
                                 : NetworkImage(avatarUrl),
