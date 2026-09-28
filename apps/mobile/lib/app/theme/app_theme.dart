@@ -166,7 +166,11 @@ abstract final class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: const WidgetStatePropertyAll(AppColors.primary),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? AppColors.textMuted
+                : AppColors.primary,
+          ),
           // Family must be restated: a theme textStyle replaces the inherited
           // one, and without it every TextButton fell back to the platform font.
           textStyle: const WidgetStatePropertyAll(

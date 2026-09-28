@@ -155,13 +155,34 @@ void main() {
         email: 'commuter@example.com',
         displayName: 'Connected Commuter',
         role: DemoRole.commuter,
-        isInternalTester: true,
       ),
       location: location,
     );
 
     expect(location.requests, 1);
     expect(find.text('Out of Service Area'), findsOneWidget);
+  });
+
+  // Found on a real phone: booking from the Cabuyao test zone worked for a
+  // tester while Home still called the pickup out of service.
+  testWidgets('internal testers in the Cabuyao test zone see a real pickup', (
+    tester,
+  ) async {
+    await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+        isInternalTester: true,
+      ),
+      location: _LocationSpy(
+        coordinate: const GeoCoordinate(latitude: 14.2825, longitude: 121.115),
+      ),
+    );
+
+    expect(find.text('Out of Service Area'), findsNothing);
+    expect(find.text('Current location'), findsOneWidget);
   });
 
   group('notification bell dot', () {

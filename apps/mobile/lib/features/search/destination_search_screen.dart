@@ -122,7 +122,10 @@ class _DestinationSearchScreenState
 
   String _pickupLabel(DemoState state) {
     if (!state.hasPickup) return 'Current location';
-    if (!ServiceArea.contains(state.pickup.coordinate)) {
+    if (!ServiceArea.contains(
+      state.pickup.coordinate,
+      allowCabuyaoTestException: state.currentUser?.isInternalTester ?? false,
+    )) {
       return 'Out of Service Area';
     }
     return state.pickup.name;

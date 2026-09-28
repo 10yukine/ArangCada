@@ -53,7 +53,8 @@ class DigitalReceiptScreen extends ConsumerWidget {
             }
             final rawFare = trip?['final_fare'] ?? trip?['fare_estimate'];
             final reference = connectedReceipt
-                ? (trip!['receipt_ref'] as String? ?? 'TRIP-${trip['id']}')
+                ? (trip!['receipt_ref'] as String? ??
+                      'TRIP-${trip['id'].toString().split('-').first.toUpperCase()}')
                 : booking!.receiptReference ?? 'Not issued';
             final pickupName = connectedReceipt
                 ? trip!['pickup_label'] as String? ?? 'Pickup'

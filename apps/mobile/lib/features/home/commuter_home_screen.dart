@@ -483,7 +483,11 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
       return configuredName;
     }
     if (_fix != null) {
-      if (!ServiceArea.contains(_fix!.coordinate)) {
+      if (!ServiceArea.contains(
+        _fix!.coordinate,
+        allowCabuyaoTestException:
+            ref.read(demoStateProvider).currentUser?.isInternalTester ?? false,
+      )) {
         return 'Out of Service Area';
       }
       return _fix!.isCoarse

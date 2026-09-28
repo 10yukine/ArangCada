@@ -899,7 +899,7 @@ class _DriverTripModeCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: ArangButton(
-                      label: 'Message',
+                      label: 'Chat',
                       icon: Icons.chat_outlined,
                       variant: ArangButtonVariant.ghost,
                       onPressed: () => context.push('/chat/thread-active'),
