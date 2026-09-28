@@ -75,3 +75,10 @@ enabled = true
 # RESEND_INBOUND_WEBHOOK_SECRET.
 verify_jwt = false
 entrypoint = "./functions/inbound-email/index.ts"
+
+[functions.account-deletion]
+enabled = true
+# The email confirmation link is public; the function checks its one-use token.
+# Requests from the app separately verify the caller's JWT.
+verify_jwt = false
+entrypoint = "./functions/account-deletion/index.ts"

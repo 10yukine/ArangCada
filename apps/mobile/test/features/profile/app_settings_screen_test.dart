@@ -49,6 +49,15 @@ void main() {
     child: const MaterialApp(home: AppSettingsScreen()),
   );
 
+  testWidgets('offers account deletion instead of clearing local data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(find.text('Delete account'), findsOneWidget);
+    expect(find.text('Clear Local Data'), findsNothing);
+  });
+
   testWidgets(
     'opens Android settings instead of storing ineffective switches',
     (tester) async {

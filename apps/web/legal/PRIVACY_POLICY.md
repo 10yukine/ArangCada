@@ -343,6 +343,13 @@ contact our Data Protection Officer / Capstone Privacy Liaison at:
 **[privacy@arangcada.app](mailto:privacy@arangcada.app)**. Identity verification is required, and requests
 will receive a formal response within fifteen (15) business days.
 
+To request account deletion, use **Profile → Settings → Delete account** in the
+app and confirm the email link, or follow the instructions at
+**[arangcada.app/delete-account](https://arangcada.app/delete-account)** if you
+no longer have the app. We review active rides and retain only records needed
+for the purposes and periods listed above; we de-identify retained records
+where possible and email you when processing is complete.
+
 ## 12. Children's privacy
 
 ArangCada is strictly intended for individuals aged 18 and older. Minors aged

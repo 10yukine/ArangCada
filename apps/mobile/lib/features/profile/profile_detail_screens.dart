@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -66,7 +66,8 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
           EmptyStateCard(
             icon: Icons.bookmark_border,
             title: 'No saved places',
-            message: 'Save a frequent pickup or destination for quicker booking.',
+            message:
+                'Save a frequent pickup or destination for quicker booking.',
             actionLabel: 'Add a saved place',
             onAction: _busy ? null : _add,
           ),
@@ -81,7 +82,9 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
               onPressed: _busy
                   ? null
                   : () => _update(
-                      () => ref.read(savedPlacesRepositoryProvider).remove(place.id),
+                      () => ref
+                          .read(savedPlacesRepositoryProvider)
+                          .remove(place.id),
                     ),
             ),
             onTap: _busy
@@ -107,13 +110,13 @@ class AppSettingsScreen extends ConsumerWidget {
 
   static const _demoToolsRoute = '/profile/demo-tools';
 
-  Future<void> _reset(BuildContext context, WidgetRef ref) async {
+  Future<void> _requestDeletion(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => ArangDialog(
-        title: 'Clear local app data?',
+        title: 'Request account deletion?',
         content: const Text(
-          'This clears local balance, transactions, trip, rating, and testing overrides. You will be signed out.',
+          'We will email you a confirmation link. After you confirm, our privacy team will review trip and safety records, delete your account and personal data, and email you when complete.',
         ),
         actions: [
           TextButton(
@@ -122,22 +125,44 @@ class AppSettingsScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear Local Data'),
+            child: const Text('Send confirmation email'),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await ref.read(authRepositoryProvider).signOut();
-    ref.read(chatRepositoryProvider).clearSession();
-    ref.read(demoStateProvider).reset();
-    final box = Hive.isBoxOpen('arangcada_demo')
-        ? Hive.box<String>('arangcada_demo')
-        : null;
-    await box?.delete('pref_notif_ride_updates');
-    await box?.delete('pref_notif_chat_messages');
-    await box?.delete('pref_notif_announcements');
-    if (context.mounted) context.go('/login');
+    try {
+      await Supabase.instance.client.functions.invoke(
+        'account-deletion',
+        body: {},
+      );
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => ArangDialog(
+          title: 'Check your email',
+          content: const Text(
+            'Open the confirmation link within 24 hours to send your deletion request. Your account stays active until we finish processing it.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not send the deletion email. Try again later.',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -176,7 +201,7 @@ class AppSettingsScreen extends ConsumerWidget {
             // capabilities a local test account cannot perform.
             final isDemo =
                 ref.watch(demoStateProvider).currentUser?.isDemoAccount ??
-                    false;
+                false;
             return SectionCard(
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -197,9 +222,7 @@ class AppSettingsScreen extends ConsumerWidget {
                       ? 'Not available for demo accounts.'
                       : 'Change your account password.',
                 ),
-                trailing: isDemo
-                    ? null
-                    : const Icon(Icons.chevron_right),
+                trailing: isDemo ? null : const Icon(Icons.chevron_right),
                 onTap: isDemo
                     ? null
                     : () => context.push('/profile/change-password'),
@@ -213,13 +236,17 @@ class AppSettingsScreen extends ConsumerWidget {
         SectionCard(
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.restart_alt, color: AppColors.danger),
-            title: const Text('Clear Local Data'),
-            subtitle: const Text(
-              'Clear locally simulated trip data.',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _reset(context, ref),
+            leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+            title: const Text('Delete account'),
+            subtitle: const Text('Confirm by email to request deletion.'),
+            trailing:
+                ref.watch(demoStateProvider).currentUser?.isDemoAccount ?? false
+                ? null
+                : const Icon(Icons.chevron_right),
+            onTap:
+                ref.watch(demoStateProvider).currentUser?.isDemoAccount ?? false
+                ? null
+                : () => _requestDeletion(context),
           ),
         ),
         // Only the seeded @arangcada.demo accounts see this. It replaces the
