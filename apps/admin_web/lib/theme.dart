@@ -307,49 +307,36 @@ ThemeData adminTheme({Brightness brightness = Brightness.light}) {
   );
 }
 
-class AdminAppearanceButton extends StatelessWidget {
-  const AdminAppearanceButton({super.key, this.inRail = false});
+Future<void> setAdminAppearance(ThemeMode value) async {
+  adminThemeMode.value = value;
+  final preferences = await SharedPreferences.getInstance();
+  await preferences.setString('admin-appearance', value.name);
+}
 
-  /// A labelled row in white for the navigation drawer (phones), instead of
-  /// the bare toolbar icon.
-  final bool inRail;
+String adminAppearanceLabel(ThemeMode mode) => switch (mode) {
+  ThemeMode.system => 'System',
+  ThemeMode.light => 'Light',
+  ThemeMode.dark => 'Dark',
+};
+
+IconData adminAppearanceIcon(ThemeMode mode) => switch (mode) {
+  ThemeMode.system => Icons.settings_outlined,
+  ThemeMode.light => Icons.light_mode_outlined,
+  ThemeMode.dark => Icons.dark_mode_outlined,
+};
+
+/// Appearance icon menu for the signed-out login page, where Settings is not
+/// reachable. Signed in, appearance lives in Settings -> Console preferences
+/// ([AdminAppearanceSetting]).
+class AdminAppearanceButton extends StatelessWidget {
+  const AdminAppearanceButton({super.key});
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
     valueListenable: adminThemeMode,
     builder: (context, mode, _) => PopupMenuButton<ThemeMode>(
       tooltip: 'Appearance',
-      icon: inRail ? null : Icon(_icon(mode)),
-      child: inRail
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(_icon(mode), size: 22, color: AdminColors.railText),
-                  const SizedBox(width: 14),
-                  Flexible(
-                    child: Text(
-                      'Appearance · ${switch (mode) {
-                        ThemeMode.system => 'System',
-                        ThemeMode.light => 'Light',
-                        ThemeMode.dark => 'Dark',
-                      }}',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AdminColors.railText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : null,
-      onSelected: (value) async {
-        adminThemeMode.value = value;
-        final preferences = await SharedPreferences.getInstance();
-        await preferences.setString('admin-appearance', value.name);
-      },
+      icon: Icon(adminAppearanceIcon(mode)),
+      onSelected: setAdminAppearance,
       itemBuilder: (_) => [
         for (final value in ThemeMode.values)
           PopupMenuItem(
@@ -358,15 +345,9 @@ class AdminAppearanceButton extends StatelessWidget {
               selected: value == mode,
               child: Row(
                 children: [
-                  Icon(_icon(value)),
+                  Icon(adminAppearanceIcon(value)),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(switch (value) {
-                      ThemeMode.system => 'System',
-                      ThemeMode.light => 'Light',
-                      ThemeMode.dark => 'Dark',
-                    }),
-                  ),
+                  Expanded(child: Text(adminAppearanceLabel(value))),
                   const SizedBox(width: 16),
                   SizedBox(
                     width: 24,
@@ -381,12 +362,44 @@ class AdminAppearanceButton extends StatelessWidget {
       ],
     ),
   );
+}
 
-  static IconData _icon(ThemeMode mode) => switch (mode) {
-    ThemeMode.system => Icons.brightness_auto_outlined,
-    ThemeMode.light => Icons.light_mode_outlined,
-    ThemeMode.dark => Icons.dark_mode_outlined,
-  };
+/// The System / Light / Dark choice in Settings -> Console preferences.
+class AdminAppearanceSetting extends StatelessWidget {
+  const AdminAppearanceSetting({super.key});
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: adminThemeMode,
+    builder: (context, mode, _) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 2),
+        Text(
+          "System follows your device's light or dark setting.",
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: [
+              for (final value in ThemeMode.values)
+                ButtonSegment(
+                  value: value,
+                  icon: Icon(adminAppearanceIcon(value), size: 18),
+                  label: Text(adminAppearanceLabel(value)),
+                ),
+            ],
+            selected: {mode},
+            onSelectionChanged: (selection) =>
+                setAdminAppearance(selection.single),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Small vertical movement keeps navigation free of zoom effects.

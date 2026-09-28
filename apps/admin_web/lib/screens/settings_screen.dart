@@ -35,7 +35,12 @@ class SettingsScreen extends ConsumerWidget {
                     'Console preferences',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
+                  const SizedBox(height: 14),
+                  // The only place to change it once signed in (the login
+                  // page keeps its icon menu).
+                  const AdminAppearanceSetting(),
                   const SizedBox(height: 10),
+                  const Divider(),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Compact table density'),

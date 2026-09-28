@@ -78,7 +78,7 @@ void main() {
     );
   });
 
-  testWidgets('phone toolbar: appearance in the menu, title scrolls to top', (
+  testWidgets('phone toolbar: no appearance button, title scrolls to top', (
     tester,
   ) async {
     await phone(tester);
@@ -92,15 +92,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(headingTop(), greaterThan(0));
 
+    // Appearance is in Settings now, not the menu or toolbar.
     await tester.tap(find.byTooltip('Open navigation'));
     await tester.pumpAndSettle();
-    expect(
-      find.descendant(
-        of: find.byType(Drawer),
-        matching: find.byTooltip('Appearance'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Appearance'), findsNothing);
   });
 
   testWidgets('phone driver filters fold behind a button', (tester) async {

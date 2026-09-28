@@ -810,8 +810,6 @@ class AdminShell extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      // Phones: appearance lives here, not in the toolbar.
-                      if (drawer) const AdminAppearanceButton(inRail: true),
                       Divider(color: Colors.white.withValues(alpha: .16)),
                       const SizedBox(height: 12),
                       _RailAccountFooter(
@@ -885,7 +883,6 @@ class AdminShell extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    if (!compact) const AdminAppearanceButton(),
                     IconButton(
                       tooltip: 'Notifications',
                       onPressed: () {
