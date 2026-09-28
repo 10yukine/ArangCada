@@ -14,7 +14,7 @@
 -- exists to make that failure visible in the test suite rather than only in
 -- prose, and to prove the fix (column grants + a guard trigger) closes it
 -- without also blocking the self-service updates a commuter legitimately
--- needs (display_name, phone).
+-- needs (display_name; phone now changes only via OTP).
 --
 -- See .pipeline/specs.md, "Commuter-first driver onboarding, server layer",
 -- §1 problem statement and §4 20260825120100_profiles_privileged_column_guard.
@@ -73,10 +73,13 @@ select lives_ok(
   'a commuter can still update their own display_name'
 );
 
-select lives_ok(
+-- Phone changes only through the OTP phone-change flow; the auth.users
+-- trigger mirrors the confirmed number (20260928141000).
+select throws_ok(
   $$update public.profiles set phone = '+639170000199'
      where id = '00000000-0000-0000-0000-0000000010a1'$$,
-  'a commuter can still update their own phone'
+  '42501', null,
+  'a commuter cannot change their phone without OTP'
 );
 
 -- email resolves accounts during driver onboarding, so it is authorization-
