@@ -269,6 +269,7 @@ the latest version is always published on this page.
 
 ArangCada capstone group, Section CpE231B, Department of Computer
 Engineering, National University Laguna.
+
 - **Capstone Adviser:** Dr. Juliet O. Niega
 - **Group Legal-Research Contact:** Hernandez, Justin T.
 - **General Support & Inquiries:** [support@arangcada.app](mailto:support@arangcada.app)

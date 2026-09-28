@@ -365,6 +365,7 @@ version is always published on this page.
 
 **Data controller (for capstone purposes):** ArangCada capstone group,
 Section CpE231B, Department of Computer Engineering, National University Laguna.
+
 - **Capstone Adviser:** Dr. Juliet O. Niega
 - **Group Legal-Research Contact:** Hernandez, Justin T.
 - **Privacy & DPO Inquiries:** [privacy@arangcada.app](mailto:privacy@arangcada.app)
@@ -374,8 +375,9 @@ Section CpE231B, Department of Computer Engineering, National University Laguna.
 
 **National Privacy Commission (NPC):** For regulatory inquiries, complaints, or
 guidance regarding Republic Act No. 10173:
+
 - **Website:** [privacy.gov.ph](https://www.privacy.gov.ph)
-- **Complaints & Assistance:** `complaints@privacy.gov.ph` / `info@privacy.gov.ph`
+- **Complaints & Assistance:** [complaints@privacy.gov.ph](mailto:complaints@privacy.gov.ph) / [info@privacy.gov.ph](mailto:info@privacy.gov.ph)
 - **Trunkline / Contact:** +63 (02) 8234-2228
 - **Address:** 5th Floor, Delegation Building, Philippine International
   Convention Center (PICC) Complex, Vicente Sotto Avenue, Pasay City, Metro
