@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(13);
 
 -- Each trip needs its own rider and driver: one active trip per person.
 insert into auth.users(id, email, raw_user_meta_data) values
@@ -8,7 +8,9 @@ insert into auth.users(id, email, raw_user_meta_data) values
 ('00000000-0000-0000-0000-000000008203', 'cancel-rider2@example.test', '{"display_name":"Cancel Rider Two","mobile_number":"+639170008203"}'),
 ('00000000-0000-0000-0000-000000008204', 'cancel-driver2@example.test', '{"display_name":"Cancel Driver Two","mobile_number":"+639170008204"}'),
 ('00000000-0000-0000-0000-000000008205', 'cancel-rider3@example.test', '{"display_name":"Cancel Rider Three","mobile_number":"+639170008205"}'),
-('00000000-0000-0000-0000-000000008206', 'cancel-driver3@example.test', '{"display_name":"Cancel Driver Three","mobile_number":"+639170008206"}');
+('00000000-0000-0000-0000-000000008206', 'cancel-driver3@example.test', '{"display_name":"Cancel Driver Three","mobile_number":"+639170008206"}'),
+('00000000-0000-0000-0000-000000008207', 'cancel-rider4@example.test', '{"display_name":"Cancel Rider Four","mobile_number":"+639170008207"}'),
+('00000000-0000-0000-0000-000000008208', 'cancel-driver4@example.test', '{"display_name":"Cancel Driver Four","mobile_number":"+639170008208"}');
 
 insert into public.trips(id, rider_id, driver_id, status, pickup, dropoff) values
 ('00000000-0000-0000-0000-000000008211', '00000000-0000-0000-0000-000000008201',
@@ -19,6 +21,9 @@ insert into public.trips(id, rider_id, driver_id, status, pickup, dropoff) value
  st_setsrid(st_makepoint(121.16,14.2),4326), st_setsrid(st_makepoint(121.17,14.21),4326)),
 ('00000000-0000-0000-0000-000000008213', '00000000-0000-0000-0000-000000008205',
  '00000000-0000-0000-0000-000000008206', 'accepted',
+ st_setsrid(st_makepoint(121.16,14.2),4326), st_setsrid(st_makepoint(121.17,14.21),4326)),
+('00000000-0000-0000-0000-000000008214', '00000000-0000-0000-0000-000000008207',
+ '00000000-0000-0000-0000-000000008208', 'driver_assigned',
  st_setsrid(st_makepoint(121.16,14.2),4326), st_setsrid(st_makepoint(121.17,14.21),4326));
 
 set local role authenticated;
@@ -46,7 +51,18 @@ select throws_ok($$select public.cancel_ride_as_driver('00000000-0000-0000-0000-
 select is((public.cancel_ride('00000000-0000-0000-0000-000000008213')).status::text,
   'cancelled_by_rider', 'riders still cancel with cancel_ride');
 
+-- Driver four declines an offer: allowed, and not a cancellation.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000008208';
+select is((public.decline_ride('00000000-0000-0000-0000-000000008214')).status::text,
+  'no_driver_available', 'declining an offer ends it like an expired offer');
+
 reset role;
+select is((select count(*)::int from public.trip_events
+            where trip_id = '00000000-0000-0000-0000-000000008214'
+              and event_type = 'ride.declined'),
+  1, 'the decline is logged as a decline');
+select is((select cancellation_reason from public.trips where id = '00000000-0000-0000-0000-000000008214'),
+  null, 'a decline is never recorded as a cancellation');
 select is((select cancellation_reason from public.trips where id = '00000000-0000-0000-0000-000000008211'),
   'passenger_no_show', 'the reason is stored on the trip for admin review');
 select is((select metadata->>'reason' from public.trip_events
