@@ -148,6 +148,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final roleHome = user.role == DemoRole.commuter ? '/home' : '/driver';
+      // Demo tools fake trip outcomes locally; a real beta account must never
+      // reach them, however the route is opened.
+      if (path == '/profile/demo-tools' && !user.isDemoAccount) return roleHome;
       if (isAuthPath || path == '/') return roleHome;
       if (user.role == DemoRole.commuter && path.startsWith('/driver')) {
         return '/home';

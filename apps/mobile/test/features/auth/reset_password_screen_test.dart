@@ -99,4 +99,37 @@ void main() {
     expect(state.currentUser, isNull);
     expect(path(), '/login');
   });
+
+  // Demo tools fake trip outcomes; a real beta account must not reach them.
+  testWidgets('a real account cannot open demo tools', (tester) async {
+    final state = DemoState(
+      initialUser: const DemoUser(
+        email: 'juan@example.test',
+        displayName: 'Juan Dela Cruz',
+        role: DemoRole.commuter,
+        mobileNumber: '+639171234567',
+        phoneVerified: true,
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        demoStateProvider.overrideWithValue(state),
+        authRepositoryProvider.overrideWithValue(_Auth(state)),
+        sessionRestorationProvider.overrideWith((ref) async {}),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      state.dispose();
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const _App()),
+    );
+    await tester.pump();
+    final router = container.read(appRouterProvider);
+    router.go('/profile/demo-tools');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(router.routeInformationProvider.value.uri.path, '/home');
+  });
 }

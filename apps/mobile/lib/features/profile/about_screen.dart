@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
@@ -6,18 +7,24 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arangcada_mark.dart';
 import '../../core/widgets/section_card.dart';
+import '../../data/providers/repository_providers.dart';
 
-class AboutArangCadaScreen extends StatefulWidget {
+class AboutArangCadaScreen extends ConsumerStatefulWidget {
   const AboutArangCadaScreen({super.key});
 
   @override
-  State<AboutArangCadaScreen> createState() => _AboutArangCadaScreenState();
+  ConsumerState<AboutArangCadaScreen> createState() =>
+      _AboutArangCadaScreenState();
 }
 
-class _AboutArangCadaScreenState extends State<AboutArangCadaScreen> {
+class _AboutArangCadaScreenState extends ConsumerState<AboutArangCadaScreen> {
   int _versionTapCount = 0;
 
   void _tapVersion() {
+    // Demo tools are for the seeded demo accounts only (router enforces it).
+    if (!(ref.read(demoStateProvider).currentUser?.isDemoAccount ?? false)) {
+      return;
+    }
     _versionTapCount++;
     if (_versionTapCount < 5) return;
     _versionTapCount = 0;
