@@ -340,7 +340,7 @@ You may:
 
 To exercise any of these statutory rights during the capstone testing period,
 contact our Data Protection Officer / Capstone Privacy Liaison at:
-**`privacy@arangcada.app`**. Identity verification is required, and requests
+**[privacy@arangcada.app](mailto:privacy@arangcada.app)**. Identity verification is required, and requests
 will receive a formal response within fifteen (15) business days.
 
 ## 12. Children's privacy
@@ -367,8 +367,8 @@ version is always published on this page.
 Section CpE231B, Department of Computer Engineering, National University Laguna.
 - **Capstone Adviser:** Dr. Juliet O. Niega
 - **Group Legal-Research Contact:** Hernandez, Justin T.
-- **Privacy & DPO Inquiries:** `privacy@arangcada.app`
-- **General Support Inquiries:** `support@arangcada.app`
+- **Privacy & DPO Inquiries:** [privacy@arangcada.app](mailto:privacy@arangcada.app)
+- **General Support Inquiries:** [support@arangcada.app](mailto:support@arangcada.app)
 - **Campus Address:** National University Laguna, Km. 53 Pan-Philippine
   Highway, Brgy. Milagrosa, Calamba City, Laguna 4027, Philippines.
 

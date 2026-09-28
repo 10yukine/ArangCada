@@ -132,7 +132,7 @@ functions), not by the app alone.
 - **Fare or ride disputes:**
   - **Filing window:** Any fare discrepancy, improper overcharge, incomplete
     trip, or disputed payment must be reported via the in-app
-    "Report Issue" tool or submitted to `support@arangcada.app` within
+    "Report Issue" tool or submitted to [support@arangcada.app](mailto:support@arangcada.app) within
     **seventy-two (72) hours** of trip completion.
   - **Mediation & resolution:** ArangCada records server-side trip telemetry,
     calculated fare, and payment confirmation status as an immutable audit
@@ -241,7 +241,7 @@ To the maximum extent permitted by applicable Philippine law (including Articles
     or severe offense: permanent account termination.
   - **Appeal procedure:** A commuter may contest an account suspension by
     submitting a written explanation with relevant trip IDs to
-    `support@arangcada.app` or visiting the designated Calamba TODA / LGU
+    [support@arangcada.app](mailto:support@arangcada.app) or visiting the designated Calamba TODA / LGU
     administrative desk within seven (7) calendar days of notification. Admin
     determinations upon review are final.
 - **Either role:** you may stop using the app and request account
@@ -271,7 +271,7 @@ ArangCada capstone group, Section CpE231B, Department of Computer
 Engineering, National University Laguna.
 - **Capstone Adviser:** Dr. Juliet O. Niega
 - **Group Legal-Research Contact:** Hernandez, Justin T.
-- **General Support & Inquiries:** `support@arangcada.app`
-- **Legal & Compliance:** `legal@arangcada.app`
+- **General Support & Inquiries:** [support@arangcada.app](mailto:support@arangcada.app)
+- **Legal & Compliance:** [legal@arangcada.app](mailto:legal@arangcada.app)
 - **Campus Address:** National University Laguna, Km. 53 Pan-Philippine
   Highway, Brgy. Milagrosa, Calamba City, Laguna 4027, Philippines.
