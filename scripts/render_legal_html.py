@@ -29,7 +29,7 @@ HTML_TEMPLATE = """<!doctype html>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/site.css?v=20260928">
 
 <!-- Open Graph / Facebook / Messenger -->
 <meta property="og:type" content="article">
@@ -52,6 +52,7 @@ HTML_TEMPLATE = """<!doctype html>
 <meta name="twitter:image" content="https://arangcada.app/assets/og-banner.png">
 
 <script src="/appearance.js"></script>
+<script src="/mobile-nav.js" defer></script>
 </head><body class="legal-page">
 <a class="skip" href="#document">Skip to document</a>
 <header class="site-header"><div class="wrap header-row">

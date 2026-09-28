@@ -331,3 +331,11 @@ main{overflow-x:clip}
 @media(max-width:760px){.track-link-bar{font-size:13px;white-space:normal}}
 .not-found{grid-template-columns:minmax(0,1fr)}.not-found .download-intro{max-width:640px}
 .download-legal a{display:inline-block;padding-block:8px}
+/* ---- phone reading aids (mobile-nav.js) ---- */
+.site-header{transition:transform .25s ease}
+.site-header.header-away{transform:translateY(-100%)}
+.jump-button{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:25;display:none;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;background:var(--blue);color:#fff;font-size:15px;font-weight:600;text-decoration:none;box-shadow:0 10px 24px -12px rgba(18,98,208,.7)}
+.jump-button.show{display:inline-flex}
+@media(max-width:760px){.legal-nav{scroll-margin-top:124px}}
+@media(prefers-reduced-motion:reduce){.site-header{transition:none}}
+@media print{.jump-button{display:none!important}}
