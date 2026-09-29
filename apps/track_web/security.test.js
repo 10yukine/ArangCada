@@ -28,7 +28,7 @@ test('shared path and trailing slash load assets from the site root', () => {
     for (const [, asset] of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
       const resolved = new URL(asset, `https://track.example.test${path}`);
       if (resolved.origin !== 'https://track.example.test') continue;
-      assert.ok(['/style.css', '/config.js', '/track.js'].includes(resolved.pathname));
+      assert.ok(['/favicon.ico', '/style.css', '/config.js', '/track.js'].includes(resolved.pathname));
     }
   }
 });

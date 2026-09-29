@@ -26,8 +26,8 @@ HTML_TEMPLATE = """<!doctype html>
 <meta name="description" content="{description}">
 <meta name="theme-color" content="#1262D0">
 <link rel="canonical" href="{canonical_url}">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico?v=20260930" sizes="any">
+<link rel="icon" href="/favicon.svg?v=20260930" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/site.css?v=20260929b">
 
