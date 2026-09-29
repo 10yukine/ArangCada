@@ -19,6 +19,7 @@ import 'package:arangcada/features/driver/driver_earnings_screen.dart';
 import 'package:arangcada/features/driver/driver_screens.dart';
 import 'package:arangcada/features/fare/fare_matrix_screen.dart';
 import 'package:arangcada/features/home/commuter_home_screen.dart';
+import 'package:arangcada/features/profile/delete_account_screen.dart';
 import 'package:arangcada/features/profile/profile_screen.dart';
 import 'package:arangcada/features/rating/driver_app_feedback_screen.dart';
 import 'package:arangcada/features/rating/rating_screen.dart';
@@ -104,8 +105,16 @@ void main() {
       const DestinationSearchScreen(),
     ),
     'ride options': (DemoRole.commuter, null, const RideOptionsScreen()),
-    'booking review': (DemoRole.commuter, _booking(), const BookingReviewScreen()),
-    'rating': (DemoRole.commuter, _booking(completed: true), const RatingScreen()),
+    'booking review': (
+      DemoRole.commuter,
+      _booking(),
+      const BookingReviewScreen(),
+    ),
+    'rating': (
+      DemoRole.commuter,
+      _booking(completed: true),
+      const RatingScreen(),
+    ),
     'receipt': (
       DemoRole.commuter,
       _booking(completed: true),
@@ -121,6 +130,7 @@ void main() {
       null,
       const DriverAppFeedbackScreen(),
     ),
+    'delete account': (DemoRole.commuter, null, const DeleteAccountScreen()),
   };
 
   for (final MapEntry(key: name, value: (role, booking, screen))

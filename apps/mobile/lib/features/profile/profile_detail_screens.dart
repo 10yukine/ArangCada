@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -9,7 +8,6 @@ import '../../app/theme/app_typography.dart';
 import '../../core/widgets/empty_state_card.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
-import '../../core/widgets/arang_dialog.dart';
 import '../../demo/demo_data.dart';
 import '../search/destination_search_screen.dart';
 import 'notification_settings_tile.dart';
@@ -110,61 +108,6 @@ class AppSettingsScreen extends ConsumerWidget {
 
   static const _demoToolsRoute = '/profile/demo-tools';
 
-  Future<void> _requestDeletion(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => ArangDialog(
-        title: 'Request account deletion?',
-        content: const Text(
-          'We will email you a confirmation link. After you confirm, our privacy team will review trip and safety records, delete your account and personal data, and email you when complete.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send confirmation email'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    try {
-      await Supabase.instance.client.functions.invoke(
-        'account-deletion',
-        body: {},
-      );
-      if (!context.mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => ArangDialog(
-          title: 'Check your email',
-          content: const Text(
-            'Open the confirmation link within 24 hours to send your deletion request. Your account stays active until we finish processing it.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not send the deletion email. Try again later.',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _DetailScaffold(
@@ -231,23 +174,41 @@ class AppSettingsScreen extends ConsumerWidget {
           },
         ),
         const SizedBox(height: AppSpacing.xl),
-        Text('Data', style: AppTypography.h2),
+        Text('Account', style: AppTypography.h2),
         const SizedBox(height: AppSpacing.xs),
-        SectionCard(
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-            title: const Text('Delete account'),
-            subtitle: const Text('Confirm by email to request deletion.'),
-            trailing:
-                ref.watch(demoStateProvider).currentUser?.isDemoAccount ?? false
-                ? null
-                : const Icon(Icons.chevron_right),
-            onTap:
-                ref.watch(demoStateProvider).currentUser?.isDemoAccount ?? false
-                ? null
-                : () => _requestDeletion(context),
-          ),
+        Builder(
+          builder: (context) {
+            // Demo accounts are shared fixtures with no Supabase account.
+            final isDemo =
+                ref.watch(demoStateProvider).currentUser?.isDemoAccount ??
+                false;
+            return SectionCard(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: isDemo ? AppColors.textDisabled : AppColors.danger,
+                ),
+                title: Text(
+                  'Delete account',
+                  style: isDemo
+                      ? AppTypography.body.copyWith(
+                          color: AppColors.textDisabled,
+                        )
+                      : null,
+                ),
+                subtitle: Text(
+                  isDemo
+                      ? 'Not available for demo accounts.'
+                      : 'Permanently delete your account and personal data.',
+                ),
+                trailing: isDemo ? null : const Icon(Icons.chevron_right),
+                onTap: isDemo
+                    ? null
+                    : () => context.push('/profile/delete-account'),
+              ),
+            );
+          },
         ),
         // Only the seeded @arangcada.demo accounts see this. It replaces the
         // old hidden 5-tap on the About screen's version string with a

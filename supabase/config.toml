@@ -78,7 +78,8 @@ entrypoint = "./functions/inbound-email/index.ts"
 
 [functions.account-deletion]
 enabled = true
-# The email confirmation link is public; the function checks its one-use token.
-# Requests from the app separately verify the caller's JWT.
+# MUST stay false: arangcada.app/delete-account calls it with no session.
+# Not unauthenticated: it signs in with the password sent in the body and
+# deletes only that account (see functions/account-deletion/delete.ts).
 verify_jwt = false
 entrypoint = "./functions/account-deletion/index.ts"

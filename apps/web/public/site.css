@@ -339,3 +339,17 @@ main{overflow-x:clip}
 @media(max-width:760px){.legal-nav{scroll-margin-top:124px}}
 @media(prefers-reduced-motion:reduce){.site-header{transition:none}}
 @media print{.jump-button{display:none!important}}
+
+/* Account deletion page */
+.delete-page{max-width:720px;padding-top:56px;padding-bottom:88px}
+.delete-page h1{font-size:clamp(32px,3.5vw,44px);line-height:1.15;font-weight:500;margin:16px 0 20px}
+.delete-card{margin:28px 0;padding:24px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--radius)}
+.delete-card h2{margin:0 0 12px;font-size:22px;font-weight:500;color:var(--ink)}
+.delete-card label{display:block;margin:14px 0 6px;font-weight:600;color:var(--ink)}
+.delete-card input:not([type=checkbox]){box-sizing:border-box;width:100%;min-height:48px;padding:0 14px;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.delete-card .delete-confirm{display:flex;gap:10px;align-items:center;font-weight:500}
+.delete-card .delete-confirm input{width:20px;height:20px}
+.delete-button,:root[data-theme=dark] .delete-button{margin-top:18px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none}
+.delete-button:hover{background:#912018}
+.delete-button:disabled{opacity:.6;cursor:progress}
+#delete-status{min-height:1.5em;margin:14px 0 0;color:var(--ink)}

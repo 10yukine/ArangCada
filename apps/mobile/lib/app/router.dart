@@ -11,6 +11,7 @@ import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/reset_password_screen.dart';
 import '../features/auth/verify_phone_screen.dart';
 import '../features/profile/change_password_screen.dart';
+import '../features/profile/delete_account_screen.dart';
 import '../features/profile/edit_profile_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/complete_mobile_profile_screen.dart';
@@ -295,6 +296,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile/change-password',
         pageBuilder: (context, state) =>
             _screenPage(state, const ChangePasswordScreen()),
+      ),
+      GoRoute(
+        path: '/profile/delete-account',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const DeleteAccountScreen()),
       ),
       GoRoute(
         path: '/profile/saved-places',
