@@ -524,6 +524,7 @@ class _DriverEnrollmentDialogState
           child: Form(
             key: _emailFormKey,
             child: TextFormField(
+              errorBuilder: adminFieldError,
               controller: _email,
               autofocus: true,
               keyboardType: TextInputType.emailAddress,
@@ -586,6 +587,7 @@ class _DriverEnrollmentDialogState
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
+                    errorBuilder: adminFieldError,
                     controller: _confirmEmail,
                     autofocus: true,
                     keyboardType: TextInputType.emailAddress,
@@ -620,6 +622,7 @@ class _DriverEnrollmentDialogState
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
+                  errorBuilder: adminFieldError,
                   controller: _bodyNumber,
                   textCapitalization: TextCapitalization.characters,
                   decoration: const InputDecoration(
@@ -1028,6 +1031,7 @@ class _ManageDriverRecordDialogState
                     children: [
                       Expanded(
                         child: TextFormField(
+                          errorBuilder: adminFieldError,
                           controller: _firstName,
                           decoration: const InputDecoration(
                             labelText: 'First name',
@@ -1041,6 +1045,7 @@ class _ManageDriverRecordDialogState
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
+                          errorBuilder: adminFieldError,
                           controller: _lastName,
                           decoration: const InputDecoration(
                             labelText: 'Last name',
@@ -1055,6 +1060,7 @@ class _ManageDriverRecordDialogState
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    errorBuilder: adminFieldError,
                     controller: _phone,
                     readOnly: true,
                     decoration: const InputDecoration(
@@ -1068,6 +1074,7 @@ class _ManageDriverRecordDialogState
                     children: [
                       Expanded(
                         child: TextFormField(
+                          errorBuilder: adminFieldError,
                           controller: _plate,
                           decoration: const InputDecoration(
                             labelText: 'Plate number',
@@ -1078,6 +1085,7 @@ class _ManageDriverRecordDialogState
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
+                          errorBuilder: adminFieldError,
                           controller: _bodyNumber,
                           decoration: const InputDecoration(
                             labelText: 'Body number',

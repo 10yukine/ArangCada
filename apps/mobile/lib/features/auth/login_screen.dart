@@ -25,7 +25,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  String? _errorMessage;
+  String? _identifierError;
+  String? _passwordError;
   bool _submitting = false;
   bool _obscurePassword = true;
 
@@ -46,27 +47,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (_submitting) return;
-    FocusScope.of(context).unfocus();
+    final identifier = _identifierController.text.trim();
+    final password = _passwordController.text;
+    // Anything with an @ is an email; otherwise it must be a PH mobile
+    // number, so people can log in without typing an address.
+    final mobile = identifier.contains('@')
+        ? null
+        : normalizePhMobile(identifier);
     setState(() {
-      _submitting = true;
-      _errorMessage = null;
+      _identifierError = identifier.isEmpty
+          ? 'Enter your mobile number or email'
+          : mobile != null && !mobile.isValid
+          ? 'Enter your email or a Philippine mobile number, like 0917 123 4567'
+          : null;
+      _passwordError = password.isEmpty ? 'Enter your password' : null;
     });
+    if (_identifierError != null || _passwordError != null) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
     try {
       final auth = ref.read(authRepositoryProvider);
-      final identifier = _identifierController.text.trim();
-      final password = _passwordController.text;
-      // Anything with an @ is an email; otherwise it must be a PH mobile
-      // number, so people can log in without typing an address.
       final DemoUser user;
-      if (identifier.contains('@')) {
+      if (mobile == null) {
         user = await auth.signIn(email: identifier, password: password);
       } else {
-        final mobile = normalizePhMobile(identifier);
-        if (!mobile.isValid) {
-          throw const DemoAuthException(
-            'Enter your email or a Philippine mobile number, like 0917 123 4567.',
-          );
-        }
         user = await auth.signInWithPhone(
           phone: mobile.e164!,
           password: password,
@@ -75,7 +80,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       context.go(user.role == DemoRole.commuter ? '/home' : '/driver');
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _errorMessage = error.message);
+      // Sign-in never says which part was wrong, so the message sits under
+      // the password, where the fix usually is.
+      if (mounted) setState(() => _passwordError = error.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -159,6 +166,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   AutofillHints.username,
                                 ],
                                 textInputAction: TextInputAction.next,
+                                errorText: _identifierError,
+                                onChanged: (_) {
+                                  if (_identifierError != null) {
+                                    setState(() => _identifierError = null);
+                                  }
+                                },
                               ),
                               const SizedBox(height: AppSpacing.md),
                               LabeledTextField(
@@ -169,6 +182,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 obscureText: _obscurePassword,
                                 autofillHints: const [AutofillHints.password],
                                 onSubmitted: (_) => _submit(),
+                                errorText: _passwordError,
+                                onChanged: (_) {
+                                  if (_passwordError != null) {
+                                    setState(() => _passwordError = null);
+                                  }
+                                },
                                 suffixIcon: IconButton(
                                   tooltip: _obscurePassword
                                       ? 'Show password'
@@ -189,14 +208,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                 ),
                               ),
-                              if (_errorMessage != null) ...[
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                  _errorMessage!,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppColors.danger),
-                                ),
-                              ],
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(

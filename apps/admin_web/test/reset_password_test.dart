@@ -51,6 +51,31 @@ void main() {
     return repository;
   }
 
+  testWidgets('weak passwords are explained, and errors clear on typing', (
+    tester,
+  ) async {
+    final repository = await openResetLink(tester, hasSession: true);
+    await tester.enterText(find.byType(TextFormField).at(0), 'lowercase1');
+    await tester.pump();
+    // Length and number are met; mixed case and the repeat are not.
+    expect(find.byIcon(Icons.check_circle), findsNWidgets(2));
+    await tester.tap(find.text('Update password'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Use both uppercase and lowercase letters'),
+      findsOneWidget,
+    );
+    expect(find.text('Enter the new password again'), findsOneWidget);
+    expect(repository.newPassword, isNull);
+
+    // Typing in a field clears only that field's error.
+    await tester.enterText(find.byType(TextFormField).at(0), 'Lowercase1');
+    await tester.pump();
+    expect(find.text('Use both uppercase and lowercase letters'), findsNothing);
+    expect(find.text('Enter the new password again'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle), findsNWidgets(3));
+  });
+
   testWidgets('a reset link asks for a new password instead of signing in', (
     tester,
   ) async {
@@ -61,17 +86,17 @@ void main() {
     expect(find.text('Choose a new password'), findsOneWidget);
     expect(find.text('Operations overview'), findsNothing);
 
-    await tester.enterText(find.byType(TextFormField).at(0), 'correct-horse');
-    await tester.enterText(find.byType(TextFormField).at(1), 'different-one');
+    await tester.enterText(find.byType(TextFormField).at(0), 'Correct-horse1');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Different-one1');
     await tester.tap(find.text('Update password'));
     await tester.pumpAndSettle();
-    expect(find.text('The passwords do not match.'), findsOneWidget);
+    expect(find.text('Passwords do not match'), findsOneWidget);
     expect(repository.newPassword, isNull);
 
-    await tester.enterText(find.byType(TextFormField).at(1), 'correct-horse');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Correct-horse1');
     await tester.tap(find.text('Update password'));
     await tester.pumpAndSettle();
-    expect(repository.newPassword, 'correct-horse');
+    expect(repository.newPassword, 'Correct-horse1');
     expect(find.text('Password updated'), findsOneWidget);
 
     await tester.tap(find.text('Go to sign in'));

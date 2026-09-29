@@ -26,6 +26,7 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final formKey = GlobalKey<FormState>();
+  final errors = FieldErrorReset();
   final password = TextEditingController();
   final confirmPassword = TextEditingController();
   bool passwordHidden = true;
@@ -42,7 +43,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   }
 
   Future<void> _submit() async {
-    if (!formKey.currentState!.validate()) return;
+    if (!errors.validate(formKey)) return;
     final repository = ref.read(adminRepositoryProvider);
     if (repository == null) return;
     setState(() {
@@ -105,13 +106,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Use at least 8 characters. You will sign in again afterwards.',
+                  'You will sign in again afterwards.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: context.adminColor(AdminColors.muted),
                   ),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
+                  errorBuilder: adminFieldError,
                   controller: password,
                   obscureText: passwordHidden,
                   autofillHints: const [AutofillHints.newPassword],
@@ -132,12 +134,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                     ),
                   ),
-                  validator: (value) => value == null || value.length < 8
-                      ? 'Enter at least 8 characters.'
-                      : null,
+                  onChanged: (_) => errors.edited(password, formKey),
+                  validator: errors.guard(password, adminPasswordProblem),
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
+                  errorBuilder: adminFieldError,
                   controller: confirmPassword,
                   obscureText: confirmHidden,
                   autofillHints: const [AutofillHints.newPassword],
@@ -158,9 +160,20 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                     ),
                   ),
-                  validator: (value) => value != password.text
-                      ? 'The passwords do not match.'
-                      : null,
+                  onChanged: (_) => errors.edited(confirmPassword, formKey),
+                  validator: errors.guard(
+                    confirmPassword,
+                    (value) => (value ?? '').isEmpty
+                        ? 'Enter the new password again'
+                        : value != password.text
+                        ? 'Passwords do not match'
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                AdminPasswordRequirements(
+                  password: password,
+                  repeat: confirmPassword,
                 ),
                 if (error != null) ...[
                   const SizedBox(height: 14),

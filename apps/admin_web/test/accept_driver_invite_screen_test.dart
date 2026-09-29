@@ -99,11 +99,11 @@ void main() {
       );
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Password'),
-        'password123',
+        'Password123',
       );
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Repeat password'),
-        'password123',
+        'Password123',
       );
       await tester.tap(find.text('Create account'));
       await tester.pumpAndSettle();

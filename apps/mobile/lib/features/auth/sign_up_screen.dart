@@ -8,6 +8,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/format/ph_mobile.dart';
 import '../../core/widgets/auth_footer.dart';
 import '../../core/widgets/labeled_text_field.dart';
+import '../../core/widgets/password_requirements.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/models/demo_user.dart';
@@ -41,6 +42,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _obscure = true;
   bool _obscureRepeat = true;
   bool _agreedToLegal = false;
+  final _errors = <String, String>{};
+  // Not tied to one field: the legal checkbox and server replies.
   String? _error;
 
   @override
@@ -59,6 +62,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       _forward = step > _step;
       _step = step;
       _error = null;
+      _errors.clear();
     });
   }
 
@@ -71,38 +75,46 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   void _nextFromStep0() {
-    final first = _firstName.text.trim();
-    final last = _lastName.text.trim();
-    if (first.isEmpty || last.isEmpty) {
-      setState(() => _error = 'Please enter both your first and last name.');
-      return;
-    }
-    _goTo(1);
+    setState(() {
+      _errors.clear();
+      if (_firstName.text.trim().isEmpty) {
+        _errors['first'] = 'Enter your first name';
+      }
+      if (_lastName.text.trim().isEmpty) {
+        _errors['last'] = 'Enter your last name';
+      }
+    });
+    if (_errors.isEmpty) _goTo(1);
   }
 
   void _nextFromStep1() {
     final mobile = normalizePhMobile(_mobile.text);
-    if (!mobile.isValid) {
-      setState(() => _error = mobile.error);
-      return;
-    }
     final email = _email.text.trim();
-    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      setState(() => _error = 'Please enter a valid email address.');
-      return;
-    }
-    _goTo(2);
+    setState(() {
+      _errors.clear();
+      if (!mobile.isValid) _errors['mobile'] = mobile.error!;
+      if (email.isEmpty) {
+        _errors['email'] = 'Enter your email address';
+      } else if (!email.contains('@') || !email.contains('.')) {
+        _errors['email'] = 'Enter a valid email address, like you@example.com';
+      }
+    });
+    if (_errors.isEmpty) _goTo(2);
   }
 
   Future<void> _submit() async {
-    if (_password.text.length < 8) {
-      setState(() => _error = 'Password must be at least 8 characters.');
-      return;
-    }
-    if (_repeatPassword.text != _password.text) {
-      setState(() => _error = 'Passwords do not match.');
-      return;
-    }
+    setState(() {
+      _errors.clear();
+      _error = null;
+      final problem = passwordProblem(_password.text);
+      if (problem != null) _errors['password'] = problem;
+      if (_repeatPassword.text.isEmpty) {
+        _errors['repeat'] = 'Enter the password again';
+      } else if (_repeatPassword.text != _password.text) {
+        _errors['repeat'] = 'Passwords do not match';
+      }
+    });
+    if (_errors.isNotEmpty) return;
     if (!_agreedToLegal) {
       setState(
         () => _error =
@@ -335,9 +347,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text(
           subtitle,
-          style: AppTypography.bodySm.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xl),
         ...fields,
@@ -389,6 +399,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       icon: Icons.person_outline,
       textInputAction: TextInputAction.next,
       autofillHints: const [AutofillHints.givenName],
+      errorText: _errors['first'],
+      onChanged: (_) => setState(() => _errors.remove('first')),
     ),
     const SizedBox(height: AppSpacing.md),
     LabeledTextField(
@@ -399,6 +411,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _nextFromStep0(),
       autofillHints: const [AutofillHints.familyName],
+      errorText: _errors['last'],
+      onChanged: (_) => setState(() => _errors.remove('last')),
     ),
   ];
 
@@ -412,6 +426,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       textInputAction: TextInputAction.next,
       autofillHints: const [AutofillHints.telephoneNumber],
       autofocus: true,
+      errorText: _errors['mobile'],
+      onChanged: (_) => setState(() => _errors.remove('mobile')),
     ),
     const SizedBox(height: AppSpacing.md),
     LabeledTextField(
@@ -423,6 +439,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _nextFromStep1(),
       autofillHints: const [AutofillHints.email],
+      errorText: _errors['email'],
+      onChanged: (_) => setState(() => _errors.remove('email')),
     ),
   ];
 
@@ -436,6 +454,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       textInputAction: TextInputAction.next,
       autofillHints: const [AutofillHints.newPassword],
       autofocus: true,
+      errorText: _errors['password'],
+      onChanged: (_) => setState(() => _errors.remove('password')),
       suffixIcon: _visibilityToggle(
         obscured: _obscure,
         onPressed: () => setState(() => _obscure = !_obscure),
@@ -451,6 +471,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _submit(),
       autofillHints: const [AutofillHints.newPassword],
+      errorText: _errors['repeat'],
+      onChanged: (_) => setState(() => _errors.remove('repeat')),
       suffixIcon: _visibilityToggle(
         obscured: _obscureRepeat,
         onPressed: () => setState(() => _obscureRepeat = !_obscureRepeat),
@@ -459,25 +481,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     const SizedBox(height: AppSpacing.sm),
     // Live checks: people see each requirement tick off as they type
     // instead of learning about a typo only after tapping Create Account.
-    ListenableBuilder(
-      listenable: Listenable.merge([_password, _repeatPassword]),
-      builder: (context, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Requirement(
-            met: _password.text.length >= 8,
-            label: 'At least 8 characters',
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          _Requirement(
-            met:
-                _repeatPassword.text.isNotEmpty &&
-                _repeatPassword.text == _password.text,
-            label: 'Both passwords match',
-          ),
-        ],
-      ),
-    ),
+    PasswordRequirements(password: _password, repeat: _repeatPassword),
     const SizedBox(height: AppSpacing.lg),
     InkWell(
       onTap: () => setState(() => _agreedToLegal = !_agreedToLegal),
@@ -519,33 +523,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       icon: Icon(
         obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
       ),
-    );
-  }
-}
-
-class _Requirement extends StatelessWidget {
-  const _Requirement({required this.met, required this.label});
-
-  final bool met;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = met ? AppColors.green : AppColors.textMuted;
-    return Row(
-      children: [
-        AnimatedSwitcher(
-          duration: AppMotion.button,
-          child: Icon(
-            met ? Icons.check_circle : Icons.radio_button_unchecked,
-            key: ValueKey(met),
-            size: 16,
-            color: color,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(label, style: AppTypography.caption.copyWith(color: color)),
-      ],
     );
   }
 }

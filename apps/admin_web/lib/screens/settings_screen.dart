@@ -486,6 +486,7 @@ class _PasswordSettingsPanelState
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
+      errorBuilder: adminFieldError,
       controller: controller,
       obscureText: hidden,
       autofillHints: autofillHints,

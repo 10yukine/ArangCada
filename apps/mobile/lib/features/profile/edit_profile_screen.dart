@@ -42,7 +42,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _firstName;
   late final TextEditingController _lastName;
   bool _savingName = false;
-  String? _nameError;
+  String? _firstError;
+  String? _lastError;
   String? _nameSaveError;
 
   // CONTACT
@@ -50,6 +51,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _email;
   final _contactPassword = TextEditingController();
   bool _savingContact = false;
+  String? _mobileError;
+  String? _emailError;
+  String? _passwordError;
+  // Server replies that are not about one field.
   String? _contactError;
 
   /// Set once `sendPhoneOtp` succeeds for a changed number. Non-null shows
@@ -99,18 +104,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     // two ways of showing the same error.
     final first = _firstName.text.trim();
     final last = _lastName.text.trim();
-    final invalid = first.isEmpty || last.isEmpty
-        ? 'Enter both your first and last name'
-        : null;
-    if (invalid != null) {
-      setState(() => _nameError = invalid);
-      return;
-    }
+    setState(() {
+      _firstError = first.isEmpty ? 'Enter your first name' : null;
+      _lastError = last.isEmpty ? 'Enter your last name' : null;
+    });
+    if (_firstError != null || _lastError != null) return;
 
     setState(() {
       _savingName = true;
       _nameSaveError = null;
-      _nameError = null;
     });
 
     try {
@@ -132,8 +134,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     final trimmedEmail = _email.text.trim();
     final emailChanged = trimmedEmail != (user?.email ?? '');
+    setState(() {
+      _mobileError = null;
+      _emailError = null;
+      _passwordError = null;
+      _contactError = null;
+    });
     if (emailChanged && !trimmedEmail.contains('@')) {
-      setState(() => _contactError = 'Enter a valid email address.');
+      setState(
+        () => _emailError = 'Enter a valid email address, like you@example.com',
+      );
       return;
     }
 
@@ -142,7 +152,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_mobile.text.trim().isNotEmpty) {
       mobile = normalizePhMobile(_mobile.text);
       if (!mobile.isValid) {
-        setState(() => _contactError = mobile!.error);
+        setState(() => _mobileError = mobile!.error);
         return;
       }
       mobileChanged = mobile.e164 != user?.mobileNumber;
@@ -151,7 +161,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       // which combined with the early return below into a dead Save button:
       // no error, no snackbar, nothing. Removing a number outright is not a
       // flow this screen supports, so say that instead of doing nothing.
-      setState(() => _contactError = 'Mobile number cannot be removed here.');
+      setState(
+        () => _mobileError = 'Your mobile number cannot be removed here',
+      );
       return;
     }
 
@@ -163,7 +175,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
 
     if (_contactPassword.text.isEmpty) {
-      setState(() => _contactError = 'Enter your current password.');
+      setState(() => _passwordError = 'Enter your current password');
       return;
     }
 
@@ -184,7 +196,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       // Proves the person is the account owner, not just the phone's holder.
       // A wrong current password fails HERE, with a message the user can act
       // on -- never a generic error.
-      await auth.reauthenticate(_contactPassword.text);
+      try {
+        await auth.reauthenticate(_contactPassword.text);
+      } on DemoAuthException catch (error) {
+        if (mounted) setState(() => _passwordError = error.message);
+        return;
+      }
 
       if (emailChanged) {
         await auth.updateEmail(trimmedEmail);
@@ -281,7 +298,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     hintText: 'Juan',
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.givenName],
-                    errorText: _nameError,
+                    errorText: _firstError,
+                    onChanged: (_) => setState(() => _firstError = null),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LabeledTextField(
@@ -292,6 +310,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.familyName],
                     onSubmitted: (_) => _saveName(),
+                    errorText: _lastError,
+                    onChanged: (_) => setState(() => _lastError = null),
                   ),
                   if (_nameSaveError != null) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -323,6 +343,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     hintText: '0917 123 4567',
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    errorText: _mobileError,
+                    onChanged: (_) => setState(() => _mobileError = null),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LabeledTextField(
@@ -332,6 +354,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     hintText: 'you@example.com',
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    errorText: _emailError,
+                    onChanged: (_) => setState(() => _emailError = null),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LabeledTextField(
@@ -341,6 +365,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     hintText: 'Enter your password',
                     obscureText: true,
                     onSubmitted: (_) => _saveContact(),
+                    errorText: _passwordError,
+                    onChanged: (_) => setState(() => _passwordError = null),
                   ),
                   if (_contactError != null) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -380,16 +406,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       hintText: '123456',
                       keyboardType: TextInputType.number,
                       onSubmitted: (_) => _verifyPendingPhone(),
+                      errorText: _otpError,
+                      onChanged: (_) => setState(() => _otpError = null),
                     ),
-                    if (_otpError != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        _otpError!,
-                        style: AppTypography.bodySm.copyWith(
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: AppSpacing.md),
                     Row(
                       children: [

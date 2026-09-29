@@ -37,7 +37,11 @@ class _Auth extends Fake implements AuthRepository {
   }
 }
 
-Future<_Auth> _logIn(WidgetTester tester, String identifier) async {
+Future<_Auth> _logIn(
+  WidgetTester tester,
+  String identifier, {
+  String password = 'example-password',
+}) async {
   final auth = _Auth();
   final router = GoRouter(
     initialLocation: '/login',
@@ -55,7 +59,7 @@ Future<_Auth> _logIn(WidgetTester tester, String identifier) async {
   );
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, identifier);
-  await tester.enterText(find.byType(TextField).last, 'example-password');
+  await tester.enterText(find.byType(TextField).last, password);
   await tester.tap(find.text('Log In'));
   await tester.pumpAndSettle();
   return auth;
@@ -79,9 +83,30 @@ void main() {
     expect(auth.calls, isEmpty);
     expect(
       find.text(
-        'Enter your email or a Philippine mobile number, like 0917 123 4567.',
+        'Enter your email or a Philippine mobile number, like 0917 123 4567',
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('empty fields each show their own error, and nothing is sent', (
+    tester,
+  ) async {
+    final auth = await _logIn(tester, '', password: '');
+    expect(auth.calls, isEmpty);
+    final identifier = tester.getRect(find.byType(TextField).first);
+    final password = tester.getRect(find.byType(TextField).last);
+    final identifierError = tester.getRect(
+      find.text('Enter your mobile number or email'),
+    );
+    expect(identifierError.top, greaterThan(identifier.top + 40));
+    expect(identifierError.bottom, lessThanOrEqualTo(password.top));
+    expect(find.text('Enter your password'), findsOneWidget);
+
+    // Typing clears that field's error only.
+    await tester.enterText(find.byType(TextField).first, 'maria@example.com');
+    await tester.pump();
+    expect(find.text('Enter your mobile number or email'), findsNothing);
+    expect(find.text('Enter your password'), findsOneWidget);
   });
 }

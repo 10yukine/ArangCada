@@ -61,6 +61,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   final _password = TextEditingController();
   bool _obscure = true;
   bool _deleting = false;
+  String? _passwordError;
+  // Reasons not about the password, e.g. a ride in progress.
   String? _error;
 
   @override
@@ -72,13 +74,14 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   Future<void> _delete() async {
     if (_deleting) return;
     if (_password.text.isEmpty) {
-      setState(() => _error = 'Enter your password to confirm.');
+      setState(() => _passwordError = 'Enter your password');
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() {
       _deleting = true;
       _error = null;
+      _passwordError = null;
     });
     try {
       await ref.read(accountDeleterProvider)(_password.text);
@@ -86,7 +89,11 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (mounted) {
         setState(() {
           _deleting = false;
-          _error = error.message;
+          if (error.message.contains('password')) {
+            _passwordError = error.message;
+          } else {
+            _error = error.message;
+          }
         });
       }
       return;
@@ -168,6 +175,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                     icon: Icons.lock_outline,
                     obscureText: _obscure,
                     onSubmitted: (_) => _delete(),
+                    errorText: _passwordError,
+                    onChanged: (_) => setState(() => _passwordError = null),
                     autofillHints: const [AutofillHints.password],
                     suffixIcon: IconButton(
                       tooltip: _obscure ? 'Show password' : 'Hide password',

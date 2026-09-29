@@ -109,6 +109,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       autofillHints: const [AutofillHints.email],
                       textInputAction: TextInputAction.done,
                       errorText: _error,
+                      onChanged: (_) => setState(() => _error = null),
                       onSubmitted: (_) => _send(),
                     ),
                     const SizedBox(height: AppSpacing.md),

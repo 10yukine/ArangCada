@@ -22,6 +22,7 @@ class AcceptDriverInviteScreen extends ConsumerStatefulWidget {
 class _AcceptDriverInviteScreenState
     extends ConsumerState<AcceptDriverInviteScreen> {
   final formKey = GlobalKey<FormState>();
+  final errors = FieldErrorReset();
   final firstName = TextEditingController();
   final lastName = TextEditingController();
   final mobileNumber = TextEditingController();
@@ -86,7 +87,7 @@ class _AcceptDriverInviteScreenState
   Future<void> _submit() async {
     final token = widget.token;
     if (token == null || email == null) return;
-    if (!formKey.currentState!.validate()) return;
+    if (!errors.validate(formKey)) return;
     setState(() {
       submitting = true;
       error = null;
@@ -128,9 +129,11 @@ class _AcceptDriverInviteScreenState
     required VoidCallback toggle,
     required String? Function(String?) validator,
   }) => TextFormField(
+    errorBuilder: adminFieldError,
     controller: controller,
     obscureText: hidden,
-    validator: validator,
+    onChanged: (_) => errors.edited(controller, formKey),
+    validator: errors.guard(controller, validator),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
@@ -198,36 +201,52 @@ class _AcceptDriverInviteScreenState
               ),
               const SizedBox(height: 20),
               TextFormField(
+                errorBuilder: adminFieldError,
                 controller: firstName,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'First name'),
-                validator: (value) => (value?.trim().isNotEmpty ?? false)
-                    ? null
-                    : 'Enter your first name.',
+                onChanged: (_) => errors.edited(firstName, formKey),
+                validator: errors.guard(
+                  firstName,
+                  (value) => (value?.trim().isNotEmpty ?? false)
+                      ? null
+                      : 'Enter your first name',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
+                errorBuilder: adminFieldError,
                 controller: lastName,
                 decoration: const InputDecoration(labelText: 'Last name'),
-                validator: (value) => (value?.trim().isNotEmpty ?? false)
-                    ? null
-                    : 'Enter your last name.',
+                onChanged: (_) => errors.edited(lastName, formKey),
+                validator: errors.guard(
+                  lastName,
+                  (value) => (value?.trim().isNotEmpty ?? false)
+                      ? null
+                      : 'Enter your last name',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
+                errorBuilder: adminFieldError,
                 controller: mobileNumber,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'Mobile number',
                   hintText: '09XXXXXXXXX',
                 ),
-                validator: (value) =>
-                    (value?.replaceAll(RegExp(r'\D'), '').length ?? 0) >= 10
-                    ? null
-                    : 'Enter a valid mobile number.',
+                onChanged: (_) => errors.edited(mobileNumber, formKey),
+                validator: errors.guard(
+                  mobileNumber,
+                  (value) =>
+                      (value?.replaceAll(RegExp(r'\D'), '').length ?? 0) >= 10
+                      ? null
+                      : 'Enter a valid mobile number',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
+                errorBuilder: adminFieldError,
                 initialValue: resolvedEmail,
                 enabled: false,
                 decoration: const InputDecoration(labelText: 'Email'),
@@ -236,12 +255,10 @@ class _AcceptDriverInviteScreenState
               _passwordField(
                 controller: password,
                 label: 'Password',
-                hint: 'At least 8 characters',
+                hint: null,
                 hidden: passwordHidden,
                 toggle: () => setState(() => passwordHidden = !passwordHidden),
-                validator: (value) => (value?.length ?? 0) < 8
-                    ? 'Enter at least 8 characters.'
-                    : null,
+                validator: adminPasswordProblem,
               ),
               const SizedBox(height: 12),
               _passwordField(
@@ -250,8 +267,16 @@ class _AcceptDriverInviteScreenState
                 hint: null,
                 hidden: confirmHidden,
                 toggle: () => setState(() => confirmHidden = !confirmHidden),
-                validator: (value) =>
-                    value == password.text ? null : 'Passwords do not match.',
+                validator: (value) => (value ?? '').isEmpty
+                    ? 'Enter the password again'
+                    : value == password.text
+                    ? null
+                    : 'Passwords do not match',
+              ),
+              const SizedBox(height: 6),
+              AdminPasswordRequirements(
+                password: password,
+                repeat: confirmPassword,
               ),
               if (error != null) ...[
                 const SizedBox(height: 12),

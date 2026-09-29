@@ -24,6 +24,7 @@ class _CompleteMobileProfileScreenState
     extends ConsumerState<CompleteMobileProfileScreen> {
   final _phone = TextEditingController();
   bool _busy = false;
+  String? _phoneError;
   String? _error;
 
   @override
@@ -46,19 +47,20 @@ class _CompleteMobileProfileScreenState
     if (_busy) return;
     final phone = normalizePhMobile(_phone.text);
     if (!phone.isValid) {
-      setState(() => _error = phone.error);
+      setState(() => _phoneError = phone.error);
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() {
       _busy = true;
       _error = null;
+      _phoneError = null;
     });
     try {
       await ref.read(authRepositoryProvider).sendPhoneOtp(phone.e164!);
       if (mounted) context.go('/verify-phone');
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _phoneError = error.message);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not send the code. Please try again.');
@@ -160,6 +162,8 @@ class _CompleteMobileProfileScreenState
                         autofillHints: const [AutofillHints.telephoneNumber],
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _sendCode(),
+                        errorText: _phoneError,
+                        onChanged: (_) => setState(() => _phoneError = null),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),

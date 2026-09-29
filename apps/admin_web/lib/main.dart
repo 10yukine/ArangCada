@@ -266,11 +266,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool obscure = true;
   bool submitting = false;
   String? signInError;
+  String? notice;
+  final errors = FieldErrorReset();
 
   @override
   void initState() {
     super.initState();
-    signInError = authError.value;
+    notice = authError.value;
     authError.value = null;
   }
 
@@ -282,10 +284,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> submit() async {
-    if (!formKey.currentState!.validate()) return;
+    if (!errors.validate(formKey)) return;
     setState(() {
       submitting = true;
       signInError = null;
+      notice = null;
     });
     try {
       final repository = ref.read(adminRepositoryProvider);
@@ -321,7 +324,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (restoring) {
           return const AdminLoadingScreen(label: 'Restoring your account');
         }
-        final effectiveError = signInError ?? authError.value;
+        // Not about a field (e.g. an expired session): shown above the button.
+        final effectiveError = notice ?? authError.value;
         return Scaffold(
           body: LayoutBuilder(
             builder: (context, constraints) {
@@ -425,6 +429,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 32),
                             TextFormField(
+                              errorBuilder: adminFieldError,
                               controller: email,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
@@ -437,13 +442,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 labelText: 'Email',
                                 prefixIcon: Icon(Icons.mail_outline),
                               ),
-                              validator: (value) =>
-                                  value != null && value.contains('@')
-                                  ? null
-                                  : 'Enter a valid email address.',
+                              onChanged: (_) {
+                                errors.edited(email, formKey);
+                                if (signInError != null) {
+                                  setState(() => signInError = null);
+                                }
+                              },
+                              validator: errors.guard(
+                                email,
+                                (value) => (value ?? '').trim().isEmpty
+                                    ? 'Enter your email'
+                                    : value!.contains('@')
+                                    ? null
+                                    : 'Enter a valid email address',
+                              ),
                             ),
                             const SizedBox(height: 14),
                             TextFormField(
+                              errorBuilder: adminFieldError,
                               controller: password,
                               obscureText: obscure,
                               autofillHints: const [AutofillHints.password],
@@ -464,9 +480,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                 ),
                               ),
-                              validator: (value) => (value?.length ?? 0) >= 6
-                                  ? null
-                                  : 'Use at least 6 characters.',
+                              // A failed sign-in shows here: it never says which
+                              // part was wrong, and the password is the usual fix.
+                              forceErrorText: signInError,
+                              onChanged: (_) {
+                                errors.edited(password, formKey);
+                                if (signInError != null) {
+                                  setState(() => signInError = null);
+                                }
+                              },
+                              validator: errors.guard(
+                                password,
+                                (value) => (value ?? '').isEmpty
+                                    ? 'Enter your password'
+                                    : null,
+                              ),
                             ),
                             const SizedBox(height: 20),
                             if (effectiveError != null) ...[
@@ -598,6 +626,7 @@ Future<void> _showForgotPassword(BuildContext context, WidgetRef ref) async {
                 child: Form(
                   key: formKey,
                   child: TextFormField(
+                    errorBuilder: adminFieldError,
                     controller: resetEmail,
                     autofocus: true,
                     keyboardType: TextInputType.emailAddress,

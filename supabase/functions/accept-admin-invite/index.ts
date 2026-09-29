@@ -79,8 +79,15 @@ Deno.serve(async (req: Request) => {
   if (typeof lastName !== "string" || lastName.trim() === "") {
     return jsonResponse(400, { error: "last name is required" });
   }
-  if (typeof password !== "string" || password.length < 8) {
-    return jsonResponse(400, { error: "password must be at least 8 characters" });
+  // Same rules as the apps and Supabase Auth: 8+ characters, upper and lower
+  // case, and a number.
+  if (
+    typeof password !== "string" || password.length < 8 ||
+    !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)
+  ) {
+    return jsonResponse(400, {
+      error: "use at least 8 characters with uppercase and lowercase letters and a number",
+    });
   }
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);

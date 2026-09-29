@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/router.dart';
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/labeled_text_field.dart';
+import '../../core/widgets/password_requirements.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -28,7 +28,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _repeat = TextEditingController();
   bool _obscure = true;
   bool _saving = false;
-  String? _error;
+  final _errors = <String, String>{};
 
   @override
   void dispose() {
@@ -55,24 +55,24 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
-    if (_next.text.length < 8) {
-      setState(() => _error = 'Use at least 8 characters.');
-      return;
-    }
-    if (_repeat.text != _next.text) {
-      setState(() => _error = 'Passwords do not match.');
-      return;
-    }
-    FocusScope.of(context).unfocus();
     setState(() {
-      _saving = true;
-      _error = null;
+      _errors.clear();
+      final problem = passwordProblem(_next.text);
+      if (problem != null) _errors['next'] = problem;
+      if (_repeat.text.isEmpty) {
+        _errors['repeat'] = 'Enter the new password again';
+      } else if (_repeat.text != _next.text) {
+        _errors['repeat'] = 'Passwords do not match';
+      }
     });
+    if (_errors.isNotEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
     try {
       await ref.read(authRepositoryProvider).updatePassword(_next.text);
       await _finish(updated: true);
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _errors['next'] = error.message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -113,13 +113,15 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   const SizedBox(height: AppSpacing.md),
                   LabeledTextField(
                     label: 'New password',
-                    hintText: 'At least 8 characters',
+                    hintText: 'Create a new password',
                     controller: _next,
                     icon: Icons.lock_outline,
                     obscureText: _obscure,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.newPassword],
                     suffixIcon: toggle,
+                    errorText: _errors['next'],
+                    onChanged: (_) => setState(() => _errors.remove('next')),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LabeledTextField(
@@ -130,16 +132,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     obscureText: _obscure,
                     onSubmitted: (_) => _save(),
                     autofillHints: const [AutofillHints.newPassword],
+                    errorText: _errors['repeat'],
+                    onChanged: (_) => setState(() => _errors.remove('repeat')),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      _error!,
-                      style: AppTypography.bodySm.copyWith(
-                        color: AppColors.danger,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  PasswordRequirements(password: _next, repeat: _repeat),
                   const SizedBox(height: AppSpacing.lg),
                   ArangButton(
                     label: _saving ? 'Saving...' : 'Save new password',

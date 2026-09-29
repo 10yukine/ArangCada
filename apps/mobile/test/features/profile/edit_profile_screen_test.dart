@@ -227,7 +227,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Enter your current password.'), findsOneWidget);
+    expect(find.text('Enter your current password'), findsOneWidget);
     expect(auth.reauthCalls, isEmpty);
   });
 
@@ -314,7 +314,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Mobile number cannot be removed here.'), findsOneWidget);
+    expect(find.text('Your mobile number cannot be removed here'), findsOneWidget);
     expect(auth.reauthCalls, isEmpty);
   });
 

@@ -350,13 +350,25 @@ main{overflow-x:clip}
 .delete-facts li+li{margin-top:2px}
 .delete-facts p{margin:0 0 12px;line-height:1.6}
 .delete-note{font-size:15px;color:var(--muted)}
-.delete-card label{display:block;margin:16px 0 6px;font-weight:600;color:var(--ink)}
-.delete-card input:not([type=checkbox]){box-sizing:border-box;width:100%;min-height:50px;padding:0 14px;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px}
-.delete-card input:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
-.delete-password{position:relative}
-.delete-password input:not([type=checkbox]){padding-right:76px}
-.delete-password button{position:absolute;top:3px;right:3px;bottom:3px;min-width:64px;border:0;border-radius:9px;background:transparent;color:var(--blue);font:inherit;font-weight:600;cursor:pointer}
-.delete-check{margin-top:20px;min-height:65px}
+/* Outlined field: the label sits inside and floats into the border. */
+.field{position:relative;margin-top:18px}
+.field input{box-sizing:border-box;width:100%;min-height:54px;padding:0 14px;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.field label{position:absolute;left:12px;top:50%;transform:translateY(-50%);padding:0 4px;color:var(--muted);font-size:16px;pointer-events:none;transition:top .15s,font-size .15s,color .15s;background:transparent}
+.field input:focus{outline:none;border:2px solid var(--blue);padding-left:13px}
+.field input:focus+label,.field input:not(:placeholder-shown)+label{top:0;font-size:13px;font-weight:500;background:linear-gradient(var(--canvas) 50%,var(--surface) 50%)}
+.field input:focus+label{color:var(--blue)}
+.field input[aria-invalid=true]{border:2px solid #b42318;padding-left:13px}
+.field input[aria-invalid=true]+label{color:#b42318}
+.field-password input{padding-right:76px}
+.field-password button{position:absolute;top:4px;right:4px;bottom:4px;min-width:64px;border:0;border-radius:9px;background:transparent;color:var(--blue);font:inherit;font-weight:600;cursor:pointer}
+.field-error{--err:#b42318;display:flex;gap:6px;align-items:flex-start;margin:6px 0 0 4px;font-size:14px;line-height:1.4;color:var(--err)}
+.field-error::before{content:"!";flex:none;display:grid;place-items:center;width:16px;height:16px;margin-top:2px;border-radius:50%;background:var(--err);color:#fff;font-size:11px;font-weight:700}
+.field-error[hidden]{display:none}
+:root[data-theme=dark] .field-error{--err:#ff9b8f}
+:root[data-theme=dark] .field-error::before{color:#2a0a08}
+:root[data-theme=dark] .field input[aria-invalid=true]+label{color:#ff9b8f}
+:root[data-theme=dark] .field input[aria-invalid=true]{border-color:#ff9b8f}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .field-error{--err:#ff9b8f}:root:not([data-theme=light]) .field-error::before{color:#2a0a08}:root:not([data-theme=light]) .field input[aria-invalid=true]+label{color:#ff9b8f}:root:not([data-theme=light]) .field input[aria-invalid=true]{border-color:#ff9b8f}}
 .delete-card .delete-confirm{display:flex;gap:12px;align-items:flex-start;margin-top:20px;font-weight:500;line-height:1.4;cursor:pointer}
 .delete-card .delete-confirm input{flex:none;width:22px;height:22px;margin:0;accent-color:#b42318}
 .delete-button,:root[data-theme=dark] .delete-button{margin-top:20px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none;justify-content:center}

@@ -346,6 +346,7 @@ Future<void> _showInvite(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
+                    errorBuilder: adminFieldError,
                     controller: email,
                     autofocus: true,
                     keyboardType: TextInputType.emailAddress,

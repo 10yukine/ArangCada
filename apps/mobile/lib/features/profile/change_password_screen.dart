@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
-import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/labeled_text_field.dart';
+import '../../core/widgets/password_requirements.dart';
 import '../../core/widgets/section_card.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -38,7 +38,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   bool _obscureNext = true;
   bool _obscureRepeat = true;
   bool _saving = false;
-  String? _error;
+  final _errors = <String, String>{};
 
   @override
   void dispose() {
@@ -51,36 +51,38 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   Future<void> _save() async {
     if (_saving) return;
 
-    if (_current.text.isEmpty) {
-      setState(() => _error = 'Enter your current password.');
-      return;
-    }
-    if (_next.text.length < 8) {
-      setState(
-        () => _error = 'Use at least 8 characters for the new password.',
-      );
-      return;
-    }
-    if (_repeat.text != _next.text) {
-      setState(() => _error = 'Passwords do not match.');
-      return;
-    }
-    if (_next.text == _current.text) {
-      setState(() => _error = 'That is already your password.');
-      return;
-    }
+    setState(() {
+      _errors.clear();
+      if (_current.text.isEmpty) {
+        _errors['current'] = 'Enter your current password';
+      }
+      final problem = passwordProblem(_next.text);
+      if (problem != null) {
+        _errors['next'] = problem;
+      } else if (_next.text == _current.text) {
+        _errors['next'] = 'That is already your password';
+      }
+      if (_repeat.text.isEmpty) {
+        _errors['repeat'] = 'Enter the new password again';
+      } else if (_repeat.text != _next.text) {
+        _errors['repeat'] = 'Passwords do not match';
+      }
+    });
+    if (_errors.isNotEmpty) return;
 
     FocusScope.of(context).unfocus();
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+    setState(() => _saving = true);
 
     final auth = ref.read(authRepositoryProvider);
     try {
       // Step 1 proves the person is the account owner, not just the phone's
       // holder. A wrong current password fails HERE, never at step 2.
-      await auth.reauthenticate(_current.text);
+      try {
+        await auth.reauthenticate(_current.text);
+      } on DemoAuthException catch (error) {
+        if (mounted) setState(() => _errors['current'] = error.message);
+        return;
+      }
       await auth.updatePassword(_next.text);
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -88,7 +90,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       ).showSnackBar(const SnackBar(content: Text('Password updated.')));
       context.pop();
     } on DemoAuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _errors['next'] = error.message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -138,6 +140,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     obscureText: _obscureCurrent,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.password],
+                    errorText: _errors['current'],
+                    onChanged: (_) => setState(() => _errors.remove('current')),
                     suffixIcon: _visibilityToggle(
                       obscured: _obscureCurrent,
                       onPressed: () =>
@@ -153,18 +157,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     obscureText: _obscureNext,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.newPassword],
+                    errorText: _errors['next'],
+                    onChanged: (_) => setState(() => _errors.remove('next')),
                     suffixIcon: _visibilityToggle(
                       obscured: _obscureNext,
                       onPressed: () =>
                           setState(() => _obscureNext = !_obscureNext),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 2),
-                    child: Text(
-                      'At least 8 characters',
-                      style: AppTypography.caption,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -176,21 +174,16 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     obscureText: _obscureRepeat,
                     onSubmitted: (_) => _save(),
                     autofillHints: const [AutofillHints.newPassword],
+                    errorText: _errors['repeat'],
+                    onChanged: (_) => setState(() => _errors.remove('repeat')),
                     suffixIcon: _visibilityToggle(
                       obscured: _obscureRepeat,
                       onPressed: () =>
                           setState(() => _obscureRepeat = !_obscureRepeat),
                     ),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      _error!,
-                      style: AppTypography.bodySm.copyWith(
-                        color: AppColors.danger,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  PasswordRequirements(password: _next, repeat: _repeat),
                   const SizedBox(height: AppSpacing.lg),
                   ArangButton(
                     label: _saving ? 'Saving...' : 'Save',

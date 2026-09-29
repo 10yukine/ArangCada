@@ -84,17 +84,17 @@ void main() {
     await settle();
     expect(path(), '/reset-password');
 
-    await tester.enterText(find.byType(TextField).at(0), 'newpass123');
-    await tester.enterText(find.byType(TextField).at(1), 'different1');
+    await tester.enterText(find.byType(TextField).at(0), 'Newpass123');
+    await tester.enterText(find.byType(TextField).at(1), 'Different1');
     await tester.tap(find.text('Save new password'));
     await settle();
-    expect(find.text('Passwords do not match.'), findsOneWidget);
+    expect(find.text('Passwords do not match'), findsOneWidget);
     expect(auth.updates, isEmpty);
 
-    await tester.enterText(find.byType(TextField).at(1), 'newpass123');
+    await tester.enterText(find.byType(TextField).at(1), 'Newpass123');
     await tester.tap(find.text('Save new password'));
     await settle();
-    expect(auth.updates, ['newpass123']);
+    expect(auth.updates, ['Newpass123']);
     expect(passwordRecoveryPending.value, isFalse);
     expect(state.currentUser, isNull);
     expect(path(), '/login');

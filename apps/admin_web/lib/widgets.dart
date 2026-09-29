@@ -468,3 +468,132 @@ class _ConsoleScrollViewState extends State<ConsoleScrollView> {
     child: widget.child,
   );
 }
+
+/// `TextFormField.errorBuilder` for every console form: the error sits right
+/// under its own field with an icon, instead of a summary somewhere else.
+Widget adminFieldError(BuildContext context, String message) {
+  final color = Theme.of(context).colorScheme.error;
+  return Semantics(
+    liveRegion: true,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(Icons.error, size: 16, color: color),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(fontSize: 13, height: 1.35, color: color),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Clears a console form field's error as soon as that field is edited; the
+/// error comes back only on the next submit. Wrap each validator with
+/// [guard], call [edited] from the field's onChanged, and submit with
+/// [validate] instead of `formKey.currentState!.validate()`.
+class FieldErrorReset {
+  final _edited = <TextEditingController>{};
+  bool _submitted = false;
+
+  FormFieldValidator<String> guard(
+    TextEditingController field,
+    FormFieldValidator<String> rule,
+  ) =>
+      (value) => _edited.contains(field) ? null : rule(value);
+
+  void edited(TextEditingController field, GlobalKey<FormState> form) {
+    if (_submitted && _edited.add(field)) form.currentState?.validate();
+  }
+
+  bool validate(GlobalKey<FormState> form) {
+    _submitted = true;
+    _edited.clear();
+    return form.currentState!.validate();
+  }
+}
+
+/// Rules for every new console password; existing passwords still sign in.
+/// Mirrors the mobile app and Supabase Auth's password requirements.
+String? adminPasswordProblem(String? value) {
+  final password = value ?? '';
+  if (password.isEmpty) return 'Create a password';
+  if (password.length < 8) return 'Use at least 8 characters';
+  if (!password.contains(RegExp('[A-Z]')) ||
+      !password.contains(RegExp('[a-z]'))) {
+    return 'Use both uppercase and lowercase letters';
+  }
+  if (!password.contains(RegExp('[0-9]'))) return 'Add at least one number';
+  return null;
+}
+
+/// Live checklist under a new password: each rule turns green as it is met.
+class AdminPasswordRequirements extends StatelessWidget {
+  const AdminPasswordRequirements({
+    required this.password,
+    required this.repeat,
+    super.key,
+  });
+
+  final TextEditingController password;
+  final TextEditingController repeat;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([password, repeat]),
+    builder: (context, _) {
+      final value = password.text;
+      Widget row(bool met, String label) {
+        final color = context.adminColor(
+          met ? AdminColors.success : AdminColors.muted,
+        );
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Semantics(
+            label: '$label, ${met ? 'done' : 'not yet'}',
+            excludeSemantics: true,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  met ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 13, color: color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          row(value.length >= 8, 'At least 8 characters'),
+          row(
+            value.contains(RegExp('[A-Z]')) && value.contains(RegExp('[a-z]')),
+            'Uppercase and lowercase letters',
+          ),
+          row(value.contains(RegExp('[0-9]')), 'At least one number'),
+          row(
+            repeat.text.isNotEmpty && repeat.text == value,
+            'Both passwords match',
+          ),
+        ],
+      );
+    },
+  );
+}

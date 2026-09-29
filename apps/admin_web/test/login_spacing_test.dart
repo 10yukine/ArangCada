@@ -33,4 +33,31 @@ void main() {
       expect(find.text('Welcome back'), findsOneWidget);
     }
   });
+
+  testWidgets('each empty login field shows its own error under it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Open console'));
+    await tester.tap(find.text('Open console'));
+    await tester.pumpAndSettle();
+
+    final email = tester.getRect(find.widgetWithText(TextFormField, 'Email'));
+    final password = tester.getRect(
+      find.widgetWithText(TextFormField, 'Password'),
+    );
+    final emailError = tester.getRect(find.text('Enter your email'));
+    final passwordError = tester.getRect(find.text('Enter your password'));
+    // Inside each field's own box, below its input, not in a summary.
+    expect(emailError.top, greaterThan(email.top));
+    expect(emailError.bottom, lessThanOrEqualTo(password.top));
+    expect(passwordError.top, greaterThan(password.top));
+    expect(find.byIcon(Icons.error), findsNWidgets(2));
+  });
 }

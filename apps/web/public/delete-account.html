@@ -10,7 +10,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/site.css?v=20260929b">
+<link rel="stylesheet" href="/site.css?v=20260929c">
 <script src="/appearance.js"></script>
 <script src="/mobile-nav.js" defer></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -42,15 +42,20 @@
 
 <form class="delete-card" id="delete-form" novalidate>
 <h2>Sign in to delete</h2>
+<div class="field">
+<input id="identifier" name="identifier" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="identifier-error">
 <label for="identifier">Email or mobile number</label>
-<input id="identifier" name="identifier" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" required>
+</div>
+<p class="field-error" id="identifier-error" hidden></p>
+<div class="field field-password">
+<input id="password" name="password" type="password" placeholder=" " autocomplete="current-password" enterkeyhint="done" aria-describedby="password-error">
 <label for="password">Password</label>
-<div class="delete-password">
-<input id="password" name="password" type="password" autocomplete="current-password" enterkeyhint="done" required>
 <button type="button" id="show-password" aria-controls="password" aria-pressed="false">Show</button>
 </div>
+<p class="field-error" id="password-error" hidden></p>
 <div class="cf-turnstile delete-check" data-sitekey="0x4AAAAAAFIj6IpYAO3n37zx" data-theme="auto" data-size="flexible" data-action="delete-account"></div>
-<label class="delete-confirm"><input id="confirm" type="checkbox" required> <span>I understand this can’t be undone.</span></label>
+<label class="delete-confirm"><input id="confirm" type="checkbox" aria-describedby="confirm-error"> <span>I understand this can’t be undone.</span></label>
+<p class="field-error" id="confirm-error" hidden></p>
 <button class="button delete-button" id="delete-button" type="submit">Delete my account</button>
 <p id="delete-status" role="status" aria-live="polite"></p>
 </form>
@@ -70,12 +75,26 @@
     show.setAttribute('aria-pressed', String(hidden));
   });
   const say = (text, tone = 'error') => { status.textContent = text; status.dataset.tone = tone; };
+  // Each error sits under its own field and is tied to it for screen readers.
+  const setError = (input, text) => {
+    const error = document.getElementById(`${input.id}-error`);
+    error.textContent = text || '';
+    error.hidden = !text;
+    if (text) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+  };
+  for (const input of [form.identifier, form.password, form.confirm]) {
+    input.addEventListener(input.type === 'checkbox' ? 'change' : 'input', () => setError(input, ''));
+  }
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    say('');
     const identifier = form.identifier.value.trim();
     const password = form.password.value;
-    if (!identifier || !password) return void say('Enter your email or mobile number and your password.');
-    if (!form.confirm.checked) return void say('Tick the box to confirm.');
+    setError(form.identifier, identifier ? '' : 'Enter your email or mobile number');
+    setError(form.password, password ? '' : 'Enter your password');
+    setError(form.confirm, form.confirm.checked ? '' : 'Tick the box to confirm');
+    const invalid = form.querySelector('[aria-invalid="true"]');
+    if (invalid) return void invalid.focus();
     const turnstile = form.querySelector('[name="cf-turnstile-response"]')?.value;
     if (!turnstile) return void say('Wait for the security check to finish, then try again.');
     button.disabled = true;
@@ -91,7 +110,15 @@
         form.replaceChildren(Object.assign(document.createElement('p'), { className: 'delete-done', textContent: 'Your account was deleted. You can close this page.' }));
         return;
       }
-      say(result.error || 'Your account could not be deleted. Try again later.');
+      const message = result.error || 'Your account could not be deleted. Try again later.';
+      // A failed sign-in never says which part was wrong; the password is the usual fix.
+      if (response.status === 401) {
+        say('');
+        setError(form.password, message);
+        form.password.focus();
+      } else {
+        say(message);
+      }
     } catch (_) {
       say('Could not reach ArangCada. Check your connection and try again.');
     }

@@ -100,10 +100,9 @@ void main() {
       // Try tapping Continue with empty fields
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Please enter both your first and last name.'),
-        findsOneWidget,
-      );
+      // Each empty field shows its own error right under it.
+      expect(find.text('Enter your first name'), findsOneWidget);
+      expect(find.text('Enter your last name'), findsOneWidget);
 
       // Enter name
       final textFields = find.byType(TextField);
@@ -167,14 +166,20 @@ void main() {
 
       // Try submit without legal agreement
       final step3Fields = find.byType(TextField);
-      await tester.enterText(step3Fields.at(0), 'supersecret123');
-      await tester.enterText(step3Fields.at(1), 'supersecret12');
+      // Live checks tick off as the password is typed.
+      await tester.enterText(step3Fields.at(0), 'supersecret');
       await tester.pump();
-      // Live checks: length met, mismatch not yet met.
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
-      await tester.enterText(step3Fields.at(1), 'supersecret123');
+      expect(find.byIcon(Icons.check_circle), findsOneWidget); // length only
+      await tester.enterText(step3Fields.at(0), 'Supersecret');
       await tester.pump();
-      expect(find.byIcon(Icons.check_circle), findsNWidgets(2));
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(2)); // + case
+      await tester.enterText(step3Fields.at(0), 'Supersecret123');
+      await tester.enterText(step3Fields.at(1), 'Supersecret12');
+      await tester.pump();
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(3)); // + number
+      await tester.enterText(step3Fields.at(1), 'Supersecret123');
+      await tester.pump();
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(4)); // + match
       await tester.tap(find.text('Create Account'));
       await tester.pumpAndSettle();
       expect(
@@ -192,7 +197,7 @@ void main() {
       expect(fakeRepo.signedUpName, 'Maria Santos');
       expect(fakeRepo.signedUpPhone, '+639171234567');
       expect(fakeRepo.signedUpEmail, 'maria@example.com');
-      expect(fakeRepo.signedUpPassword, 'supersecret123');
+      expect(fakeRepo.signedUpPassword, 'Supersecret123');
       expect(fakeRepo.sendOtpCalls, 1);
     },
   );
@@ -233,8 +238,8 @@ void main() {
       );
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).at(0), 'existing-password');
-      await tester.enterText(find.byType(TextField).at(1), 'existing-password');
+      await tester.enterText(find.byType(TextField).at(0), 'Existing-pass1');
+      await tester.enterText(find.byType(TextField).at(1), 'Existing-pass1');
       await tester.tap(find.byType(Checkbox));
       await tester.tap(find.text('Create Account'));
       await tester.pumpAndSettle();

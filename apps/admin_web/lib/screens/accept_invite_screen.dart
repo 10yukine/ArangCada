@@ -22,6 +22,7 @@ class AcceptInviteScreen extends ConsumerStatefulWidget {
 
 class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
   final formKey = GlobalKey<FormState>();
+  final errors = FieldErrorReset();
   final firstName = TextEditingController();
   final lastName = TextEditingController();
   final password = TextEditingController();
@@ -82,7 +83,7 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
     final token = widget.token;
     final resolvedEmail = email;
     if (token == null || resolvedEmail == null) return;
-    if (!formKey.currentState!.validate()) return;
+    if (!errors.validate(formKey)) return;
     setState(() {
       submitting = true;
       error = null;
@@ -127,9 +128,11 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
     required VoidCallback toggle,
     required String? Function(String?) validator,
   }) => TextFormField(
+    errorBuilder: adminFieldError,
     controller: controller,
     obscureText: hidden,
-    validator: validator,
+    onChanged: (_) => errors.edited(controller, formKey),
+    validator: errors.guard(controller, validator),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
@@ -177,23 +180,34 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
               ),
               const SizedBox(height: 20),
               TextFormField(
+                errorBuilder: adminFieldError,
                 controller: firstName,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'First name'),
-                validator: (value) => (value?.trim().isNotEmpty ?? false)
-                    ? null
-                    : 'Enter your first name.',
+                onChanged: (_) => errors.edited(firstName, formKey),
+                validator: errors.guard(
+                  firstName,
+                  (value) => (value?.trim().isNotEmpty ?? false)
+                      ? null
+                      : 'Enter your first name',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
+                errorBuilder: adminFieldError,
                 controller: lastName,
                 decoration: const InputDecoration(labelText: 'Last name'),
-                validator: (value) => (value?.trim().isNotEmpty ?? false)
-                    ? null
-                    : 'Enter your last name.',
+                onChanged: (_) => errors.edited(lastName, formKey),
+                validator: errors.guard(
+                  lastName,
+                  (value) => (value?.trim().isNotEmpty ?? false)
+                      ? null
+                      : 'Enter your last name',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
+                errorBuilder: adminFieldError,
                 initialValue: resolvedEmail,
                 enabled: false,
                 decoration: const InputDecoration(labelText: 'Email'),
@@ -202,12 +216,10 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
               _passwordField(
                 controller: password,
                 label: 'Password',
-                hint: 'At least 8 characters',
+                hint: null,
                 hidden: passwordHidden,
                 toggle: () => setState(() => passwordHidden = !passwordHidden),
-                validator: (value) => (value?.length ?? 0) < 8
-                    ? 'Enter at least 8 characters.'
-                    : null,
+                validator: adminPasswordProblem,
               ),
               const SizedBox(height: 12),
               _passwordField(
@@ -216,8 +228,16 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
                 hint: null,
                 hidden: confirmHidden,
                 toggle: () => setState(() => confirmHidden = !confirmHidden),
-                validator: (value) =>
-                    value == password.text ? null : 'Passwords do not match.',
+                validator: (value) => (value ?? '').isEmpty
+                    ? 'Enter the password again'
+                    : value == password.text
+                    ? null
+                    : 'Passwords do not match',
+              ),
+              const SizedBox(height: 6),
+              AdminPasswordRequirements(
+                password: password,
+                repeat: confirmPassword,
               ),
               if (error != null) ...[
                 const SizedBox(height: 12),

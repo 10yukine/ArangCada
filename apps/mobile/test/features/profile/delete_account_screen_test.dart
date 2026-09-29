@@ -77,7 +77,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete my account'));
     await tester.pump();
-    expect(find.text('Enter your password to confirm.'), findsOneWidget);
+    expect(find.text('Enter your password'), findsOneWidget);
     expect(attempts, isEmpty);
 
     await tester.enterText(find.byType(TextField), 'secret-pass');

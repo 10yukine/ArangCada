@@ -188,8 +188,8 @@ void main() {
       await fillAndSave(
         tester,
         current: 'wrongpass',
-        next: 'newpassword1',
-        repeat: 'newpassword1',
+        next: 'Newpassword1',
+        repeat: 'Newpassword1',
       );
 
       expect(find.text('That password is incorrect.'), findsOneWidget);
@@ -210,11 +210,11 @@ void main() {
     await fillAndSave(
       tester,
       current: 'oldpassword',
-      next: 'newpassword1',
+      next: 'Newpassword1',
       repeat: 'somethingelse',
     );
 
-    expect(find.text('Passwords do not match.'), findsOneWidget);
+    expect(find.text('Passwords do not match'), findsOneWidget);
     expect(auth.reauthCalls, isEmpty);
   });
 
@@ -227,12 +227,12 @@ void main() {
       await fillAndSave(
         tester,
         current: 'oldpassword',
-        next: 'newpassword1',
-        repeat: 'newpassword1',
+        next: 'Newpassword1',
+        repeat: 'Newpassword1',
       );
 
       expect(auth.reauthCalls, ['oldpassword']);
-      expect(auth.updatePasswordCalls, ['newpassword1']);
+      expect(auth.updatePasswordCalls, ['Newpassword1']);
       expect(find.text('Password updated.'), findsOneWidget);
       // Popped back to the screen that pushed it.
       expect(find.text('open'), findsOneWidget);
