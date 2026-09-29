@@ -29,7 +29,7 @@ HTML_TEMPLATE = """<!doctype html>
 <link rel="icon" href="/favicon.ico?v=20260930" sizes="any">
 <link rel="icon" href="/favicon.svg?v=20260930" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/site.css?v=20260929b">
+<link rel="stylesheet" href="/site.css?v=20260930b">
 
 <!-- Open Graph / Facebook / Messenger -->
 <meta property="og:type" content="article">
@@ -72,7 +72,7 @@ HTML_TEMPLATE = """<!doctype html>
 <div class="legal-actions"><button type="button" class="legal-print" data-print>Print or save as PDF</button><a class="text-link" href="{other_href}">{other_label} <span aria-hidden="true">&rarr;</span></a></div>
 </section>
 <article class="legal-content" id="document">{body}<p class="legal-end"><a href="#main">Back to top <span aria-hidden="true">&uarr;</span></a></p></article></div></div></main>
-<footer class="site-footer"><div class="wrap footer-row"><a class="brand" href="/ph"><span class="brand-mark"><img src="/assets/mark.svg" alt="" width="30" height="30"></span>ArangCada</a><p>Made for the everyday ride.</p><nav class="footer-nav" aria-label="Footer"><a href="/terms">Terms of Service</a><a href="/policy">Privacy Policy</a></nav></div><p class="wrap footer-meta">Academic capstone &middot; National University Laguna &middot; Beta testing</p></footer>
+<footer class="site-footer"><div class="wrap footer-row"><a class="brand" href="/ph"><span class="brand-mark"><img src="/assets/mark.svg" alt="" width="30" height="30"></span>ArangCada</a><p>Made for the everyday ride.</p><nav class="footer-nav" aria-label="Footer"><a href="/terms">Terms of Service</a><a href="/policy">Privacy Policy</a></nav></div><p class="wrap footer-meta"><span>Academic capstone</span> &middot; <span>National University Laguna</span> &middot; <span>Beta testing</span></p></footer>
 </body></html>
 """
 

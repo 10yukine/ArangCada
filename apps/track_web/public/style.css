@@ -3,6 +3,7 @@
   font-family: Fredoka;
   font-style: normal;
   font-weight: 300 700;
+  font-stretch: 75% 125%;
   font-display: swap;
   src: url('/assets/fonts/Fredoka-Variable.ttf') format('truetype');
 }
@@ -111,6 +112,9 @@ h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 600; line-height: 1.04; let
 .eyebrow::before { content: ""; width: 22px; height: 2px; border-radius: 2px; background: currentColor; }
 .lead { font-size: 18px; color: var(--text-secondary); margin: 0 0 20px; max-width: 46ch; }
 .muted { color: var(--text-secondary); }
+/* No one-word last lines. */
+p, li { text-wrap: pretty; }
+.lead, .how .value { text-wrap: balance; }
 .small { font-size: 14px; }
 
 .label { color: var(--text-muted); font-size: 14px; }
@@ -120,12 +124,12 @@ h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 600; line-height: 1.04; let
 
 .landing { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: center; padding-top: 56px; }
 .how { list-style: none; margin: 8px 0 24px; padding: 0; }
-.how li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; padding: 16px 0; border-top: 1px solid var(--border); }
-.how li:last-child { border-bottom: 1px solid var(--border); }
+/* Three matching stops joined by a dotted route (same as arangcada.app). */
+.how li { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; padding: 14px 0; }
+.how li:not(:last-child)::before { content: ""; position: absolute; left: 19px; top: 60px; bottom: -8px; width: 2px; background: repeating-linear-gradient(to bottom, var(--primary) 0 3px, transparent 3px 9px); opacity: .55; }
 .how div { display: flex; flex-direction: column; gap: 2px; }
 .how .value { text-align: left; font-size: 17px; }
 .how-num { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--mist); color: var(--primary); font-weight: 600; }
-.how li:first-child .how-num { background: var(--brand); color: #fff; }
 
 .landing-art { display: grid; place-items: center; }
 /* Same map tile as arangcada.app: the app icon at the centre of Calamba blue. */
@@ -364,7 +368,9 @@ a:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; border
 }
 @media (max-width: 760px) {
   .landing { grid-template-columns: minmax(0, 1fr); gap: 36px; padding-top: 32px; }
-  .disc { width: min(84%, 320px); }
+  /* Decorative on phones; the header already carries the brand. */
+  .landing-art { display: none; }
+  h1 { font-stretch: 92%; }
   .chip { font-size: 13px; }
   .panel.narrow { padding-top: 48px; }
   .foot nav { margin-left: -10px; }
@@ -376,7 +382,6 @@ a:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; border
 @media (prefers-color-scheme: dark) {
   :root { color-scheme: dark; --ink: #EAF2FC; --text-secondary: #C9D6E6; --text-muted: #A3B5CB; --screen-bg: #0A1321; --surface: #111D2F; --mist: #15263D; --border: #24354C; --primary: #7DB4FF; --brand: linear-gradient(135deg, #0A3A8F 0%, #0F55B8 50%, #1482C9 100%); --green: #83D9B6; --green-fill: #163D32; --amber-text: #F6D68D; --amber-fill: #3C3017; --danger: #FFABA6; --danger-fill: #492623; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 16px 40px -16px rgba(0, 0, 0, .6); }
   #map { background: #1A2A40; }
-  .how li:first-child .how-num { color: #fff; }
   .skeleton { background: linear-gradient(90deg, #111D2F 25%, #1A2A40 37%, #111D2F 63%); background-size: 400% 100%; }
 }
 .narrow h1 { font-size: clamp(30px, 4vw, 40px); }

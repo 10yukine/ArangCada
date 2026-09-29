@@ -24,11 +24,11 @@
   const update = () => {
     const y = scrollY;
     const long = document.documentElement.scrollHeight > innerHeight * 3;
-    if (header) {
-      const away = phone.matches && y > 120 && y > lastY && !header.contains(document.activeElement);
-      header.classList.toggle('header-away', away);
-    }
-    button.classList.toggle('show', phone.matches && long && y > innerHeight * 1.5);
+    // Reading = scrolling down: header and button both step aside so neither
+    // covers the text. Any scroll up brings them back.
+    const reading = phone.matches && y > 120 && y > lastY;
+    if (header) header.classList.toggle('header-away', reading && !header.contains(document.activeElement));
+    if (y !== lastY) button.classList.toggle('show', phone.matches && long && y > innerHeight * 1.5 && !reading);
     lastY = y;
   };
   addEventListener('scroll', update, { passive: true });
