@@ -81,7 +81,10 @@ function renderActive(vm) {
   hide('state-landing');
   show('state-active');
 
-  el('status-text').textContent = vm.statusText;
+  // The status row is a live region: re-setting the same text on every poll
+  // would make screen readers repeat it every ten seconds.
+  const status = el('status-text');
+  if (status.textContent !== vm.statusText) status.textContent = vm.statusText;
   el('status-dot').className = `dot ${vm.statusTone === 'alert' ? 'dot-alert' : 'dot-live'}`;
 
   el('driver-name').textContent = vm.driverName;
