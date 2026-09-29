@@ -112,3 +112,7 @@ apps/track_web/public/config.js
 
 __pycache__/
 *.pyc
+
+# Logo masters, size sets and their generator stay local: the owner holds
+# the copyright and they are not published with the source.
+branding/logo-refresh/
