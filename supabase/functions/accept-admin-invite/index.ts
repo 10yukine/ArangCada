@@ -3,7 +3,6 @@ import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 // account. Called with no session at all: the token in the link is the only
 // credential.
 //
-// See .pipeline/specs.md Spec 19.
 //
 // WHAT THIS FUNCTION DOES AND DOES NOT DO
 //
@@ -115,8 +114,8 @@ Deno.serve(async (req: Request) => {
   if (createError || !created?.user) {
     // Most likely cause: this email already has an auth.users account (e.g.
     // an existing commuter/driver signup). Promoting an existing account
-    // through this flow is out of scope for this pass (.pipeline/specs.md
-    // Spec 19 section 6) -- surfaced as a clear message rather than a crash.
+    // through this flow is out of scope for this pass -- surfaced as a clear
+    // message rather than a crash.
     console.error("accept-admin-invite: createUser failed", createError?.message);
     return jsonResponse(409, {
       error: createError?.message?.includes("already been registered")

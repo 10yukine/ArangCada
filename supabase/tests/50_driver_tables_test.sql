@@ -24,7 +24,7 @@ begin;
 select plan(25);
 
 -- ---------------------------------------------------------------------------
--- Fixtures. Synthetic uuids and example.test addresses only (CLAUDE.md rule 10).
+-- Fixtures. Synthetic uuids and example.test addresses only.
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000050a1', 'dt-commuter@example.test',
@@ -122,7 +122,7 @@ select throws_ok(
             '{"phone":"+639170000502"}'::jsonb)$$,
   '23514',
   null,
-  'admin_audit_logs refuses metadata carrying a phone number (CLAUDE.md rule 10)'
+  'admin_audit_logs refuses metadata carrying a phone number'
 );
 
 select throws_ok(

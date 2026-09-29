@@ -19,7 +19,7 @@
 -- MCP tool call made against the remote project without the corresponding
 -- file being written back to supabase/migrations/. That is schema drift: the
 -- hosted project's schema is not fully reconstructable from this repo alone,
--- which is exactly the gap CLAUDE.md's migration-tracked-in-git discipline
+-- which is exactly the gap the migrations-tracked-in-git discipline
 -- exists to close. Worth finding out how it got there before it happens again.
 --
 -- This migration does not attempt to recreate the function -- no agent in

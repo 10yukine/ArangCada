@@ -1,8 +1,8 @@
 -- Trusted fare computation.
 --
 -- The client may show a fare preview, but this function is the authority
--- (CLAUDE.md: "Final fare computation ... Edge Function or locked database
--- function"). No surge pricing: fare is a pure function of distance and ride
+-- (final fare comes from an Edge Function or a locked database function).
+-- No surge pricing: fare is a pure function of distance and ride
 -- type.
 --
 -- Rule: base_fare covers the first base_distance_m metres; every *started*

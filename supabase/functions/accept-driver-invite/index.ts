@@ -3,7 +3,7 @@ import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 // Called with no session at all: the token in the link is the only
 // credential.
 //
-// See .pipeline/specs.md Spec 20. Mirrors accept-admin-invite (Spec 19)
+// Mirrors accept-admin-invite
 // closely on purpose.
 //
 // WHAT THIS FUNCTION DOES AND DOES NOT DO

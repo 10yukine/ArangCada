@@ -10,8 +10,7 @@ import 'shared_widgets.dart';
 
 /// Student/Senior Citizen/PWD discount claims, LGU-only: commuters have no
 /// TODA affiliation, so there is no per-TODA scope for a claim to belong to
-/// (see AdminController.visibleFareClassClaims). See .pipeline/specs.md
-/// Spec 14.
+/// (see AdminController.visibleFareClassClaims).
 class ClaimsScreen extends ConsumerStatefulWidget {
   const ClaimsScreen({super.key});
   @override

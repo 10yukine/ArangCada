@@ -1,6 +1,6 @@
 -- pgTAP: trip ratings (bidirectional, persisted, LGU-visible).
 --
--- See .pipeline/specs.md Spec 13. Fixture and assertion style mirrors
+-- Fixture and assertion style mirrors
 -- 72_complaints_test.sql, which itself mirrors 60_live_connected_vertical
 -- _slice_test.sql's proof shape for sos_reports.
 

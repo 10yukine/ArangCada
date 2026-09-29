@@ -102,7 +102,7 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
         // Espesyal only since 31 Aug 2026 (Calamba City Hall withdrew pooling
         // as a bookable option). The RideType enum and the pooling fare data
         // are deliberately retained as the ordinance record of Regular na
-        // Byahe -- see docs/LGU_FARE_MATRIX.md section 2a -- so the fare-matrix
+        // Byahe -- so the fare-matrix
         // reference screen can still show it. It is simply never offered here.
         const selected = RideType.special;
         final special = fare.quote(

@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 
 // =============================================================================
-// Admins (Spec 19) -- LGU/TODA admin accounts, invite by email
+// Admins -- LGU/TODA admin accounts, invite by email
 // =============================================================================
 
 class AdminsScreen extends ConsumerStatefulWidget {

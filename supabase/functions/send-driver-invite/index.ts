@@ -2,7 +2,7 @@ import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 import { sendInviteEmail } from "../_shared/invite_email.ts";
 // send-driver-invite -- an LGU administrator invites a new driver by email.
 //
-// See .pipeline/specs.md Spec 20. Mirrors send-admin-invite (Spec 19)
+// Mirrors send-admin-invite
 // closely on purpose -- same shape, same risks, and every lesson that
 // function's own live debugging surfaced is applied here from the start
 // rather than rediscovered: CORS headers from the first deploy (their

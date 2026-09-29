@@ -2,7 +2,6 @@ import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 import { sendInviteEmail } from "../_shared/invite_email.ts";
 // send-admin-invite -- an LGU administrator invites a new LGU or TODA admin.
 //
-// See .pipeline/specs.md Spec 19.
 //
 // WHAT THIS FUNCTION DOES AND DOES NOT DO
 //

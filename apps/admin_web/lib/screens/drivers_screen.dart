@@ -46,7 +46,7 @@ class DriversScreen extends ConsumerWidget {
           title: 'Driver verification',
           subtitle:
               'Enroll drivers, review submitted records, and preserve an auditable lifecycle.',
-          // LGU-initiated enrollment (Spec 20) -- the LGU inputs the
+          // LGU-initiated enrollment -- the LGU inputs the
           // driver's email; the flow itself decides whether that email
           // gets an invite or promotes an existing account. Replaces the
           // old passive "Applications submitted in the driver app" pill,
@@ -279,8 +279,8 @@ class DriversScreen extends ConsumerWidget {
 }
 
 // =============================================================================
-// Driver enrollment by email (Spec 20) -- LGU-initiated, mirrors the admin
-// invite system (Spec 19) closely.
+// Driver enrollment by email -- LGU-initiated, mirrors the admin
+// invite system closely.
 // =============================================================================
 
 class _PendingDriverInvitesPanel extends ConsumerStatefulWidget {

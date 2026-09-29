@@ -3,8 +3,7 @@
 /// Distinct from [UserFareClass] in `booking.dart`: that enum drives the
 /// local demo fare-preview UI, while this one is the wire vocabulary
 /// `submit_fare_class_claim`'s `p_class` parameter and
-/// `fare_class_claims.requested_class` actually accept. See
-/// `.pipeline/specs.md` Spec 14.
+/// `fare_class_claims.requested_class` actually accept.
 enum FareClassRequestedClass { student, seniorCitizen, pwd }
 
 extension FareClassRequestedClassWire on FareClassRequestedClass {

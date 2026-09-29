@@ -217,7 +217,7 @@ void main() {
       await tester.pumpAndSettle();
       // Scrolling to reveal Settings (the last rail item) can scroll Drivers
       // (a much earlier item) out of view once the rail has more items than
-      // fit the test surface -- true since Admins (Spec 19) was added.
+      // fit the test surface -- true since Admins was added.
       await tester.ensureVisible(find.text('Drivers'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Drivers'));
@@ -322,7 +322,7 @@ void main() {
     'section, scoped by TODA',
     (tester) async {
       // Complaints no longer has its own nav tab -- folded into Safety
-      // reports as a secondary panel (Spec 19 follow-up, owner's call).
+      // reports as a secondary panel (owner's call).
       await tester.binding.setSurfaceSize(const Size(1440, 1400));
       auth.value = const AdminSession(
         name: 'Coordinator',
@@ -568,7 +568,7 @@ void main() {
       findsOneWidget,
     );
     // The old stub 'Reset staff password' console-access panel is gone
-    // (Spec 19 follow-up) -- staff are always email-bound now (direct
+    // -- staff are always email-bound now (direct
     // promotion and the invite flow both require a real address), so
     // self-service Forgot password on the login screen replaces it.
 

@@ -1,7 +1,7 @@
 -- Driver verification redesign: a real Storage bucket for driver_documents
 -- (none has ever existed), audited admin upload/review RPCs, and a
 -- TODA-scoped write boundary matching admin_review_scoped_driver's own
--- shape. See .pipeline/specs.md Spec 18.
+-- shape.
 --
 -- WHY THIS EXISTS
 --
@@ -15,7 +15,7 @@
 
 -- ---------------------------------------------------------------------------
 -- Storage: driver-documents, same private/signed-URL shape as
--- discount-eligibility-ids (Spec 14) and profile-photos (Spec 15).
+-- discount-eligibility-ids and profile-photos.
 -- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('driver-documents', 'driver-documents', false)

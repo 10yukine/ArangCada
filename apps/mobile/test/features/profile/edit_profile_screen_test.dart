@@ -253,7 +253,7 @@ void main() {
 
   testWidgets(
     'a correct password updates the email immediately -- no OTP, by design '
-    '(Spec 11 §3 revision)',
+    '',
     (tester) async {
       await pumpProfile(tester);
       await tester.pump();

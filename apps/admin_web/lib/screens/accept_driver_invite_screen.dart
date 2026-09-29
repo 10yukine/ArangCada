@@ -7,7 +7,7 @@ import '../theme.dart';
 import '../widgets.dart';
 
 // =============================================================================
-// Accept driver invite (Spec 20) -- public route, no session required
+// Accept driver invite -- public route, no session required
 // =============================================================================
 
 class AcceptDriverInviteScreen extends ConsumerStatefulWidget {

@@ -18,8 +18,7 @@
 -- than silently pick one and present it as the client's decision, the interval
 -- is an LGU-editable setting -- the same treatment app_evaluation_settings
 -- already gives the Objective 4 feedback interval -- defaulted to the shorter,
--- more commuter-favourable 180 s. The open question is recorded in
--- .pipeline/spec-city-hall-dispatch-revisions.md section 11 for the next
+-- more commuter-favourable 180 s. The open question is kept for the next
 -- consultation.
 --
 -- WHAT THIS DOES NOT CHANGE

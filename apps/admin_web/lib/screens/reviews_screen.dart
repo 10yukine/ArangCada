@@ -9,7 +9,7 @@ import '../widgets.dart';
 
 /// Read-only -- LGU/TODA administrators read both directions' stars and
 /// comments here, but there is no status workflow: a rating is not a case to
-/// resolve, only a record to see. See .pipeline/specs.md Spec 13.
+/// resolve, only a record to see.
 class ReviewsScreen extends ConsumerStatefulWidget {
   const ReviewsScreen({super.key});
   @override

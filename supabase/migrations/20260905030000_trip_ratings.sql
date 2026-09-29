@@ -6,8 +6,7 @@
 -- call DemoState.submitTripRating() / submitDriverTripRating() -- in-memory
 -- only. Every star and comment was gone on app restart, invisible to the
 -- driver's record, and invisible to LGU/TODA, who explicitly need to see
--- both directions (owner decision, 5 Sep 2026). See .pipeline/specs.md
--- Spec 13.
+-- both directions (owner decision, 5 Sep 2026).
 --
 -- WHY A NEW TABLE, NOT NEW trips COLUMNS
 --

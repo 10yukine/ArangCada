@@ -1,6 +1,6 @@
--- Profile photo: the repo's second Storage bucket, reusing Spec 14's
--- signed-URL, owner-prefixed-path shape exactly (see .pipeline/specs.md
--- Spec 15). `profile_screen.dart`'s "Change photo" button currently says,
+-- Profile photo: the repo's second Storage bucket, reusing the discount-ID
+-- bucket's signed-URL, owner-prefixed-path shape exactly.
+-- `profile_screen.dart`'s "Change photo" button currently says,
 -- verbatim, "Photo change is a demo-only action." -- this migration is the
 -- server-side half that makes it a real one.
 

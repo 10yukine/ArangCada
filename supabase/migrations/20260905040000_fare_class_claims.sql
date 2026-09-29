@@ -9,7 +9,6 @@
 -- a machine -- submitting only records the commuter's intent to claim."
 -- This migration is that server-side half -- manual admin review, not OCR
 -- (OCR/automatic ID reading is still explicitly future work, unchanged).
--- See .pipeline/specs.md Spec 14.
 --
 -- Owner decision, 5 Sep 2026: the discount stays OFF until an admin
 -- approves it (mirrors driver_profiles.verification_status's
@@ -22,8 +21,8 @@
 -- Storage: the first bucket in this repo.
 -- ---------------------------------------------------------------------------
 -- Signed-URL, not public-read (owner decision, 5 Sep 2026 -- named
--- individuals in one city; see Spec 11 §4's original flag, and Spec 15,
--- which reuses this exact bucket-policy shape for profile photos). A user
+-- individuals in one city; profile photos later reuse this exact
+-- bucket-policy shape). A user
 -- may write and read only under their own auth.uid()-prefixed path; an
 -- admin may also read (to review a claim), but through the same RLS-gated
 -- `createSignedUrl` call the client already uses for its own photo -- no
@@ -275,7 +274,7 @@ grant execute on function public.review_fare_class_claim(uuid, boolean, text)
 -- Every other line is copied verbatim from 20260831130000_phone_verification.sql
 -- (the current definition -- confirmed by grepping every
 -- `create or replace function public.request_ride` in supabase/migrations/
--- and taking the latest). CLAUDE.md rule 13: surgical changes only -- this
+-- and taking the latest). Surgical change only -- this
 -- touches exactly the one line that reads 'standard' where it should read
 -- the rider's actual fare_class.
 create or replace function public.request_ride(p_pickup_lat double precision, p_pickup_lng double precision, p_destination_lat double precision, p_destination_lng double precision, p_pickup_label text, p_destination_label text, p_idempotency_key text)

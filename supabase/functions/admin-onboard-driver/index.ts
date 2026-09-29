@@ -3,7 +3,6 @@ import { CORS_HEADERS, jsonResponse } from "../_shared/http.ts";
 // server-side, because only the Supabase Auth Admin API can create an auth
 // user or issue an invite link, and that API requires the service-role key.
 //
-// See .pipeline/specs.md, "Commuter-first driver onboarding, server layer"
 // addendum (2026-08-25 second session), §5 and §6.
 //
 // WHAT THIS FUNCTION DOES AND DOES NOT DO

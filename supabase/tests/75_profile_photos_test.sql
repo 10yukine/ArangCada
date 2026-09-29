@@ -2,7 +2,7 @@
 -- the direct client update of profiles.avatar_path (no RPC; the security
 -- boundary is Storage's own RLS, see the migration's header comment).
 --
--- See .pipeline/specs.md Spec 15. Fixture/style follows
+-- Fixture/style follows
 -- 74_fare_class_claims_test.sql.
 
 begin;

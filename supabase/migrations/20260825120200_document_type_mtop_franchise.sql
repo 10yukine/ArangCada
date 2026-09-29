@@ -15,8 +15,7 @@
 -- seed rows, tests -- must therefore live in a later migration than this one.
 --
 -- PROVISIONAL: whether these four are the documents Calamba actually requires
--- is unconfirmed. See docs/CLIENT_MEETING_QUESTIONS.md question B1, and
--- .pipeline/specs.md §10 open question 1. The required list is deliberately
+-- is unconfirmed. The required list is deliberately
 -- defined in exactly one function so correcting it is a one-line change.
 
 alter type public.document_type add value if not exists 'mtop_franchise';

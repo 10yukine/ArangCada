@@ -1,6 +1,6 @@
 -- Trip (booking) records and their status machine.
 --
--- Status transitions follow the machine documented in CLAUDE.md. Final fare is
+-- Status transitions follow the documented trip status machine. Final fare is
 -- written by trusted server-side logic, never by the client.
 
 create type public.trip_status as enum (
@@ -51,7 +51,7 @@ create index trips_driver_idx on public.trips (driver_id);
 create index trips_status_idx on public.trips (status);
 create index trips_pickup_gix on public.trips using gist (pickup);
 
--- "A commuter cannot have more than one active ride" (CLAUDE.md), enforced in
+-- "A commuter cannot have more than one active ride", enforced in
 -- the database so a racing double-submit cannot create two live trips.
 create unique index trips_one_active_per_rider
   on public.trips (rider_id)

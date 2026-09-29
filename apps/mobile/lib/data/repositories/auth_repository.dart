@@ -54,7 +54,7 @@ abstract interface class AuthRepository {
   /// alone. Without this step first, anyone holding an unlocked phone could
   /// take the account. Implementations must fail with a message naming
   /// "incorrect password" -- the one case the user can actually fix -- never a
-  /// generic error. See .pipeline/specs.md Spec 11 §1.
+  /// generic error.
   Future<void> reauthenticate(String currentPassword);
 
   /// Sets a new password. Callers must call [reauthenticate] first -- this
@@ -67,7 +67,7 @@ abstract interface class AuthRepository {
   /// Deliberately no confirmation step: the project's `mailer_autoconfirm`
   /// setting applies the change on the strength of the session alone (no
   /// custom SMTP exists to send a confirmation link either way), and the
-  /// owner's explicit decision (Spec 11 §3 revision, 5 Sep 2026) is that this
+  /// owner's explicit decision (5 Sep 2026) is that this
   /// is the right trade for a capstone account where a mistyped sign-up email
   /// is otherwise unrecoverable. [reauthenticate] is still required first --
   /// it is what stops an unlocked-phone attacker who does not know the
@@ -91,7 +91,7 @@ abstract interface class AuthRepository {
   /// Uploads an ID photo under the caller's own `auth.uid()`-prefixed path in
   /// the `discount-eligibility-ids` bucket and returns the resulting Storage
   /// path (not a URL) -- what [submitFareClassClaim] needs as
-  /// `p_id_photo_path`. See .pipeline/specs.md Spec 14.
+  /// `p_id_photo_path`.
   Future<String> uploadFareClassIdPhoto({
     required List<int> bytes,
     required String fileExtension,
@@ -113,8 +113,7 @@ abstract interface class AuthRepository {
 
   /// Uploads [bytes] under the caller's own `auth.uid()`-prefixed path in
   /// the `profile-photos` bucket and returns the resulting Storage path
-  /// (not a URL) -- what [updateAvatarPath] expects. See
-  /// .pipeline/specs.md Spec 15.
+  /// (not a URL) -- what [updateAvatarPath] expects.
   Future<String> uploadProfilePhoto({
     required List<int> bytes,
     required String fileExtension,

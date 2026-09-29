@@ -6,7 +6,7 @@
 -- only enforced there, anyone who could reach the Supabase REST endpoint with a
 -- valid session -- which is anyone who can read the anon key out of the APK --
 -- could book, drive, and mint public tracking links without ever proving they
--- hold the SIM. CLAUDE.md rule 6 exists for exactly this, and these assertions
+-- hold the SIM. The server decides for exactly this reason, and these assertions
 -- are what make it true rather than aspirational.
 --
 -- Each gate gets an assertion in BOTH directions: refused while unverified,

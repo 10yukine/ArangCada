@@ -3,7 +3,7 @@ import 'app_config.dart';
 /// MapTiler style URL builder for MapLibre.
 ///
 /// Config only -- no map widget lives here yet. Building the actual commuter
-/// map screen is a separate, tests-first spec (CLAUDE.md rule 14).
+/// map screen is a separate, tests-first spec.
 ///
 /// SECURITY.md: MapTiler receives only the tile/style requests needed to draw
 /// the map. This helper does not attach coordinates, ride IDs, or any user

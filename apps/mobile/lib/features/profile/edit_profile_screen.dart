@@ -12,7 +12,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 
 /// Account details: name, mobile number, and email, all editable directly on
-/// this one screen -- the owner's explicit call (Spec 11 revision, 5 Sep
+/// this one screen -- the owner's explicit call (5 Sep
 /// 2026) is that neither contact field gets its own page. Password lives on
 /// the Settings screen instead (`profile_detail_screens.dart`), reachable
 /// from the profile tab, not from here.

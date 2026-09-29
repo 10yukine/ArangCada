@@ -688,7 +688,7 @@ class AdminController extends Notifier<AdminState> {
   }
 
   /// LGU-only, loaded on demand by DriversScreen -- not part of the main
-  /// refresh() snapshot, same reasoning refreshAdminAccounts (Spec 19)
+  /// refresh() snapshot, same reasoning refreshAdminAccounts
   /// establishes for its own LGU-only, low-frequency data.
   Future<void> refreshDriverInvites() async {
     if (!state.connected) return;
@@ -703,7 +703,7 @@ class AdminController extends Notifier<AdminState> {
 
   /// Thin pass-throughs for the public accept-driver-invite screen, which
   /// runs before any admin session exists -- no state to refresh, same
-  /// rejected-Future-not-a-throw shape lookupAdminInvite (Spec 19) uses.
+  /// rejected-Future-not-a-throw shape lookupAdminInvite uses.
   Future<({String email, String todaZoneName})> lookupDriverInvite(
     String token,
   ) {

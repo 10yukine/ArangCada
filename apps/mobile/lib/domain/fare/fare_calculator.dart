@@ -56,7 +56,7 @@ class FareCalculator {
     //
     // This mirrors fare_matrix.operating_max_passengers server-side. It is a
     // preview convenience only -- compute_fare_centavos() remains the
-    // authoritative check (CLAUDE.md rule 7), so a tampered client cannot book
+    // authoritative check, so a tampered client cannot book
     // a fifth passenger by editing this line.
     const maximumPassengers = 4;
     if (passengerCount < 1 || passengerCount > maximumPassengers) {

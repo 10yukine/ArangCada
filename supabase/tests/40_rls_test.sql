@@ -39,7 +39,7 @@ select plan(35);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures. Synthetic uuids and example.test addresses only -- no real names,
--- numbers, licence IDs, or coordinates (CLAUDE.md rule 10).
+-- numbers, licence IDs, or coordinates.
 -- ---------------------------------------------------------------------------
 -- Since 20260825120050_handle_new_user.sql, inserting an auth user CREATES
 -- the profiles row automatically, so these fixtures no longer insert profiles
@@ -236,7 +236,7 @@ select is(
 );
 
 -- No UPDATE policy exists on trips for participants, and that is deliberate:
--- CLAUDE.md rule 7 puts status transitions behind trusted RPC. A driver writing
+-- status transitions go through trusted RPCs only. A driver writing
 -- status straight from the handset is the exact thing that must stay impossible.
 -- If someone later adds trips_update_participant, this assertion is the alarm.
 select is(

@@ -3,7 +3,6 @@
 // `Deno.env`, so it can be unit tested with `deno test` and no live project
 // -- the same tests-first discipline the SQL layer used, applied here.
 //
-// See .pipeline/specs.md, "Commuter-first driver onboarding, server layer"
 // addendum (2026-08-25 second session), §5 and §6.
 
 /** One row as returned by the `admin_preview_driver_candidate` RPC. */
@@ -117,8 +116,7 @@ export function decideOnboardOutcome(candidates: CandidateRow[]): "promote_via_c
  * settings (Email OTP expiry) and is not exposed through this API call.
  * Returning a locally-fabricated guess would be worse than returning
  * nothing: it would look authoritative to apps/admin_web while being
- * disconnected from the value that actually governs the link. Recorded in
- * .pipeline/specs.md and .pipeline/changes.md.
+ * disconnected from the value that actually governs the link.
  */
 export function buildCreatedResponse(
   actionLink: string,
@@ -128,8 +126,8 @@ export function buildCreatedResponse(
 
 /**
  * Redacts a request body for logging. Edge Function logs go to Supabase's
- * log viewer, which this repo treats like any other log under CLAUDE.md
- * rule 10 -- no phone numbers, emails, or names, even in an error path.
+ * log viewer, which this repo treats like any other log the same way -- no
+ * phone numbers, emails, or names, even in an error path.
  */
 export function redactForLogging(body: unknown): Record<string, unknown> {
   if (typeof body !== "object" || body === null) {

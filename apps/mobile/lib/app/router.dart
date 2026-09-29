@@ -138,7 +138,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // This is a convenience gate, not the access control: request_ride,
       // can_driver_go_online and create_ride_share_link each refuse an
       // unverified account server-side, so forcing past this redirect gains a
-      // tampered client nothing (CLAUDE.md rule 6).
+      // tampered client nothing.
       if (user.needsPhoneVerification) {
         if (path == '/complete-mobile-profile') return null;
         if (user.needsPhoneSetup) return '/complete-mobile-profile';

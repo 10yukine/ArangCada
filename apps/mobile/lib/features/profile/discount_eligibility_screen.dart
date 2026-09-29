@@ -22,8 +22,7 @@ import '../../domain/models/fare_class_claim.dart';
 /// Manual admin review only -- automatic ID reading (OCR matched against the
 /// account holder's name) is still future work, unchanged. Submitting here
 /// records the commuter's claim and an ID photo for a human to review; see
-/// `submit_fare_class_claim`/`review_fare_class_claim`,
-/// .pipeline/specs.md Spec 14.
+/// `submit_fare_class_claim`/`review_fare_class_claim`.
 class DiscountEligibilityScreen extends ConsumerStatefulWidget {
   const DiscountEligibilityScreen({super.key});
 

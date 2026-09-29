@@ -59,14 +59,14 @@ comment on column public.fare_matrix.operating_max_passengers is
   'fall back to the printed max_passengers. May exceed the '
   'printed limit where the LGU has approved it. Espesyal is 4 by the decision '
   'of the Calamba City LGU administrator, 31 Aug 2026, granted in exchange for '
-  'withdrawing pooling. See docs/LGU_FARE_MATRIX.md section 2a.';
+  'withdrawing pooling.';
 
 -- The operating decision itself.
 update public.fare_matrix
    set operating_max_passengers = 4
  where ride_type = 'special';
 
--- Pooling stays in the enum and in this table (CLAUDE.md rule 6): its rows are
+-- Pooling stays in the enum and in this table: its rows are
 -- the transcribed record of Regular na Byahe and back the fare-matrix reference
 -- screen. It is simply no longer offered as a booking option. Flag it so no
 -- future query has to infer bookability from a UI file.
@@ -167,7 +167,7 @@ comment on function public.compute_fare_centavos(integer, public.ride_type, publ
   'types multiply by passenger count; per-trip ride types do not. Rejects '
   'passenger counts outside the LGU-approved operating limits '
   '(fare_matrix.operating_max_passengers), which for Espesyal is 4 rather than '
-  'the ordinance''s printed 3 -- see docs/LGU_FARE_MATRIX.md section 2a.';
+  'the ordinance''s printed 3.';
 
 -- request_ride: carry the requested passenger count onto the trip.
 --

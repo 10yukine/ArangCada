@@ -13,7 +13,7 @@
 -- A roster match is displayed, never required. A roster that is stale or
 -- incomplete would otherwise make onboarding impossible for a legitimate new
 -- member, which is a worse failure than showing an administrator "no roster
--- match" and letting them exercise judgement. See .pipeline/specs.md §2.
+-- match" and letting them exercise judgement.
 --
 -- WHY NO DRIVER CAN READ IT, NOT EVEN THEIR OWN ROW
 --

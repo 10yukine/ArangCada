@@ -1,4 +1,4 @@
--- pgTAP: LGU/TODA admin invites (Spec 19).
+-- pgTAP: LGU/TODA admin invites.
 --
 -- WHY THIS FILE EXISTS
 --
@@ -16,7 +16,7 @@ begin;
 select plan(30);
 
 -- ---------------------------------------------------------------------------
--- Fixtures. Synthetic uuids and example.test addresses only (CLAUDE.md rule 10).
+-- Fixtures. Synthetic uuids and example.test addresses only.
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000077c1', 'ai-lgu@example.test',

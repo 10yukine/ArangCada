@@ -19,7 +19,6 @@
 -- a phone number. They are different mechanisms defeating different attacks.
 -- Stage 2 (face capture + liveness, drivers only) is future work. Do not
 -- describe this migration as liveness detection.
--- See .pipeline/spec-phone-otp-registration.md section 1.
 
 -- ---------------------------------------------------------------------------
 -- The mirrored flag
@@ -99,8 +98,7 @@ as $$
          -- flag. 69_phone_verification_test.sql asserts a non-tester gets no
          -- benefit from this branch.
          --
-         -- It must be removed or re-audited before the pilot beta -- see
-         -- .pipeline/PRE_BETA_CHECKLIST.md.
+         -- It must be removed or re-audited before the pilot beta
          or p.is_internal_tester
        )
   );
@@ -117,7 +115,7 @@ grant execute on function public.is_verified_account(uuid) to authenticated, ser
 -- ---------------------------------------------------------------------------
 -- Enforcement, server-side
 -- ---------------------------------------------------------------------------
--- CLAUDE.md rule 6: hiding the dashboard in Flutter is a convenience, not a
+-- Hiding the dashboard in Flutter is a convenience, not a
 -- control. A tampered client that skips the verify screen must gain nothing.
 
 -- 1. A driver with an unverified number cannot go online, and therefore cannot
@@ -412,7 +410,7 @@ create index if not exists otp_send_log_user_time_idx
 
 comment on table public.otp_send_log is
   'One row per OTP send attempt, for throttling. Stores a HASH of the number, '
-  'never the number itself -- CLAUDE.md rule 10 forbids logging phone numbers.';
+  'never the number itself -- project policy forbids logging phone numbers.';
 
 alter table public.otp_send_log enable row level security;
 

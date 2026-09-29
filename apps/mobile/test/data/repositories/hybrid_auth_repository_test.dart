@@ -237,7 +237,7 @@ void main() {
   });
 
   group('HybridAuthRepository password-change routing', () {
-    // The mock repository throws for both methods (Spec 11: a demo account has
+    // The mock repository throws for both methods (a demo account has
     // a fixed, compiled-in password and no real account to re-authenticate
     // against), so if the hybrid ever routed either call locally this would
     // throw instead of recording what it was asked to do.

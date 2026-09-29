@@ -1,5 +1,5 @@
 -- Driver enrollment by email: LGU-initiated, mirrors the admin invite
--- system (Spec 19). See .pipeline/specs.md Spec 20.
+-- system.
 --
 -- The "email already has an account" case needs no new machinery at all --
 -- admin_preview_driver_candidate() and admin_promote_commuter_to_driver()
@@ -15,7 +15,7 @@
 -- ---------------------------------------------------------------------------
 -- 1. driver_invites
 -- ---------------------------------------------------------------------------
--- A separate table from admin_invites (Spec 19), not a shared one with a
+-- A separate table from admin_invites, not a shared one with a
 -- discriminator column: toda_zone_id is always required here, never
 -- optional, and there is no "scope" concept for a driver invite at all --
 -- the fields do not overlap cleanly enough to be worth conflating.
@@ -28,7 +28,7 @@ create table public.driver_invites (
   body_number       text,
   invited_by        uuid not null references public.profiles (id),
   -- sha256(token)::hex, never the raw token -- same reasoning admin_invites
-  -- (Spec 19) documents: this token creates a real account.
+  -- documents: this token creates a real account.
   token_hash        text not null unique,
   status            text not null default 'pending'
                        check (status in ('pending', 'accepted', 'revoked')),
@@ -44,7 +44,7 @@ create index driver_invites_email_idx on public.driver_invites (email);
 comment on table public.driver_invites is
   'One-time-use LGU-issued driver enrollment invites. The raw token is '
   'returned once by admin_create_driver_invite() and never stored -- only '
-  'its sha256 hash is kept. See .pipeline/specs.md Spec 20.';
+  'its sha256 hash is kept. ';
 
 alter table public.driver_invites enable row level security;
 

@@ -13,8 +13,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../domain/models/app_notification.dart';
 
 /// Real notification history, not the fixed three-entry mock list this
-/// screen used to render regardless of what actually happened. See
-/// .pipeline/specs.md Spec 16.
+/// screen used to render regardless of what actually happened.
 ///
 /// Backed by a local Hive cache PushNotificationService's own
 /// `onMessage`/`onMessageOpenedApp` handlers already write to -- there is

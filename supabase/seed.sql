@@ -7,7 +7,7 @@
 --
 -- The FARE data below is no longer a placeholder: it is transcribed from the
 -- posted BPTFO "Minimum Fare Matrix" (Calamba City Ordinance No. 743, Series of
--- 2022). See docs/LGU_FARE_MATRIX.md for the full transcription and provenance.
+-- 2022).
 
 -- ---------------------------------------------------------------------------
 -- TODA zones  (⚠ placeholder geometry)
@@ -44,7 +44,7 @@ values
 -- Base fare covers the first 2 000 metres; every *started* kilometre beyond that
 -- adds one full per-km increment. Amounts are centavos: 6000 = PHP 60.00.
 --
--- Ride type mapping (see docs/LGU_FARE_MATRIX.md):
+-- Ride type mapping:
 --   'pooling' = "Regular na Byahe"  — PHP 15.00 + PHP 2.00/km, PER PASSENGER, max 4
 --   'special' = "Espesyal na Byahe" — PHP 60.00 + PHP 8.00/km, PER TRIP, 1-3 passengers
 --
@@ -54,7 +54,7 @@ values
 -- longer bookable; both facts live in fare_matrix.operating_max_passengers and
 -- fare_matrix.is_bookable, set by 20260831110000_special_only_four_passengers.sql.
 -- Do not "fix" the 3 below to a 4 — it would make the database disagree with the
--- posted matrix. See docs/LGU_FARE_MATRIX.md section 2a.
+-- posted matrix.
 --
 -- discount_per_km_centavos is the statutory 20% applied to the per-km increment.
 -- It is used only past the 20 km end of the printed table; inside it, the

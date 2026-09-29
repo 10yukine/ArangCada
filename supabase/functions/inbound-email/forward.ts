@@ -154,7 +154,8 @@ export async function handle(req: Request, config: Config): Promise<Response> {
     if (!replyResponse.ok) return json(502, { error: "reply fetch failed" });
     const reply = await replyResponse.json();
     if (address(reply.from ?? "") !== target) return json(200, { skipped: "reply sender mismatch" });
-    // ponytail: handles this Gmail account's English quote markers; use MIME parsing if its locale changes.
+    // Known limit: handles this Gmail account's English quote markers; use MIME
+    // parsing if its locale changes.
     const answer = String(reply.text ?? "")
       .split(/^On .+wrote:\s*$/m)[0]
       .split(/^On (?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), .+$/m)[0]

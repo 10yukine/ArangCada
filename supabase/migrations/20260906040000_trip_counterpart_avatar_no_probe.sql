@@ -1,8 +1,7 @@
 -- Fix: trip_counterpart_avatar_path() let a non-participant distinguish
 -- "this trip exists" from "this trip doesn't exist".
 --
--- Self-caught during this session's own council-review pass (PR #18,
--- council-review snapshot for Spec 17), before any external finding came
+-- Caught during review, before any external finding came
 -- back -- recorded here the same way regardless, since it is a real
 -- inconsistency against this repo's own established pattern.
 --

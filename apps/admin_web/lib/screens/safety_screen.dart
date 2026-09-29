@@ -496,8 +496,8 @@ class _SafetyDetail extends ConsumerWidget {
   }
 }
 
-// Folded into Safety reports as a compact secondary panel (owner's call,
-// Spec 19 follow-up) -- see _ComplaintsSection below. _ComplaintTile and
+// Folded into Safety reports as a compact secondary panel (owner's call) --
+// see _ComplaintsSection below. _ComplaintTile and
 // _ComplaintDetail stay, reused there unchanged.
 class _ComplaintsSection extends StatelessWidget {
   const _ComplaintsSection({required this.complaints});

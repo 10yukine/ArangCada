@@ -38,7 +38,7 @@
 --      necessary to serve the stated purpose, and it is what
 --      docs/legal/PRIVACY_POLICY.md section 6a discloses.
 --
--- Widening this payload requires a spec and a council review (CLAUDE.md).
+-- Widening this payload requires a documented design review.
 --
 -- ============================================================================
 
@@ -257,7 +257,7 @@ comment on function public.ride_share_view(text) is
   'active trip given its share token, and zero rows once that trip ends or the '
   'token is revoked. Carries no rider identity, contact details, fare, chat, or '
   'location history -- see docs/legal/PRIVACY_POLICY.md section 6a. Widening '
-  'this payload requires a spec and a council review.';
+  'this payload requires a documented design review.';
 
 -- anon is granted execute deliberately: a family member without an ArangCada
 -- account is the entire point of the feature. anon gets THIS function and

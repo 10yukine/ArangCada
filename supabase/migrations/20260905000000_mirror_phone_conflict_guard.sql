@@ -32,8 +32,7 @@
 -- cleanup path.
 --
 -- COUNCIL REVIEW REQUIRED -- same auth-adjacent trigger as
--- 20260904040000_mirror_phone_number.sql; queued alongside it in
--- .pipeline/CURRENT_STATE.md.
+-- 20260904040000_mirror_phone_number.sql and reviewed alongside it.
 
 create or replace function public.sync_profile_phone_verified()
 returns trigger

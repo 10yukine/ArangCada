@@ -40,7 +40,7 @@ class AdminSnapshot {
 
 /// LGU-only, loaded on demand by AdminsScreen -- see AdminSnapshot's own
 /// docstring precedent (reportedChats) for why this is not folded into the
-/// main snapshot. See .pipeline/specs.md Spec 19.
+/// main snapshot.
 class AdminAccountsSnapshot {
   const AdminAccountsSnapshot({
     required this.accounts,
@@ -63,7 +63,7 @@ class SupabaseAdminRepository {
   bool get hasSession => client.auth.currentSession != null;
 
   /// Self-service email password reset -- staff are always email-bound now
-  /// (direct promotion and the invite flow, Spec 19, both require a real
+  /// (direct promotion and the invite flow, both require a real
   /// address), so a server-verified admin-to-admin reset workflow is no
   /// longer needed for this. Supabase does not reveal whether the address
   /// belongs to an account either way, matching how every other auth
@@ -351,7 +351,7 @@ class SupabaseAdminRepository {
       if (path != null) (documentPaths[driverId] ??= {})[type] = path;
     }
 
-    // ponytail: only sees driver cancellations among the 100 most recent
+    // Known limit: only sees driver cancellations among the 100 most recent
     // trips; query them separately if volume outgrows that.
     final weekAgo = DateTime.now().subtract(const Duration(days: 7));
     final driverCancellations = <DriverCancellation>[
@@ -646,7 +646,7 @@ class SupabaseAdminRepository {
   /// grant -- `discount_id_select_own_or_admin`'s RLS policy on
   /// `storage.objects` is what actually decides an admin may read this
   /// specific path, exactly the same gate the commuter's own client-side read
-  /// of their own photo goes through. See .pipeline/specs.md Spec 14.
+  /// of their own photo goes through.
   Future<String> fareClassClaimPhotoUrl(String path) async {
     final signed = await client.storage
         .from('discount-eligibility-ids')
@@ -656,8 +656,7 @@ class SupabaseAdminRepository {
 
   /// A short-lived signed URL for a driver's uploaded document -- same
   /// shape as fareClassClaimPhotoUrl, gated by
-  /// driver_documents_photos_select_own_or_admin instead. See
-  /// .pipeline/specs.md Spec 18.
+  /// driver_documents_photos_select_own_or_admin instead.
   Future<String> driverDocumentPhotoUrl(String path) async {
     final signed = await client.storage
         .from('driver-documents')
@@ -810,8 +809,7 @@ class SupabaseAdminRepository {
 
   /// Sends an LGU or TODA admin invite by email. Calls the send-admin-invite
   /// Edge Function -- the RPC it wraps (admin_create_invite) cannot send
-  /// email itself, and the Resend API key must never reach this client (see
-  /// .pipeline/specs.md Spec 19).
+  /// email itself, and the Resend API key must never reach this client.
   Future<void> sendAdminInvite({
     required String email,
     required String scope,
@@ -894,7 +892,7 @@ class SupabaseAdminRepository {
   }
 
   /// Existing-account candidates matching an email, for the "enroll driver"
-  /// dialog's first step (Spec 20). Deliberately returns whatever
+  /// dialog's first step. Deliberately returns whatever
   /// admin_preview_driver_candidate() returns -- no uuid, a masked name --
   /// and does not decide anything; the caller (the dialog) shows this to
   /// the admin and asks them to confirm before promoting.
@@ -935,7 +933,7 @@ class SupabaseAdminRepository {
   /// Sends a driver enrollment invite by email. Calls the
   /// send-driver-invite Edge Function -- the RPC it wraps
   /// (admin_create_driver_invite) cannot send email itself, and the Resend
-  /// API key must never reach this client. See .pipeline/specs.md Spec 20.
+  /// API key must never reach this client.
   Future<void> sendDriverInvite({
     required String email,
     required String todaZoneId,
@@ -966,7 +964,7 @@ class SupabaseAdminRepository {
 
   /// Pending driver invites and the TODA-zone picker options for the
   /// enroll-driver dialog -- one on-demand load, not part of the main
-  /// snapshot, same reasoning loadAdminAccounts() (Spec 19) establishes.
+  /// snapshot, same reasoning loadAdminAccounts() establishes.
   Future<({List<DriverInvite> invites, List<(String id, String name)> zones})>
   loadDriverInvites() async {
     final results = await Future.wait<dynamic>([

@@ -31,13 +31,13 @@ class DemoUser {
   /// screen to show. It is **not** the access control: `request_ride`,
   /// `can_driver_go_online` and `create_ride_share_link` each enforce
   /// verification server-side, so a tampered client that forces this to true
-  /// still cannot book, drive, or share a link (CLAUDE.md rule 6).
+  /// still cannot book, drive, or share a link.
   final bool phoneVerified;
 
   /// A freshly minted short-lived signed URL into the `profile-photos`
   /// bucket, or null when the account has no photo yet. Never persisted --
   /// `profiles.avatar_path` (the Storage path) is what is stored; this is
-  /// re-minted every time the profile is (re)loaded, per Spec 15.
+  /// re-minted every time the profile is (re)loaded,.
   final String? avatarUrl;
 
   /// [displayName] and [avatarUrl]/[avatarPath] are the only fields a user

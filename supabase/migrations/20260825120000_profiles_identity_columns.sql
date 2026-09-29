@@ -14,9 +14,9 @@
 -- The "one account per mobile number" rule the onboarding design depends on
 -- is also unenforceable without a unique constraint.
 --
--- DEVIATION FROM SPEC (recorded in .pipeline/changes.md)
+-- DEVIATION FROM THE PLAN
 --
--- .pipeline/specs.md planned phone (20260825120000) and email
+-- The plan had phone (20260825120000) and email
 -- (20260825120800) as separate migrations, because email arrived with the
 -- later addendum. They are merged here: both are the same concern, both are
 -- read by the same signup trigger, and splitting them would mean defining

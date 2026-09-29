@@ -22,7 +22,6 @@
 --
 -- RUN THIS ONLY as part of the pre-beta checklist, immediately before the pilot
 -- launch, once fake-registration and document-review testing is finished.
--- See .pipeline/PRE_BETA_CHECKLIST.md.
 --
 -- ============================================================================
 -- READ THIS FIRST. DO NOT PASTE THE WHOLE FILE AND RUN IT.
@@ -161,6 +160,5 @@ rollback;
 --   paper, preserve those rows and delete the account reference instead.
 --
 -- * After cleanup, the surviving account will still be email-confirmed but NOT
---   phone-verified, because phone verification does not exist yet. See
---   .pipeline/spec-phone-otp-registration.md for how existing accounts are
+-- phone-verified, because phone verification does not exist yet.
 --   handled when it lands.

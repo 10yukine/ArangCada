@@ -106,3 +106,6 @@ apps/track_web/public/config.js
 /docs/
 /scripts/check_agent_config.py
 /secrets/providers.local.json.example
+
+# Local agent notes (kept on the owner's machine only)
+/AGENTS.md

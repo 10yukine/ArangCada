@@ -16,8 +16,7 @@
 --
 -- Terminology note: the codebase enum value 'pooling' IS the ordinance's
 -- "Regular na Byahe" -- a shared ride billed per passenger. The enum is left
--- alone on purpose (CLAUDE.md rule 6 fixes the booking types as special and
--- pooling); see docs/LGU_FARE_MATRIX.md for the mapping.
+-- alone on purpose: the booking types are fixed as special and pooling.
 
 -- ---------------------------------------------------------------------------
 -- Fare class

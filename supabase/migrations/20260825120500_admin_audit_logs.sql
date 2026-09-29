@@ -1,15 +1,15 @@
 -- Audit trail for privileged administrative actions.
 --
 -- Every promote, demote, approve, reject, suspend, and unsuspend writes
--- exactly one row here. That is a stated success criterion in
--- .pipeline/specs.md, and it is the reason driver_profiles and profiles both
+-- exactly one row here. That is a stated success criterion, and it is the
+-- reason driver_profiles and profiles both
 -- refuse direct writes from an authenticated session: a raw PATCH would change
 -- the state without leaving a trace, which is precisely what an audit log is
 -- for.
 --
 -- WHY THE PII CONSTRAINT IS A CHECK AND NOT A CONVENTION
 --
--- CLAUDE.md rule 10 forbids logging names, phone numbers, and licence IDs. A
+-- project policy forbids logging names, phone numbers, and licence IDs. A
 -- rule written only in prose survives exactly as long as everyone remembers
 -- it; an audit log is a tempting place to stash "helpful context" and the
 -- reviewer who would catch it may not exist. Encoding the prohibition as a
@@ -47,7 +47,7 @@ comment on table public.admin_audit_logs is
 
 comment on column public.admin_audit_logs.metadata is
   'Structured context for the action. A check constraint rejects identity-'
-  'bearing keys (CLAUDE.md rule 10); reference other rows by uuid instead.';
+  'bearing keys; reference other rows by uuid instead.';
 
 create index admin_audit_logs_actor_idx  on public.admin_audit_logs (actor_id, created_at desc);
 create index admin_audit_logs_target_idx on public.admin_audit_logs (target_profile_id, created_at desc);

@@ -2,13 +2,13 @@
 --
 -- WHY THIS EXISTS
 --
--- `complaints` is named in CLAUDE.md's core tables but nothing ever read or
+-- `complaints` is one of the planned core tables but nothing ever read or
 -- wrote it -- neither app, no migration. A commuter or driver had no way to
 -- report an ordinary issue ("driver was late", "rider was rude", "wrong
 -- route", "vehicle condition"). SOS (`sos_reports`, 20260825133421) exists
 -- but is explicitly for danger/threat; routing an ordinary gripe through it
 -- would train users to press the one button that must stay trustworthy for
--- real emergencies. See .pipeline/specs.md Spec 12.
+-- real emergencies.
 --
 -- Bidirectional per owner decision 5 Sep 2026: a driver may also file one
 -- about a commuter, mirroring sos_reports' existing reporter_role shape.

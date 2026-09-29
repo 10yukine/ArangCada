@@ -1,7 +1,7 @@
 -- pgTAP: discount eligibility -- ID photo Storage policies, claim review,
 -- and the fare request_ride() actually bills once a claim is approved.
 --
--- See .pipeline/specs.md Spec 14. Storage fixture/policy style follows
+-- Storage fixture/policy style follows
 -- 00_bootstrap_local.sql's storage stub; request_ride() fixture style
 -- follows 67_staged_dispatch_radius_test.sql.
 

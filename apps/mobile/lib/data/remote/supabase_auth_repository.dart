@@ -236,7 +236,7 @@ class SupabaseAuthRepository implements AuthRepository {
       // Deliberately signInWithPassword, not a lighter check: it is the only
       // Supabase Auth call that actually verifies a password against the
       // account, and it is what the spec names as step 1. A wrong password
-      // must fail here, not at updateUser -- see .pipeline/specs.md Spec 11 §1.
+      // must fail here, not at updateUser
       await _client.auth.signInWithPassword(
         email: email,
         password: currentPassword,

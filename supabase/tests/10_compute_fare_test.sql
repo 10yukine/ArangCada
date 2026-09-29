@@ -1,7 +1,7 @@
 -- pgTAP: fare computation.
 --
--- Final fare is trusted server-side logic (CLAUDE.md: the client may preview a
--- fare, but the authoritative figure must come from the database). These tests
+-- Final fare is trusted server-side logic: the client may preview a fare, but
+-- the authoritative figure must come from the database. These tests
 -- pin the bracket-boundary behaviour so a later refactor cannot silently shift
 -- what a passenger is charged.
 --

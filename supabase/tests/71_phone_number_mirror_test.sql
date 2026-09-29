@@ -4,7 +4,7 @@
 --
 -- 20260831130000_phone_verification.sql only ever mirrored the timestamp.
 -- 20260904040000_mirror_phone_number.sql widens the same trigger to mirror
--- the number too, because Spec 11 §2 lets an already-verified account change
+-- the number too, because an already-verified account can change
 -- its number, and admin screens / driver records read profiles.phone, not
 -- auth.users.phone. A regression here means every admin lookup silently
 -- shows a stale number after a change.

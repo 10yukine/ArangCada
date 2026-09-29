@@ -10,8 +10,8 @@
 -- The required-document list
 -- ---------------------------------------------------------------------------
 -- PROVISIONAL. These four have NOT been confirmed against Calamba City's
--- actual MTOP franchise requirements -- see docs/CLIENT_MEETING_QUESTIONS.md
--- question B1 and .pipeline/specs.md §10 open question 1. Deliberately the
+-- actual MTOP franchise requirements
+-- question B1. Deliberately the
 -- single place the list is defined: correcting it after the client meeting is
 -- a one-line change here, with no other code touched.
 --
@@ -31,8 +31,8 @@ $$;
 
 comment on function public.driver_required_document_types() is
   'PROVISIONAL list of documents required before a driver may be approved. '
-  'Unconfirmed against Calamba LGU requirements -- see '
-  'docs/CLIENT_MEETING_QUESTIONS.md B1. Single source of truth: change here only.';
+  'Unconfirmed against Calamba LGU requirements. '
+  'Single source of truth: change here only.';
 
 revoke execute on function public.driver_required_document_types() from anon;
 
@@ -93,7 +93,7 @@ revoke execute on function public.driver_requirements_status(uuid) from anon;
 -- a driver whose licence lapses at midnight stops being dispatchable at
 -- midnight, with no human in the loop. A null expiry never blocks anyone,
 -- because whether the TODA tracks expiry at all is still unconfirmed
--- (docs/CLIENT_MEETING_QUESTIONS.md A7) and treating "unknown" as "expired"
+-- and treating "unknown" as "expired"
 -- would strand every driver onboarded before that answer arrives.
 --
 -- NOT guarded to self-or-admin, deliberately. Dispatch will need to ask this

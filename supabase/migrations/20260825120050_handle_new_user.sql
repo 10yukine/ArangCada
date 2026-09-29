@@ -45,7 +45,7 @@ begin
   end if;
 
   if v_phone is null then
-    -- Deliberately does not echo the offending value: CLAUDE.md rule 10
+    -- Deliberately does not echo the offending value (no personal data in logs)
     -- keeps phone numbers out of logs, and an exception message is a log.
     raise exception 'handle_new_user: mobile_number missing or not a valid PH mobile number for auth user %', new.id
       using errcode = '23514',

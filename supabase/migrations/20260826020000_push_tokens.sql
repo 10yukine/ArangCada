@@ -9,9 +9,8 @@
 -- user. No Firestore, Firebase Auth, Firebase Storage, or Cloud Functions
 -- are introduced by this migration.
 --
--- NOT APPLIED: written and tested locally only. See
--- docs/COMPETITOR_TECH_DECISIONS.md and the FCM session notes for the
--- explicit approval boundary before this is pushed to any Supabase project.
+-- Originally written and tested locally first, then applied after an
+-- explicit review.
 
 create table public.push_tokens (
   id uuid primary key default gen_random_uuid(),

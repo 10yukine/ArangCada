@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 
 // =============================================================================
-// Accept invite (Spec 19) -- public route, no session required
+// Accept invite -- public route, no session required
 // =============================================================================
 
 class AcceptInviteScreen extends ConsumerStatefulWidget {

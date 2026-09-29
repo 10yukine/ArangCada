@@ -5,7 +5,7 @@ begin;
 select plan(14);
 
 -- ---------------------------------------------------------------------------
--- Fixtures. Synthetic uuids and example.test addresses only (CLAUDE.md rule 10).
+-- Fixtures. Synthetic uuids and example.test addresses only.
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000079c1', 'ud-lgu@example.test',

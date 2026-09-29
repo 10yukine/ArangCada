@@ -387,7 +387,7 @@ class ArangAvatar extends StatelessWidget {
   final Color background;
   final Color foreground;
 
-  /// A signed URL for an uploaded photo (see .pipeline/specs.md Spec 15).
+  /// A signed URL for an uploaded photo.
   /// Null renders today's initials circle unchanged -- every existing call
   /// site keeps working without passing this.
   final String? imageUrl;

@@ -105,7 +105,7 @@ void main() {
 
     // REVISED 31 August 2026 (Calamba City Hall). The Espesyal operating cap
     // moved from the ordinance's printed 3 to an LGU-approved 4 when pooling
-    // was withdrawn as a bookable option. See docs/LGU_FARE_MATRIX.md 2a.
+    // was withdrawn as a bookable option.
     test('special accepts min and the raised max of four', () {
       expect(
         quote(distanceMeters: 0, rideType: RideType.special),

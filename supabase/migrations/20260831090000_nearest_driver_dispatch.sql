@@ -28,7 +28,7 @@
 -- WHAT DID NOT CHANGE
 --
 -- Pickup and destination must still fall inside some TODA polygon. That check
--- is the service-area boundary, not jurisdiction: CLAUDE.md scope rule 1 is
+-- is the service-area boundary, not jurisdiction: the project scope is
 -- "Calamba City only", and the union of TODA polygons is the only city-shaped
 -- boundary in the schema. Dropping it would accept a booking from anywhere on
 -- earth. If City Hall wants the service area widened too, that needs its own

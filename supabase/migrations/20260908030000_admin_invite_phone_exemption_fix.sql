@@ -1,7 +1,6 @@
 -- Fix: the invited-admin phone exemption never actually worked.
 --
--- See .pipeline/specs.md Spec 19 and .pipeline/changes.md for the full
--- diagnosis. Summary: 20260908020000 gated the exemption on
+-- Summary: 20260908020000 gated the exemption on
 -- `new.raw_app_meta_data ->> 'invited_admin'`, reasoning that app_metadata
 -- can only be set through the Auth Admin API and is therefore unspoofable
 -- by a client's own signUp() call.
@@ -54,11 +53,11 @@ begin
             hint    = 'Pass display_name in the signUp/createUser user metadata.';
   end if;
 
-  -- Admin accounts created through the invite flow (Spec 19) are exempt:
+  -- Admin accounts created through the invite flow are exempt:
   -- they never book a ride or receive a dispatch call, so there is no
   -- contactability requirement the way there is for a commuter or driver.
   if v_phone is null and not v_invited_admin then
-    -- Deliberately does not echo the offending value: CLAUDE.md rule 10
+    -- Deliberately does not echo the offending value (no personal data in logs)
     -- keeps phone numbers out of logs, and an exception message is a log.
     raise exception 'handle_new_user: mobile_number missing or not a valid PH mobile number for auth user %', new.id
       using errcode = '23514',
@@ -87,5 +86,5 @@ comment on function public.handle_new_user() is
   'mobile_number, and invited_admin from raw_user_meta_data -- all three are '
   'confirmed present at insert time, unlike raw_app_meta_data (see this '
   'migration''s header). Raises rather than inventing placeholder identity '
-  'values, except for an invited admin account (Spec 19), which has no '
+  'values, except for an invited admin account, which has no '
   'phone requirement at all.';

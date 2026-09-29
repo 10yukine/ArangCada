@@ -21,7 +21,7 @@ create table public.fare_matrix (
 
 comment on table public.fare_matrix is
   'LGU fare brackets. base_fare covers the first base_distance_m metres; each '
-  'started kilometre beyond that adds per_km. No surge pricing (CLAUDE.md).';
+  'started kilometre beyond that adds per_km. No surge pricing.';
 
 -- Exactly one active bracket per ride type, enforced by the database rather
 -- than by application code.

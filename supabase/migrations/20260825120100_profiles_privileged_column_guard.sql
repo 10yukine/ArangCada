@@ -40,7 +40,7 @@
 -- caught why that is wrong: a raw PATCH writes no
 -- `admin_audit_logs` row, silently defeating the "every promote, demote,
 -- approve, reject, suspend, and unsuspend writes exactly one audit row"
--- success criterion in .pipeline/specs.md. Every role/status change --
+-- success criterion. Every role/status change --
 -- admin included -- must go through a `security definer` RPC
 -- (`admin_promote_commuter_to_driver`, `admin_demote_driver`,
 -- `admin_set_profile_status`, ...). Those functions execute as their owner,
@@ -70,7 +70,7 @@ comment on function public.guard_profiles_privileged_columns() is
   'Blocks every authenticated session, admin included, from changing '
   'role/status directly. Default-allow for every other execution context '
   '(migrations, seed data, and the security definer RPCs, which run as their '
-  'owner) -- see .pipeline/specs.md, "Commuter-first driver onboarding, '
+  'owner), "Commuter-first driver onboarding, '
   'server layer", §1.';
 
 create trigger profiles_guard_privileged_columns

@@ -1,5 +1,5 @@
 /// A single entry in the notifications inbox, reconstructed from real FCM
-/// deliveries rather than a fixed mock list. See .pipeline/specs.md Spec 16
+/// deliveries rather than a fixed mock list.
 /// -- deliberately backed by a local Hive cache, not a server table (no
 /// cross-device history requirement has been stated yet).
 class AppNotificationRecord {

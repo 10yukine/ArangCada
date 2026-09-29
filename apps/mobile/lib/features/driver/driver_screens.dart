@@ -408,7 +408,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                 // TODA you drive under. The bell reads the same real
                 // PushNotificationService history the commuter side does
                 // (device-local, not per-role) -- it used to be a hardcoded
-                // "No new notices" snackbar; see .pipeline/changes.md's
+                // "No new notices" snackbar
                 // driver-side audit entry.
                 Row(
                   children: [

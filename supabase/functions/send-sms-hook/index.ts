@@ -28,8 +28,7 @@
 // An unset or unknown mode rejects delivery. Stub mode must be explicitly
 // selected for development and never records authentication codes.
 //
-// Flipping to live is on the pre-beta checklist. See
-// .pipeline/PRE_BETA_CHECKLIST.md item 2.
+// Flipping to live is on the pre-beta checklist.
 //
 // ============================================================================
 // DO NOT "FIX" THIS TO USE /api/v4/otp

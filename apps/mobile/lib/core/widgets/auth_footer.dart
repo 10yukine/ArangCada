@@ -59,7 +59,7 @@ class AuthSwitchLink extends StatelessWidget {
 /// (arangcada.app/terms, arangcada.app/policy) -- these used to point at a
 /// placeholder arangcada.ph/tos + /privacy that predated apps/web existing
 /// and was never updated once it did (found during a gap audit, 6 Sep
-/// 2026). See .pipeline/changes.md.
+/// 2026).
 class AuthLegalNotice extends StatelessWidget {
   const AuthLegalNotice({
     this.actionVerb,

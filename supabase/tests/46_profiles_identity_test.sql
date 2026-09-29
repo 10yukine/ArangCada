@@ -14,7 +14,6 @@
 --     profiles row, so public.profiles was empty for every real account and
 --     is_admin() could never return true.
 --
--- See .pipeline/specs.md, "Commuter-first driver onboarding, server layer".
 
 begin;
 

@@ -1,6 +1,6 @@
 -- TODA geofence containment.
 --
--- Dispatch must respect TODA terminal jurisdictions (CLAUDE.md objective 1),
+-- Dispatch must respect TODA terminal jurisdictions,
 -- and that check runs here in PostGIS -- never on the client, where it could be
 -- bypassed by a modified app.
 --

@@ -1,6 +1,6 @@
 -- Driver onboarding: the admin-facing RPCs.
 --
--- THE MODEL (see .pipeline/specs.md addendum, 2026-08-25 second session)
+-- THE MODEL
 --
 -- A driver coordinates with an administrator face-to-face and hands over their
 -- documents, email, and mobile number together. The administrator then either
@@ -187,7 +187,7 @@ begin
    where id = p_target_id;
 
   -- metadata carries uuids and flags only; admin_audit_logs' check constraint
-  -- rejects identity-bearing keys outright (CLAUDE.md rule 10).
+  -- rejects identity-bearing keys outright.
   insert into public.admin_audit_logs (actor_id, action, target_profile_id, reason, metadata)
   values (
     p_actor_id, p_action, p_target_id, p_reason,
@@ -403,8 +403,8 @@ begin
   end if;
 
   -- The documents belong to someone who was never a driver. Leaving them would
-  -- orphan verification metadata against a commuter. Spec 2 must delete the
-  -- corresponding Storage objects alongside this.
+  -- orphan verification metadata against a commuter. The matching Storage
+  -- objects must be deleted alongside this.
   delete from public.driver_documents where driver_id = p_driver_id;
   delete from public.driver_profiles   where id = p_driver_id;
 

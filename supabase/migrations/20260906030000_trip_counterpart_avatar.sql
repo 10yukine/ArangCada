@@ -2,14 +2,14 @@
 --
 -- WHY THIS EXISTS
 --
--- Spec 15 shipped profile photos with a deliberately narrow Storage read
+-- Profile photos shipped with a deliberately narrow Storage read
 -- policy (profile_photos_select_own_or_admin) -- only the owner or an
 -- admin can mint a signed URL for a given avatar_path. That was the right
 -- default for a first pass, but it means a rider and their assigned
 -- driver can never see each other's photo: the driver-matched card, the
 -- active-trip screen, and the chat thread all fall back to initials only,
 -- even once profiles.avatar_path is populated on both sides. Found during
--- the driver-side feature audit, 6 Sep 2026 -- see .pipeline/changes.md.
+-- the driver-side feature audit, 6 Sep 2026
 --
 -- SHAPE
 --

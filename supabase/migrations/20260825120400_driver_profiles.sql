@@ -5,8 +5,8 @@
 -- Row existence *is* the "is this person a driver" check, commuters carry no
 -- permanently-null driver columns, and profiles' policy set -- which already
 -- needs the is_admin() security-definer workaround to avoid infinite RLS
--- recursion -- stays untouched. This table was already planned in CLAUDE.md's
--- Suggested Core Tables; it is not a new invention.
+-- recursion -- stays untouched. This table was already in the planned core
+-- tables; it is not a new invention.
 --
 -- WHY 'suspended' IS NOT IN THIS ENUM
 --
@@ -19,10 +19,10 @@
 --
 -- The licence document itself goes to private Storage, and it carries the
 -- number. A separate column would duplicate PII into something queryable for
--- no functional gain (CLAUDE.md rule 10). license_expires_on is stored instead:
+-- no functional gain. license_expires_on is stored instead:
 -- a date is not an identifier, and it lets can_driver_go_online() refuse a
 -- lapsed licence continuously rather than relying on an administrator to
--- notice. See .pipeline/specs.md §3.
+-- notice.
 
 create type public.driver_verification_status as enum (
   'unverified',
@@ -38,7 +38,7 @@ create table public.driver_profiles (
   -- Nullable: a legitimate new member may not be on the roster copy we hold.
   toda_member_id      uuid references public.toda_members (id),
   -- Nullable because the order in which a TODA assigns a body number is not
-  -- yet confirmed (docs/CLIENT_MEETING_QUESTIONS.md A4). A driver can be
+  -- yet confirmed. A driver can be
   -- onboarded before one exists and have it filled in later.
   body_number         text,
   plate_number        text,
@@ -80,7 +80,7 @@ create policy driver_profiles_select_own
 --
 -- An `admin ... for all` policy would let an administrator PATCH
 -- verification_status straight through PostgREST, approving a driver without
--- writing the admin_audit_logs row that .pipeline/specs.md requires for every
+-- writing the admin_audit_logs row that the design requires for every
 -- such change. That is not an RLS hole -- is_admin() is still a real check --
 -- but it is an audit-integrity hole, and it was caught in review before this
 -- table was written. Every mutation goes through a security definer RPC, which

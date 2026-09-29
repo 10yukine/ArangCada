@@ -16,15 +16,13 @@
 -- without also blocking the self-service updates a commuter legitimately
 -- needs (display_name; phone now changes only via OTP).
 --
--- See .pipeline/specs.md, "Commuter-first driver onboarding, server layer",
--- §1 problem statement and §4 20260825120100_profiles_privileged_column_guard.
 
 begin;
 
 select plan(10);
 
 -- ---------------------------------------------------------------------------
--- Fixtures. Synthetic uuids and example.test addresses only (CLAUDE.md rule 10).
+-- Fixtures. Synthetic uuids and example.test addresses only.
 -- ---------------------------------------------------------------------------
 -- handle_new_user() (20260825120050) builds the profiles rows from this
 -- metadata; inserting them directly would collide on the primary key.

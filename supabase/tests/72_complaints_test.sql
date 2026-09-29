@@ -4,8 +4,7 @@
 -- 65_rpc_authorization_test.sql's direct-trip-insert pattern. Every
 -- assertion mirrors what 60_live_connected_vertical_slice_test.sql already
 -- proves for sos_reports, since create_complaint()/complaints are built as
--- a deliberate structural copy of create_sos_report()/sos_reports -- see
--- .pipeline/specs.md Spec 12.
+-- a deliberate structural copy of create_sos_report()/sos_reports.
 
 begin;
 

@@ -66,7 +66,7 @@ class AdminSession {
   final String? userId;
   final bool connected;
   // Short-lived signed URL into the shared profile-photos bucket (same
-  // bucket/RLS the mobile app's own profile photo, Spec 15, already
+  // bucket/RLS the mobile app's own profile photo, already
   // established -- profiles.avatar_path and its Storage policies are
   // role-agnostic, so an admin account needed no new migration here).
   // Re-minted on every sign-in/session-restore/photo change, never cached
@@ -408,7 +408,7 @@ class TripRating {
 /// A Student/Senior Citizen/PWD discount claim, reviewed only by an LGU-wide
 /// administrator -- commuters are not TODA-scoped (dispatch is city-wide;
 /// only a trip's pickup records a TODA), so there is no per-TODA breakdown
-/// for a claim to belong to. See .pipeline/specs.md Spec 14.
+/// for a claim to belong to.
 class FareClassClaim {
   const FareClassClaim({
     required this.id,
@@ -935,14 +935,14 @@ class AdminState {
   final bool desktopAlerts;
   final int unreadSafetyAlerts;
   final String? selectedRide;
-  // LGU-only, loaded on demand by AdminsScreen (Spec 19) -- not part of the
+  // LGU-only, loaded on demand by AdminsScreen -- not part of the
   // main refresh()/AdminSnapshot, same reasoning reportedChats already
   // establishes: low-frequency, LGU-scoped data does not belong in the
   // snapshot every session polls on every table change.
   final List<AdminAccount> adminAccounts;
   final List<AdminInvite> adminInvites;
   final List<(String id, String name)> todaZoneOptions;
-  // LGU-only, loaded on demand by DriversScreen (Spec 20) -- same
+  // LGU-only, loaded on demand by DriversScreen -- same
   // on-demand-not-in-the-snapshot reasoning adminInvites above already
   // establishes. todaZoneOptions is shared with the Admins screen's own
   // invite dialog; either on-demand load populates the same field.
@@ -1087,7 +1087,7 @@ bool isActiveTripStatus(String? value) => const {
   'emergency_reported',
 }.contains(value);
 
-/// One LGU or TODA admin account, for the Admins screen (Spec 19).
+/// One LGU or TODA admin account, for the Admins screen.
 class AdminAccount {
   const AdminAccount({
     required this.id,
@@ -1120,7 +1120,7 @@ class AdminAccount {
   final String? lastName;
   final String? toda;
   // Name of the LGU admin who sent the invite this account was created
-  // from -- null for an account that predates the invite system (Spec 19),
+  // from -- null for an account that predates the invite system,
   // e.g. one promoted directly in the database, not a data gap.
   final String? invitedByName;
 
@@ -1138,7 +1138,7 @@ class AdminAccount {
 }
 
 /// A pending or recently-decided LGU/TODA admin invite, for the Admins
-/// screen's "Pending invites" list (Spec 19).
+/// screen's "Pending invites" list.
 class AdminInvite {
   const AdminInvite({
     required this.id,
@@ -1170,8 +1170,8 @@ class AdminInvite {
 }
 
 /// A pending driver enrollment invite, for the Drivers screen's own
-/// "Pending driver invites" panel (Spec 20). Same shape as AdminInvite
-/// (Spec 19), minus the scope concept a driver invite has no use for.
+/// "Pending driver invites" panel. Same shape as AdminInvite
+///, minus the scope concept a driver invite has no use for.
 class DriverInvite {
   const DriverInvite({
     required this.id,

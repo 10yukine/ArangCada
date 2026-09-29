@@ -21,8 +21,7 @@ import '../../../domain/models/app_notification.dart';
 /// Firebase Storage, or Cloud Functions are used.
 ///
 /// Expected `data` payload contract (produced by a future trusted
-/// server-side sender -- see the STOP-boundary note in
-/// docs/COMPETITOR_TECH_DECISIONS.md):
+/// server-side sender, the dispatch_fcm Edge Function):
 /// ```
 /// { "type": "ride_offer" | "ride_cancelled" | "ride_expired" | "ride_updated",
 ///   "trip_id": "<uuid>" }
@@ -64,8 +63,8 @@ class PushNotificationService {
 
   /// Only Android is wired for push right now -- google-services.json only
   /// registers an Android app, and iOS/Web are out of this project's
-  /// platform scope (see CLAUDE.md, Android + Web only, and FCM was
-  /// requested for the Android client specifically).
+  /// platform scope (Android + Web only, and FCM was requested for the
+  /// Android client specifically).
   static bool get _supportsPush => !kIsWeb && Platform.isAndroid;
 
   /// Call once, early in `main()`, before `runApp`. Safe to call even when

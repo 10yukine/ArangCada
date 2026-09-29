@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Records calls and never touches the network. Upload/update are not
 /// exercised end to end here -- picking an actual photo needs
 /// image_picker's platform channel, which is manual/device testing per
-/// CLAUDE.md rule 11, same as discount_eligibility_screen_test.dart.
+/// the testing policy, same as discount_eligibility_screen_test.dart.
 class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository(this._state);
 

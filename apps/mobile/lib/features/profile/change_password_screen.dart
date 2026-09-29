@@ -19,8 +19,7 @@ import '../../data/repositories/auth_repository.dart';
 /// account, which would make the app weaker than the platform default. So
 /// this screen always replays `signInWithPassword` against the current
 /// password before calling `updateUser`, and a wrong current password fails
-/// at that first step with a message the user can act on. See
-/// .pipeline/specs.md Spec 11 §1.
+/// at that first step with a message the user can act on.
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 

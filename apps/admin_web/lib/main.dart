@@ -24,7 +24,7 @@ Future<void> main() async {
   // but never the password. Screen readers still reach the login page through
   // Flutter's built-in accessibility activation.
   // Flutter Web defaults to hash-based URLs (/#/dashboard). Every route
-  // before /accept-invite (Spec 19) was only ever reached by clicking
+  // before /accept-invite was only ever reached by clicking
   // around *inside* the already-loaded app, where that default is
   // invisible -- client-side navigation works the same either way.
   // /accept-invite is the first route ever opened as a fresh page load
@@ -85,7 +85,7 @@ class _AdminAppState extends ConsumerState<AdminApp> {
       final loggingIn = state.matchedLocation == '/login';
       // A recipient opening an invite link has no session at all -- this
       // route is public by design, same as /login, and must not bounce them
-      // there. See .pipeline/specs.md Spec 19.
+      // there.
       final acceptingInvite =
           state.matchedLocation == '/accept-invite' ||
           state.matchedLocation == '/accept-driver-invite' ||
@@ -132,7 +132,7 @@ class _AdminAppState extends ConsumerState<AdminApp> {
         builder: (context, state) =>
             AcceptInviteScreen(token: state.uri.queryParameters['token']),
       ),
-      // Driver enrollment (Spec 20) -- same public, no-session shape as
+      // Driver enrollment -- same public, no-session shape as
       // /accept-invite above.
       GoRoute(
         path: '/accept-driver-invite',
@@ -164,8 +164,8 @@ class _AdminAppState extends ConsumerState<AdminApp> {
             path: '/safety',
             builder: (context, state) => _consolePage(const SafetyScreen()),
           ),
-          // Folded into Safety reports as a compact panel (Spec 19
-          // follow-up) -- redirect rather than delete, so an old bookmark
+          // Folded into Safety reports as a compact panel -- redirect rather
+          // than delete, so an old bookmark
           // or link still lands somewhere real instead of 404ing.
           GoRoute(path: '/complaints', redirect: (context, state) => '/safety'),
           GoRoute(

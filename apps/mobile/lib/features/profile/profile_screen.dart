@@ -60,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   /// Take a photo or choose one, crop it to a square, upload it, and point
-  /// profiles.avatar_path at it. See .pipeline/specs.md Spec 15 -- this is
+  /// profiles.avatar_path at it.
   /// the real implementation the "Change photo" button used to fake with
   /// `'Photo change is a demo-only action.'`.
   ///

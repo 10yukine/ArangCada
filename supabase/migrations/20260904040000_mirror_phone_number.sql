@@ -5,13 +5,13 @@
 -- 20260831130000_phone_verification.sql mirrors
 -- auth.users.phone_confirmed_at into profiles.phone_verified_at, but nothing
 -- mirrors the number itself. profiles.phone is written once by
--- handle_new_user() at signup and never touched again by a trigger. Spec 11
--- (§2, "Mobile number change") adds a client flow that changes an
+-- handle_new_user() at signup and never touched again by a trigger. The
+-- "Mobile number change" flow adds a client flow that changes an
 -- already-verified account's number via `updateUser(phone:)` +
 -- `verifyOTP(type: phoneChange)` -- after a successful change,
 -- auth.users.phone is the new number but profiles.phone is still the old
--- one. profiles is what admin screens and driver records read (CLAUDE.md
--- "Suggested Core Tables"), so an admin would see a stale number after every
+-- one. profiles is what admin screens and driver records read, so an admin
+-- would see a stale number after every
 -- change.
 --
 -- WHY IT IS SAFE TO PIGGYBACK ON THE EXISTING TRIGGER
@@ -26,9 +26,7 @@
 -- function body to mirror both, not its firing condition's intent.
 --
 -- COUNCIL REVIEW REQUIRED -- this is an auth-adjacent trigger (touches
--- auth.users), and per .pipeline/specs.md Spec 11 §2 and CLAUDE.md's Council
--- Review Rule it must not be treated as load-bearing until reviewed. See
--- .pipeline/CURRENT_STATE.md.
+-- auth.users), and it must not be treated as load-bearing until reviewed.
 
 --
 -- GOTRUE OMITS THE "+"; profiles REQUIRES IT

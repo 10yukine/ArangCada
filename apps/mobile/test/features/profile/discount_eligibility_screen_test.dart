@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Returns whatever [claim] (or [loadError]) is set to. Submission is not
 /// exercised here -- that needs image_picker's platform channel, which is
-/// covered by manual/device testing per CLAUDE.md rule 11, not this suite.
+/// covered by manual/device testing per the testing policy, not this suite.
 class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository(this._state);
 

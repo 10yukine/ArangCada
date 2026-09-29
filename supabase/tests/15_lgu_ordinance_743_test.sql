@@ -7,7 +7,6 @@
 -- Source: Calamba City BPTFO "TRICYCLE MINIMUM FARE" issuance, City Ordinance
 -- 743, Series of 2022. Transcribed from the official BPTFO infographic set and
 -- cross-checked against a unit-posted tarpaulin photographed 23 August 2025.
--- Full transcription and provenance in docs/LGU_FARE_MATRIX.md.
 --
 -- The expected values below are written as literal tables on purpose. They are
 -- meant to be diffed against the published matrix by a human, row for row,
@@ -150,7 +149,7 @@ select throws_ok(
 -- This assertion used to read "Espesyal na Byahe is capped at TATLO (3) na
 -- pasahero" and expected 4 passengers to be REJECTED. The LGU administrator
 -- raised the operating cap to 4 when pooling was withdrawn, so 4 must now be
--- accepted. See docs/LGU_FARE_MATRIX.md section 2a.
+-- accepted.
 --
 -- The ordinance transcription itself was NOT touched: the assertion further
 -- down still pins fare_matrix.max_passengers at 3 for Espesyal, because that is
