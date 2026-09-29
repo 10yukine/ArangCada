@@ -60,9 +60,13 @@ android {
         release {
             signingConfig = signingConfigs.findByName("release")
                 ?: signingConfigs.getByName("debug")
+            // R8 code + resource shrinking. The Flutter Gradle plugin already
+            // turns both on for release and adds proguard-android-optimize.txt,
+            // Flutter's keep rules and ./proguard-rules.pro (if present);
+            // these lines only make it visible to readers and store checks.
+            // Keep rules plugins need ship inside the plugins themselves.
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 }
