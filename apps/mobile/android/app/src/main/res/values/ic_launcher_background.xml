@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Adaptive-icon background. Matches the brand's supplied app-icon
-         reference assets (assets/branding/arangcada_app_icon_organic.svg)
-         and, since the 2026-08 recolour, also AppColors.primary: the icon
-         and the in-app primary action are now the same Brand Blue. The mark
-         sits on it in #F2F8FF, a measured 5.08:1 - comfortably legible at
-         48dp launcher size. -->
-    <color name="ic_launcher_background">#1262D0</color>
+    <!-- Adaptive-icon background. White since the Sep 2026 logo refresh: the
+         refreshed mark keeps its own navy A and Brand Blue C on it, matching
+         assets/branding/arangcada_app_icon_original_colors.svg, the web
+         favicons and the in-app badge. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>

@@ -24,16 +24,24 @@ read as balanced.
 Measured on the reference: the mark's furthest bbox corner sits 0.473 of
 the canvas from centre, against a 0.306 safe-zone radius, hence the ~0.65
 scale below.
+
+Fourth pass (Sep 2026 logo refresh): the reference is now the refreshed mark
+on a white tile (branding/logo-refresh/source/build.py writes it), so the
+foreground keeps the mark's own navy + blue instead of flattening it to one
+tone. Legacy icons keep their transparent rounded corners (converting to RGB
+had been filling them black), and the Play Store icon is full-bleed white
+because Play applies its own corner mask.
 """
 import re
 
 import pymupdf
 from PIL import Image, ImageDraw
 
-REFERENCE_SVG = "assets/branding/arangcada_app_icon_organic.svg"
+REFERENCE_SVG = "assets/branding/arangcada_app_icon_original_colors.svg"
+FOREGROUND_SVG = "assets/branding/arangcada_icon_foreground_1024.svg"
 MONOCHROME_SVG = "assets/branding/arangcada_icon_monochrome_1024.svg"
-BG_HEX = "#1262D0"
-CREAM_HEX = "#F2F8FF"
+BG_HEX = "#FFFFFF"
+MONO_HEX = "#0F1A28"
 
 # Android adaptive icon geometry, in dp on the 108dp layer.
 LAYER_DP = 108.0
@@ -58,18 +66,24 @@ LEGACY_DENSITIES = {
 RES_DIR = "android/app/src/main/res"
 
 
+def make_foreground_reference():
+    """The reference composition without its tile, colours kept: the adaptive
+    foreground layer that sits on the white background colour."""
+    s = open(REFERENCE_SVG, encoding="utf-8").read()
+    s = re.sub(r"<rect[^>]*></rect>\s*", "", s, count=1)
+    open(FOREGROUND_SVG, "w", encoding="utf-8").write(s)
+
+
 def make_monochrome_reference():
-    """The same 1024x1024 composition with the background rect dropped and
-    the mark flattened to one light tone, so it reads against the Brand Blue
-    background layer. Position and scale are otherwise untouched -- the
-    two-tone original made the accent letterform nearly vanish once it shared
-    a hue with the background."""
+    """The same composition flattened to one tone: a one-colour master for
+    single-ink uses. Themed launcher icons don't need it -- Android tints the
+    foreground's alpha shape -- but it is kept in sync with the refresh."""
     s = open(REFERENCE_SVG, encoding="utf-8").read()
     s = re.sub(r"<rect[^>]*></rect>\s*", "", s, count=1)
     # Match whatever single fill the reference currently carries. Hardcoding
     # the old cream hex here meant the monochrome layer silently stopped being
     # rewritten the moment the brand palette moved.
-    s = re.sub(r'fill="#[0-9a-fA-F]{6}"', f'fill="{CREAM_HEX}"', s, count=1)
+    s = re.sub(r'fill="#[0-9a-fA-F]{6}"', f'fill="{MONO_HEX}"', s)
     open(MONOCHROME_SVG, "w", encoding="utf-8").write(s)
 
 
@@ -92,7 +106,7 @@ def render_svg(path, px):
 def safe_zone_scale():
     """How far the whole composition must shrink for the mark's bbox to fit
     the safe circle. Measured, not assumed."""
-    probe = render_svg(MONOCHROME_SVG, 1024)
+    probe = render_svg(FOREGROUND_SVG, 1024)
     bbox = probe.getchannel("A").getbbox()
     w, h = probe.size
     cx, cy = w / 2, h / 2
@@ -117,7 +131,7 @@ def foreground_layer(px, scale):
     composition, scaled about the centre so it clears the safe zone."""
     canvas = Image.new("RGBA", (px, px), (0, 0, 0, 0))
     inner_px = max(1, round(px * scale))
-    mark = render_svg(MONOCHROME_SVG, inner_px)
+    mark = render_svg(FOREGROUND_SVG, inner_px)
     offset = (px - inner_px) // 2
     canvas.alpha_composite(mark, (offset, offset))
     return canvas
@@ -127,7 +141,7 @@ def legacy_icon(px):
     """Pre-API-26 icons are shown as authored, with no adaptive mask, so
     the reference composition (rounded rect background included) is used
     whole -- no safe-zone inset needed or wanted."""
-    return render_svg(REFERENCE_SVG, px).convert("RGB")
+    return render_svg(REFERENCE_SVG, px)
 
 
 def mask_preview(px, scale, out_path):
@@ -150,6 +164,7 @@ def mask_preview(px, scale, out_path):
 
 
 def main():
+    make_foreground_reference()
     make_monochrome_reference()
     scale = safe_zone_scale()
 
@@ -165,7 +180,9 @@ def main():
         img.save(path)
         print("wrote", path, img.size)
 
-    store_icon = legacy_icon(512)
+    store_icon = Image.new("RGBA", (512, 512), hex_to_rgb(BG_HEX) + (255,))
+    store_icon.alpha_composite(render_svg(FOREGROUND_SVG, 512))  # no tile edge seam
+    store_icon = store_icon.convert("RGB")
     store_icon.save("assets/branding/play_store_icon_512.png")
     print("wrote assets/branding/play_store_icon_512.png", store_icon.size)
 

@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Adaptive icon (API 26+): a solid background color layer plus a
-  transparent-canvas foreground mark. The foreground is the designer's
-  own reference composition (assets/branding/arangcada_app_icon_organic.svg,
-  from the supplied "ArangCada Icon Organic" reference file) rendered at
-  its authored position and scale, not recentered by any safe-zone
-  calculation; an earlier version did that and threw off the mark's
-  intentional optical centering. See scripts/generate_android_icons.py
-  (repo root) for how the foreground PNGs were produced, including a
-  circular-mask check confirming this still survives a circular launcher
-  mask without clipping.
+  Adaptive icon (API 26+): a solid white background layer plus a
+  transparent-canvas foreground holding the refreshed two-colour mark
+  (assets/branding/arangcada_app_icon_original_colors.svg without its tile),
+  scaled about the centre so its bbox clears the 66dp safe circle. See
+  scripts/generate_android_icons.py (repo root) for how the PNGs are made,
+  including the inner-72dp circular mask check.
 
   A <monochrome> entry is included for Android 13+ themed icons. It reuses
   the same foreground artwork; the system extracts its alpha shape and
