@@ -340,16 +340,39 @@ main{overflow-x:clip}
 @media(prefers-reduced-motion:reduce){.site-header{transition:none}}
 @media print{.jump-button{display:none!important}}
 
-/* Account deletion page */
-.delete-page{max-width:720px;padding-top:56px;padding-bottom:88px}
-.delete-page h1{font-size:clamp(32px,3.5vw,44px);line-height:1.15;font-weight:500;margin:16px 0 20px}
-.delete-card{margin:28px 0;padding:24px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--radius)}
-.delete-card h2{margin:0 0 12px;font-size:22px;font-weight:500;color:var(--ink)}
-.delete-card label{display:block;margin:14px 0 6px;font-weight:600;color:var(--ink)}
-.delete-card input:not([type=checkbox]){box-sizing:border-box;width:100%;min-height:48px;padding:0 14px;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px}
-.delete-card .delete-confirm{display:flex;gap:10px;align-items:center;font-weight:500}
-.delete-card .delete-confirm input{width:20px;height:20px}
-.delete-button,:root[data-theme=dark] .delete-button{margin-top:18px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none}
+/* Account deletion page (reached only by typing the URL; noindex) */
+.delete-page{max-width:640px;padding-top:48px;padding-bottom:72px}
+.delete-page h1{font-size:clamp(30px,5vw,44px);line-height:1.15;font-weight:500;margin:14px 0}
+.delete-lead{margin:0;color:var(--muted);font-size:18px;line-height:1.55}
+.delete-card{margin:24px 0;padding:24px;background:var(--canvas);border:1px solid var(--line);border-radius:var(--radius)}
+.delete-card h2{margin:0 0 10px;font-size:20px;font-weight:500;color:var(--ink)}
+.delete-facts ul{margin:0 0 20px;padding-left:1.2em;line-height:1.6}
+.delete-facts li+li{margin-top:2px}
+.delete-facts p{margin:0 0 12px;line-height:1.6}
+.delete-note{font-size:15px;color:var(--muted)}
+.delete-card label{display:block;margin:16px 0 6px;font-weight:600;color:var(--ink)}
+.delete-card input:not([type=checkbox]){box-sizing:border-box;width:100%;min-height:50px;padding:0 14px;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.delete-card input:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.delete-password{position:relative}
+.delete-password input:not([type=checkbox]){padding-right:76px}
+.delete-password button{position:absolute;top:3px;right:3px;bottom:3px;min-width:64px;border:0;border-radius:9px;background:transparent;color:var(--blue);font:inherit;font-weight:600;cursor:pointer}
+.delete-card .delete-confirm{display:flex;gap:12px;align-items:flex-start;margin-top:20px;font-weight:500;line-height:1.4;cursor:pointer}
+.delete-card .delete-confirm input{flex:none;width:22px;height:22px;margin:0;accent-color:#b42318}
+.delete-button,:root[data-theme=dark] .delete-button{margin-top:20px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none;justify-content:center}
 .delete-button:hover{background:#912018}
 .delete-button:disabled{opacity:.6;cursor:progress}
-#delete-status{min-height:1.5em;margin:14px 0 0;color:var(--ink)}
+#delete-status{min-height:1.5em;margin:14px 0 0;line-height:1.45}
+#delete-status[data-tone=error]{color:#b42318}
+:root[data-theme=dark] #delete-status[data-tone=error]{color:#ff9b8f}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) #delete-status[data-tone=error]{color:#ff9b8f}}
+.delete-done{margin:0;font-size:18px;font-weight:500;color:var(--ink)}
+.delete-help{margin:0;color:var(--muted);font-size:15px;line-height:1.55}
+@media(max-width:760px){
+  /* Three short links: group them instead of spreading them edge to edge. */
+  .legal-page .site-nav{justify-content:flex-start;gap:4px;margin-left:-12px}
+  .legal-page .site-nav a{padding-inline:12px}
+  .delete-page{padding-top:28px;padding-bottom:56px}
+  .delete-lead{font-size:16px}
+  .delete-card{margin:20px -4px;padding:20px 18px}
+  .delete-button{width:100%;min-height:54px}
+}
