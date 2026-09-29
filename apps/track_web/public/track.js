@@ -19,6 +19,7 @@ const POLL_MS_BACKOFF = 30_000;
 const FAILURES_BEFORE_BACKOFF = 2;
 
 const cfg = window.ARANGCADA_CONFIG || {};
+const MAPLIBRE = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl';
 
 const el = (id) => document.getElementById(id);
 const show = (id) => el(id).classList.remove('hidden');
@@ -31,6 +32,7 @@ let consecutiveFailures = 0;
 let stopped = false;
 let hasRenderedOnce = false;
 let inFlight = false;
+let mapLibrary = null;
 
 const token = parseToken(window.location.pathname, window.location.search);
 
@@ -101,12 +103,10 @@ function renderActive(vm) {
     age.classList.toggle('warn', vm.positionIsStale);
   }
 
-  try {
-    updateMap(vm);
-  } catch (error) {
+  loadMapLibrary()
+    .then(() => updateMap(vm))
     // A blocked map CDN must not discard usable trip details.
-    console.error('track_web: map unavailable');
-  }
+    .catch(() => console.error('track_web: map unavailable'));
   hasRenderedOnce = true;
 }
 
@@ -118,6 +118,21 @@ function setRow(rowId, valueId, value) {
   } else {
     row.hidden = true;
   }
+}
+
+// MapLibre is ~850 KB. Only a live trip draws a map, so the landing and
+// expired pages never download it.
+function loadMapLibrary() {
+  if (!mapLibrary) {
+    const css = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `${MAPLIBRE}.css` });
+    const script = Object.assign(document.createElement('script'), { src: `${MAPLIBRE}.js` });
+    mapLibrary = Promise.all([css, script].map((node) => new Promise((resolve, reject) => {
+      node.onload = resolve;
+      node.onerror = reject;
+    })));
+    document.head.append(css, script);
+  }
+  return mapLibrary;
 }
 
 function updateMap(vm) {
@@ -134,18 +149,13 @@ function updateMap(vm) {
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-    if (vm.pickup) staticMarker(vm.pickup, 'marker-pickup', 'Pickup');
-    if (vm.destination) staticMarker(vm.destination, 'marker-destination', 'Destination');
+    if (vm.pickup) addMarker(vm.pickup, 'marker-pickup', 'Pickup');
+    if (vm.destination) addMarker(vm.destination, 'marker-destination', 'Destination');
   }
 
   if (vm.driver) {
     if (!driverMarker) {
-      const node = document.createElement('div');
-      node.className = 'marker-driver';
-      node.setAttribute('aria-label', 'Tricycle location');
-      driverMarker = new maplibregl.Marker({ element: node })
-        .setLngLat([vm.driver.lng, vm.driver.lat])
-        .addTo(map);
+      driverMarker = addMarker(vm.driver, 'marker-driver', 'Tricycle location');
     } else {
       driverMarker.setLngLat([vm.driver.lng, vm.driver.lat]);
     }
@@ -153,11 +163,14 @@ function updateMap(vm) {
   }
 }
 
-function staticMarker(point, className, label) {
+function addMarker(point, className, label) {
   const node = document.createElement('div');
   node.className = className;
+  node.setAttribute('role', 'img');
+  const marker = new maplibregl.Marker({ element: node }).setLngLat([point.lng, point.lat]).addTo(map);
+  // addTo() replaces any label with MapLibre's generic "Map marker".
   node.setAttribute('aria-label', label);
-  new maplibregl.Marker({ element: node }).setLngLat([point.lng, point.lat]).addTo(map);
+  return marker;
 }
 
 async function tick() {

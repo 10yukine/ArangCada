@@ -1,6 +1,6 @@
 /* Fredoka's variable file carries a width axis (75-125%) as well as weight;
    declaring the range lets headings use the semi-condensed cut on phones. */
-@font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-stretch:75% 125%;font-display:swap;src:local('Fredoka'),url('/assets/fonts/Fredoka-Variable.ttf') format('truetype')}
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-stretch:75% 125%;font-display:swap;src:local('Fredoka'),url('/assets/fonts/Fredoka-Latin.woff2') format('woff2')}
 
 /* Tokens. Action blue matches the mobile app (#1262D0). Royal and azure are
    the Calamba City blues -- used for brand moments only, never body text. */
@@ -273,7 +273,7 @@ h3{font-weight:600}
 .legal-content p,.legal-content li{font-size:17px;line-height:1.6}
 .legal-content li{margin-block:6px}
 .legal-content strong{color:var(--ink);font-weight:600}
-.legal-content .anchor{margin-left:10px;color:var(--blue);text-decoration:none;font-weight:500;opacity:0;transition:opacity .15s}
+.legal-content .anchor{display:inline-block;min-width:24px;text-align:center;margin-left:4px;color:var(--blue);text-decoration:none;font-weight:500;opacity:0;transition:opacity .15s}
 .legal-content h2:hover .anchor,.legal-content .anchor:focus-visible{opacity:1}
 .legal-content blockquote{margin:0 0 40px;padding:20px 0;border-block:1px solid var(--line);color:var(--body)}
 .legal-content blockquote p{font-size:15px;margin:0}
@@ -422,7 +422,9 @@ main{overflow-x:clip}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .field-error{--err:#ff9b8f}:root:not([data-theme=light]) .field-error::before{color:#2a0a08}:root:not([data-theme=light]) .field input[aria-invalid=true]+label{color:#ff9b8f}:root:not([data-theme=light]) .field input[aria-invalid=true]{border-color:#ff9b8f}}
 .delete-card .delete-confirm{display:flex;gap:12px;align-items:flex-start;margin-top:20px;font-weight:500;line-height:1.4;cursor:pointer}
 .delete-card .delete-confirm input{flex:none;width:22px;height:22px;margin:0;accent-color:#b42318}
-.delete-button,:root[data-theme=dark] .delete-button{margin-top:20px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none;justify-content:center}
+:root[data-theme=dark] .delete-button{color:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .delete-button{color:#fff}}
+.delete-button{margin-top:20px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none;justify-content:center}
 .delete-button:hover{background:#912018}
 .delete-button:disabled{opacity:.6;cursor:progress}
 #delete-status{min-height:1.5em;margin:14px 0 0;line-height:1.45}

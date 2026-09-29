@@ -29,7 +29,7 @@ HTML_TEMPLATE = """<!doctype html>
 <link rel="icon" href="/favicon.ico?v=20260930" sizes="any">
 <link rel="icon" href="/favicon.svg?v=20260930" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/site.css?v=20260930b">
+<link rel="stylesheet" href="/site.css?v=20260930d">
 
 <!-- Open Graph / Facebook / Messenger -->
 <meta property="og:type" content="article">
@@ -137,7 +137,7 @@ def convert(
         description=description,
         canonical_url=canonical_url,
         toc=renderer.toc,
-        body=body_html,
+        body=body_html.replace("<table>", '<table tabindex="0">'),
         heading=heading,
         summary=summary,
         kind=kind,
