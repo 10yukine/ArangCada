@@ -85,3 +85,9 @@ ArangCada builds on the open-source libraries and services listed in its
 component manifests. Map data is provided by OpenStreetMap contributors, with
 map and routing services supplied by the configured providers. Third-party
 licenses and required attribution remain applicable.
+
+## Name and logo
+
+The ArangCada logo is © 2026 Joshua Gabriel C. Adia. All rights reserved.
+No licence is granted to use the logo or the ArangCada name outside this
+project, including in forks or copies of this repository.
