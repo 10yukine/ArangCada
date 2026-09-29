@@ -263,6 +263,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final formKey = GlobalKey<FormState>();
   final email = TextEditingController();
   final password = TextEditingController();
+  final passwordFocus = FocusNode();
   bool obscure = true;
   bool submitting = false;
   String? signInError;
@@ -280,6 +281,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     email.dispose();
     password.dispose();
+    passwordFocus.dispose();
     super.dispose();
   }
 
@@ -306,13 +308,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) auth.value = session;
     } catch (_) {
       if (mounted) {
+        // Firefox: after a failed submit the browser's hidden login form keeps
+        // keyboard focus on a stale input, so the password field looked locked
+        // (no typing, no backspace) until a reload. Close that form without
+        // saving, then give the password field a fresh, real focus.
+        TextInput.finishAutofillContext(shouldSave: false);
         setState(
           () => signInError =
               'Unable to sign in. Check your credentials and try again.',
         );
       }
     } finally {
-      if (mounted) setState(() => submitting = false);
+      if (mounted) {
+        setState(() => submitting = false);
+        if (signInError != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            passwordFocus.requestFocus();
+            password.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: password.text.length,
+            );
+          });
+        }
+      }
     }
   }
 
@@ -461,6 +480,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             TextFormField(
                               errorBuilder: adminFieldError,
                               controller: password,
+                              focusNode: passwordFocus,
                               obscureText: obscure,
                               autofillHints: const [AutofillHints.password],
                               onFieldSubmitted: (_) => submit(),

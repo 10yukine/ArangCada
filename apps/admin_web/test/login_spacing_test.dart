@@ -1,8 +1,22 @@
+import 'package:arangcada_admin/admin_controller.dart';
 import 'package:arangcada_admin/main.dart';
+import 'package:arangcada_admin/models.dart';
+import 'package:arangcada_admin/supabase_admin_repository.dart';
 import 'package:arangcada_admin/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _NotAnAdmin extends Fake implements SupabaseAdminRepository {
+  @override
+  bool get hasSession => false;
+
+  @override
+  Future<AdminSession> signIn({
+    required String email,
+    required String password,
+  }) async => throw StateError('Administrator scope is not recognized.');
+}
 
 void main() {
   testWidgets('login branding has balanced margins and fits short windows', (
@@ -59,5 +73,46 @@ void main() {
     expect(emailError.bottom, lessThanOrEqualTo(password.top));
     expect(passwordError.top, greaterThan(password.top));
     expect(find.byIcon(Icons.error), findsNWidgets(2));
+  });
+
+  testWidgets('after a failed sign-in the password is focused and selected', (
+    tester,
+  ) async {
+    // Regression: in Firefox the field looked locked after a failed sign-in
+    // (keyboard focus stuck on the browser's stale login form).
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [adminRepositoryProvider.overrideWithValue(_NotAnAdmin())],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Email'),
+      'commuter@example.test',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Password'),
+      'Test-pass1',
+    );
+    await tester.tap(find.text('Open console'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unable to sign in. Check your credentials and try again.'),
+      findsOneWidget,
+    );
+    final field = tester.widget<EditableText>(
+      find.descendant(
+        of: find.widgetWithText(TextFormField, 'Password'),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(field.focusNode.hasFocus, isTrue);
+    expect(field.controller.selection.extentOffset, 'Test-pass1'.length);
+    expect(field.controller.selection.baseOffset, 0);
   });
 }

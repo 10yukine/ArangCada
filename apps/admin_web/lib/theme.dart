@@ -266,6 +266,12 @@ ThemeData adminTheme({Brightness brightness = Brightness.light}) {
       backgroundColor: surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
+    // The Material 3 date picker defaults to a 28 px corner; match the
+    // console's dialogs instead of looking rounder than everything around it.
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -6,14 +6,24 @@
 // message to Globe/Smart/Sun/DITO numbers.
 //
 // ============================================================================
-// TWO MODES. GET THIS RIGHT BEFORE THE PILOT.
+// THREE MODES. GET THIS RIGHT BEFORE THE PILOT.
 // ============================================================================
 //
-//   SMS_HOOK_MODE=stub             Sends nothing; logs no OTP.
 //   SMS_HOOK_MODE=live             Sends via Semaphore. Logs no code.
+//   SMS_HOOK_MODE=email            Emails the code to the account's own
+//                                  address instead (while the Semaphore sender
+//                                  name waits for telco approval). Testers can
+//                                  finish registration; note that this proves
+//                                  the email, not the phone number.
+//   SMS_HOOK_MODE=stub             Sends nothing; logs no OTP.
 //
-// Stub mode exists so the whole registration flow is testable without spending
-// credits or waiting on a sender-name approval.
+// The mode is a Supabase secret, so switching needs no app release:
+//   supabase secrets set SMS_HOOK_MODE=live
+//
+// Every mode first spends a permit from record_otp_send() (migration
+// 20260929030000), which is where the resend schedule lives: 60 s before the
+// first resend, 120 s before each later one, four codes per hour. A send the
+// app did not request through that schedule is refused here.
 //
 // An unset or unknown mode rejects delivery. Stub mode must be explicitly
 // selected for development and never records authentication codes.
@@ -65,6 +75,9 @@ const MODE = (Deno.env.get('SMS_HOOK_MODE') ?? 'disabled').toLowerCase()
 const HOOK_SECRET = Deno.env.get('SEND_SMS_HOOK_SECRET') ?? ''
 const SEMAPHORE_KEY = Deno.env.get('SEMAPHORE_API_KEY') ?? ''
 const SEMAPHORE_SENDER = Deno.env.get('SEMAPHORE_SENDER_NAME') ?? ''
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const SEMAPHORE_ENDPOINT =
   (Deno.env.get('SEMAPHORE_ENDPOINT') ?? 'priority').toLowerCase() === 'messages'
     ? 'messages'
@@ -76,8 +89,48 @@ interface HookPayload {
   // attaches a number via updateUser(phone:), which is the phone-CHANGE flow,
   // so for the verification that matters here `phone` is null and the number
   // lives in `new_phone` until the code is accepted.
-  user: { id: string; phone?: string; new_phone?: string }
+  user: { id: string; email?: string; phone?: string; new_phone?: string }
   sms: { otp: string }
+}
+
+const reject = (status: number, message: string) =>
+  new Response(JSON.stringify({ error: { http_code: status, message } }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+/** Spends the permit record_otp_send() issued for this user and number. */
+async function consumePermit(userId: string, phone: string): Promise<boolean> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/otp_consume_permit`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(10_000),
+    headers: {
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_user_id: userId, p_phone: phone }),
+  })
+  if (!res.ok) throw new Error(`permit check failed (HTTP ${res.status})`)
+  return (await res.json()) === true
+}
+
+async function sendViaEmail(to: string, otp: string): Promise<void> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    signal: AbortSignal.timeout(10_000),
+    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'ArangCada <services@info.arangcada.app>',
+      to: [to],
+      subject: `${otp} is your ArangCada verification code`,
+      text:
+        `${otp} is your ArangCada verification code. It expires in 10 minutes.\n\n` +
+        'During the beta, codes for new mobile numbers arrive by email while text ' +
+        'messages are being set up. Do not share this code with anyone.',
+    }),
+  })
+  if (!res.ok) throw new Error(`Resend HTTP ${res.status}`)
 }
 
 /** Last 4 digits only. Rule 10 forbids logging full phone numbers. */
@@ -196,7 +249,7 @@ Deno.serve(async (req) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
-  if (MODE !== 'live' && MODE !== 'stub') {
+  if (MODE !== 'live' && MODE !== 'stub' && MODE !== 'email') {
     console.error('send-sms-hook: SMS_HOOK_MODE must be explicitly configured')
     return new Response(JSON.stringify({ error: { message: 'SMS provider is not configured' } }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
@@ -205,10 +258,10 @@ Deno.serve(async (req) => {
 
   const body = await req.text()
 
-  // Signature is mandatory in live mode. In stub mode it is checked when a
-  // secret is configured and skipped when it is not, so a developer can curl
-  // the endpoint locally without ceremony.
-  if (MODE === 'live' || HOOK_SECRET) {
+  // Signature is mandatory whenever something is delivered. In stub mode it is
+  // checked when a secret is configured and skipped when it is not, so a
+  // developer can curl the endpoint locally without ceremony.
+  if (MODE !== 'stub' || HOOK_SECRET) {
     if (!verifySignature(body, req.headers)) {
       console.error('send-sms-hook: signature verification failed')
       return new Response(JSON.stringify({ error: { message: 'invalid signature' } }), {
@@ -250,6 +303,40 @@ Deno.serve(async (req) => {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
+  }
+
+  // The resend schedule. Fail closed: if the check cannot run, send nothing.
+  if (MODE !== 'stub' || SERVICE_ROLE_KEY) {
+    let permitted = false
+    try {
+      permitted = await consumePermit(payload.user.id, phone)
+    } catch (error) {
+      console.error(`send-sms-hook: ${(error as Error).message}`)
+      return reject(503, 'Could not send the code right now. Try again in a moment.')
+    }
+    if (!permitted) {
+      console.warn(`send-sms-hook: no permit for ${maskPhone(phone)}; not sent`)
+      return reject(429, 'Request a new code from the app and try again.')
+    }
+  }
+
+  if (MODE === 'email') {
+    const email = payload.user.email ?? ''
+    if (!RESEND_KEY || !/^[^\s@]+@[^\s@]+$/.test(email)) {
+      console.error('send-sms-hook: email mode needs RESEND_API_KEY and an account email')
+      return reject(500, 'Could not send the verification code')
+    }
+    try {
+      await sendViaEmail(email, otp)
+      console.log(`send-sms-hook: code for ${maskPhone(phone)} emailed to the account`)
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    } catch (error) {
+      console.error(`send-sms-hook: email send failed - ${(error as Error).message}`)
+      return reject(502, 'Could not send the verification code')
+    }
   }
 
   // Kept under 160 characters so it stays a single billable segment. It must

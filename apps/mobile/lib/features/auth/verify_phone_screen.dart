@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -48,14 +49,43 @@ class VerifyPhoneScreen extends ConsumerStatefulWidget {
   ConsumerState<VerifyPhoneScreen> createState() => _VerifyPhoneScreenState();
 }
 
+/// The server's resend schedule for a number (see record_otp_send and
+/// otp_resend_status): seconds until another code may be sent, and how many
+/// of the four codes per hour are left. Null when it cannot be read (demo
+/// accounts, no connection); the screen then keeps its own count.
+typedef OtpResendStatus = ({int waitSeconds, int sendsLeft});
+
+final otpResendStatusProvider =
+    Provider<Future<OtpResendStatus?> Function(String)>(
+      (ref) => (phone) async {
+        try {
+          final result = await Supabase.instance.client.rpc(
+            'otp_resend_status',
+            params: {'p_phone': phone},
+          );
+          if (result is! Map) return null;
+          return (
+            waitSeconds: (result['wait_seconds'] as num).toInt(),
+            sendsLeft: (result['sends_left'] as num).toInt(),
+          );
+        } catch (_) {
+          return null;
+        }
+      },
+    );
+
 class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     with SingleTickerProviderStateMixin {
   static const _codeLength = 6;
 
-  /// Matches `record_otp_send()`'s 60-second server-side rule. The countdown is
-  /// a courtesy so the user is not invited to press a button that will be
-  /// refused; it is not the throttle itself.
-  static const _resendCooldown = Duration(seconds: 60);
+  /// Mirrors the server schedule (60 s before the first resend, 120 s before
+  /// each later one, four codes an hour) until the server's own numbers
+  /// arrive. The countdown is a courtesy; the server is the throttle.
+  static const _firstCooldown = 60;
+  static const _laterCooldown = 120;
+  static const _codesPerHour = 4;
+  int _codesSent = 1;
+  int _sendsLeft = _codesPerHour - 1;
 
   final _pinController = TextEditingController();
   final _pinFocus = FocusNode();
@@ -110,8 +140,26 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
   }
 
   void _startCooldown() {
+    final local = _codesSent <= 1 ? _firstCooldown : _laterCooldown;
+    _runCountdown(local);
+    unawaited(_syncWithServer());
+  }
+
+  /// Replaces the local guess with the server's schedule when it can be read,
+  /// so reopening this screen or a code sent elsewhere shows the real wait.
+  Future<void> _syncWithServer() async {
+    final phone = _phone;
+    if (phone == null) return;
+    final status = await ref.read(otpResendStatusProvider)(phone);
+    if (!mounted || status == null) return;
+    _sendsLeft = status.sendsLeft;
+    _runCountdown(status.waitSeconds);
+  }
+
+  void _runCountdown(int seconds) {
     _cooldownTimer?.cancel();
-    setState(() => _secondsLeft = _resendCooldown.inSeconds);
+    setState(() => _secondsLeft = seconds);
+    if (seconds <= 0) return;
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -171,6 +219,8 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     try {
       await ref.read(authRepositoryProvider).sendPhoneOtp(phone);
       if (!mounted) return;
+      _codesSent += 1;
+      _sendsLeft = math.max(0, _sendsLeft - 1);
       setState(() => _notice = 'A new code is on its way.');
       _startCooldown();
     } on DemoAuthException catch (error) {
@@ -432,7 +482,12 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                             ),
                             if (_secondsLeft > 0)
                               Text(
-                                'Resend code in ${_secondsLeft}s',
+                                _sendsLeft == 0
+                                    ? 'No more codes for now. Try again in '
+                                          '${(_secondsLeft / 60).ceil()} min'
+                                    : 'Resend code in '
+                                          '${_secondsLeft ~/ 60}:'
+                                          '${(_secondsLeft % 60).toString().padLeft(2, '0')}',
                                 style: AppTypography.bodySm.copyWith(
                                   color: AppColors.textMuted,
                                   fontFeatures: const [

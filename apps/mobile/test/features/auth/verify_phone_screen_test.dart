@@ -84,8 +84,7 @@ class _FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> updatePassword(String newPassword) =>
-      throw UnimplementedError();
+  Future<void> updatePassword(String newPassword) => throw UnimplementedError();
 
   @override
   Future<DemoUser> updateEmail(String newEmail) => throw UnimplementedError();
@@ -139,10 +138,11 @@ void main() {
 
   tearDown(() => state.dispose());
 
-  Widget harness() => ProviderScope(
+  Widget harness({OtpResendStatus? server}) => ProviderScope(
     overrides: [
       demoStateProvider.overrideWithValue(state),
       authRepositoryProvider.overrideWithValue(auth),
+      otpResendStatusProvider.overrideWithValue((_) async => server),
     ],
     // A real router, not MaterialApp(home:). "Go Back" navigates, and a bare
     // home widget has no GoRouter in context for it to navigate with -- the
@@ -272,31 +272,32 @@ void main() {
     expect(find.byIcon(Icons.content_paste_outlined), findsNothing);
   });
 
-  testWidgets('offers a way back so a mistyped number cannot strand the account', (
-    tester,
-  ) async {
-    await tester.pumpWidget(harness());
-    await tester.pump();
+  testWidgets(
+    'offers a way back so a mistyped number cannot strand the account',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pump();
 
-    // "Sign out" was the old label. It described the mechanism rather than the
-    // intent, and pointed at a login screen the user has no account for yet.
-    expect(find.text('Sign out'), findsNothing);
-    expect(find.text('Cancel sign-up'), findsOneWidget);
+      // "Sign out" was the old label. It described the mechanism rather than the
+      // intent, and pointed at a login screen the user has no account for yet.
+      expect(find.text('Sign out'), findsNothing);
+      expect(find.text('Cancel sign-up'), findsOneWidget);
 
-    await tester.tap(find.text('Cancel sign-up'));
-    await tester.pump();
-    await tester.pump();
+      await tester.tap(find.text('Cancel sign-up'));
+      await tester.pump();
+      await tester.pump();
 
-    // The session must end, or the router's verification gate redirects
-    // straight back to this screen.
-    expect(state.currentUser, isNull);
-    expect(find.text('signup form'), findsOneWidget);
+      // The session must end, or the router's verification gate redirects
+      // straight back to this screen.
+      expect(state.currentUser, isNull);
+      expect(find.text('signup form'), findsOneWidget);
 
-    // And the half-made account must be deleted, not merely signed out of.
-    // Leaving it behind is what locked a user out of their own email address
-    // after mistyping their number.
-    expect(auth.abandonCalls, 1);
-  });
+      // And the half-made account must be deleted, not merely signed out of.
+      // Leaving it behind is what locked a user out of their own email address
+      // after mistyping their number.
+      expect(auth.abandonCalls, 1);
+    },
+  );
 
   testWidgets('wrong number opens phone setup and keeps the account', (
     tester,
@@ -311,5 +312,27 @@ void main() {
     expect(find.text('change number'), findsOneWidget);
     expect(state.currentUser, isNotNull);
     expect(auth.abandonCalls, 0);
+  });
+
+  testWidgets('the countdown follows the server schedule', (tester) async {
+    await tester.pumpWidget(harness(server: (waitSeconds: 95, sendsLeft: 2)));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Resend code in 1:35'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Resend code in 1:34'), findsOneWidget);
+  });
+
+  testWidgets('after the fourth code it says when codes return', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness(server: (waitSeconds: 1790, sendsLeft: 0)));
+    await tester.pump();
+    await tester.pump();
+    expect(
+      find.text('No more codes for now. Try again in 30 min'),
+      findsOneWidget,
+    );
+    expect(find.text('Resend code'), findsNothing);
   });
 }
