@@ -109,3 +109,6 @@ apps/track_web/public/config.js
 
 # Local agent notes (kept on the owner's machine only)
 /AGENTS.md
+
+__pycache__/
+*.pyc
