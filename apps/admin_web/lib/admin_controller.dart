@@ -577,6 +577,17 @@ class AdminController extends Notifier<AdminState> {
     if (session != null) await refreshAdminAccounts(session);
   }
 
+  Future<void> removeAdmin(String adminId) async {
+    if (!state.connected) {
+      throw StateError(
+        'Removing an administrator requires the live Supabase connection.',
+      );
+    }
+    await ref.read(adminRepositoryProvider)!.removeAdmin(adminId);
+    final session = _connectedSession;
+    if (session != null) await refreshAdminAccounts(session);
+  }
+
   /// Thin pass-throughs for the public accept-invite screen, which runs
   /// before any admin session exists -- no state to refresh, same
   /// rejected-Future-not-a-throw shape as driverDocumentPhotoUrl above.

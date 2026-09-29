@@ -122,13 +122,13 @@ class _AdminsScreenState extends ConsumerState<AdminsScreen> {
   }
 }
 
-class _AdminAccountList extends StatelessWidget {
+class _AdminAccountList extends ConsumerWidget {
   const _AdminAccountList({required this.title, required this.accounts});
   final String title;
   final List<AdminAccount> accounts;
 
   @override
-  Widget build(BuildContext context) => Panel(
+  Widget build(BuildContext context, WidgetRef ref) => Panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -140,33 +140,98 @@ class _AdminAccountList extends StatelessWidget {
           for (final account in accounts)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    account.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(
-                    account.toda == null
-                        ? account.email
-                        : '${account.email} -- ${account.toda}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  Text(
-                    account.invitedByName == null
-                        ? 'Pre-existing account (not invited)'
-                        : 'Invited by ${account.invitedByName}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adminColor(AdminColors.muted),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          account.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          account.toda == null
+                              ? account.email
+                              : '${account.email} -- ${account.toda}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          account.invitedByName == null
+                              ? 'Pre-existing account (not invited)'
+                              : 'Invited by ${account.invitedByName}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: context.adminColor(AdminColors.muted),
+                              ),
+                        ),
+                      ],
                     ),
                   ),
+                  // Nobody removes themselves, so an LGU admin always remains.
+                  if (account.id != auth.value?.userId)
+                    TextButton(
+                      onPressed: () => _remove(context, ref, account),
+                      child: const Text('Remove'),
+                    ),
                 ],
               ),
             ),
       ],
     ),
   );
+
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    AdminAccount account,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remove ${account.name}?'),
+        content: const SizedBox(
+          width: 420,
+          child: Text(
+            'They lose access to the admin console right away and their '
+            'pending invites stop working. Their account stays as an ordinary '
+            'ArangCada account, which they can delete from the app.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remove administrator'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref.read(adminProvider.notifier).removeAdmin(account.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${account.name} is no longer an administrator.'),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is StateError
+                ? error.message
+                : 'This administrator could not be removed.',
+          ),
+        ),
+      );
+    }
+  }
 }
 
 class _PendingInvitesPanel extends ConsumerWidget {

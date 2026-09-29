@@ -356,6 +356,7 @@ main{overflow-x:clip}
 .delete-password{position:relative}
 .delete-password input:not([type=checkbox]){padding-right:76px}
 .delete-password button{position:absolute;top:3px;right:3px;bottom:3px;min-width:64px;border:0;border-radius:9px;background:transparent;color:var(--blue);font:inherit;font-weight:600;cursor:pointer}
+.delete-check{margin-top:20px;min-height:65px}
 .delete-card .delete-confirm{display:flex;gap:12px;align-items:flex-start;margin-top:20px;font-weight:500;line-height:1.4;cursor:pointer}
 .delete-card .delete-confirm input{flex:none;width:22px;height:22px;margin:0;accent-color:#b42318}
 .delete-button,:root[data-theme=dark] .delete-button{margin-top:20px;border:0;cursor:pointer;color:#fff;background:#b42318;box-shadow:none;justify-content:center}

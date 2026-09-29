@@ -4,7 +4,7 @@
 <title>ArangCada — Delete your account</title>
 <meta name="description" content="Delete your ArangCada account and personal data, in the app or on this page.">
 <meta name="theme-color" content="#1262D0">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="strict-origin">
 <meta name="robots" content="noindex">
 <link rel="canonical" href="https://arangcada.app/delete-account">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/site.css?v=20260929b">
 <script src="/appearance.js"></script>
 <script src="/mobile-nav.js" defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head><body class="legal-page">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header"><div class="wrap header-row">
@@ -36,7 +37,7 @@
 </ul>
 <h2>Kept without your name</h2>
 <p>Past trips, ratings, complaints and SOS reports, for the periods in our <a href="/policy#8-how-long-we-keep-it">Privacy Policy</a>. They can no longer be linked to you.</p>
-<p class="delete-note">You can’t delete during a ride. Administrator accounts are removed from the admin console.</p>
+<p class="delete-note">You can’t delete during a ride. Administrators need an LGU administrator to remove their admin access first.</p>
 </section>
 
 <form class="delete-card" id="delete-form" novalidate>
@@ -48,6 +49,7 @@
 <input id="password" name="password" type="password" autocomplete="current-password" enterkeyhint="done" required>
 <button type="button" id="show-password" aria-controls="password" aria-pressed="false">Show</button>
 </div>
+<div class="cf-turnstile delete-check" data-sitekey="0x4AAAAAAFIj6IpYAO3n37zx" data-theme="auto" data-size="flexible" data-action="delete-account"></div>
 <label class="delete-confirm"><input id="confirm" type="checkbox" required> <span>I understand this can’t be undone.</span></label>
 <button class="button delete-button" id="delete-button" type="submit">Delete my account</button>
 <p id="delete-status" role="status" aria-live="polite"></p>
@@ -74,13 +76,15 @@
     const password = form.password.value;
     if (!identifier || !password) return void say('Enter your email or mobile number and your password.');
     if (!form.confirm.checked) return void say('Tick the box to confirm.');
+    const turnstile = form.querySelector('[name="cf-turnstile-response"]')?.value;
+    if (!turnstile) return void say('Wait for the security check to finish, then try again.');
     button.disabled = true;
     say('Deleting your account…', 'info');
     try {
       const response = await fetch('https://zzcqyhtizvkuhrpfneth.supabase.co/functions/v1/account-deletion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier, password, turnstile }),
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) {
@@ -92,6 +96,7 @@
       say('Could not reach ArangCada. Check your connection and try again.');
     }
     form.password.value = '';
+    window.turnstile?.reset();
     button.disabled = false;
   });
 })();

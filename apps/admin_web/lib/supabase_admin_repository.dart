@@ -833,6 +833,20 @@ class SupabaseAdminRepository {
     await client.rpc('admin_revoke_invite', params: {'p_invite_id': inviteId});
   }
 
+  /// Turns another administrator back into an ordinary account (LGU only;
+  /// never the caller). See admin_remove_admin (20260929020000).
+  Future<void> removeAdmin(String adminId) async {
+    try {
+      await client.rpc('admin_remove_admin', params: {'p_admin_id': adminId});
+    } on PostgrestException catch (error) {
+      throw StateError(
+        error.code == '22023'
+            ? error.message
+            : 'This administrator could not be removed.',
+      );
+    }
+  }
+
   /// Resolves an invite token to its locked email for the public accept
   /// page. Called with the anon key -- no session exists yet.
   Future<String> lookupAdminInvite(String token) async {

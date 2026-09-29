@@ -44,7 +44,12 @@ class _AdminAccountsFixtureController extends AdminController {
     ],
     todaZoneOptions: const [('zone-1', 'Calamba Poblacion TODA')],
   );
+
+  @override
+  Future<void> removeAdmin(String adminId) async => removed.add(adminId);
 }
+
+final removed = <String>[];
 
 void main() {
   tearDown(() {
@@ -58,6 +63,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     auth.value = AdminSession(
+      userId: role == AdminRole.lgu ? 'admin-lgu-1' : null,
       name: role == AdminRole.lgu ? 'LGU evaluator' : 'TODA officer',
       role: role,
       toda: role == AdminRole.toda ? 'Calamba Poblacion TODA' : null,
@@ -92,6 +98,24 @@ void main() {
     expect(find.text('Mico Santos'), findsOneWidget);
     expect(
       find.text('toda.officer@example.test -- Calamba Poblacion TODA'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('LGU can remove another admin, never themselves', (tester) async {
+    removed.clear();
+    await openAdminsScreen(tester, role: AdminRole.lgu);
+
+    // Signed in as Lian (admin-lgu-1): only Mico has a Remove action.
+    expect(find.text('Remove'), findsOneWidget);
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove Mico Santos?'), findsOneWidget);
+    await tester.tap(find.text('Remove administrator'));
+    await tester.pumpAndSettle();
+    expect(removed, ['admin-toda-1']);
+    expect(
+      find.text('Mico Santos is no longer an administrator.'),
       findsOneWidget,
     );
   });
