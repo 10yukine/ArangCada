@@ -10,6 +10,11 @@ with a web administration console and a browser-based ride-tracking page.
 > **Beta / internal testing.** This is a self-funded project intended for donation
 > to Calamba City. It is not presented as a City Hall-sponsored or production-ready service.
 
+## Download
+
+Android test builds are published under [Releases](https://github.com/KumaYuki1/ArangCada/releases)
+and on the [project website](https://arangcada.app/download).
+
 ## What it does
 
 | For | Capabilities |
@@ -23,9 +28,8 @@ The booking flow focuses on **Espesyal (special) trips for 1–4 passengers** in
 Calamba. Fare calculation follows the project's documented local fare matrix;
 road-routing results support the map and arrival estimates.
 
-**Payments:** cash is the beta payment method. Full wallet and digital-payment
-implementation is pending; no payment provider is connected and simulated
-balances do not represent real funds.
+**Payments:** cash only. Digital payments are not part of the beta, and no
+payment provider is connected.
 
 ## How it is built
 
