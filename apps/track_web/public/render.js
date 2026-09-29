@@ -70,10 +70,8 @@ export function statusTone(status) {
  * it tells the viewer how much to trust the dot on the map.
  */
 export function timeAgo(isoTimestamp, now = Date.now()) {
-  if (!isoTimestamp) return 'no location yet';
-
   const then = Date.parse(isoTimestamp);
-  if (Number.isNaN(then)) return 'no location yet';
+  if (!isoTimestamp || Number.isNaN(then)) return 'no location yet';
 
   const seconds = Math.floor((now - then) / 1000);
   if (seconds < 0) return 'just now';
