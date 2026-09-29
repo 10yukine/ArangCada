@@ -56,46 +56,6 @@ flows use simulated data and do not demonstrate a live backend connection.
 | [`supabase`](supabase) | Database migrations, Edge Functions and database tests |
 | [`scripts`](scripts) | Setup and verification utilities |
 
-## Run the mobile app
-
-Install Flutter with the Dart version required by
-[`pubspec.yaml`](apps/mobile/pubspec.yaml), and configure an Android device or emulator.
-
-```sh
-cd apps/mobile
-flutter pub get
-```
-
-Copy [`env.json.example`](apps/mobile/env.json.example) to `env.json` and enter
-your own service configuration. For Android push notifications, add your Firebase
-project's `google-services.json` at `android/app/google-services.json`.
-Connected operation also requires a Supabase project provisioned with the
-repository's migrations and matching server-side configuration.
-
-```sh
-flutter run --dart-define-from-file=env.json
-```
-
-See the component guides for further setup:
-[mobile](apps/mobile/README.md) · [admin](apps/admin_web/README.md) ·
-[tracking](apps/track_web/README.md) · [public pages](apps/web/README.md).
-
-Each web app’s `wrangler.jsonc` defines its Cloudflare Workers hosting configuration.
-
-## Verify changes
-
-From the affected Flutter app directory:
-
-```sh
-flutter analyze
-flutter test
-```
-
-For the tracking page, run `npm test` from `apps/track_web`.
-Database checks live in `supabase/tests`; inspect `scripts/run_db_tests.sh`
-before use because it rebuilds its target database. Run it only against an
-explicitly selected disposable local database.
-
 ## Configuration and handover
 
 Recipients must provide their **own service accounts, API keys, billing,
