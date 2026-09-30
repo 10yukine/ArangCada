@@ -74,25 +74,32 @@ class _DestinationSearchScreenState
   }
 
   Future<void> _search(String query, int token) async {
+    final local = landmarkMatches(query);
     try {
       final places = await ref.read(geocodingRepositoryProvider).search(query);
       if (!mounted || token != _searchToken) return;
       final internalTester =
           ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+      final localNames = {for (final place in local) place.name.toLowerCase()};
       setState(() {
-        _results = places.where((place) {
-          return ServiceArea.contains(
-            place.coordinate,
-            allowCabuyaoTestException: internalTester,
-          );
-        }).toList();
+        _results = [
+          ...local,
+          ...places.where((place) {
+            return !localNames.contains(place.name.toLowerCase()) &&
+                ServiceArea.contains(
+                  place.coordinate,
+                  allowCabuyaoTestException: internalTester,
+                );
+          }),
+        ];
         _error = null;
         _searching = false;
       });
     } on ApiException catch (error) {
       if (!mounted || token != _searchToken) return;
       setState(() {
-        _error = error.message;
+        _results = local;
+        _error = local.isEmpty ? error.message : null;
         _searching = false;
       });
     }
@@ -446,4 +453,22 @@ class _Message extends StatelessWidget {
       ),
     );
   }
+}
+
+/// MapTiler misses some Calamba landmarks (NU Laguna, for one), so the
+/// curated list is searched too. Every typed word must appear somewhere in
+/// the name or address.
+List<GeocodedPlace> landmarkMatches(String query) {
+  final words = query.toLowerCase().split(RegExp(r'\s+'))
+    ..removeWhere((word) => word.isEmpty);
+  return [
+    for (final place in DemoData.places)
+      if (words.every('${place.name} ${place.address}'.toLowerCase().contains))
+        GeocodedPlace(
+          id: place.id,
+          name: place.name,
+          context: place.address,
+          coordinate: place.coordinate,
+        ),
+  ];
 }

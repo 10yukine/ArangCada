@@ -50,4 +50,15 @@ void main() {
     expect(find.text('Choose on map').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  test('landmarks MapTiler misses are still found by any name', () {
+    for (final query in ['NU Laguna', 'national university', 'nu-l']) {
+      expect(
+        landmarkMatches(query).map((place) => place.name),
+        contains('National University Laguna'),
+        reason: query,
+      );
+    }
+    expect(landmarkMatches('nowhere at all'), isEmpty);
+  });
 }

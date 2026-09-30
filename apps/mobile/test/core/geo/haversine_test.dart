@@ -13,13 +13,13 @@ void main() {
     );
   });
 
-  test('seeded City Hall route demonstrates a 3-6 km fare band', () {
-    final cityHall = DemoData.places.firstWhere(
-      (place) => place.id == 'calamba-city-hall',
+  test('seeded NU Laguna route demonstrates a 3-6 km fare band', () {
+    final nuLaguna = DemoData.places.firstWhere(
+      (place) => place.id == 'nu-laguna',
     );
     final distance = haversineDistanceMeters(
       DemoData.calambaCrossing.coordinate,
-      cityHall.coordinate,
+      nuLaguna.coordinate,
     );
     expect(distance, inInclusiveRange(3000, 6000));
   });

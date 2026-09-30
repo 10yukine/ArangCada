@@ -42,6 +42,15 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
   /// Dasmarinas in Cavite (120.94 E) dominate a search for "Robinsons".
   static const String _bbox = '121.00,14.10,121.35,14.35';
 
+  /// MapTiler labels some roads by route number. Pins on the national
+  /// highway read "Route 1" otherwise, which nobody in Calamba calls it.
+  static const Map<String, String> _roadNames = {
+    'Route 1': 'Maharlika Highway',
+  };
+
+  /// A named place this close to a dropped pin is what the pin means.
+  static const double _poiSnapMeters = 60;
+
   final Map<String, List<GeocodedPlace>> _cache = {};
   int _requestSeq = 0;
 
@@ -58,17 +67,18 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
     final cached = _cache[cacheKey];
     if (cached != null) return cached;
 
-    final uri = Uri.parse(
-      'https://api.maptiler.com/geocoding/${Uri.encodeComponent(trimmed)}.json',
-    ).replace(
-      queryParameters: {
-        'key': AppConfig.mapTilerKey,
-        'proximity': '${_calamba.longitude},${_calamba.latitude}',
-        'bbox': _bbox,
-        'country': 'ph',
-        'limit': '8',
-      },
-    );
+    final uri =
+        Uri.parse(
+          'https://api.maptiler.com/geocoding/${Uri.encodeComponent(trimmed)}.json',
+        ).replace(
+          queryParameters: {
+            'key': AppConfig.mapTilerKey,
+            'proximity': '${_calamba.longitude},${_calamba.latitude}',
+            'bbox': _bbox,
+            'country': 'ph',
+            'limit': '8',
+          },
+        );
 
     late http.Response response;
     try {
@@ -104,12 +114,42 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
   @override
   Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async {
     if (!AppConfig.isMapTilerConfigured) return null;
+    // The plain lookup answers with the nearest street; a POI lookup finds a
+    // named place, which reads far better on the booking screen when the pin
+    // is actually on it.
+    final results = await Future.wait([
+      _reverse(coordinate, const {}),
+      _reverse(coordinate, const {'types': 'poi'}),
+    ]);
+    final street = results[0];
+    final poi = results[1];
+    if (poi != null &&
+        RegExp('[A-Za-z]{2}').hasMatch(poi.name) &&
+        haversineDistanceMeters(coordinate, poi.coordinate) <= _poiSnapMeters) {
+      return GeocodedPlace(
+        id: poi.id,
+        name: poi.name,
+        context: street?.name ?? poi.context,
+        coordinate: coordinate,
+      );
+    }
+    return street;
+  }
+
+  Future<GeocodedPlace?> _reverse(
+    GeoCoordinate coordinate,
+    Map<String, String> extra,
+  ) async {
     final uri =
         Uri.parse(
           'https://api.maptiler.com/geocoding/'
           '${coordinate.longitude},${coordinate.latitude}.json',
         ).replace(
-          queryParameters: {'key': AppConfig.mapTilerKey, 'limit': '1'},
+          queryParameters: {
+            'key': AppConfig.mapTilerKey,
+            'limit': '1',
+            ...extra,
+          },
         );
 
     try {
@@ -135,17 +175,18 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
         final center = feature['center'] as List<dynamic>?;
         if (center == null || center.length < 2) continue;
 
-        final name =
+        final rawName =
             (feature['text'] as String?) ??
             (feature['place_name'] as String?) ??
             'Unknown place';
+        final name = _roadNames[rawName] ?? rawName;
 
-        final placeName = (feature['place_name'] as String?) ?? name;
+        final placeName = (feature['place_name'] as String?) ?? rawName;
         // "SM City Calamba, Real, Calamba, Laguna" -> drop the leading name
         // so the row reads name over locality rather than repeating itself.
         var context = placeName;
-        if (context.toLowerCase().startsWith(name.toLowerCase())) {
-          context = context.substring(name.length);
+        if (context.toLowerCase().startsWith(rawName.toLowerCase())) {
+          context = context.substring(rawName.length);
         }
         context = context.replaceFirst(RegExp(r'^[,\s]+'), '');
 

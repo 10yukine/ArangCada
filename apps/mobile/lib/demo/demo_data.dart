@@ -46,8 +46,8 @@ abstract final class DemoData {
     DemoPlace(
       id: 'calamba-city-hall',
       name: 'Calamba City Hall',
-      address: 'Chipeco Avenue, Barangay Real, Calamba City',
-      coordinate: GeoCoordinate(latitude: 14.1875, longitude: 121.1250),
+      address: 'Chipeco Avenue Extension, Barangay Real, Calamba City',
+      coordinate: GeoCoordinate(latitude: 14.1941, longitude: 121.1597),
     ),
     DemoPlace(
       id: 'rizal-shrine',
@@ -59,7 +59,14 @@ abstract final class DemoData {
       id: 'sm-city-calamba',
       name: 'SM City Calamba',
       address: 'National Highway, Barangay Real, Calamba City',
-      coordinate: GeoCoordinate(latitude: 14.2074, longitude: 121.1556),
+      coordinate: GeoCoordinate(latitude: 14.2031, longitude: 121.1550),
+    ),
+    // MapTiler's search does not index this one; the local list covers it.
+    DemoPlace(
+      id: 'nu-laguna',
+      name: 'National University Laguna',
+      address: 'NU-L · KM 53 Maharlika Highway, Milagrosa, Calamba City',
+      coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
     ),
     DemoPlace(
       id: 'canlubang-plaza',
