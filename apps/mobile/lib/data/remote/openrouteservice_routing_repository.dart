@@ -172,6 +172,10 @@ class OpenRouteServiceRoutingRepository implements RoutingRepository {
                 [from.longitude, from.latitude],
                 [to.longitude, to.latitude],
               ],
+              // Same rule as Google Routes: tricycles cannot use tollways.
+              'options': {
+                'avoid_features': ['tollways'],
+              },
             }),
           )
           .timeout(_timeout);

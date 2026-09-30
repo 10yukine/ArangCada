@@ -35,14 +35,15 @@ class GoogleRoutesConfig {
   static const String fieldMask =
       'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline';
 
-  /// DRIVE is used rather than TWO_WHEELER: Google restricts TWO_WHEELER
-  /// to a short list of countries and the Philippines was NOT confirmed to
-  /// be one of them at the time this was written -- verify at
-  /// https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes
-  /// before ever switching this. DRIVE follows the same road network a
-  /// tricycle actually uses and, unlike ORS, Google's road graph has far
-  /// better unnamed-road/alley/barangay-road coverage in Calamba, which is
-  /// the whole reason this integration exists.
+  /// DRIVE is used rather than TWO_WHEELER. The Philippines does support
+  /// TWO_WHEELER (checked 2026-09-30), but two-wheeled routing is billed as
+  /// Compute Routes Enterprise ($15/1000, 1,000 free a month) instead of
+  /// Essentials ($5/1000, 10,000 free). Tolled expressways are excluded with
+  /// `routeModifiers.avoidTolls` instead, which keeps Essentials pricing.
+  /// Otherwise DRIVE follows the same road network a tricycle uses and,
+  /// unlike ORS, Google's road graph has far better unnamed-road/alley/
+  /// barangay-road coverage in Calamba, which is the whole reason this
+  /// integration exists.
   static const String travelMode = 'DRIVE';
 
   static String get apiKey => AppConfig.googleRoutesApiKey;

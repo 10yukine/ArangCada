@@ -165,6 +165,9 @@ class GoogleRoutesRoutingRepository implements RoutingRepository {
                 },
               },
               'travelMode': GoogleRoutesConfig.travelMode,
+              // Tricycles cannot use SLEX/CALAX. Avoiding tolls is not a
+              // billing trigger, so this stays on Routes Essentials.
+              'routeModifiers': {'avoidTolls': true},
               'polylineQuality': 'OVERVIEW',
             }),
           )

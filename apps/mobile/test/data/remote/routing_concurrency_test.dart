@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/data/remote/fallback_routing_repository.dart';
 import 'package:arangcada/data/remote/google_routes_routing_repository.dart';
@@ -42,6 +43,37 @@ void main() {
           const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
     );
   }
+
+  test(
+    'both providers ask for toll-free routes; tricycles cannot use SLEX',
+    () async {
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('{}', 500);
+      });
+      addTearDown(client.close);
+      const from = GeoCoordinate(latitude: 14.2, longitude: 121.1);
+      const to = GeoCoordinate(latitude: 14.3, longitude: 121.2);
+
+      await GoogleRoutesRoutingRepository(
+        client: client,
+      ).route(from: from, to: to);
+      await OpenRouteServiceRoutingRepository(
+        client: client,
+      ).route(from: from, to: to);
+
+      expect(bodies[0]['routeModifiers'], {'avoidTolls': true});
+      // TWO_WHEELER would bill every route as Compute Routes Enterprise.
+      expect(bodies[0]['travelMode'], 'DRIVE');
+      expect(bodies[1]['options'], {
+        'avoid_features': ['tollways'],
+      });
+    },
+    skip:
+        const String.fromEnvironment('ORS_API_KEY').isEmpty ||
+        const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
+  );
 
   test(
     'Google over its daily quota hands routes to the free provider',
