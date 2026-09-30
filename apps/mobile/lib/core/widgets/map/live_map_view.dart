@@ -554,7 +554,6 @@ class _LiveMapViewState extends State<LiveMapView> {
 
   Widget _googleMap() {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncGoogleInset());
-    final ratio = MediaQuery.devicePixelRatioOf(context);
     return gm.GoogleMap(
       initialCameraPosition: gm.CameraPosition(
         target: gm.LatLng(widget.center.latitude, widget.center.longitude),
@@ -619,8 +618,9 @@ class _LiveMapViewState extends State<LiveMapView> {
             color: const Color(
               0xFF1262D0,
             ).withValues(alpha: widget.routeIsFallback ? 0.55 : 0.95),
-            // Android draws polyline width in physical pixels.
-            width: (5 * ratio).round(),
+            // Logical pixels, like MapLibre's lineWidth: the plugin applies
+            // the screen density itself.
+            width: 5,
           ),
       },
       markers: {
