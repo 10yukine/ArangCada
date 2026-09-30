@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -17,6 +18,17 @@ val keyProperties = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
+
+// GOOGLE_MAPS_API_KEY from --dart-define(-from-file), which Flutter hands to
+// Gradle as comma-separated base64 "KEY=value" entries. The Maps SDK only
+// reads its key from the manifest. Blank means the app keeps MapLibre.
+val googleMapsApiKey: String = (project.findProperty("dart-defines") as String? ?: "")
+    .split(",")
+    .filter { it.isNotBlank() }
+    .map { String(Base64.getDecoder().decode(it)) }
+    .firstOrNull { it.startsWith("GOOGLE_MAPS_API_KEY=") }
+    ?.substringAfter("=")
+    ?: ""
 
 android {
     namespace = "ph.calamba.arangcada"
@@ -43,6 +55,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     signingConfigs {

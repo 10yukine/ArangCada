@@ -29,7 +29,7 @@ security-support guarantee is currently offered for this beta.
 | Material | Required handling |
 | --- | --- |
 | Supabase project URL and publishable/anon key | Client configuration; access must still be enforced by backend authorization and RLS |
-| MapTiler, openrouteservice and optional Google Routes client keys | Separate keys per environment, provider-supported restrictions, quotas and usage monitoring; assume shipped values are extractable |
+| MapTiler, openrouteservice and optional Google Routes and Google Maps SDK client keys | Separate keys per environment, provider-supported restrictions, quotas and usage monitoring; assume shipped values are extractable |
 | Supabase service-role/secret keys, provider account tokens, webhook secrets and Firebase service-account credentials | Server or operator environment only; never mobile/web code, public configuration or Git |
 | Passwords, OTPs, access/refresh tokens and recovery codes | Never commit, log, paste into AI conversations or include in screenshots or reports |
 | Android signing keys and passwords | Owner-controlled secure storage and backup; exclude from source packages and logs |

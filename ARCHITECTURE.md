@@ -16,7 +16,8 @@ clients use Supabase for authentication, data and trusted operations.
 | `supabase/functions` | Server integrations, invitations and notification delivery |
 
 The Flutter apps use Riverpod for state and repositories, and go_router for
-navigation. Mobile map rendering uses MapLibre; configured providers supply
+navigation. Mobile map rendering uses MapLibre, or the Google Maps SDK when its key is
+set (required before Google Routes is used); configured providers supply
 map tiles, geocoding and road routes. Firebase Messaging delivers push messages.
 
 ## Trust boundaries

@@ -172,7 +172,9 @@ final chatUnreadCountProvider = Provider<int>((ref) {
 /// coverage than ORS in Calamba), with openrouteservice as the automatic
 /// fallback -- never the other way around, and never both queried for a
 /// route the primary already answered. With no Google key configured, this
-/// is exactly the previous ORS-only behavior.
+/// is exactly the previous ORS-only behavior. Google is only used while the
+/// Google map is on (see AppConfig.isGoogleRoutesConfigured): its terms
+/// forbid showing Routes results on a MapLibre map.
 final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
   final ors = OpenRouteServiceRoutingRepository();
   ref.onDispose(ors.dispose);

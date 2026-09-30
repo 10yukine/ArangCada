@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:arangcada/core/geo/haversine.dart';
+import 'package:arangcada/data/remote/fallback_routing_repository.dart';
 import 'package:arangcada/data/remote/google_routes_routing_repository.dart';
 import 'package:arangcada/data/remote/openrouteservice_routing_repository.dart';
 import 'package:arangcada/data/repositories/routing_repository.dart';
@@ -39,6 +40,59 @@ void main() {
       skip:
           const String.fromEnvironment('ORS_API_KEY').isEmpty ||
           const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
+    );
+  }
+
+  test(
+    'Google over its daily quota hands routes to the free provider',
+    () async {
+      var googleCalls = 0;
+      final client = MockClient((_) async {
+        googleCalls++;
+        // What Google returns once a Cloud Console quota cap is reached.
+        return http.Response('{"error":{"status":"RESOURCE_EXHAUSTED"}}', 429);
+      });
+      addTearDown(client.close);
+      final free = _FreeRouter();
+      final repository = FallbackRoutingRepository(
+        primary: GoogleRoutesRoutingRepository(client: client),
+        secondary: free,
+      );
+      const from = GeoCoordinate(latitude: 14.2, longitude: 121.1);
+      const to = GeoCoordinate(latitude: 14.3, longitude: 121.2);
+      const other = GeoCoordinate(latitude: 14.4, longitude: 121.3);
+
+      final first = await repository.route(from: from, to: to);
+      expect(first.isFallback, isFalse);
+      expect(repository.attribution, free.attribution);
+
+      // During the cooldown Google is not asked again.
+      await repository.route(from: from, to: other);
+      expect(googleCalls, 1);
+      expect(free.calls, 2);
+    },
+    skip: const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
+  );
+}
+
+class _FreeRouter implements RoutingRepository {
+  int calls = 0;
+
+  @override
+  String get attribution => 'Routing: openrouteservice';
+
+  @override
+  Future<RouteResult> route({
+    required GeoCoordinate from,
+    required GeoCoordinate to,
+  }) async {
+    calls++;
+    return RouteResult(
+      geometry: [from, to],
+      distanceMeters: 1,
+      durationSeconds: 1,
+      isFallback: false,
+      retrievedAt: DateTime(2026),
     );
   }
 }

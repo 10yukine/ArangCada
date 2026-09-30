@@ -33,6 +33,9 @@ dependencies:
 
   supabase_flutter: ^2.16.0
   maplibre_gl: ^0.26.2
+  # Used instead of MapLibre when GOOGLE_MAPS_API_KEY is set. Google's terms
+  # forbid drawing Google Routes results on a non-Google map.
+  google_maps_flutter: ^2.18.1
   geolocator: ^14.0.3
   # Promoted from a transitive dependency of supabase_flutter so the direct
   # use in data/remote/ is declared. Same resolved version -- no new download.

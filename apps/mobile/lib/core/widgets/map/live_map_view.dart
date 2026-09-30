@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../app/theme/app_colors.dart';
@@ -120,14 +122,16 @@ bool mapBoundariesEquivalent(List<MapBoundary> a, List<MapBoundary> b) {
   return true;
 }
 
-/// Real MapLibre surface rendering MapTiler vector tiles.
+/// Real map surface: the Google Maps SDK when GOOGLE_MAPS_API_KEY is set,
+/// otherwise MapLibre rendering MapTiler vector tiles.
 ///
 /// Deliberately a `StatefulWidget` that keeps its controller: the map is
 /// expensive to create, so it must not be rebuilt when a parent's state
 /// changes. Markers and the route are diffed onto the existing style instead.
 ///
 /// Attribution is mandatory and always visible -- MapTiler and OpenStreetMap
-/// for the basemap, plus openrouteservice whenever a real ORS route is drawn.
+/// for the MapLibre basemap (Google draws its own logo, which map padding keeps
+/// above any bottom sheet), plus [routeAttribution] whenever a route is drawn.
 class LiveMapView extends StatefulWidget {
   const LiveMapView({
     required this.center,
@@ -136,6 +140,7 @@ class LiveMapView extends StatefulWidget {
     this.route = const [],
     this.boundaries = const [],
     this.routeIsFallback = false,
+    this.routeAttribution = '',
     this.showUserLocation = false,
     this.interactive = true,
     this.onMapTap,
@@ -154,6 +159,9 @@ class LiveMapView extends StatefulWidget {
   /// True when no ORS road route is available. Suppresses routing attribution
   /// because nothing was routed.
   final bool routeIsFallback;
+
+  /// Credit for the routing provider that produced [route].
+  final String routeAttribution;
 
   final bool showUserLocation;
   final bool interactive;
@@ -178,6 +186,13 @@ class _LiveMapViewState extends State<LiveMapView> {
   Timer? _styleTimeout;
   Future<void> _syncTail = Future.value();
 
+  gm.GoogleMapController? _google;
+  gm.CameraPosition? _googleCamera;
+  double _googleBottomInset = 0;
+  final Map<(Color, double, Color), gm.BitmapDescriptor> _dots = {};
+
+  static bool get _useGoogle => AppConfig.isGoogleMapsConfigured;
+
   /// If MapTiler never answers -- dead tile server, captive portal, no data --
   /// stop showing a spinner forever and degrade to the unavailable state so
   /// the rest of the screen stays usable (task rule: tiles failing must not
@@ -188,6 +203,10 @@ class _LiveMapViewState extends State<LiveMapView> {
   void initState() {
     super.initState();
     widget.controller?._state = this;
+    if (_useGoogle) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadDots());
+      return;
+    }
     _styleTimeout = Timer(_styleLoadBudget, () {
       if (mounted && !_styleReady) setState(() => _styleFailed = true);
     });
@@ -244,6 +263,61 @@ class _LiveMapViewState extends State<LiveMapView> {
       );
     }
     if (centerMoved && widget.route.isEmpty) _recenter();
+    if (_useGoogle) {
+      if (markersChanged) _loadDots();
+      if (routeChanged && widget.route.length >= 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _fitRoute());
+      }
+    }
+  }
+
+  /// Google circles are sized in meters, so fixed-size dots are drawn as
+  /// marker bitmaps instead, one per distinct style.
+  Future<void> _loadDots() async {
+    if (!mounted) return;
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    var added = false;
+    for (final marker in widget.markers) {
+      final key = (marker.color, marker.radius, marker.strokeColor);
+      if (_dots.containsKey(key)) continue;
+      _dots[key] = await _dotBitmap(marker, ratio);
+      added = true;
+    }
+    if (added && mounted) setState(() {});
+  }
+
+  static Future<gm.BitmapDescriptor> _dotBitmap(
+    MapMarker marker,
+    double ratio,
+  ) async {
+    const stroke = 2.5;
+    final outer = (marker.radius + stroke) * ratio;
+    final side = (outer * 2).ceil();
+    final recorder = ui.PictureRecorder();
+    final center = Offset(side / 2, side / 2);
+    Canvas(recorder)
+      ..drawCircle(center, outer, Paint()..color = marker.strokeColor)
+      ..drawCircle(
+        center,
+        marker.radius * ratio,
+        Paint()..color = marker.color,
+      );
+    final image = await recorder.endRecording().toImage(side, side);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    return gm.BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      imagePixelRatio: ratio,
+    );
+  }
+
+  void _onGoogleMapCreated(gm.GoogleMapController controller) {
+    _google = controller;
+    _styleReady = true;
+    if (widget.route.length >= 2) {
+      _fitRoute();
+    } else {
+      _recenter();
+    }
   }
 
   Future<void> _queueSync({
@@ -353,13 +427,33 @@ class _LiveMapViewState extends State<LiveMapView> {
   }
 
   Future<void> _fitRoute() async {
-    final controller = _controller;
-    if (controller == null || widget.route.length < 2) return;
+    if (widget.route.length < 2) return;
     final viewport = mapRouteViewport(
       route: widget.route,
       markers: widget.markers,
       bottomInset: widget.controller?.bottomInset ?? 0,
     );
+    final google = _google;
+    if (google != null) {
+      _syncGoogleInset();
+      final b = viewport.bounds;
+      try {
+        await google.animateCamera(
+          gm.CameraUpdate.newLatLngBounds(
+            gm.LatLngBounds(
+              southwest: gm.LatLng(b.southwest.latitude, b.southwest.longitude),
+              northeast: gm.LatLng(b.northeast.latitude, b.northeast.longitude),
+            ),
+            56,
+          ),
+        );
+      } catch (_) {
+        // The SDK throws before the map has a size; the next fit catches up.
+      }
+      return;
+    }
+    final controller = _controller;
+    if (controller == null) return;
     await controller.animateCamera(
       CameraUpdate.newLatLngBounds(
         viewport.bounds,
@@ -372,6 +466,8 @@ class _LiveMapViewState extends State<LiveMapView> {
   }
 
   Future<void> _recenter() async {
+    final target = gm.LatLng(widget.center.latitude, widget.center.longitude);
+    await _google?.animateCamera(gm.CameraUpdate.newLatLng(target));
     await _controller?.animateCamera(
       CameraUpdate.newLatLng(
         LatLng(widget.center.latitude, widget.center.longitude),
@@ -386,6 +482,15 @@ class _LiveMapViewState extends State<LiveMapView> {
   }
 
   void _resetNorth() {
+    final camera = _googleCamera;
+    if (_google != null && camera != null) {
+      _google!.animateCamera(
+        gm.CameraUpdate.newCameraPosition(
+          gm.CameraPosition(target: camera.target, zoom: camera.zoom),
+        ),
+      );
+      return;
+    }
     _controller?.animateCamera(
       CameraUpdate.bearingTo(0),
       duration: const Duration(milliseconds: 250),
@@ -403,14 +508,165 @@ class _LiveMapViewState extends State<LiveMapView> {
     });
   }
 
+  Widget _compass(BuildContext context) {
+    return Positioned(
+      // Same y as the floating back button opposite it. Callers used
+      // to pass this inset, every one of them computing the identical
+      // safe-area expression -- except the active-trip screen, which
+      // carried an extra 64px from when the compass sat on the LEFT and
+      // had to dodge the back button. It moved right; the dodge stayed;
+      // the two controls stopped lining up. A parameter with one
+      // correct value is a parameter waiting to be passed wrongly.
+      top: MediaQuery.paddingOf(context).top + 8,
+      right: 8,
+      child: ValueListenableBuilder<double>(
+        valueListenable: _bearing,
+        builder: (context, bearing, _) {
+          // Only when the map is actually off north. A permanent
+          // "reset north" button on a map nobody has turned is a
+          // control that spends its whole life doing nothing -- but
+          // deleting it would strand anyone who rotates the map by
+          // accident with a two-finger twist and no way back. It
+          // appears exactly when there is something to escape from,
+          // which is how Google Maps and Waze both behave.
+          final level = bearing.abs() < 0.5;
+          return IgnorePointer(
+            ignoring: level,
+            child: AnimatedOpacity(
+              opacity: level ? 0 : 1,
+              duration: AppMotion.button,
+              child: MapCompass(bearing: bearing, onPressed: _resetNorth),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Map padding keeps the Google logo, which its terms require to stay
+  /// visible, above whatever sheet is covering the bottom of the map.
+  void _syncGoogleInset() {
+    final inset = widget.controller?.bottomInset ?? 0;
+    if (mounted && (inset - _googleBottomInset).abs() > 1) {
+      setState(() => _googleBottomInset = inset);
+    }
+  }
+
+  Widget _googleMap() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncGoogleInset());
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    return gm.GoogleMap(
+      initialCameraPosition: gm.CameraPosition(
+        target: gm.LatLng(widget.center.latitude, widget.center.longitude),
+        zoom: widget.zoom,
+      ),
+      onMapCreated: _onGoogleMapCreated,
+      padding: EdgeInsets.only(bottom: _googleBottomInset),
+      myLocationEnabled: widget.showUserLocation,
+      myLocationButtonEnabled: false,
+      compassEnabled: false,
+      mapToolbarEnabled: false,
+      zoomControlsEnabled: false,
+      scrollGesturesEnabled: widget.interactive,
+      zoomGesturesEnabled: widget.interactive,
+      rotateGesturesEnabled: widget.interactive,
+      tiltGesturesEnabled: widget.interactive,
+      onCameraMove: widget.interactive
+          ? (position) {
+              _googleCamera = position;
+              _onCameraMove(
+                CameraPosition(
+                  target: LatLng(
+                    position.target.latitude,
+                    position.target.longitude,
+                  ),
+                  bearing: position.bearing,
+                ),
+              );
+            }
+          : null,
+      onTap: widget.onMapTap == null
+          ? null
+          : (latLng) => widget.onMapTap!(
+              GeoCoordinate(
+                latitude: latLng.latitude,
+                longitude: latLng.longitude,
+              ),
+            ),
+      polygons: {
+        for (final (i, boundary) in widget.boundaries.indexed)
+          if (boundary.points.length >= 4)
+            gm.Polygon(
+              polygonId: gm.PolygonId('boundary-$i'),
+              points: [
+                for (final p in boundary.points)
+                  gm.LatLng(p.latitude, p.longitude),
+              ],
+              fillColor: boundary.fillColor.withValues(
+                alpha: boundary.fillOpacity,
+              ),
+              strokeColor: boundary.outlineColor,
+              strokeWidth: 1,
+            ),
+      },
+      polylines: {
+        if (widget.route.length >= 2)
+          gm.Polyline(
+            polylineId: const gm.PolylineId('route'),
+            points: [
+              for (final p in widget.route) gm.LatLng(p.latitude, p.longitude),
+            ],
+            color: const Color(
+              0xFF1262D0,
+            ).withValues(alpha: widget.routeIsFallback ? 0.55 : 0.95),
+            // Android draws polyline width in physical pixels.
+            width: (5 * ratio).round(),
+          ),
+      },
+      markers: {
+        for (final (i, marker) in widget.markers.indexed)
+          if (_dots[(marker.color, marker.radius, marker.strokeColor)]
+              case final icon?)
+            gm.Marker(
+              markerId: gm.MarkerId('marker-$i'),
+              position: gm.LatLng(
+                marker.coordinate.latitude,
+                marker.coordinate.longitude,
+              ),
+              icon: icon,
+              anchor: const Offset(0.5, 0.5),
+              consumeTapEvents: true,
+            ),
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final radius =
         widget.borderRadius ??
         const BorderRadius.all(Radius.circular(AppRadii.card));
+    final routing = widget.route.length >= 2 && !widget.routeIsFallback
+        ? widget.routeAttribution
+        : '';
 
     Widget content;
-    if (!AppConfig.isMapTilerConfigured) {
+    if (_useGoogle) {
+      content = Stack(
+        fit: StackFit.expand,
+        children: [
+          _googleMap(),
+          if (widget.interactive) _compass(context),
+          if (routing.isNotEmpty)
+            Positioned(
+              left: 6,
+              right: 6,
+              bottom: _googleBottomInset + 5,
+              child: MapAttribution(basemap: false, routing: routing),
+            ),
+        ],
+      );
+    } else if (!AppConfig.isMapTilerConfigured) {
       // No key configured at all -- retrying cannot help.
       content = const _MapUnavailable();
     } else if (_styleFailed) {
@@ -472,50 +728,12 @@ class _LiveMapViewState extends State<LiveMapView> {
                 ),
               ),
             ),
-          if (widget.interactive)
-            Positioned(
-              // Same y as the floating back button opposite it. Callers used
-              // to pass this inset, every one of them computing the identical
-              // safe-area expression -- except the active-trip screen, which
-              // carried an extra 64px from when the compass sat on the LEFT and
-              // had to dodge the back button. It moved right; the dodge stayed;
-              // the two controls stopped lining up. A parameter with one
-              // correct value is a parameter waiting to be passed wrongly.
-              top: MediaQuery.paddingOf(context).top + 8,
-              right: 8,
-              child: ValueListenableBuilder<double>(
-                valueListenable: _bearing,
-                builder: (context, bearing, _) {
-                  // Only when the map is actually off north. A permanent
-                  // "reset north" button on a map nobody has turned is a
-                  // control that spends its whole life doing nothing -- but
-                  // deleting it would strand anyone who rotates the map by
-                  // accident with a two-finger twist and no way back. It
-                  // appears exactly when there is something to escape from,
-                  // which is how Google Maps and Waze both behave.
-                  final level = bearing.abs() < 0.5;
-                  return IgnorePointer(
-                    ignoring: level,
-                    child: AnimatedOpacity(
-                      opacity: level ? 0 : 1,
-                      duration: AppMotion.button,
-                      child: MapCompass(
-                        bearing: bearing,
-                        onPressed: _resetNorth,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+          if (widget.interactive) _compass(context),
           Positioned(
             left: 6,
             right: 6,
             bottom: 5,
-            child: MapAttribution(
-              includeRouting:
-                  widget.route.length >= 2 && !widget.routeIsFallback,
-            ),
+            child: MapAttribution(routing: routing),
           ),
         ],
       );
@@ -583,15 +801,18 @@ class MapCompass extends StatelessWidget {
 
 /// Required provider attribution. Always rendered, never behind a control.
 class MapAttribution extends StatelessWidget {
-  const MapAttribution({this.includeRouting = false, super.key});
+  const MapAttribution({this.basemap = true, this.routing = '', super.key});
 
-  final bool includeRouting;
+  /// MapTiler/OpenStreetMap credit; off on Google, which draws its own logo.
+  final bool basemap;
+  final String routing;
 
   @override
   Widget build(BuildContext context) {
-    final text = includeRouting
-        ? '© MapTiler © OpenStreetMap · Routing: openrouteservice'
-        : '© MapTiler © OpenStreetMap contributors';
+    final text = [
+      if (basemap) '© MapTiler © OpenStreetMap contributors',
+      if (routing.isNotEmpty) routing,
+    ].join(' · ');
     return Align(
       alignment: Alignment.bottomRight,
       child: Container(

@@ -176,6 +176,28 @@ void main() {
     expect(find.textContaining('direct line'), findsNothing);
   });
 
+  testWidgets('attribution credits the basemap and whichever router drew', (
+    tester,
+  ) async {
+    Future<void> show(MapAttribution attribution) =>
+        tester.pumpWidget(MaterialApp(home: Scaffold(body: attribution)));
+
+    await show(const MapAttribution(routing: 'Routing: openrouteservice'));
+    expect(
+      find.text(
+        '© MapTiler © OpenStreetMap contributors · Routing: openrouteservice',
+      ),
+      findsOneWidget,
+    );
+
+    // On a Google basemap, Google's own logo is the basemap credit.
+    await show(
+      const MapAttribution(basemap: false, routing: 'Routing: Google Routes API'),
+    );
+    expect(find.textContaining('MapTiler'), findsNothing);
+    expect(find.text('Routing: Google Routes API'), findsOneWidget);
+  });
+
   testWidgets('visible map compass follows bearing and resets north on tap', (
     tester,
   ) async {

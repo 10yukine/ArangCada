@@ -32,6 +32,13 @@ class AppConfig {
     'GOOGLE_ROUTES_API_KEY',
   );
 
+  /// Optional. Switches the map from MapLibre/MapTiler to the Google Maps SDK
+  /// (free on Android). Also read by android/app/build.gradle.kts into the
+  /// manifest, where the SDK looks for it.
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+  );
+
   /// Per-service readiness. Each live integration degrades on its own rather
   /// than the whole app refusing to start, so a missing MapTiler key costs the
   /// map but not authentication.
@@ -42,7 +49,12 @@ class AppConfig {
 
   static bool get isOrsConfigured => orsApiKey.isNotEmpty;
 
-  static bool get isGoogleRoutesConfigured => googleRoutesApiKey.isNotEmpty;
+  static bool get isGoogleMapsConfigured => googleMapsApiKey.isNotEmpty;
+
+  /// Google's terms allow Routes results only on a Google map, so the Routes
+  /// key does nothing unless the Google map is on too.
+  static bool get isGoogleRoutesConfigured =>
+      googleRoutesApiKey.isNotEmpty && isGoogleMapsConfigured;
 
   /// True when every integration has a value. Never logs which one is absent
   /// at runtime beyond its name, and never a value.

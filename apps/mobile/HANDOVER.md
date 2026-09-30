@@ -12,7 +12,8 @@ hosting and support.
 | Supabase | A project with this repository's migration chain, Auth configuration, private Storage, RLS, Edge Functions and server secrets |
 | MapTiler | Their own map and geocoding key, restrictions and usage budget |
 | openrouteservice | Their own routing key and plan suitable for the intended use |
-| Google Routes (optional) | Their own restricted API key and billing account, or leave it blank |
+| Google Routes (optional) | Their own restricted API key and billing account, or leave it blank. Only used when `GOOGLE_MAPS_API_KEY` is also set |
+| Google Maps SDK (optional) | `GOOGLE_MAPS_API_KEY`, restricted to the Android package and signing SHA-1. Replaces the MapTiler map; Google's terms forbid Routes results on a non-Google map |
 | Firebase Messaging | Their own Firebase project, Android registration and push sender configuration |
 | SMS/email | Their own providers and server-side credentials for authentication and notifications |
 | Public pages and tracking | Their own hosting/domain configuration; update mobile legal links and backend tracking URLs before acceptance |

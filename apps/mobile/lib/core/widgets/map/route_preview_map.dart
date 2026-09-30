@@ -104,6 +104,9 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
       zoom: 14,
       route: route == null || route.isFallback ? const [] : route.geometry,
       routeIsFallback: route?.isFallback ?? false,
+      routeAttribution: route == null || route.isFallback
+          ? ''
+          : ref.read(routingRepositoryProvider).attribution,
       interactive: widget.interactive,
       boundaries: widget.boundaries,
       markers: [
