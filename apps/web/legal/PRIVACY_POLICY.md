@@ -31,6 +31,10 @@ Pilot)
   role), **driver documents** (license, vehicle papers, photo) if you
   register as a driver, **trip and payment records**, and **SOS/safety
   reports** if you use that feature.
+- Pilot builds use **Google Maps** for the map, routes and place search.
+  Google gets map areas, route coordinates and what you type in search, never
+  your name or account. Trip pickup and destination are deleted **30 days**
+  after the trip.
 - The only bookable ride is **Special, up to 4 passengers**. You're matched
   to the nearest available verified driver anywhere in Calamba City, not
   just drivers from your pickup's own TODA.
@@ -203,18 +207,19 @@ not a full copy of your account):
   needed to draw the map), not your identity.
 - **openrouteservice** — receives coordinates to compute a route/ETA, not
   your identity.
-- **Google Routes API** — an optional route/ETA provider present in the
-  codebase, intended to supplement or replace openrouteservice for better
-  minor-road coverage in Calamba. If it is ever used, it would receive only
-  the two coordinates needed for a route lookup — never your name, ride ID,
-  or documents. **Not active, and staying that way for now**: no API key is
-  configured, so no request currently reaches Google. The project owner
-  confirmed on 4 Sept 2026 that this stays off — Google Routes is a paid API
-  and the project has no budget for it during internal testing. Under NPC Circular 2020-03,
-  routing requests to a US-headquartered processor would constitute a
-  cross-border transfer requiring specific data transfer mechanisms; this
-  remains inactive. Active routing continues to be serviced by European
-  providers operating under EU GDPR adequacy.
+- **Google Maps Platform** (Google LLC, United States) — used by pilot
+  builds of the mobile app for the in-app map (Maps SDK for Android), road
+  routes and arrival estimates (Routes API), and place search (Places API).
+  Google receives the map area being viewed, the two coordinates of a route
+  lookup, and the text you type into place search, plus device and usage
+  information its map SDK collects under Google's own privacy policy. It never
+  receives your name, account, ride ID, phone number or documents from us.
+  Each Google service has a daily usage cap; when a cap is reached, or in
+  builds without a Google key, the app uses MapTiler and openrouteservice
+  instead. Google is outside the Philippines, so using it is a cross-border
+  transfer; we remain accountable for it under Section 21 of RA 10173 and
+  send Google only what each request needs. Google Maps content is not
+  shown in the admin console or on the ride-tracking page.
 - **Semaphore** (SOMBRA, Inc., Philippines) — designed to receive your mobile
   number and a one-time verification code in order to deliver that code by
   SMS when you register. **Not active for real messages yet**: verification
@@ -259,6 +264,9 @@ In compliance with the Data Privacy Act of 2012 and NPC Circular 2020-03:
   account IDs, or device identifiers. Under NPC Advisory Opinion No. 2017-046,
   processing within the EU provides an adequate and comparable standard of
   data protection under the EU General Data Protection Regulation (GDPR).
+- **Google Maps Platform (pilot builds):** Map, route and place-search
+  requests are processed on Google's global infrastructure, including outside
+  the Philippines and the EU, as described in Section 6.
 
 ## 7. How we protect it
 
@@ -286,7 +294,8 @@ purposes:
 | Data Category | Retention Schedule | Deletion / Disposal Action |
 |---|---|---|
 | Account & profile data | Active duration of academic pilot + 6 months post-defense | Permanently purged from Supabase Auth & profiles table |
-| Live trip location pings (`trip_locations`) | High-frequency breadcrumbs purged within 48 hours of trip completion | Automatic server cleanup; start/end coordinates retained in trip history |
+| Live trip location pings (`trip_locations`) | High-frequency breadcrumbs purged within 48 hours of trip completion | Automatic server cleanup; start/end coordinates kept in trip history for 30 days (next row) |
+| Trip pickup and destination (names and coordinates) | 30 days after the trip ends | Automatic daily cleanup replaces them with "Pickup" and "Destination"; the rest of the trip record follows the next row |
 | Ride-tracking link tokens (`ride_share_links`) | Expire automatically upon trip completion or cancellation, or manual revocation | Token deactivated immediately; record archived for audit |
 | Driver verification documents (`driver_documents`) | Duration of driver active verification + 30 days after deactivation or capstone end | File assets permanently purged from private storage bucket |
 | Trip and payment records (`trips`, `payments`) | 1 academic year (covering capstone research, evaluation, and defense) | Database rows scrubbed of direct user identifiers |

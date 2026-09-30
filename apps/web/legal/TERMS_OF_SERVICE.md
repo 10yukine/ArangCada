@@ -190,13 +190,16 @@ This is an internal-testing academic MVP. **There is no guaranteed uptime,
 no service-level agreement, and the service may change, be interrupted, or be
 discontinued at any time without notice**, including at the end of the
 capstone testing period. The app is provided "as is" and "as available."
-Map, routing, and geolocation data are provided by third parties (MapTiler,
-OpenStreetMap contributors, openrouteservice/HeiGIT) and may be inaccurate,
-delayed, or unavailable. A Google Routes integration also exists in the
-codebase as an optional route/ETA provider but is **not active in current
-builds** (see the [Privacy Policy](/policy), Section 6 for its disclosure and
-current status) — if it or any other additional routing provider is
-activated, this section and the Privacy Policy will be updated first.
+Map, routing, place-search and geolocation data are provided by third
+parties (Google Maps Platform in pilot builds; MapTiler, OpenStreetMap
+contributors and openrouteservice/HeiGIT otherwise and as fallbacks) and may
+be inaccurate, delayed, or unavailable. Your use of the Google map and Google
+place search in the app is also subject to the
+[Google Maps/Google Earth Additional Terms of Service](https://maps.google.com/help/terms_maps/)
+and the [Google Privacy Policy](https://policies.google.com/privacy). See the
+[Privacy Policy](/policy), Section 6, for what each provider receives. If any
+other map or routing provider is activated, this section and the Privacy
+Policy will be updated first.
 
 ## 10. Limitation of liability
 
