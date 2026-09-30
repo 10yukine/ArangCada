@@ -128,16 +128,12 @@ export function toViewModel(rows, now = Date.now()) {
     statusText: statusText(row.status),
     statusTone: statusTone(row.status),
 
-    // Place labels, not the rider. The commuter is never named on this page.
-    pickupLabel: row.pickup_label || 'Pickup',
-    destinationLabel: row.destination_label || 'Destination',
-
     driverName: row.driver_display_name || 'Driver not yet assigned',
     bodyNumber: row.driver_body_number || null,
     todaName: row.toda_name || null,
 
-    pickup: coord(row.pickup_lat, row.pickup_lng),
-    destination: coord(row.destination_lat, row.destination_lng),
+    // Pickup and destination are deliberately absent. They can come from
+    // Google Places, whose terms forbid showing them with this MapLibre map.
     driver: hasDriverPosition ? coord(row.driver_lat, row.driver_lng) : null,
 
     positionAge: timeAgo(row.position_updated_at, now),
@@ -152,13 +148,12 @@ function coord(lat, lng) {
 }
 
 /**
- * Where to point the map when there is no driver position yet -- the pickup, so
- * the viewer at least sees the right neighbourhood instead of the middle of the
- * ocean at 0,0.
+ * Where to point the map: the driver. With no position yet there is no map,
+ * rather than one centred on the middle of the ocean at 0,0.
  */
 export function focusPoint(vm) {
   if (!vm || vm.kind !== 'active') return null;
-  return vm.driver || vm.pickup || vm.destination || null;
+  return vm.driver || null;
 }
 
 /**

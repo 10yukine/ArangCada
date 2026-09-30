@@ -138,14 +138,12 @@ test('an empty array is the expiry signal', () => {
   assert.deepEqual(toViewModel(undefined, NOW), { kind: 'expired' });
 });
 
-test('renders driver, vehicle and route from a live row', () => {
+test('renders driver and vehicle from a live row', () => {
   const vm = toViewModel([ROW], NOW);
   assert.equal(vm.kind, 'active');
   assert.equal(vm.driverName, 'Marco Dela Cruz');
   assert.equal(vm.bodyNumber, 'POB-042');
   assert.equal(vm.todaName, 'Poblacion TODA');
-  assert.equal(vm.pickupLabel, 'SM Calamba');
-  assert.equal(vm.destinationLabel, 'Calamba Crossing');
   assert.equal(vm.statusText, 'The trip is in progress');
   assert.equal(vm.hasDriverPosition, true);
   assert.deepEqual(vm.driver, { lat: 14.2155, lng: 121.1652 });
@@ -166,28 +164,18 @@ test('copes with a trip that has no driver assigned yet', () => {
   assert.equal(vm.driver, null);
   assert.equal(vm.driverName, 'Driver not yet assigned');
   assert.equal(vm.bodyNumber, null);
-  // Still has somewhere sensible to point the map.
-  assert.deepEqual(focusPoint(vm), { lat: 14.215, lng: 121.165 });
+  // No map until the driver shares a position.
+  assert.equal(focusPoint(vm), null);
 });
 
-test('falls back to the pickup, then the destination, for map focus', () => {
-  const noDriver = toViewModel([{ ...ROW, driver_lat: null, driver_lng: null }], NOW);
-  assert.deepEqual(focusPoint(noDriver), { lat: 14.215, lng: 121.165 });
-
-  const onlyDest = toViewModel([{
-    ...ROW,
-    driver_lat: null, driver_lng: null,
-    pickup_lat: null, pickup_lng: null,
-  }], NOW);
-  assert.deepEqual(focusPoint(onlyDest), { lat: 14.22, lng: 121.17 });
-
+test('never exposes pickup or destination, which may come from Google', () => {
+  const vm = toViewModel([ROW], NOW);
+  assert.deepEqual(focusPoint(vm), { lat: 14.2155, lng: 121.1652 });
+  const shown = JSON.stringify(vm);
+  assert.equal(shown.includes('SM Calamba'), false);
+  assert.equal(shown.includes('Calamba Crossing'), false);
+  assert.equal('pickup' in vm || 'destination' in vm, false);
   assert.equal(focusPoint({ kind: 'expired' }), null);
-});
-
-test('blank place labels degrade to something readable', () => {
-  const vm = toViewModel([{ ...ROW, pickup_label: '', destination_label: '' }], NOW);
-  assert.equal(vm.pickupLabel, 'Pickup');
-  assert.equal(vm.destinationLabel, 'Destination');
 });
 
 // ---------------------------------------------------------------------------

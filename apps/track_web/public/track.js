@@ -92,9 +92,6 @@ function renderActive(vm) {
   setRow('body-row', 'body-number', vm.bodyNumber);
   setRow('toda-row', 'toda-name', vm.todaName);
 
-  el('pickup-label').textContent = vm.pickupLabel;
-  el('destination-label').textContent = vm.destinationLabel;
-
   const age = el('position-age');
   if (!vm.hasDriverPosition) {
     age.textContent = 'Waiting for the driver’s location…';
@@ -151,9 +148,6 @@ function updateMap(vm) {
       attributionControl: true,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-
-    if (vm.pickup) addMarker(vm.pickup, 'marker-pickup', 'Pickup');
-    if (vm.destination) addMarker(vm.destination, 'marker-destination', 'Destination');
   }
 
   if (vm.driver) {
