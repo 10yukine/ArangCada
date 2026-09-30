@@ -23,6 +23,14 @@ class _SavedPlacesScreenState extends ConsumerState<SavedPlacesScreen> {
   bool _busy = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await refreshStaleSavedPlaces(ref) && mounted) setState(() {});
+    });
+  }
+
   Future<void> _add() async {
     final place = await Navigator.of(context).push<DemoPlace>(
       MaterialPageRoute(

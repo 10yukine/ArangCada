@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
+import 'package:arangcada/data/repositories/geocoding_repository.dart';
 import 'package:arangcada/data/repositories/saved_places_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/features/profile/profile_detail_screens.dart';
@@ -164,4 +166,59 @@ void main() {
     expect(repository.places, isEmpty);
     expect(state.destination, isNull);
   });
+
+  test(
+    'Google places keep only their ID past 30 days unless refreshed',
+    () async {
+      const place = DemoPlace(
+        id: 'google:nu-l',
+        name: 'National University Laguna',
+        address: 'Milagrosa, Calamba',
+        coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
+      );
+      await repository.save(place);
+      expect(repository.places.single.name, place.name);
+      final later = DateTime.now().add(const Duration(days: 31));
+
+      expect(
+        await repository.refreshStale(_Geocoder(null), now: later),
+        isTrue,
+      );
+      expect(box.get('saved_places:account-a'), '[{"id":"google:nu-l"}]');
+      expect(repository.places, isEmpty);
+
+      expect(
+        await repository.refreshStale(_Geocoder(place), now: later),
+        isTrue,
+      );
+      expect(repository.places.single.name, place.name);
+      expect(repository.places.single.id, 'google:nu-l');
+    },
+  );
+}
+
+class _Geocoder implements GeocodingRepository {
+  _Geocoder(this.place);
+
+  final DemoPlace? place;
+
+  @override
+  Future<GeocodedPlace?> refresh(String placeId) async => place == null
+      ? null
+      : GeocodedPlace(
+          id: 'google:$placeId',
+          placeId: placeId,
+          name: place!.name,
+          context: place!.address,
+          coordinate: place!.coordinate,
+        );
+
+  @override
+  Future<List<GeocodedPlace>> search(String query) async => const [];
+
+  @override
+  Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async => null;
+
+  @override
+  Future<GeoCoordinate?> locate(GeocodedPlace place) async => place.coordinate;
 }

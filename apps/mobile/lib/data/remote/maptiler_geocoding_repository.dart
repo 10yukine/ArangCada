@@ -125,7 +125,8 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
     final poi = results[1];
     if (poi != null &&
         RegExp('[A-Za-z]{2}').hasMatch(poi.name) &&
-        haversineDistanceMeters(coordinate, poi.coordinate) <= _poiSnapMeters) {
+        haversineDistanceMeters(coordinate, poi.coordinate!) <=
+            _poiSnapMeters) {
       return GeocodedPlace(
         id: poi.id,
         name: poi.name,
@@ -162,6 +163,12 @@ class MapTilerGeocodingRepository implements GeocodingRepository {
       return null;
     }
   }
+
+  @override
+  Future<GeoCoordinate?> locate(GeocodedPlace place) async => place.coordinate;
+
+  @override
+  Future<GeocodedPlace?> refresh(String placeId) async => null;
 
   List<GeocodedPlace> _parse(String body) {
     try {

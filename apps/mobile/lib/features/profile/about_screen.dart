@@ -63,6 +63,12 @@ class _AboutArangCadaScreenState extends ConsumerState<AboutArangCadaScreen> {
                     style: AppTypography.h2,
                   ),
                   SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'When configured: map, routing and place search by '
+                    'Google Maps Platform, with the providers below as '
+                    'fallbacks.',
+                  ),
+                  SizedBox(height: AppSpacing.xs),
                   Text('Map data © OpenStreetMap contributors under ODbL.'),
                   SizedBox(height: AppSpacing.xs),
                   Text('Tiles by MapTiler.'),

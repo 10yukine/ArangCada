@@ -39,6 +39,11 @@ class AppConfig {
     'GOOGLE_MAPS_API_KEY',
   );
 
+  /// Optional. Google Places (New) search, with MapTiler as the fallback.
+  static const String googlePlacesApiKey = String.fromEnvironment(
+    'GOOGLE_PLACES_API_KEY',
+  );
+
   /// Per-service readiness. Each live integration degrades on its own rather
   /// than the whole app refusing to start, so a missing MapTiler key costs the
   /// map but not authentication.
@@ -55,6 +60,10 @@ class AppConfig {
   /// key does nothing unless the Google map is on too.
   static bool get isGoogleRoutesConfigured =>
       googleRoutesApiKey.isNotEmpty && isGoogleMapsConfigured;
+
+  /// Same rule as Routes: Places results may only appear with a Google map.
+  static bool get isGooglePlacesConfigured =>
+      googlePlacesApiKey.isNotEmpty && isGoogleMapsConfigured;
 
   /// True when every integration has a value. Never logs which one is absent
   /// at runtime beyond its name, and never a value.

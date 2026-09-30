@@ -14,6 +14,7 @@ hosting and support.
 | openrouteservice | Their own routing key and plan suitable for the intended use |
 | Google Routes (optional) | Their own restricted API key and billing account, or leave it blank. Only used when `GOOGLE_MAPS_API_KEY` is also set |
 | Google Maps SDK (optional) | `GOOGLE_MAPS_API_KEY`, restricted to the Android package and signing SHA-1. Replaces the MapTiler map; Google's terms forbid Routes results on a non-Google map |
+| Google Places (optional) | `GOOGLE_PLACES_API_KEY` for Places API (New), restricted to that API with a daily quota. Only used with the Google map; MapTiler stays the fallback. Trip places are purged after 30 days by `purge_trip_places()` |
 | Firebase Messaging | Their own Firebase project, Android registration and push sender configuration |
 | SMS/email | Their own providers and server-side credentials for authentication and notifications |
 | Public pages and tracking | Their own hosting/domain configuration; update mobile legal links and backend tracking URLs before acceptance |

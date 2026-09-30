@@ -15,6 +15,12 @@ class _Geocoder implements GeocodingRepository {
 
   @override
   Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async => null;
+
+  @override
+  Future<GeoCoordinate?> locate(GeocodedPlace place) async => place.coordinate;
+
+  @override
+  Future<GeocodedPlace?> refresh(String placeId) async => null;
 }
 
 void main() {

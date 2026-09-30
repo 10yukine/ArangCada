@@ -51,6 +51,14 @@ class _DestinationSearchScreenState
   int _searchToken = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await refreshStaleSavedPlaces(ref) && mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _debounceTimer?.cancel();
     _controller.dispose();
@@ -85,11 +93,15 @@ class _DestinationSearchScreenState
         _results = [
           ...local,
           ...places.where((place) {
+            // Google suggestions carry no coordinate yet; Google already
+            // restricts them to Calamba, and _select checks the real one.
+            final coordinate = place.coordinate;
             return !localNames.contains(place.name.toLowerCase()) &&
-                ServiceArea.contains(
-                  place.coordinate,
-                  allowCabuyaoTestException: internalTester,
-                );
+                (coordinate == null ||
+                    ServiceArea.contains(
+                      coordinate,
+                      allowCabuyaoTestException: internalTester,
+                    ));
           }),
         ];
         _error = null;
@@ -105,9 +117,44 @@ class _DestinationSearchScreenState
     }
   }
 
-  void _choose(String name, String address, GeoCoordinate coordinate) {
+  Future<void> _select(GeocodedPlace result) async {
+    final coordinate =
+        result.coordinate ??
+        await ref.read(geocodingRepositoryProvider).locate(result);
+    if (!mounted) return;
+    final internalTester =
+        ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+    final problem = coordinate == null
+        ? "Couldn't load that place. Try again, or pin it on the map."
+        : !ServiceArea.contains(
+            coordinate,
+            allowCabuyaoTestException: internalTester,
+          )
+        ? '${result.name} is outside ${ServiceArea.name}.'
+        : null;
+    if (problem != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(problem)));
+      return;
+    }
+    _choose(
+      result.name,
+      result.context,
+      coordinate!,
+      // Google's place ID is the one part of a result that may be kept.
+      id: result.placeId == null ? null : result.id,
+    );
+  }
+
+  void _choose(
+    String name,
+    String address,
+    GeoCoordinate coordinate, {
+    String? id,
+  }) {
     final place = DemoPlace(
-      id: 'geo-${coordinate.latitude},${coordinate.longitude}',
+      id: id ?? 'geo-${coordinate.latitude},${coordinate.longitude}',
       name: name,
       address: address,
       coordinate: coordinate,
@@ -274,7 +321,7 @@ class _DestinationSearchScreenState
                   searching: _searching,
                   error: _error,
                   results: _results,
-                  onSelect: (p) => _choose(p.name, p.context, p.coordinate),
+                  onSelect: _select,
                 )
               else
                 _Accelerators(
@@ -331,9 +378,13 @@ class _ResultsList extends StatelessWidget {
         ),
       );
     }
+    final fromGoogle = results.any((place) => place.placeId != null);
     return SliverList.builder(
-      itemCount: results.length,
+      itemCount: results.length + (fromGoogle ? 1 : 0),
       itemBuilder: (context, i) {
+        // Google's terms require this credit wherever Places results are
+        // listed, in exactly these words.
+        if (i == results.length) return const _GoogleMapsCredit();
         final place = results[i];
         return ArangRow(
           icon: Icons.place_outlined,
@@ -343,6 +394,28 @@ class _ResultsList extends StatelessWidget {
           onTap: () => onSelect(place),
         );
       },
+    );
+  }
+}
+
+class _GoogleMapsCredit extends StatelessWidget {
+  const _GoogleMapsCredit();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          'Google Maps',
+          style: TextStyle(
+            fontFamily: 'Roboto',
+            fontSize: 12,
+            color: Color(0xFF5E5E5E),
+          ),
+        ),
+      ),
     );
   }
 }

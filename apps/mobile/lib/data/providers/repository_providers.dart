@@ -8,6 +8,7 @@ import '../mock/demo_state.dart';
 import '../remote/geolocator_location_repository.dart';
 import '../remote/maptiler_geocoding_repository.dart';
 import '../remote/openrouteservice_routing_repository.dart';
+import '../remote/google_places_geocoding_repository.dart';
 import '../remote/google_routes_routing_repository.dart';
 import '../remote/fallback_routing_repository.dart';
 import '../remote/supabase_chat_repository.dart';
@@ -55,6 +56,18 @@ final savedPlacesRepositoryProvider =
         accountId,
       );
     });
+
+/// Keeps Google-sourced saved places within Google's 30-day limit. Screens
+/// that list saved places call this once when they open; true means rebuild.
+Future<bool> refreshStaleSavedPlaces(WidgetRef ref) async {
+  try {
+    return await ref
+        .read(savedPlacesRepositoryProvider)
+        .refreshStale(ref.read(geocodingRepositoryProvider));
+  } catch (_) {
+    return false;
+  }
+}
 
 SupabaseClient? _supabaseClient() {
   if (!AppConfig.isSupabaseConfigured) return null;
@@ -185,11 +198,17 @@ final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
   return FallbackRoutingRepository(primary: google, secondary: ors);
 });
 
-/// MapTiler forward/reverse geocoding for destination search and pin-on-map.
+/// Place search and pin labels. Google Places when configured (with the
+/// Google map), else MapTiler, which also backs Google when its quota runs
+/// out and always answers pin labels.
 final geocodingRepositoryProvider = Provider<GeocodingRepository>((ref) {
-  final repository = MapTilerGeocodingRepository();
-  ref.onDispose(repository.dispose);
-  return repository;
+  final mapTiler = MapTilerGeocodingRepository();
+  ref.onDispose(mapTiler.dispose);
+  if (!AppConfig.isGooglePlacesConfigured) return mapTiler;
+
+  final google = GooglePlacesGeocodingRepository(fallback: mapTiler);
+  ref.onDispose(google.dispose);
+  return google;
 });
 
 /// Device GPS. While-in-use only.

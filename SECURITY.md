@@ -29,7 +29,7 @@ security-support guarantee is currently offered for this beta.
 | Material | Required handling |
 | --- | --- |
 | Supabase project URL and publishable/anon key | Client configuration; access must still be enforced by backend authorization and RLS |
-| MapTiler, openrouteservice and optional Google Routes and Google Maps SDK client keys | Separate keys per environment, provider-supported restrictions, quotas and usage monitoring; assume shipped values are extractable |
+| MapTiler, openrouteservice and optional Google Routes, Places and Maps SDK client keys | Separate keys per environment, provider-supported restrictions, quotas and usage monitoring; assume shipped values are extractable |
 | Supabase service-role/secret keys, provider account tokens, webhook secrets and Firebase service-account credentials | Server or operator environment only; never mobile/web code, public configuration or Git |
 | Passwords, OTPs, access/refresh tokens and recovery codes | Never commit, log, paste into AI conversations or include in screenshots or reports |
 | Android signing keys and passwords | Owner-controlled secure storage and backup; exclude from source packages and logs |
@@ -114,7 +114,7 @@ JWT checks indiscriminately. A valid JWT alone does not establish admin authorit
 
 MapTiler receives map/style requests and geocoding search text or coordinates.
 openrouteservice and optional Google Routes receive coordinates needed for route
-lookups. Do not attach names, phone numbers, trip IDs, documents or authentication
+lookups; optional Google Places receives search text and chosen place IDs. Do not attach names, phone numbers, trip IDs, documents or authentication
 tokens to those requests. Keep required provider attribution visible.
 
 Push, SMS and email providers receive the data required to deliver their
