@@ -332,4 +332,24 @@ void main() {
     expect(decoded.first[1], closeTo(14.270, .000001));
     expect(polygonBoundaryCoordinates('not-valid-wkb'), isEmpty);
   });
+
+  test('rides are mapped from driver GPS only, never the trip pickup', () {
+    final row = {
+      'id': 'trip-1',
+      'status': 'requested',
+      'pickup_lat': 14.21,
+      'pickup_lng': 121.16,
+    };
+
+    final waiting = Ride.fromRow(row);
+    expect(waiting.latitude, isNull);
+    expect(waiting.longitude, isNull);
+
+    final located = Ride.fromRow(
+      row,
+      availability: {'latitude': 14.19, 'longitude': 121.14},
+    );
+    expect(located.latitude, 14.19);
+    expect(located.longitude, 121.14);
+  });
 }

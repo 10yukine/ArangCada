@@ -241,7 +241,6 @@ class SupabaseAdminRepository {
           .from('trips')
           .select(
             'id, driver_id, toda_zone_id, status, requested_at, '
-            'pickup_lat, pickup_lng, destination_lat, destination_lng, '
             'pickup_label, destination_label, rider_display_name, '
             'driver_display_name, toda_name, updated_at, cancellation_reason',
           )
@@ -374,16 +373,12 @@ class SupabaseAdminRepository {
       if (!isActiveTripStatus(row['status']?.toString())) {
         continue;
       }
-      try {
-        rides.add(
-          Ride.fromRow(
-            row,
-            availability: locations[row['driver_id']?.toString()],
-          ),
-        );
-      } on FormatException {
-        // An active trip without coordinates cannot be represented on the map.
-      }
+      rides.add(
+        Ride.fromRow(
+          row,
+          availability: locations[row['driver_id']?.toString()],
+        ),
+      );
     }
 
     return AdminSnapshot(

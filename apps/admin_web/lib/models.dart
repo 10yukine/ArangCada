@@ -692,9 +692,9 @@ class Ride {
     required this.rider,
     required this.toda,
     required this.status,
-    required this.latitude,
-    required this.longitude,
     required this.updatedMinutes,
+    this.latitude,
+    this.longitude,
     this.driverId,
     this.pickupLabel,
     this.destinationLabel,
@@ -710,23 +710,16 @@ class Ride {
           row['requested_at']?.toString() ??
           '',
     );
-    final latitude =
-        (availability?['latitude'] as num?)?.toDouble() ??
-        (row['pickup_lat'] as num?)?.toDouble();
-    final longitude =
-        (availability?['longitude'] as num?)?.toDouble() ??
-        (row['pickup_lng'] as num?)?.toDouble();
-    if (latitude == null || longitude == null) {
-      throw const FormatException('Trip does not include a mappable location.');
-    }
     return Ride(
       id: row['id'].toString(),
       driver: row['driver_display_name']?.toString() ?? 'Awaiting driver',
       rider: row['rider_display_name']?.toString() ?? 'Commuter',
       toda: row['toda_name']?.toString() ?? 'Assigned TODA',
       status: rideStatusLabel(row['status']?.toString() ?? 'requested'),
-      latitude: latitude,
-      longitude: longitude,
+      // Driver GPS only. The trip's pickup may come from Google in the app,
+      // and Google's terms forbid showing it on this MapLibre map.
+      latitude: (availability?['latitude'] as num?)?.toDouble(),
+      longitude: (availability?['longitude'] as num?)?.toDouble(),
       updatedMinutes: updated == null
           ? 0
           : DateTime.now()
@@ -744,8 +737,10 @@ class Ride {
   final String rider;
   final String toda;
   final String status;
-  final double latitude;
-  final double longitude;
+
+  /// Null until the assigned driver shares a location.
+  final double? latitude;
+  final double? longitude;
   final int updatedMinutes;
   final String? driverId;
   final String? pickupLabel;

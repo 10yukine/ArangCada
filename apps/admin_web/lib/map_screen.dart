@@ -68,20 +68,21 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     'type': 'FeatureCollection',
     'features': [
       for (final ride in scopedRides)
-        {
-          'type': 'Feature',
-          'id': ride.id,
-          'properties': {
+        if ((ride.latitude, ride.longitude) case (final lat?, final lng?))
+          {
+            'type': 'Feature',
             'id': ride.id,
-            'selected': ride.id == selected,
-            'status': ride.status,
-            'kind': 'ride',
+            'properties': {
+              'id': ride.id,
+              'selected': ride.id == selected,
+              'status': ride.status,
+              'kind': 'ride',
+            },
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [lng, lat],
+            },
           },
-          'geometry': {
-            'type': 'Point',
-            'coordinates': [ride.longitude, ride.latitude],
-          },
-        },
       for (final driver in onlineDrivers)
         if (!scopedRides.any((ride) => ride.driverId == driver.id))
           {
@@ -180,9 +181,11 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         .read(adminProvider)
         .rides
         .firstWhere((item) => item.id == id);
-    await mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(LatLng(ride.latitude, ride.longitude), 14.5),
-    );
+    if ((ride.latitude, ride.longitude) case (final lat?, final lng?)) {
+      await mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(lat, lng), 14.5),
+      );
+    }
   }
 
   @override
@@ -509,15 +512,16 @@ class _DashboardMapPreviewState extends State<DashboardMapPreview> {
     'type': 'FeatureCollection',
     'features': [
       for (final ride in widget.rides)
-        {
-          'type': 'Feature',
-          'id': ride.id,
-          'properties': {'id': ride.id},
-          'geometry': {
-            'type': 'Point',
-            'coordinates': [ride.longitude, ride.latitude],
+        if ((ride.latitude, ride.longitude) case (final lat?, final lng?))
+          {
+            'type': 'Feature',
+            'id': ride.id,
+            'properties': {'id': ride.id},
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [lng, lat],
+            },
           },
-        },
     ],
   };
 
