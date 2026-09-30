@@ -132,7 +132,9 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                 Positioned.fill(
                   child: LiveMapView(
                     center: centre,
-                    zoom: 15.5,
+                    // At 15.5 the whole 100 m leash is ~30 dp across and every
+                    // correcting tap lands on a pin; street level fits it.
+                    zoom: _adjustingPickup ? 18 : 15.5,
                     borderRadius: BorderRadius.zero,
                     onMapTap: _onTap,
                     markers: [
@@ -148,6 +150,7 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                           coordinate: _picked!,
                           color: AppColors.primary,
                           radius: 9,
+                          draggable: true,
                         ),
                     ],
                   ),
@@ -180,7 +183,7 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                   const SizedBox(height: 2),
                   Text(
                     _adjustingPickup
-                        ? 'Tap the map to move the pin to the exact spot. '
+                        ? 'Tap or drag the pin to the exact spot. '
                               'It stays within ${pickupAdjustRadiusMeters.round()} m of your location.'
                         : _picked == null
                         ? 'Tap anywhere on the map to drop a pin.'

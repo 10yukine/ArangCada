@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/widgets/adaptive_screen_frame.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/map/live_map_view.dart';
 import '../../data/providers/repository_providers.dart';
@@ -493,9 +494,15 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
   Future<void> _adjustPickup() async {
     final fix = _fix;
     if (fix == null) return;
-    final place = await context.push<DemoPlace>(
-      '/home/adjust-pickup',
-      extra: fix.coordinate,
+    // Pushed directly, not as a go_router route: the GPS anchor is a
+    // constructor argument, so no router rebuild can lose it. As a route it
+    // travelled in `extra`, and a rebuild once delivered it null.
+    final place = await Navigator.of(context).push<DemoPlace>(
+      MaterialPageRoute(
+        builder: (_) => AdaptiveScreenFrame(
+          child: PinOnMapScreen(pickupAnchor: fix.coordinate),
+        ),
+      ),
     );
     if (!mounted || place == null) return;
     ref.read(demoStateProvider).setPickup(place);

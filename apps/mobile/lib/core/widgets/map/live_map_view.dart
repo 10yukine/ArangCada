@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart'
+    show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -21,12 +23,17 @@ class MapMarker {
     required this.color,
     this.radius = 7,
     this.strokeColor = Colors.white,
+    this.draggable = false,
   });
 
   final GeoCoordinate coordinate;
   final Color color;
   final double radius;
   final Color strokeColor;
+
+  /// Google map only: long-press and drag reports the drop through
+  /// `LiveMapView.onMapTap`, like a tap there.
+  final bool draggable;
 }
 
 /// A visual-only map polygon. Jurisdiction remains a server-side decision.
@@ -552,92 +559,110 @@ class _LiveMapViewState extends State<LiveMapView> {
     }
   }
 
+  /// The Google SDK ignores a mouse wheel (scrcpy, a USB mouse), which MapLibre
+  /// handled natively.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !widget.interactive) return;
+    _google?.animateCamera(
+      gm.CameraUpdate.zoomBy(event.scrollDelta.dy > 0 ? -1 : 1),
+    );
+  }
+
   Widget _googleMap() {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncGoogleInset());
-    return gm.GoogleMap(
-      initialCameraPosition: gm.CameraPosition(
-        target: gm.LatLng(widget.center.latitude, widget.center.longitude),
-        zoom: widget.zoom,
-      ),
-      onMapCreated: _onGoogleMapCreated,
-      padding: EdgeInsets.only(bottom: _googleBottomInset),
-      myLocationEnabled: widget.showUserLocation,
-      myLocationButtonEnabled: false,
-      compassEnabled: false,
-      mapToolbarEnabled: false,
-      zoomControlsEnabled: false,
-      scrollGesturesEnabled: widget.interactive,
-      zoomGesturesEnabled: widget.interactive,
-      rotateGesturesEnabled: widget.interactive,
-      tiltGesturesEnabled: widget.interactive,
-      onCameraMove: widget.interactive
-          ? (position) {
-              _googleCamera = position;
-              _onCameraMove(
-                CameraPosition(
-                  target: LatLng(
-                    position.target.latitude,
-                    position.target.longitude,
+    final onMapTap = widget.onMapTap;
+    GeoCoordinate toCoordinate(gm.LatLng latLng) =>
+        GeoCoordinate(latitude: latLng.latitude, longitude: latLng.longitude);
+    return Listener(
+      onPointerSignal: _onPointerSignal,
+      child: gm.GoogleMap(
+        initialCameraPosition: gm.CameraPosition(
+          target: gm.LatLng(widget.center.latitude, widget.center.longitude),
+          zoom: widget.zoom,
+        ),
+        onMapCreated: _onGoogleMapCreated,
+        padding: EdgeInsets.only(bottom: _googleBottomInset),
+        myLocationEnabled: widget.showUserLocation,
+        myLocationButtonEnabled: false,
+        compassEnabled: false,
+        mapToolbarEnabled: false,
+        zoomControlsEnabled: false,
+        scrollGesturesEnabled: widget.interactive,
+        zoomGesturesEnabled: widget.interactive,
+        rotateGesturesEnabled: widget.interactive,
+        tiltGesturesEnabled: widget.interactive,
+        onCameraMove: widget.interactive
+            ? (position) {
+                _googleCamera = position;
+                _onCameraMove(
+                  CameraPosition(
+                    target: LatLng(
+                      position.target.latitude,
+                      position.target.longitude,
+                    ),
+                    bearing: position.bearing,
                   ),
-                  bearing: position.bearing,
+                );
+              }
+            : null,
+        onTap: onMapTap == null
+            ? null
+            : (latLng) => onMapTap(toCoordinate(latLng)),
+        polygons: {
+          for (final (i, boundary) in widget.boundaries.indexed)
+            if (boundary.points.length >= 4)
+              gm.Polygon(
+                polygonId: gm.PolygonId('boundary-$i'),
+                points: [
+                  for (final p in boundary.points)
+                    gm.LatLng(p.latitude, p.longitude),
+                ],
+                fillColor: boundary.fillColor.withValues(
+                  alpha: boundary.fillOpacity,
                 ),
-              );
-            }
-          : null,
-      onTap: widget.onMapTap == null
-          ? null
-          : (latLng) => widget.onMapTap!(
-              GeoCoordinate(
-                latitude: latLng.latitude,
-                longitude: latLng.longitude,
+                strokeColor: boundary.outlineColor,
+                strokeWidth: 1,
               ),
-            ),
-      polygons: {
-        for (final (i, boundary) in widget.boundaries.indexed)
-          if (boundary.points.length >= 4)
-            gm.Polygon(
-              polygonId: gm.PolygonId('boundary-$i'),
+        },
+        polylines: {
+          if (widget.route.length >= 2)
+            gm.Polyline(
+              polylineId: const gm.PolylineId('route'),
               points: [
-                for (final p in boundary.points)
+                for (final p in widget.route)
                   gm.LatLng(p.latitude, p.longitude),
               ],
-              fillColor: boundary.fillColor.withValues(
-                alpha: boundary.fillOpacity,
-              ),
-              strokeColor: boundary.outlineColor,
-              strokeWidth: 1,
+              color: const Color(
+                0xFF1262D0,
+              ).withValues(alpha: widget.routeIsFallback ? 0.55 : 0.95),
+              // Logical pixels, like MapLibre's lineWidth: the plugin applies
+              // the screen density itself.
+              width: 5,
             ),
-      },
-      polylines: {
-        if (widget.route.length >= 2)
-          gm.Polyline(
-            polylineId: const gm.PolylineId('route'),
-            points: [
-              for (final p in widget.route) gm.LatLng(p.latitude, p.longitude),
-            ],
-            color: const Color(
-              0xFF1262D0,
-            ).withValues(alpha: widget.routeIsFallback ? 0.55 : 0.95),
-            // Logical pixels, like MapLibre's lineWidth: the plugin applies
-            // the screen density itself.
-            width: 5,
-          ),
-      },
-      markers: {
-        for (final (i, marker) in widget.markers.indexed)
-          if (_dots[(marker.color, marker.radius, marker.strokeColor)]
-              case final icon?)
-            gm.Marker(
-              markerId: gm.MarkerId('marker-$i'),
-              position: gm.LatLng(
-                marker.coordinate.latitude,
-                marker.coordinate.longitude,
+        },
+        markers: {
+          for (final (i, marker) in widget.markers.indexed)
+            if (_dots[(marker.color, marker.radius, marker.strokeColor)]
+                case final icon?)
+              gm.Marker(
+                markerId: gm.MarkerId('marker-$i'),
+                position: gm.LatLng(
+                  marker.coordinate.latitude,
+                  marker.coordinate.longitude,
+                ),
+                icon: icon,
+                anchor: const Offset(0.5, 0.5),
+                // Later markers draw on top, as with MapLibre; otherwise the
+                // GPS dot can hide a pickup pin sitting on it.
+                zIndexInt: i,
+                consumeTapEvents: true,
+                draggable: marker.draggable && onMapTap != null,
+                onDragEnd: onMapTap == null
+                    ? null
+                    : (latLng) => onMapTap(toCoordinate(latLng)),
               ),
-              icon: icon,
-              anchor: const Offset(0.5, 0.5),
-              consumeTapEvents: true,
-            ),
-      },
+        },
+      ),
     );
   }
 

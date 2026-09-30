@@ -113,6 +113,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Adjust pickup'), findsOneWidget);
+    final map = tester.widget<LiveMapView>(find.byType(LiveMapView));
+    // Street level, so the 100 m leash is big enough to aim within.
+    expect(map.zoom, 18);
+    // The chosen pin can be dragged; the GPS dot cannot.
+    expect(map.markers.map((m) => m.draggable), [false, true]);
+    // Pins can be moved again and again, not just once.
+    map.onMapTap!(const GeoCoordinate(latitude: 14.2112, longitude: 121.1652));
+    await tester.pump();
     // A tap about 1.5 km away lands on the 100 m edge instead.
     tester.widget<LiveMapView>(find.byType(LiveMapView)).onMapTap!(
       const GeoCoordinate(latitude: 14.2185, longitude: 121.1655),
