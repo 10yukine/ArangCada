@@ -35,8 +35,10 @@ void main() {
   late (int, Object) requestRideAnswer;
   var profile = <String, dynamic>{};
   var claims = <Map<String, dynamic>>[];
+  Object? photoLinkSeconds;
 
   setUp(() async {
+    photoLinkSeconds = null;
     profile = {'role': 'commuter', 'display_name': 'Test Rider'};
     claims = [];
     client = SupabaseClient(
@@ -69,6 +71,13 @@ void main() {
           data = profile;
         } else if (path.endsWith('/fare_class_claims')) {
           data = claims.isEmpty ? null : claims.first;
+        } else if (path.endsWith('/driver_profiles')) {
+          data = {
+            'toda_zones': {'name': 'Test TODA'},
+          };
+        } else if (path.contains('/object/sign/')) {
+          photoLinkSeconds = (jsonDecode(request.body) as Map)['expiresIn'];
+          data = {'signedURL': '/object/sign/profile-photos/x?token=t'};
         }
         return http.Response(
           jsonEncode(data),
@@ -201,4 +210,34 @@ void main() {
       expect(state.userFareClass, UserFareClass.regular);
     },
   );
+
+  // Both were found on a phone: the photo link lasted five minutes while the
+  // app showed it for hours, and the header took the TODA from the last trip.
+  test('a driver profile has its TODA and a photo link that lasts', () async {
+    profile = {
+      'role': 'driver',
+      'display_name': 'Test Driver',
+      'avatar_path': 'rider/1.jpg',
+    };
+
+    final user = await SupabaseAuthRepository(
+      client,
+      state,
+    ).restoreProfile(client.auth.currentUser!);
+
+    expect(state.driverTodaName, 'Test TODA');
+    expect(user.avatarUrl, contains('token=t'));
+    expect(photoLinkSeconds, greaterThan(24 * 3600));
+  });
+
+  test('a rider has no TODA', () async {
+    state.driverTodaName = 'left over';
+
+    await SupabaseAuthRepository(
+      client,
+      state,
+    ).restoreProfile(client.auth.currentUser!);
+
+    expect(state.driverTodaName, isNull);
+  });
 }

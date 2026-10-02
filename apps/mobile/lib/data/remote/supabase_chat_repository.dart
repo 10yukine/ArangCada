@@ -140,7 +140,7 @@ class SupabaseChatRepository extends ChangeNotifier implements ChatRepository {
           ? null
           : await _client.storage
                 .from('profile-photos')
-                .createSignedUrl(path, 300);
+                .createSignedUrl(path, 3600);
       if (_disposed) return;
       _counterpartAvatars[tripId] = url;
       _synchronizeTrips();

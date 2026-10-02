@@ -34,8 +34,9 @@ class DemoUser {
   /// still cannot book, drive, or share a link.
   final bool phoneVerified;
 
-  /// A freshly minted short-lived signed URL into the `profile-photos`
-  /// bucket, or null when the account has no photo yet. Never persisted --
+  /// A freshly minted signed URL into the `profile-photos` bucket, valid
+  /// for longer than the app stays open, or null when the account has no
+  /// photo yet. Never persisted --
   /// `profiles.avatar_path` (the Storage path) is what is stored; this is
   /// re-minted every time the profile is (re)loaded,.
   final String? avatarUrl;

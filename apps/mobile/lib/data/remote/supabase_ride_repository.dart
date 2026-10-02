@@ -270,9 +270,11 @@ class SupabaseRideRepository extends ChangeNotifier {
       if (_disposed || path == null || _counterpartAvatarTripId != tripId) {
         return;
       }
+      // Made once per trip, so it has to last the trip: at five minutes the
+      // photo turned into initials partway through a longer ride.
       final url = await _client.storage
           .from('profile-photos')
-          .createSignedUrl(path, 300);
+          .createSignedUrl(path, 3600);
       if (_disposed || _counterpartAvatarTripId != tripId) return;
       _state.liveCounterpartAvatarUrl = url;
       // DemoState is a separate ChangeNotifier from this repository --

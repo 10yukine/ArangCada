@@ -38,6 +38,9 @@ class DemoState extends ChangeNotifier {
   String? liveDriverName;
   String? liveCommuterName;
   String? liveTodaName;
+  // The signed-in driver's own TODA, for the driver home header. Read with the
+  // profile; [liveTodaName] belongs to a trip and is empty between trips.
+  String? driverTodaName;
   // The OTHER party's photo, from the caller's own point of view -- a
   // commuter reads their driver's, a driver reads their rider's. Populated
   // asynchronously via trip_counterpart_avatar_path() once the trip is
@@ -224,6 +227,7 @@ class DemoState extends ChangeNotifier {
     liveDriverName = null;
     liveCommuterName = null;
     liveTodaName = null;
+    driverTodaName = null;
     liveCounterpartAvatarUrl = null;
     liveDriverLocation = null;
     completionAvailableAt = null;

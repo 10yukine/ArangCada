@@ -107,6 +107,9 @@ class SupabaseAuthRepository implements AuthRepository {
           profile['phone_verified_at'] != null || user.phoneConfirmedAt != null,
       avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );
+    _state.driverTodaName = role == 'driver'
+        ? await _driverTodaName(user.id)
+        : null;
     _state.setCurrentUser(mapped);
     _state.setUserFareClass(
       await _approvedFareClass(profile['fare_class'] as String?),
@@ -136,13 +139,36 @@ class SupabaseAuthRepository implements AuthRepository {
   /// unreadable avatar must never block the rest of profile restoration
   /// (sign-in, name, phone-verification state); it should just fall back to
   /// the initials `ArangAvatar` already renders for a null imageUrl.
+  ///
+  /// The URL is made once per profile load and shown for as long as the app
+  /// stays open. At five minutes the photo turned into initials the next time
+  /// Flutter reloaded it (after the image cache was cleared, or on a screen
+  /// built later). It is the account's own photo, held only in memory.
+  // ponytail: outlives any normal app run; an app left open for a week loses
+  // the photo until restart. Re-mint when the image fails to load if that
+  // ever matters.
   Future<String?> _signedAvatarUrl(String? avatarPath) async {
     if (avatarPath == null || avatarPath.isEmpty) return null;
     try {
       return await _client.storage
           .from('profile-photos')
-          .createSignedUrl(avatarPath, 300);
+          .createSignedUrl(avatarPath, const Duration(days: 7).inSeconds);
     } on StorageException {
+      return null;
+    }
+  }
+
+  /// The driver's TODA for the home header, or null when it cannot be read.
+  /// Cosmetic, so a failure must not block sign-in.
+  Future<String?> _driverTodaName(String id) async {
+    try {
+      final row = await _client
+          .from('driver_profiles')
+          .select('toda_zones(name)')
+          .eq('id', id)
+          .maybeSingle();
+      return (row?['toda_zones'] as Map?)?['name'] as String?;
+    } on Exception {
       return null;
     }
   }

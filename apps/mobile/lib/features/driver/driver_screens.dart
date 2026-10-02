@@ -458,9 +458,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                             ),
                           ),
                           Text(
-                            state.liveTodaName == null
+                            state.driverTodaName == null
                                 ? 'Driver account'
-                                : 'Driver · ${state.liveTodaName}',
+                                : 'Driver · ${state.driverTodaName}',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
