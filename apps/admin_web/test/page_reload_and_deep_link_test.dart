@@ -144,6 +144,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('could not be refreshed'), findsNothing);
       expect(find.text('Retry'), findsNothing);
+      // No audit feed is loaded, so the console must not claim there was none.
+      expect(find.text('Live activity'), findsNothing);
+      expect(
+        find.textContaining('No activity in your jurisdiction'),
+        findsNothing,
+      );
     },
   );
 

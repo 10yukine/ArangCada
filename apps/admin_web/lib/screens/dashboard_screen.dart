@@ -236,17 +236,17 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ],
     ];
+    // Nothing loads audit events into the console yet, so the panel is left
+    // out while there are none. It used to say "No activity in your
+    // jurisdiction yet", which was not something the console knew.
     final activityRows = <Widget>[
-      if (audit.isEmpty)
-        const EmptyState(message: 'No activity in your jurisdiction yet.')
-      else
-        for (final (index, event) in audit.take(6).indexed)
-          _TimelineRow(
-            title: event.title,
-            detail: event.detail,
-            time: shortTime(event.time),
-            last: index == audit.take(6).length - 1,
-          ),
+      for (final (index, event) in audit.take(6).indexed)
+        _TimelineRow(
+          title: event.title,
+          detail: event.detail,
+          time: shortTime(event.time),
+          last: index == audit.take(6).length - 1,
+        ),
     ];
     final rideRows = <Widget>[
       for (final (index, ride) in rides.take(6).indexed) ...[
@@ -453,14 +453,16 @@ class DashboardScreen extends ConsumerWidget {
                                       child: ListView(children: attentionRows),
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  Expanded(
-                                    flex: 5,
-                                    child: _FillPanel(
-                                      title: 'Live activity',
-                                      child: ListView(children: activityRows),
+                                  if (activityRows.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    Expanded(
+                                      flex: 5,
+                                      child: _FillPanel(
+                                        title: 'Live activity',
+                                        child: ListView(children: activityRows),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -519,8 +521,10 @@ class DashboardScreen extends ConsumerWidget {
               'Start with safety, then clear the review queue.',
               attentionRows,
             ),
-            const SizedBox(height: 16),
-            listPanel('Live activity', null, activityRows),
+            if (activityRows.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              listPanel('Live activity', null, activityRows),
+            ],
           ],
         );
         return Material(
@@ -558,8 +562,10 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     if (phone) ...[
                       dispatch,
-                      const SizedBox(height: 16),
-                      listPanel('Live activity', null, activityRows),
+                      if (activityRows.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        listPanel('Live activity', null, activityRows),
+                      ],
                     ] else if (narrow) ...[
                       dispatch,
                       const SizedBox(height: 16),
