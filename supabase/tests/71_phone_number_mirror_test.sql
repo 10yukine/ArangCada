@@ -21,7 +21,7 @@
 
 begin;
 
-select plan(17);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- REGRESSION: Security Advisor "Public Can Execute SECURITY DEFINER
@@ -112,6 +112,49 @@ select is(
     where id = '00000000-0000-0000-0000-0000000071a1'),
   '+639170009945',
   'a non-PH number leaves the last good number in place rather than raising'
+);
+
+-- 20261002110000: ...but the account has not confirmed that number any more.
+-- Verified must mean profiles.phone is the number auth.users confirmed.
+select is(
+  (select phone_verified_at from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  null,
+  'and the profile is not left verified for a number it did not confirm'
+);
+
+select ok(
+  not public.is_verified_account('00000000-0000-0000-0000-0000000071a1'),
+  'so it does not pass the verification gate'
+);
+
+-- A PH number stored in local format is the same number: mirror it.
+update auth.users set phone = '09170007155', phone_confirmed_at = now()
+ where id = '00000000-0000-0000-0000-0000000071a1';
+
+select is(
+  (select phone from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  '+639170007155',
+  'a confirmed number in local format is mirrored as E.164'
+);
+
+select isnt(
+  (select phone_verified_at from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  null,
+  'and the profile is verified for it'
+);
+
+-- A number that is not confirmed yet is not mirrored.
+update auth.users set phone = '639170007166', phone_confirmed_at = null
+ where id = '00000000-0000-0000-0000-0000000071a1';
+
+select is(
+  (select phone || '/' || coalesce(phone_verified_at::text, 'unverified')
+     from public.profiles where id = '00000000-0000-0000-0000-0000000071a1'),
+  '+639170007155/unverified',
+  'an unconfirmed number does not replace the profile number, and nothing is verified'
 );
 
 -- ---------------------------------------------------------------------------

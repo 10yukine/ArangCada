@@ -56,9 +56,11 @@ where d.id::text like '%-0000000069__';
 -- ---------------------------------------------------------------------------
 -- The trigger, not a manual UPDATE
 -- ---------------------------------------------------------------------------
--- Setting phone_confirmed_at on auth.users is what Supabase does when an OTP
--- is accepted. profiles.phone_verified_at must follow on its own -- if the app
--- had to write it, the client would be deciding its own verification state.
+-- Setting phone and phone_confirmed_at on auth.users together is what Supabase
+-- does when an OTP is accepted (the number without its "+").
+-- profiles.phone_verified_at must follow on its own -- if the app had to write
+-- it, the client would be deciding its own verification state. A confirmation
+-- with no number proves nothing and verifies nothing (20261002110000).
 select is(
   (select phone_verified_at from public.profiles
     where id = '00000000-0000-0000-0000-0000000069a2'),
@@ -67,7 +69,7 @@ select is(
 );
 
 update auth.users
-   set phone_confirmed_at = now()
+   set phone = '639170006902', phone_confirmed_at = now()
  where id = '00000000-0000-0000-0000-0000000069a2';
 
 select isnt(
@@ -93,7 +95,7 @@ select is(
 -- ---------------------------------------------------------------------------
 -- Gate 1: booking
 -- ---------------------------------------------------------------------------
-update auth.users set phone_confirmed_at = now()
+update auth.users set phone = '639170006903', phone_confirmed_at = now()
  where id = '00000000-0000-0000-0000-0000000069b1';
 
 insert into public.driver_availability
