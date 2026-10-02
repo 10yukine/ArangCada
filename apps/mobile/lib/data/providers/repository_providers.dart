@@ -93,7 +93,16 @@ final sessionRestorationProvider = FutureProvider<void>((ref) async {
   final client = _supabaseClient();
   final user = client?.auth.currentUser;
   if (client == null || user == null || state.currentUser != null) return;
-  await SupabaseAuthRepository(client, state).restoreProfile(user);
+  final auth = SupabaseAuthRepository(client, state);
+  try {
+    await auth.restoreProfile(user);
+  } on Exception {
+    // One quiet second try before the splash shows "Try again". The first
+    // request after the backend has been idle is occasionally refused (seen on
+    // a phone, 2 Oct 2026: a 401 with a valid session, fine a moment later).
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    await auth.restoreProfile(user);
+  }
 }, retry: (_, _) => null);
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
