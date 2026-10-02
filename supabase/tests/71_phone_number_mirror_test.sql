@@ -21,7 +21,7 @@
 
 begin;
 
-select plan(11);
+select plan(17);
 
 -- ---------------------------------------------------------------------------
 -- REGRESSION: Security Advisor "Public Can Execute SECURITY DEFINER
@@ -135,15 +135,18 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
--- REGRESSION: a phone collision must not abort the confirming user's OTP
--- transaction. A third, unverified account (handle_new_user() writes
--- profiles.phone from signup metadata before the number is ever confirmed --
--- see 20260905000000_mirror_phone_conflict_guard.sql) is already sitting on
--- the number that fixture 1 is about to confirm. profiles.phone is UNIQUE,
--- so the mirror's UPDATE collides. Before the conflict guard this raised
--- unique_violation and rolled back the whole trigger transaction -- the same
--- class of failure as the unprefixed-number regression above, just from a
--- different cause.
+-- REGRESSION: an unverified claim on a number must not get in the way of the
+-- account that proves it. A third, unverified account (handle_new_user()
+-- writes profiles.phone from signup metadata before the number is ever
+-- confirmed) is already sitting on the number that fixture 1 is about to
+-- confirm.
+--
+-- History: profiles.phone used to be unique across every row. First the
+-- mirror's UPDATE raised and aborted the OTP confirmation
+-- (20260905000000_mirror_phone_conflict_guard.sql). The guard added then
+-- recorded the confirmation time without the number, which left the account
+-- verified for whatever number it had typed at signup. Since
+-- 20261002091000 only verified numbers are unique, so there is no collision.
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000071a3', 'pnm-stale@example.test',
@@ -163,6 +166,54 @@ select lives_ok(
       where id = '00000000-0000-0000-0000-0000000071a1'$q$,
   'confirming a number another (unverified) profiles row already holds does '
   'not raise -- it must not abort the OTP-verify transaction'
+);
+
+select is(
+  (select phone from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  '+639170007103',
+  'the profile carries the number that was actually confirmed'
+);
+
+select isnt(
+  (select phone_verified_at from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  null,
+  'and is verified for it'
+);
+
+select is(
+  (select phone_verified_at from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a3'),
+  null,
+  'the account that only typed the number stays unverified'
+);
+
+-- ---------------------------------------------------------------------------
+-- If another VERIFIED profile holds the number, the confirmation still must
+-- not raise, and the profile must not end up verified for a number it did not
+-- confirm. auth.users.phone is unique on hosted, so this is a backstop.
+-- ---------------------------------------------------------------------------
+update public.profiles
+   set phone = '+639170007104', phone_verified_at = now()
+ where id = '00000000-0000-0000-0000-0000000071a2';
+
+select lives_ok(
+  $q$update auth.users set phone = '639170007104', phone_confirmed_at = now()
+      where id = '00000000-0000-0000-0000-0000000071a1'$q$,
+  'confirming a number another verified profile holds does not raise either'
+);
+
+select is(
+  (select phone_verified_at from public.profiles
+    where id = '00000000-0000-0000-0000-0000000071a1'),
+  null,
+  'but the profile is left unverified, not verified for its previous number'
+);
+
+select ok(
+  not public.is_verified_account('00000000-0000-0000-0000-0000000071a1'),
+  'so it does not pass the verification gate'
 );
 
 -- ---------------------------------------------------------------------------
@@ -185,8 +236,8 @@ update public.profiles p
 select is(
   (select phone from public.profiles
     where id = '00000000-0000-0000-0000-0000000071a1'),
-  '+639170009945',
-  'the backfill skips the unnormalisable number rather than corrupting the row'
+  '+639170007103',
+  'the backfill does not take a number another profile holds'
 );
 
 select * from finish();

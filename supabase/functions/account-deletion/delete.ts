@@ -49,6 +49,19 @@ async function turnstilePassed(token: string, secret: string): Promise<boolean> 
   return Boolean(res?.ok && (await res.json())?.success === true);
 }
 
+/**
+ * A Storage call, tried three times. Once the account is gone nothing else
+ * remembers which files were this person's, so one timeout must not leave
+ * their ID photos and documents behind.
+ */
+async function storageCall(url: string, init: RequestInit): Promise<Response | null> {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    if (res?.ok || attempt === 3) return res;
+    await new Promise((resolve) => setTimeout(resolve, attempt * 400));
+  }
+}
+
 /** Email as typed; a PH mobile number (09.., 9.., 63.., +63..) as +639XXXXXXXXX. */
 export function credential(identifier: string): { email: string } | { phone: string } | null {
   const value = identifier.trim();
@@ -125,30 +138,51 @@ export async function handle(req: Request, config: Config): Promise<Response> {
   const files = (await deleted.json()) as Record<string, string[]>;
 
   // The account is gone; from here failures are logged, never returned.
+  let filesRemoved = true;
   for (const bucket of USER_FOLDER_BUCKETS) {
-    const listed = await fetch(`${config.supabaseUrl}/storage/v1/object/list/${bucket}`, {
+    const listed = await storageCall(`${config.supabaseUrl}/storage/v1/object/list/${bucket}`, {
       method: "POST",
-      signal: AbortSignal.timeout(10_000),
       headers: service,
       body: JSON.stringify({ prefix: userId, limit: 1000, offset: 0 }),
-    }).catch(() => null);
+    });
+    if (!listed?.ok) filesRemoved = false;
     const items = listed?.ok ? ((await listed.json()) as { id: string | null; name: string }[]) : [];
     files[bucket] = [...(files[bucket] ?? []), ...items.filter((i) => i.id).map((i) => `${userId}/${i.name}`)];
   }
   for (const [bucket, paths] of Object.entries(files)) {
     const unique = [...new Set(paths)];
     if (!unique.length) continue;
-    const removed = await fetch(`${config.supabaseUrl}/storage/v1/object/${bucket}`, {
+    const removed = await storageCall(`${config.supabaseUrl}/storage/v1/object/${bucket}`, {
       method: "DELETE",
-      signal: AbortSignal.timeout(10_000),
       headers: service,
       body: JSON.stringify({ prefixes: unique }),
+    });
+    if (!removed?.ok) {
+      filesRemoved = false;
+      console.error(`account-deletion: could not remove ${unique.length} file(s) from ${bucket}`);
+    }
+  }
+  const when = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "long", timeStyle: "short" });
+  if (!filesRemoved && config.resendKey) {
+    // Nothing retries this later, so a person has to: tell the operator which
+    // folder is left. The id names no one once the account is gone.
+    const alerted = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${config.resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "ArangCada <services@info.arangcada.app>",
+        to: ["privacy@arangcada.app"],
+        subject: "Finish removing a deleted account's files",
+        text: `An account was deleted on ${when} (Philippine time), but its files could not all be removed ` +
+          `from Storage after three tries.\n\nDelete the folder ${userId}/ from these buckets: ` +
+          `${USER_FOLDER_BUCKETS.join(", ")}. The person was told this would be done within a few days.`,
+      }),
     }).catch(() => null);
-    if (!removed?.ok) console.error(`account-deletion: could not remove ${unique.length} file(s) from ${bucket}`);
+    if (!alerted?.ok) console.error(`account-deletion: files left in folder ${userId}/ and the operator alert failed`);
   }
   const email: string | undefined = session?.user?.email;
   if (email && config.resendKey) {
-    const when = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "long", timeStyle: "short" });
     const sent = await fetch("https://api.resend.com/emails", {
       method: "POST",
       signal: AbortSignal.timeout(10_000),
@@ -159,8 +193,11 @@ export async function handle(req: Request, config: Config): Promise<Response> {
         reply_to: "privacy@arangcada.app",
         subject: "Your ArangCada account was deleted",
         text: `Your ArangCada account (${email}) was deleted on ${when} (Philippine time).\n\n` +
-          "Your profile, contact details, photos, discount claims, chat messages and driver documents " +
-          "are gone. Past trips, ratings and reports are kept without your name, as our Privacy Policy " +
+          (filesRemoved
+            ? "Your profile, contact details, photos, discount claims, chat messages and driver documents are gone. "
+            : "Your profile, contact details, discount claims and chat messages are gone. Your photos and driver " +
+              "documents are still being removed; that will be finished within a few days. ") +
+          "Past trips, ratings and reports are kept without your name, as our Privacy Policy " +
           "explains: https://arangcada.app/policy\n\n" +
           "If you did not do this, reply to this email or write to privacy@arangcada.app right away.",
       }),

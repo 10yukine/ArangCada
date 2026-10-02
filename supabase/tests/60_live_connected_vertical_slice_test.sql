@@ -446,6 +446,23 @@ select lives_ok(
 );
 
 reset role;
+
+-- An admin who can read both tables must not be able to join an anonymous
+-- response to its driver (20261002092000).
+select is(
+  (select count(*)::integer from public.trip_events
+    where event_type = 'evaluation.driver_feedback_submitted'),
+  0,
+  'an anonymous evaluation leaves no event naming the driver and the trip'
+);
+
+select is(
+  (select submitted_at from public.driver_app_feedback
+    where comment = 'Synthetic anonymous comment'),
+  date_trunc('day', now(), 'Asia/Manila'),
+  'and records the day it was submitted, not the instant'
+);
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000060c2';
 

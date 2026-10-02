@@ -1,6 +1,6 @@
 -- 20260929030000: resend schedule (60 s, then 120 s, 4 per hour) and hook permits.
 begin;
-select plan(11);
+select plan(15);
 
 insert into auth.users(id, email, raw_user_meta_data) values
 ('00000000-0000-0000-0000-000000008801', 'otp-a@example.test', '{"display_name":"Otp A","mobile_number":"+639170008801"}'),
@@ -61,6 +61,28 @@ update public.otp_send_log set consumed_at = now() - interval '1 minute'
 set local role service_role;
 select ok(not public.otp_consume_permit('00000000-0000-0000-0000-000000008801', '639171110003'),
   'a spent permit cannot be reused later');
+
+-- 20261002094000: another account's requests for a number must not use up the
+-- codes of the person who owns it; codes actually delivered still count.
+reset role;
+insert into public.otp_send_log(user_id, phone_hash, created_at)
+select '00000000-0000-0000-0000-000000008802', public.otp_phone_hash('+639171110004'), now() - (n * interval '5 minutes')
+  from generate_series(1, 4) n;
+set local role authenticated;
+select is((public.otp_resend_status('+639171110004')->>'sends_left')::int, 4,
+  'another account''s unspent requests leave the owner all four codes');
+select ok(public.record_otp_send('+639171110004'), 'so the owner can still ask for one');
+reset role;
+update public.otp_send_log set consumed_at = created_at
+ where user_id = '00000000-0000-0000-0000-000000008802'
+   and phone_hash = public.otp_phone_hash('+639171110004');
+set local role service_role;
+select ok(not public.otp_consume_permit('00000000-0000-0000-0000-000000008801', '639171110004'),
+  'a number that already received four codes this hour gets no fifth, whoever asks');
+reset role;
+set local role authenticated;
+select is((public.otp_resend_status('+639171110004')->>'sends_left')::int, 0,
+  'and delivered codes count for everyone');
 
 select * from finish();
 rollback;

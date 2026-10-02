@@ -17,7 +17,7 @@
 
 begin;
 
-select plan(16);
+select plan(20);
 
 -- ===========================================================================
 -- normalize_ph_mobile: every written form of one number collapses to E.164
@@ -128,14 +128,45 @@ select throws_ok(
 -- ===========================================================================
 -- Uniqueness: the guarantee the admin lookup depends on
 -- ===========================================================================
+-- A number typed at signup proves nothing, so it reserves nothing: otherwise
+-- anyone could block a number's real owner from registering (20261002091000).
+select lives_ok(
+  $$insert into auth.users (id, email, raw_user_meta_data)
+    values ('00000000-0000-0000-0000-0000000020d3', 'typed-first@example.test',
+            '{"display_name":"Typed First","mobile_number":"+639170000201"}'::jsonb)$$,
+  'an unverified claim on a number does not block another signup with it'
+);
+
+update public.profiles set phone_verified_at = now()
+ where id = '00000000-0000-0000-0000-0000000020a1';
+
 select throws_ok(
   $$insert into auth.users (id, email, raw_user_meta_data)
     values ('00000000-0000-0000-0000-0000000020d4', 'different@example.test',
             '{"display_name":"Duplicate Number","mobile_number":"+639170000201"}'::jsonb)$$,
   '23505',
   null,
-  'a second account cannot take an existing mobile number -- one account per number'
+  'a second account cannot take a verified mobile number -- one account per number'
 );
+
+select throws_ok(
+  $$update public.profiles set phone_verified_at = now()
+     where id = '00000000-0000-0000-0000-0000000020d3'$$,
+  '23505',
+  null,
+  'and two accounts cannot both be verified for one number'
+);
+
+-- 20261002095000: names are bounded on the server, whichever path writes them.
+select throws_ok(
+  $$update public.profiles set display_name = repeat('x', 121)
+     where id = '00000000-0000-0000-0000-0000000020a1'$$,
+  '23514', null, 'a name longer than 120 characters is refused');
+
+select throws_ok(
+  $$update public.profiles set display_name = '   '
+     where id = '00000000-0000-0000-0000-0000000020a1'$$,
+  '23514', null, 'and so is a name that is only spaces');
 
 select * from finish();
 

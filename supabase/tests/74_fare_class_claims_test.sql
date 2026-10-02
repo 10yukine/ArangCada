@@ -7,7 +7,7 @@
 
 begin;
 
-select plan(20);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -224,6 +224,31 @@ select ok(
   'rider''s booking is billed strictly less than the standard rider''s -- '
   'the discount is not just a flag nothing reads'
 );
+
+-- 20261002101000: an account that never verified its number is deleted from
+-- SQL by the hourly sweep, which cannot remove files. It must not be able to
+-- leave an ID photo behind.
+update public.profiles set phone_verified_at = null
+ where id = '00000000-0000-0000-0000-0000000074d1';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000074d1';
+
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name, owner) values (
+      'discount-eligibility-ids',
+      '00000000-0000-0000-0000-0000000074d1/unverified.jpg',
+      '00000000-0000-0000-0000-0000000074d1')$$,
+  '42501', null,
+  'an unverified account cannot upload an ID photo'
+);
+
+select throws_ok(
+  $$select public.submit_fare_class_claim(
+      'student', '00000000-0000-0000-0000-0000000074d1/unverified.jpg')$$,
+  '42501', null,
+  'or file a discount claim'
+);
+reset role;
 
 select * from finish();
 

@@ -14,7 +14,7 @@
 
 begin;
 
-select plan(19);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -62,7 +62,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076d1';
 
 select throws_ok(
   $$select public.admin_upsert_driver_document(
-      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '76a1/drivers_license-1.jpg')$$,
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '00000000-0000-0000-0000-0000000076a1/drivers_license-1.jpg')$$,
   '42501', null,
   'SECURITY: a non-admin cannot upload a driver document'
 );
@@ -71,7 +71,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076c3';
 
 select throws_ok(
   $$select public.admin_upsert_driver_document(
-      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '76a1/drivers_license-1.jpg')$$,
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '00000000-0000-0000-0000-0000000076a1/drivers_license-1.jpg')$$,
   '42501', null,
   'SECURITY: an admin scoped to a different TODA cannot upload for this driver'
 );
@@ -80,7 +80,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076c2';
 
 select is(
   (select status::text from public.admin_upsert_driver_document(
-      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '76a1/drivers_license-1.jpg')),
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '00000000-0000-0000-0000-0000000076a1/drivers_license-1.jpg')),
   'pending',
   'a same-TODA-scoped admin can upload a document, and it lands as pending'
 );
@@ -132,7 +132,7 @@ select is(
 
 select is(
   (select status::text from public.admin_upsert_driver_document(
-      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '76a1/drivers_license-2.jpg')),
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license', '00000000-0000-0000-0000-0000000076a1/drivers_license-2.jpg')),
   'pending',
   'uploading a replacement for an already-approved type resets it to pending'
 );
@@ -140,7 +140,7 @@ select is(
 select is(
   (select storage_path from public.driver_documents
     where driver_id = '00000000-0000-0000-0000-0000000076a1' and document_type = 'drivers_license'),
-  '76a1/drivers_license-2.jpg',
+  '00000000-0000-0000-0000-0000000076a1/drivers_license-2.jpg',
   'and the storage_path is the new one, not appended alongside the old'
 );
 
@@ -251,6 +251,34 @@ select is(
     where name = '00000000-0000-0000-0000-0000000076a1/drivers_license-2.jpg'),
   1,
   'and an admin can select any driver''s document'
+);
+
+-- 20261002093000: the recorded path must be inside that driver's own folder,
+-- and the photo buckets take images of a bounded size only.
+select throws_ok(
+  $$select public.admin_upsert_driver_document(
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license',
+      '00000000-0000-0000-0000-0000000076c1/drivers_license-3.jpg')$$,
+  '22023', null,
+  'a document cannot be pointed at a file in someone else''s folder'
+);
+
+select throws_ok(
+  $$select public.admin_upsert_driver_document(
+      '00000000-0000-0000-0000-0000000076a1', 'drivers_license',
+      '00000000-0000-0000-0000-0000000076a1/../x.jpg')$$,
+  '22023', null,
+  'nor at a path that climbs out of the folder'
+);
+
+reset role;
+select is(
+  (select count(*)::integer from storage.buckets
+    where id in ('profile-photos', 'discount-eligibility-ids', 'driver-documents')
+      and file_size_limit between 1 and 10 * 1024 * 1024
+      and allowed_mime_types = array['image/*']),
+  3,
+  'the three photo buckets accept only images of a bounded size'
 );
 
 select * from finish();
