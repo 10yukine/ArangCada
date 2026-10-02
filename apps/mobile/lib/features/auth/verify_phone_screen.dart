@@ -349,12 +349,15 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         const Text(
-                          'Check your texts',
+                          'Enter your code',
                           style: AppTypography.display,
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Enter the 6-digit code we sent to $shown.',
+                          // The app cannot tell how the code was sent: while the SMS
+                          // sender name awaits approval the server emails it.
+                          'We sent a 6-digit code for $shown. Look in your texts '
+                          'and in your email: during the beta it may arrive by email.',
                           style: AppTypography.bodySm.copyWith(
                             color: AppColors.textSecondary,
                           ),

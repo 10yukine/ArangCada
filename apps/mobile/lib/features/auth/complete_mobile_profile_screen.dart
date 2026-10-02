@@ -168,7 +168,7 @@ class _CompleteMobileProfileScreenState
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'We’ll send a 6-digit SMS code to verify this number.',
+                      'We’ll send a 6-digit code to verify this number.',
                       style: AppTypography.bodySm,
                     ),
                     if (_error != null) ...[

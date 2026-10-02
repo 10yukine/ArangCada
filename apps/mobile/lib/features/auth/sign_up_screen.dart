@@ -325,7 +325,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       ),
       1 => (
         'Nice to meet you, ${_firstName.text.trim()}!',
-        "We'll text a 6-digit code to confirm it.",
+        "We'll send a 6-digit code to confirm it.",
         _contactFields(),
       ),
       _ => (
