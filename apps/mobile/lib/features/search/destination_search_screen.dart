@@ -270,91 +270,111 @@ class _DestinationSearchScreenState
         ),
         body: SafeArea(
           top: false,
-          child: CustomScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                  // The same journey card as Home, opened up: pickup above,
-                  // the destination being typed below it.
-                  child: widget.selectOnly
-                      ? _searchField(framed: true)
-                      : DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  11,
-                                  12,
-                                  16,
-                                  10,
+          child: Column(
+            children: [
+              Expanded(
+                child: CustomScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                        // The same journey card as Home, opened up: pickup above,
+                        // the destination being typed below it.
+                        child: widget.selectOnly
+                            ? _searchField(framed: true)
+                            : DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.lg,
+                                  ),
+                                  border: Border.all(color: AppColors.border),
                                 ),
-                                child: Row(
+                                child: Column(
                                   children: [
-                                    const ArangRouteMarker(destination: false),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        11,
+                                        12,
+                                        16,
+                                        10,
+                                      ),
+                                      child: Row(
                                         children: [
-                                          const Text(
-                                            'Pickup',
-                                            style: AppTypography.caption,
+                                          const ArangRouteMarker(
+                                            destination: false,
                                           ),
-                                          Text(
-                                            _pickupLabel(state),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppTypography.bodySm
-                                                .copyWith(
-                                                  fontWeight: FontWeight.w600,
+                                          const SizedBox(width: 9),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Pickup',
+                                                  style: AppTypography.caption,
                                                 ),
+                                                Text(
+                                                  _pickupLabel(state),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: AppTypography.bodySm
+                                                      .copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
+                                    const Divider(height: 1, indent: 40),
+                                    _searchField(framed: false),
                                   ],
                                 ),
                               ),
-                              const Divider(height: 1, indent: 40),
-                              _searchField(framed: false),
-                            ],
-                          ),
+                      ),
+                    ),
+                    if (!widget.selectOnly)
+                      SliverToBoxAdapter(
+                        child: ArangRow(
+                          icon: Icons.map_outlined,
+                          iconBackground: AppColors.primaryFill,
+                          iconForeground: AppColors.primary,
+                          title: 'Choose on map',
+                          subtitle: "Drop a pin when search can't find it",
+                          showChevron: false,
+                          onTap: _pinOnMap,
                         ),
+                      ),
+                    if (hasQuery)
+                      _ResultsList(
+                        searching: _searching,
+                        error: _error,
+                        results: _results,
+                        onSelect: _select,
+                      )
+                    else
+                      _Accelerators(
+                        savedPlaces: ref
+                            .watch(savedPlacesRepositoryProvider)
+                            .places,
+                        onPopular: _searchPopular,
+                        onSelect: _selectSaved,
+                      ),
+                  ],
                 ),
               ),
-              if (!widget.selectOnly)
-                SliverToBoxAdapter(
-                  child: ArangRow(
-                    icon: Icons.map_outlined,
-                    iconBackground: AppColors.primaryFill,
-                    iconForeground: AppColors.primary,
-                    title: 'Choose on map',
-                    subtitle: "Drop a pin when search can't find it",
-                    showChevron: false,
-                    onTap: _pinOnMap,
-                  ),
-                ),
-              if (hasQuery)
-                _ResultsList(
-                  searching: _searching,
-                  error: _error,
-                  results: _results,
-                  onSelect: _select,
-                )
-              else
-                _Accelerators(
-                  savedPlaces: ref.watch(savedPlacesRepositoryProvider).places,
-                  onPopular: _searchPopular,
-                  onSelect: _selectSaved,
-                ),
+              if (!_searching &&
+                  _error == null &&
+                  hasQuery &&
+                  _results.any((place) => place.placeId != null))
+                const _GoogleMapsCredit(),
             ],
           ),
         ),
@@ -404,13 +424,9 @@ class _ResultsList extends StatelessWidget {
         ),
       );
     }
-    final fromGoogle = results.any((place) => place.placeId != null);
     return SliverList.builder(
-      itemCount: results.length + (fromGoogle ? 1 : 0),
+      itemCount: results.length,
       itemBuilder: (context, i) {
-        // Google's terms require this credit wherever Places results are
-        // listed, in exactly these words.
-        if (i == results.length) return const _GoogleMapsCredit();
         final place = results[i];
         return ArangRow(
           icon: Icons.place_outlined,

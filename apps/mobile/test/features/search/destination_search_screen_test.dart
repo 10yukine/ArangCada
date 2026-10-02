@@ -11,6 +11,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('Google credit stays visible above keyboard for long results', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    final state = DemoState();
+    addTearDown(state.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          demoStateProvider.overrideWithValue(state),
+          geocodingRepositoryProvider.overrideWithValue(_LivePlaces(count: 20)),
+        ],
+        child: const MaterialApp(
+          home: DestinationSearchScreen(selectOnly: true),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Rizal');
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+    expect(find.text('Google Maps').hitTestable(), findsOneWidget);
+    expect(
+      tester.getRect(find.text('Google Maps')).bottom,
+      lessThanOrEqualTo(288),
+    );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -200));
+    await tester.pumpAndSettle();
+    expect(find.text('Google Maps').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('search and shortcuts remain reachable above a tall keyboard', (
     tester,
   ) async {
@@ -104,6 +139,8 @@ void main() {
 }
 
 class _LivePlaces implements GeocodingRepository {
+  _LivePlaces({this.count = 1});
+  final int count;
   static const coordinate = GeoCoordinate(
     latitude: 14.2144,
     longitude: 121.1667,
@@ -113,14 +150,15 @@ class _LivePlaces implements GeocodingRepository {
   @override
   Future<List<GeocodedPlace>> search(String query) async {
     queries.add(query);
-    return const [
-      GeocodedPlace(
-        id: 'google:verified',
-        placeId: 'verified',
-        name: 'Rizal Shrine Calamba',
-        context: 'Calamba',
-        coordinate: null,
-      ),
+    return [
+      for (var i = 0; i < count; i++)
+        const GeocodedPlace(
+          id: 'google:verified',
+          placeId: 'verified',
+          name: 'Rizal Shrine Calamba',
+          context: 'Calamba',
+          coordinate: null,
+        ),
     ];
   }
 
