@@ -13,6 +13,7 @@ import 'app/router.dart';
 import 'config/app_config.dart';
 import 'data/remote/push/push_notification_service.dart';
 import 'data/remote/reset_link.dart';
+import 'data/remote/stale_clock_retry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,7 @@ Future<void> main() async {
         // The SDK's own observer signs the app into whatever access_token a
         // link carries. Only the reset link is redeemed; see redeemResetLink.
         authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
+        httpClient: staleClockRetryClient(),
       );
       final client = Supabase.instance.client;
       client.auth.onAuthStateChange.listen((data) {

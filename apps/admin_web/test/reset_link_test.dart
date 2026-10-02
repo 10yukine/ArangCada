@@ -87,7 +87,7 @@ void main() {
             '&expires_in=3600&token_type=bearer',
         'https://admin.example/login?code=abc',
       ]) {
-        await redeemResetLink(Uri.parse(url), client.auth);
+        expect(await redeemResetLink(Uri.parse(url), client.auth), isFalse);
       }
 
       expect(requests, isEmpty);
@@ -101,11 +101,12 @@ void main() {
       storage.items['supabase.auth.token-code-verifier'] =
           'verifier-123/passwordRecovery';
 
-      await redeemResetLink(
+      final redeemed = await redeemResetLink(
         Uri.parse('https://admin.example/reset-password?code=abc'),
         client.auth,
       );
 
+      expect(redeemed, isTrue);
       expect(requests.single.url.queryParameters['grant_type'], 'pkce');
       expect(jsonDecode(requests.single.body), {
         'auth_code': 'abc',
@@ -116,11 +117,12 @@ void main() {
   );
 
   test('a code this browser never asked for is not sent anywhere', () async {
-    await redeemResetLink(
+    final redeemed = await redeemResetLink(
       Uri.parse('https://admin.example/reset-password?code=abc'),
       client.auth,
     );
 
+    expect(redeemed, isFalse);
     expect(requests, isEmpty);
     expect(client.auth.currentUser?.id, 'admin');
   });

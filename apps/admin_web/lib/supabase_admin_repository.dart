@@ -62,14 +62,21 @@ class AdminAccountsSnapshot {
 /// administrator's browser into somebody else's account. A `code` is only
 /// exchanged together with the verifier this browser stored when it requested
 /// the reset, so a link made anywhere else is refused.
-Future<void> redeemResetLink(Uri uri, GoTrueClient auth) async {
+///
+/// Returns true only when a reset link was exchanged just now. The reset page
+/// needs that, not just a session: an administrator who is already signed in
+/// has a session too, and opening /reset-password must not let whoever is at
+/// that browser set a new password without the current one.
+Future<bool> redeemResetLink(Uri uri, GoTrueClient auth) async {
   final code = uri.queryParameters['code'];
-  if (uri.path != '/reset-password' || code == null) return;
+  if (uri.path != '/reset-password' || code == null) return false;
   try {
-    await auth.exchangeCodeForSession(code);
+    final exchanged = await auth.exchangeCodeForSession(code);
+    return exchanged.redirectType == AuthChangeEvent.passwordRecovery.name;
   } on AuthException {
     // Expired, already used, or not requested from this browser. The reset
     // page then says the link has expired.
+    return false;
   }
 }
 

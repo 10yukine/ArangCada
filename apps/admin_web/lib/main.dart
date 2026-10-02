@@ -12,6 +12,7 @@ import 'app_config.dart';
 import 'models.dart';
 import 'screens.dart';
 import 'session.dart';
+import 'stale_clock_retry.dart';
 import 'supabase_admin_repository.dart' show redeemResetLink;
 import 'theme.dart';
 import 'widgets.dart';
@@ -43,8 +44,12 @@ Future<void> main() async {
       // The SDK would sign this browser into whatever access_token a link
       // carries. Only the reset link is redeemed; see redeemResetLink.
       authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
+      httpClient: staleClockRetryClient(),
     );
-    await redeemResetLink(Uri.base, Supabase.instance.client.auth);
+    passwordRecovery.value = await redeemResetLink(
+      Uri.base,
+      Supabase.instance.client.auth,
+    );
   }
   final preferences = await SharedPreferences.getInstance();
   final savedAppearance = preferences.getString('admin-appearance');

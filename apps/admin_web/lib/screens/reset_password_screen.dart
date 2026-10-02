@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../admin_controller.dart';
+import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -10,9 +11,11 @@ import '../widgets.dart';
 // Reset password -- public route opened from the "Forgot password?" email.
 // =============================================================================
 //
-// Supabase exchanges the link for a short-lived recovery session while the app
-// starts. This page is the only thing that session is used for: set a new
-// password, then sign out so the person signs in normally. AdminApp skips its
+// main() exchanges the link for a short-lived recovery session while the app
+// starts (redeemResetLink) and records that it did. This page is the only
+// thing that session is used for: set a new password, then sign out so the
+// person signs in normally. Without that exchange the page shows "expired",
+// even to an administrator who is signed in. AdminApp skips its
 // usual session restore on this route, so a reset link never drops anyone
 // straight into the console without choosing a new password first.
 
@@ -52,6 +55,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     });
     try {
       await repository.completePasswordReset(password.text);
+      passwordRecovery.value = false;
       if (mounted) setState(() => done = true);
     } catch (_) {
       if (mounted) {
@@ -69,7 +73,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final repository = ref.watch(adminRepositoryProvider);
-    final hasRecoverySession = repository?.hasSession ?? false;
+    // Not hasSession alone: that is also true for an ordinary signed-in
+    // administrator, who must give the current password to change it.
+    final hasRecoverySession =
+        passwordRecovery.value && (repository?.hasSession ?? false);
 
     final Widget body;
     if (done) {

@@ -32,12 +32,16 @@ void main() {
     auth.value = null;
     authRestoring.value = false;
     authError.value = null;
+    passwordRecovery.value = false;
   });
 
   Future<_RecoveryRepository> openResetLink(
     WidgetTester tester, {
     required bool hasSession,
+    bool redeemed = true,
   }) async {
+    // What main() records after exchanging the link's code.
+    passwordRecovery.value = redeemed;
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final repository = _RecoveryRepository(hasSession: hasSession);
@@ -104,10 +108,24 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 
+  // The page sets a password without asking for the current one. A signed-in
+  // administrator has a session too; that alone must not open the form.
+  testWidgets('being signed in does not unlock the reset form', (tester) async {
+    final repository = await openResetLink(
+      tester,
+      hasSession: true,
+      redeemed: false,
+    );
+
+    expect(find.text('This reset link has expired'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(repository.newPassword, isNull);
+  });
+
   testWidgets('an expired or reused reset link explains what to do', (
     tester,
   ) async {
-    await openResetLink(tester, hasSession: false);
+    await openResetLink(tester, hasSession: false, redeemed: false);
 
     expect(find.text('This reset link has expired'), findsOneWidget);
     expect(find.byType(TextFormField), findsNothing);
