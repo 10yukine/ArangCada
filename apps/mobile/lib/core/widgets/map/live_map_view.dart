@@ -196,7 +196,7 @@ class _LiveMapViewState extends State<LiveMapView> {
   gm.GoogleMapController? _google;
   gm.CameraPosition? _googleCamera;
   double _googleBottomInset = 0;
-  bool _googleInitialFitPending = true;
+  Timer? _googleInitialFitTimer;
   final Map<(Color, double, Color), gm.BitmapDescriptor> _dots = {};
 
   static bool get _useGoogle => AppConfig.isGoogleMapsConfigured;
@@ -223,6 +223,7 @@ class _LiveMapViewState extends State<LiveMapView> {
   @override
   void dispose() {
     _styleTimeout?.cancel();
+    _googleInitialFitTimer?.cancel();
     _bearing.dispose();
     if (widget.controller?._state == this) widget.controller?._state = null;
     super.dispose();
@@ -443,6 +444,11 @@ class _LiveMapViewState extends State<LiveMapView> {
     );
     final google = _google;
     if (google != null) {
+      // Native map layout can lag Flutter's first frame/idle event on slower
+      // phones. One delayed camera-only retry; never request another route.
+      _googleInitialFitTimer ??= Timer(const Duration(seconds: 2), () {
+        if (mounted) _fitRoute();
+      });
       _syncGoogleInset();
       final b = viewport.bounds;
       try {
@@ -582,14 +588,6 @@ class _LiveMapViewState extends State<LiveMapView> {
           zoom: widget.zoom,
         ),
         onMapCreated: _onGoogleMapCreated,
-        onCameraIdle: () {
-          // The first fit can race native map layout. Retry once after the
-          // camera settles; clear first so this animation cannot loop.
-          if (_googleInitialFitPending && widget.route.length >= 2) {
-            _googleInitialFitPending = false;
-            _fitRoute();
-          }
-        },
         padding: EdgeInsets.only(bottom: _googleBottomInset),
         myLocationEnabled: widget.showUserLocation,
         myLocationButtonEnabled: false,
