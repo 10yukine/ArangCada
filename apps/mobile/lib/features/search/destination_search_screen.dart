@@ -19,7 +19,7 @@ import '../../domain/geo/service_area.dart';
 /// Destination picker following the prototype: pickup/destination card,
 /// "use current location" and "pin on map" accelerators, then results.
 ///
-/// Search is live MapTiler geocoding. Typing is debounced and short queries
+/// Search uses the configured live geocoder. Typing is debounced and short queries
 /// never reach the network, because a geocoder fired on every keystroke is
 /// both slow and wasteful. Saved and popular places are local accelerators,
 /// not a substitute for search.
@@ -82,26 +82,22 @@ class _DestinationSearchScreenState
   }
 
   Future<void> _search(String query, int token) async {
-    final local = landmarkMatches(query);
     try {
       final places = await ref.read(geocodingRepositoryProvider).search(query);
       if (!mounted || token != _searchToken) return;
       final internalTester =
           ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
-      final localNames = {for (final place in local) place.name.toLowerCase()};
       setState(() {
         _results = [
-          ...local,
           ...places.where((place) {
             // Google suggestions carry no coordinate yet; Google already
             // restricts them to Calamba, and _select checks the real one.
             final coordinate = place.coordinate;
-            return !localNames.contains(place.name.toLowerCase()) &&
-                (coordinate == null ||
-                    ServiceArea.contains(
-                      coordinate,
-                      allowCabuyaoTestException: internalTester,
-                    ));
+            return coordinate == null ||
+                ServiceArea.contains(
+                  coordinate,
+                  allowCabuyaoTestException: internalTester,
+                );
           }),
         ];
         _error = null;
@@ -110,11 +106,38 @@ class _DestinationSearchScreenState
     } on ApiException catch (error) {
       if (!mounted || token != _searchToken) return;
       setState(() {
-        _results = local;
-        _error = local.isEmpty ? error.message : null;
+        _results = const [];
+        _error = error.message;
         _searching = false;
       });
     }
+  }
+
+  void _searchPopular(DemoPlace place) {
+    // These entries are search shortcuts, never authoritative coordinates.
+    _controller.text = place.name;
+    _onChanged(place.name);
+  }
+
+  void _selectSaved(DemoPlace place) {
+    // Favorites saved from the old shortcut list need a fresh pin too.
+    final legacy = DemoData.places.any(
+      (seed) =>
+          seed.name == place.name &&
+          seed.coordinate.latitude == place.coordinate.latitude &&
+          seed.coordinate.longitude == place.coordinate.longitude,
+    );
+    if (legacy) {
+      _searchPopular(place);
+      return;
+    }
+    _choose(
+      place.name,
+      place.address,
+      place.coordinate,
+      id: place.id,
+      googleRetrievedAt: place.googleRetrievedAt,
+    );
   }
 
   Future<void> _select(GeocodedPlace result) async {
@@ -144,6 +167,7 @@ class _DestinationSearchScreenState
       coordinate!,
       // Google's place ID is the one part of a result that may be kept.
       id: result.placeId == null ? null : result.id,
+      googleRetrievedAt: result.placeId == null ? null : DateTime.now(),
     );
   }
 
@@ -152,9 +176,11 @@ class _DestinationSearchScreenState
     String address,
     GeoCoordinate coordinate, {
     String? id,
+    DateTime? googleRetrievedAt,
   }) {
     final place = DemoPlace(
       id: id ?? 'geo-${coordinate.latitude},${coordinate.longitude}',
+      googleRetrievedAt: googleRetrievedAt,
       name: name,
       address: address,
       coordinate: coordinate,
@@ -326,8 +352,8 @@ class _DestinationSearchScreenState
               else
                 _Accelerators(
                   savedPlaces: ref.watch(savedPlacesRepositoryProvider).places,
-                  onSelect: (place) =>
-                      _choose(place.name, place.address, place.coordinate),
+                  onPopular: _searchPopular,
+                  onSelect: _selectSaved,
                 ),
             ],
           ),
@@ -421,9 +447,14 @@ class _GoogleMapsCredit extends StatelessWidget {
 }
 
 class _Accelerators extends StatelessWidget {
-  const _Accelerators({required this.onSelect, required this.savedPlaces});
+  const _Accelerators({
+    required this.onSelect,
+    required this.onPopular,
+    required this.savedPlaces,
+  });
 
   final ValueChanged<DemoPlace> onSelect;
+  final ValueChanged<DemoPlace> onPopular;
   final List<DemoPlace> savedPlaces;
 
   @override
@@ -454,7 +485,7 @@ class _Accelerators extends StatelessWidget {
             title: place.name,
             subtitle: place.address,
             showChevron: false,
-            onTap: () => onSelect(place),
+            onTap: () => onPopular(place),
           ),
       ],
     );
@@ -526,22 +557,4 @@ class _Message extends StatelessWidget {
       ),
     );
   }
-}
-
-/// MapTiler misses some Calamba landmarks (NU Laguna, for one), so the
-/// curated list is searched too. Every typed word must appear somewhere in
-/// the name or address.
-List<GeocodedPlace> landmarkMatches(String query) {
-  final words = query.toLowerCase().split(RegExp(r'\s+'))
-    ..removeWhere((word) => word.isEmpty);
-  return [
-    for (final place in DemoData.places)
-      if (words.every('${place.name} ${place.address}'.toLowerCase().contains))
-        GeocodedPlace(
-          id: place.id,
-          name: place.name,
-          context: place.address,
-          coordinate: place.coordinate,
-        ),
-  ];
 }

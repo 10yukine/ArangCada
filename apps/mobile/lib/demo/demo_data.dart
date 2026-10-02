@@ -6,12 +6,20 @@ class DemoPlace {
     required this.name,
     required this.address,
     required this.coordinate,
+    this.googleRetrievedAt,
   });
 
   final String id;
   final String name;
   final String address;
   final GeoCoordinate coordinate;
+  final DateTime? googleRetrievedAt;
+
+  bool googleCoordinateIsFresh(DateTime now) =>
+      !id.startsWith('google:') ||
+      (googleRetrievedAt != null &&
+          !now.isBefore(googleRetrievedAt!) &&
+          now.difference(googleRetrievedAt!) < const Duration(hours: 1));
 }
 
 abstract final class DemoData {

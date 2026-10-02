@@ -122,7 +122,7 @@ void main() {
           200,
         );
 
-  test('a query already answered is not sent again', () async {
+  test('suggested content is not cached between searches', () async {
     final requests = <http.Request>[];
     final repository = GooglePlacesGeocodingRepository(
       fallback: _Fallback(),
@@ -136,7 +136,21 @@ void main() {
     await repository.search('SM City');
     final again = await repository.search('  sm city ');
     expect(again.single.placeId, 'p1');
-    expect(requests, hasLength(1));
+    expect(requests, hasLength(2));
+  }, skip: skip);
+
+  test('saved place refresh requests only Essentials location', () async {
+    final requests = <http.Request>[];
+    final repository = GooglePlacesGeocodingRepository(
+      fallback: _Fallback(),
+      client: MockClient((request) async {
+        requests.add(request);
+        return suggestions(request);
+      }),
+    );
+    addTearDown(repository.dispose);
+    expect((await repository.refresh('p1'))!.coordinate, isNotNull);
+    expect(requests.single.headers['X-Goog-FieldMask'], 'location');
   }, skip: skip);
 
   test('a token left unused for three minutes is replaced', () async {

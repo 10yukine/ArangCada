@@ -8,14 +8,41 @@ import 'geocoding_repository.dart';
 
 /// Device-local places, partitioned by authenticated account ID.
 ///
-/// Places chosen from Google (id `google:<placeId>`) follow Google's terms:
-/// the place ID may be kept, but the name and coordinate only for
-/// [googleRetention]. Older ones are hidden until [refreshStale] fetches them
-/// again, and stripped to the bare ID when it cannot.
+/// Google places persist only their IDs. Coordinates and labels are resolved
+/// for the current screen session, never written to disk.
 class SavedPlacesRepository {
   SavedPlacesRepository(this.box, this.accountId);
 
-  static const Duration googleRetention = Duration(days: 30);
+  final Map<String, DemoPlace> _resolved = {};
+
+  /// Remove legacy Google content for every account before the app starts.
+  static Future<void> purgeGoogleContent(Box<String> box) async {
+    for (final key in box.keys.toList()) {
+      if (key is! String || !key.startsWith('saved_places:')) continue;
+      final List<dynamic> rows;
+      try {
+        final decoded = jsonDecode(box.get(key)!);
+        if (decoded is! List<dynamic> ||
+            decoded.any((row) => row is! Map || row['id'] is! String)) {
+          continue;
+        }
+        rows = decoded;
+      } on FormatException {
+        // Corrupt storage in another account must not block app startup.
+        continue;
+      }
+      await box.put(
+        key,
+        jsonEncode([
+          for (final row in rows)
+            if ((row['id'] as String).startsWith('google:'))
+              {'id': row['id']}
+            else
+              row,
+        ]),
+      );
+    }
+  }
 
   final Box<String>? box;
   final String? accountId;
@@ -31,18 +58,15 @@ class SavedPlacesRepository {
     ];
   }
 
-  static bool _stale(Map<String, dynamic> row, DateTime now) {
-    if (!(row['id'] as String).startsWith('google:')) return false;
-    if (row['latitude'] == null) return true;
-    final savedAt = DateTime.tryParse(row['savedAt'] as String? ?? '');
-    return savedAt == null || now.difference(savedAt) >= googleRetention;
-  }
-
   List<DemoPlace> get places {
-    final now = DateTime.now();
+    _resolved.removeWhere(
+      (_, place) => !place.googleCoordinateIsFresh(DateTime.now()),
+    );
     return [
       for (final row in _rows)
-        if (!_stale(row, now))
+        if ((row['id'] as String).startsWith('google:')) ...[
+          ?_resolved[row['id']],
+        ] else
           DemoPlace(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -55,63 +79,67 @@ class SavedPlacesRepository {
     ];
   }
 
-  Future<void> save(DemoPlace place) => _write([
-    ..._rows.where((row) => row['id'] != place.id),
-    _row(place, DateTime.now()),
-  ]);
+  Future<void> save(DemoPlace place) async {
+    if (!place.googleCoordinateIsFresh(DateTime.now())) {
+      throw StateError('Choose that place again before saving.');
+    }
+    await _write([..._rows.where((row) => row['id'] != place.id), _row(place)]);
+    if (place.id.startsWith('google:')) {
+      _resolved[place.id] = DemoPlace(
+        id: place.id,
+        name: 'Saved place',
+        address: 'Calamba City',
+        coordinate: place.coordinate,
+        googleRetrievedAt: place.googleRetrievedAt,
+      );
+    }
+  }
 
   Future<void> remove(String id) =>
       _write(_rows.where((row) => row['id'] != id).toList());
 
-  /// Re-fetches Google places older than [googleRetention]. Returns true when
-  /// anything changed, so the caller can rebuild.
+  /// Resolve persisted IDs when a saved-places screen opens.
   Future<bool> refreshStale(
     GeocodingRepository geocoding, {
     DateTime? now,
   }) async {
-    final at = now ?? DateTime.now();
-    final rows = _rows;
-    if (!rows.any((row) => _stale(row, at))) return false;
-    var changed = false;
-    final refreshed = <String, Map<String, dynamic>>{};
-    for (final row in rows) {
-      if (!_stale(row, at)) continue;
-      final id = row['id'] as String;
+    final ids = [
+      for (final row in _rows)
+        if ((row['id'] as String).startsWith('google:')) row['id'] as String,
+    ];
+    for (final id in ids) {
+      if (_resolved[id]?.googleCoordinateIsFresh(now ?? DateTime.now()) ==
+          true) {
+        continue;
+      }
       final fresh = await geocoding.refresh(id.substring('google:'.length));
-      final coordinate = fresh?.coordinate;
-      if (fresh != null && coordinate != null) {
-        refreshed[id] = _row(
-          DemoPlace(
-            id: id,
-            name: fresh.name,
-            address: fresh.context,
-            coordinate: coordinate,
-          ),
-          at,
+      // Never resurrect an entry removed while the lookup was running.
+      if (!_rows.any((row) => row['id'] == id)) continue;
+      if (fresh?.coordinate case final coordinate?) {
+        _resolved[id] = DemoPlace(
+          id: id,
+          name: fresh!.name,
+          address: fresh.context,
+          coordinate: coordinate,
+          googleRetrievedAt: now ?? DateTime.now(),
         );
-        changed = true;
       } else {
-        refreshed[id] = {'id': id};
-        changed = changed || row.length > 1;
+        _resolved.remove(id);
       }
     }
-    // The lookups above can take seconds. Write onto what is stored now, not
-    // onto the list read before them, so a place saved or removed meanwhile is
-    // neither lost nor brought back.
-    if (changed) {
-      await _write([for (final row in _rows) refreshed[row['id']] ?? row]);
-    }
-    return changed;
+    return ids.isNotEmpty;
   }
 
-  static Map<String, dynamic> _row(DemoPlace place, DateTime savedAt) => {
-    'id': place.id,
-    'name': place.name,
-    'address': place.address,
-    'latitude': place.coordinate.latitude,
-    'longitude': place.coordinate.longitude,
-    'savedAt': savedAt.toIso8601String(),
-  };
+  static Map<String, dynamic> _row(DemoPlace place) =>
+      place.id.startsWith('google:')
+      ? {'id': place.id}
+      : {
+          'id': place.id,
+          'name': place.name,
+          'address': place.address,
+          'latitude': place.coordinate.latitude,
+          'longitude': place.coordinate.longitude,
+        };
 
   Future<void> _write(List<Map<String, dynamic>> rows) async {
     final storage = box;

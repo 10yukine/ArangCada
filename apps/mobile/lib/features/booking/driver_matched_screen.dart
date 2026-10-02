@@ -337,7 +337,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
 
           return DragSheetScaffold(
             sheetKey: _mapController.panelKey,
-            collapsedHeight: 400,
+            collapsedHeight: 360,
             handleSemanticLabel: 'Driver details',
             background: LiveMapView(
               controller: _mapController,
@@ -367,19 +367,64 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
               tooltip: 'Center map',
               onPressed: () => _mapController.recenter(),
             ),
-            footer: TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.dangerDark,
-              ),
-              onPressed: cancellable && !_cancelling ? _cancelRide : null,
-              child: Text(
-                _cancelling
-                    ? 'Cancelling ride…'
-                    : cancellable
-                    ? 'Cancel ride · '
-                          '0:${_cancelSecondsRemaining.toString().padLeft(2, '0')}'
-                    : 'Cancellation window has expired',
-              ),
+            footer: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Contact actions stay outside the clipped, draggable body.
+                SizedBox(
+                  height: MediaQuery.textScalerOf(
+                    context,
+                  ).scale(32).clamp(48, 96),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          label: const Text('Message'),
+                          icon: const Icon(Icons.chat_outlined),
+                          onPressed: () => context.push('/chat/thread-active'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          label: const Text('Call'),
+                          icon: const Icon(Icons.call_outlined),
+                          onPressed: () => showTripCallSheet(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.screenBackground,
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.dangerDark,
+                    ),
+                    onPressed: cancellable && !_cancelling ? _cancelRide : null,
+                    child: Text(
+                      _cancelling
+                          ? 'Cancelling ride…'
+                          : cancellable
+                          ? 'Cancel ride · '
+                                '0:${_cancelSecondsRemaining.toString().padLeft(2, '0')}'
+                          : 'Cancellation window has expired',
+                    ),
+                  ),
+                ),
+              ],
             ),
             sheetBuilder: (context, expanded) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -395,14 +440,14 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                       : 'Pickup · ${booking.pickupName}',
                   style: AppTypography.bodySm,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
                 const Divider(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     ArangAvatar(
                       name: driverName,
-                      size: 52,
+                      size: 44,
                       imageUrl: state.liveCounterpartAvatarUrl,
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -410,7 +455,12 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(driverName, style: AppTypography.h2),
+                          Text(
+                            driverName,
+                            style: AppTypography.h2,
+                            maxLines: expanded ? null : 1,
+                            overflow: expanded ? null : TextOverflow.ellipsis,
+                          ),
                           Text(toda == null ? 'Tricycle' : 'Tricycle · $toda'),
                         ],
                       ),
@@ -422,14 +472,16 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   eta,
                   style: AppTypography.label.copyWith(color: AppColors.primary),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _arrived
-                      ? 'Your driver is at the pickup point. The trip will '
-                            'start automatically.'
-                      : 'Driver is heading to your pickup point.',
-                ),
-                if (state.forceEtaFallback) ...[
+                if (expanded) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _arrived
+                        ? 'Your driver is at the pickup point. The trip will '
+                              'start automatically.'
+                        : 'Driver is heading to your pickup point.',
+                  ),
+                ],
+                if (expanded && state.forceEtaFallback) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'ETA fallback · route estimate unavailable',
@@ -437,29 +489,6 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   ),
                 ],
 
-                // Always reachable, collapsed or not. Reaching the driver is
-                // the whole reason a commuter looks at this screen while they
-                // wait.
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        label: const Text('Message'),
-                        icon: const Icon(Icons.chat_outlined),
-                        onPressed: () => context.push('/chat/thread-active'),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        label: const Text('Call'),
-                        icon: const Icon(Icons.call_outlined),
-                        onPressed: () => showTripCallSheet(context),
-                      ),
-                    ),
-                  ],
-                ),
                 // Family can follow along from the moment a driver is on the
                 // way. Live trips only: a demo trip has no server link.
                 if (ref.read(liveRideRepositoryProvider) != null)

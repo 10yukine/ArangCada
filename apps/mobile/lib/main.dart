@@ -14,6 +14,7 @@ import 'app/router.dart';
 import 'config/app_config.dart';
 import 'data/remote/push/push_notification_service.dart';
 import 'data/remote/reset_link.dart';
+import 'data/repositories/saved_places_repository.dart';
 import 'data/remote/stale_clock_retry.dart';
 
 Future<void> main() async {
@@ -38,7 +39,8 @@ Future<void> main() async {
   MapLibreMap.useHybridComposition = true;
 
   await Hive.initFlutter();
-  await Hive.openBox<String>('arangcada_demo');
+  final storage = await Hive.openBox<String>('arangcada_demo');
+  await SavedPlacesRepository.purgeGoogleContent(storage);
   // Real notification history, not the fixed mock list
   // notifications_screen.dart used to render. Opened here, before
   // bootstrap(), so it exists regardless of whether push itself is

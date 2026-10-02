@@ -119,15 +119,15 @@ select ok(
   'publish_driver_location takes the trip before the availability row');
 
 -- purge_trip_places (20260930120000). -----------------------------------------
-update public.trips set completed_at = now() - interval '31 days', updated_at = now() - interval '31 days'
+update public.trips set requested_at = now() - interval '31 days', completed_at = now(), updated_at = now()
  where id = '00000000-0000-0000-0000-000000009133';
-update public.trips set updated_at = now() - interval '31 days'
+update public.trips set requested_at = now() - interval '31 days', updated_at = now()
  where id = '00000000-0000-0000-0000-000000009131';
 
 select ok(not has_function_privilege('authenticated', 'public.purge_trip_places(interval)', 'execute')
       and not has_function_privilege('anon', 'public.purge_trip_places(interval)', 'execute'),
   'app users cannot run the purge');
-select is(public.purge_trip_places(), 2, 'the purge clears the two trips that ended over 30 days ago');
+select is(public.purge_trip_places(), 2, 'the purge uses request age even when completion or updates are recent');
 select is((select pickup_label || '/' || destination_label from public.trips
             where id = '00000000-0000-0000-0000-000000009133'),
   'Pickup/Destination', 'their place names are gone');

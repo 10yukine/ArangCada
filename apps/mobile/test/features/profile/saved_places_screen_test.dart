@@ -69,6 +69,9 @@ void main() {
       overrides: [
         demoStateProvider.overrideWithValue(state),
         savedPlacesRepositoryProvider.overrideWithValue(repository),
+        geocodingRepositoryProvider.overrideWithValue(
+          _Geocoder(DemoData.places[2]),
+        ),
       ],
       child: MaterialApp.router(routerConfig: router),
     );
@@ -112,7 +115,10 @@ void main() {
       await tester.tap(find.text('Add a saved place'));
       await tester.pumpAndSettle();
       expect(find.text('Save a place'), findsOneWidget);
-      await tester.tap(find.text('Rizal Shrine Calamba'));
+      await tester.tap(find.text('Rizal Shrine Calamba').last);
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rizal Shrine Calamba').last);
       await tester.pumpAndSettle();
       expect(repository.places.single.name, 'Rizal Shrine Calamba');
       expect(state.destination, same(previousDestination));
@@ -130,7 +136,11 @@ void main() {
     await repository.save(DemoData.calambaCrossing);
     await tester.pumpWidget(harness(const DestinationSearchScreen()));
     expect(find.text('Saved places'), findsOneWidget);
-    await tester.tap(find.text(DemoData.calambaCrossing.name).at(1));
+    await tester.tap(find.text(DemoData.calambaCrossing.name).first);
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+    expect(state.destination, isNull);
+    await tester.tap(find.text(DemoData.calambaCrossing.name).last);
     await tester.pumpAndSettle();
     expect(state.destination?.name, DemoData.calambaCrossing.name);
     expect(find.text('Ride options'), findsOneWidget);
@@ -169,39 +179,78 @@ void main() {
     expect(state.destination, isNull);
   });
 
-  test(
-    'Google places keep only their ID past 30 days unless refreshed',
-    () async {
-      const place = DemoPlace(
-        id: 'google:nu-l',
-        name: 'National University Laguna',
-        address: 'Milagrosa, Calamba',
-        coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
-      );
-      await repository.save(place);
-      expect(repository.places.single.name, place.name);
-      final later = DateTime.now().add(const Duration(days: 31));
+  test('Google places persist only IDs and resolve on reopening', () async {
+    final place = DemoPlace(
+      googleRetrievedAt: DateTime.now(),
+      id: 'google:nu-l',
+      name: 'National University Laguna',
+      address: 'Milagrosa, Calamba',
+      coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
+    );
+    await repository.save(place);
+    expect(repository.places.single.name, 'Saved place');
+    expect(box.get('saved_places:account-a'), '[{"id":"google:nu-l"}]');
+    repository = SavedPlacesRepository(box, 'account-a');
+    expect(repository.places, isEmpty);
+    final later = DateTime.now();
 
-      expect(
-        await repository.refreshStale(_Geocoder(null), now: later),
-        isTrue,
-      );
-      expect(box.get('saved_places:account-a'), '[{"id":"google:nu-l"}]');
-      expect(repository.places, isEmpty);
+    expect(await repository.refreshStale(_Geocoder(null), now: later), isTrue);
+    expect(box.get('saved_places:account-a'), '[{"id":"google:nu-l"}]');
+    expect(repository.places, isEmpty);
 
-      expect(
-        await repository.refreshStale(_Geocoder(place), now: later),
-        isTrue,
+    final geocoder = _Geocoder(place);
+    expect(await repository.refreshStale(geocoder, now: later), isTrue);
+    await repository.refreshStale(geocoder, now: later);
+    expect(geocoder.refreshes, 1);
+    expect(repository.places.single.name, place.name);
+    expect(repository.places.single.id, 'google:nu-l');
+  });
+
+  test('legacy Google content is purged for every stored account', () async {
+    for (final account in ['account-a', 'account-b']) {
+      await box.put(
+        'saved_places:$account',
+        jsonEncode([
+          {'id': 'google:old', 'name': 'Google name', 'latitude': 14.2},
+          {'id': 'home', 'name': 'My home'},
+        ]),
       );
-      expect(repository.places.single.name, place.name);
-      expect(repository.places.single.id, 'google:nu-l');
-    },
-  );
+    }
+    await box.put('saved_places:corrupt', 'not json');
+    await SavedPlacesRepository.purgeGoogleContent(box);
+    expect(box.get('saved_places:corrupt'), 'not json');
+    for (final account in ['account-a', 'account-b']) {
+      final rows = jsonDecode(box.get('saved_places:$account')!) as List;
+      expect(rows.first, {'id': 'google:old'});
+      expect(rows.last, {'id': 'home', 'name': 'My home'});
+    }
+  });
+
+  test('booking rejects expired or unknown Google coordinate age', () {
+    final now = DateTime.now();
+    DemoPlace google(DateTime? at) => DemoPlace(
+      id: 'google:p1',
+      name: 'Place',
+      address: 'Calamba',
+      coordinate: DemoData.calambaCrossing.coordinate,
+      googleRetrievedAt: at,
+    );
+    expect(google(null).googleCoordinateIsFresh(now), isFalse);
+    expect(google(now).googleCoordinateIsFresh(now), isTrue);
+    expect(
+      google(
+        now.subtract(const Duration(hours: 1)),
+      ).googleCoordinateIsFresh(now),
+      isFalse,
+    );
+    expect(DemoData.calambaCrossing.googleCoordinateIsFresh(now), isTrue);
+  });
 
   test(
     'a place saved or removed during a refresh is kept as the user left it',
     () async {
-      const old = DemoPlace(
+      final old = DemoPlace(
+        googleRetrievedAt: DateTime.now(),
         id: 'google:old',
         name: 'Old Google Place',
         address: 'Calamba',
@@ -247,10 +296,12 @@ class _Geocoder implements GeocodingRepository {
   _Geocoder(this.place);
 
   final DemoPlace? place;
+  int refreshes = 0;
   Future<void> Function()? duringRefresh;
 
   @override
   Future<GeocodedPlace?> refresh(String placeId) async {
+    refreshes++;
     await duringRefresh?.call();
     return _refreshed(placeId);
   }
@@ -266,7 +317,20 @@ class _Geocoder implements GeocodingRepository {
         );
 
   @override
-  Future<List<GeocodedPlace>> search(String query) async => const [];
+  Future<List<GeocodedPlace>> search(String query) async {
+    final found =
+        DemoData.places.where((p) => p.name == query).firstOrNull ?? place;
+    return found == null
+        ? []
+        : [
+            GeocodedPlace(
+              id: found.id,
+              name: found.name,
+              context: found.address,
+              coordinate: found.coordinate,
+            ),
+          ];
+  }
 
   @override
   Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async => null;

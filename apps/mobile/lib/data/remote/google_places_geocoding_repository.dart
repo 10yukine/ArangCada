@@ -18,14 +18,13 @@ import '../repositories/geocoding_repository.dart';
 ///    Details Essentials request; later Autocomplete requests in that session
 ///    have no charge. A token left unused for [_sessionLife]
 ///    is replaced, because Google stops honouring an old one.
-///  * A query already answered is served from a small in-memory cache.
 ///  * HTTP 429 (a Cloud Console quota cap reached) hands searches to the
 ///    fallback for [_cooldown]; 401/403 does so for the rest of the session.
 ///  * Pin labels (reverse lookups) always use the fallback: Google charges
 ///    for those and the pin already has its coordinate.
 ///
 /// Terms: results carry `placeId`; the screen shows the "Google Maps" credit
-/// beside them, and nothing here stores names or coordinates.
+/// beside them. Suggestions are not cached between searches.
 class GooglePlacesGeocodingRepository implements GeocodingRepository {
   GooglePlacesGeocodingRepository({
     required this._fallback,
@@ -48,7 +47,6 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   static const Duration _cooldown = Duration(minutes: 5);
   static const int _minQueryLength = 3;
   static const Duration _sessionLife = Duration(minutes: 3);
-  static const int _maxCacheEntries = 30;
 
   /// Same Calamba box as the MapTiler search, as a hard restriction.
   static const Map<String, Object> _calamba = {
@@ -60,7 +58,6 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
 
   String? _session;
   DateTime? _sessionUsedAt;
-  final Map<String, List<GeocodedPlace>> _cache = {};
   int _requestSeq = 0;
   DateTime? _suspendedUntil;
   bool _disabled = false;
@@ -98,10 +95,6 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
     if (trimmed.length < _minQueryLength) return const [];
     if (!_useGoogle) return _fallback.search(query);
 
-    final cacheKey = trimmed.toLowerCase();
-    final cached = _cache[cacheKey];
-    if (cached != null) return cached;
-
     final http.Response response;
     try {
       response = await _client
@@ -137,8 +130,6 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
               case final Map<String, dynamic> prediction)
             _suggestion(prediction),
       ];
-      if (_cache.length >= _maxCacheEntries) _cache.remove(_cache.keys.first);
-      _cache[cacheKey] = places;
       return places;
     } catch (_) {
       throw const ApiUnexpectedException('Place search returned bad data.');
@@ -164,8 +155,7 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   Future<GeoCoordinate?> locate(GeocodedPlace place) async {
     final placeId = place.placeId;
     if (placeId == null) return place.coordinate;
-    // A token gone stale is not sent: the lookup is then billed on its own,
-    // which costs the same as ending a live session.
+    // A stale token is not sent; abandoned autocomplete requests remain billable.
     final usedAt = _sessionUsedAt;
     final session = usedAt != null && _now().difference(usedAt) < _sessionLife
         ? _session
@@ -178,22 +168,21 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
 
   @override
   Future<GeocodedPlace?> refresh(String placeId) async {
-    // displayName makes this a Place Details Pro call. Only stale saved places
-    // come through here, at most once per place every 30 days.
-    final json = await _details(
-      placeId,
-      'location,displayName,formattedAddress',
-    );
+    final json = await _details(placeId, 'location');
     final coordinate = json == null ? null : _coordinate(json);
     if (coordinate == null) return null;
-    final name =
-        ((json!['displayName'] as Map<String, dynamic>?)?['text'] as String?) ??
-        'Saved place';
+    // Labels come from the existing fallback, not a Pro-tier Google field.
+    GeocodedPlace? label;
+    try {
+      label = await _fallback.reverse(coordinate);
+    } catch (_) {
+      // A label failure must not prevent resolving a saved coordinate.
+    }
     return GeocodedPlace(
       id: 'google:$placeId',
       placeId: placeId,
-      name: name,
-      context: (json['formattedAddress'] as String?) ?? 'Calamba City',
+      name: label?.name ?? 'Saved place',
+      context: label?.context ?? 'Calamba City',
       coordinate: coordinate,
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:arangcada/data/mock/demo_state.dart';
+import 'package:arangcada/core/widgets/drag_sheet_scaffold.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/remote/supabase_ride_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
@@ -80,6 +81,8 @@ void main() {
       var now = DateTime.now().toUtc();
       addTearDown(state.dispose);
       state.setDestination(DemoData.places[1]);
+      state.liveDriverName = 'SJV T O D A Test Driver with a long name';
+      state.liveTodaName = 'Two-phone acceptance test (temporary)';
       state.setActiveBooking(
         DemoBooking.draft(
             pickupName: 'Pickup',
@@ -118,11 +121,28 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull);
-      await tester.scrollUntilVisible(
-        find.text('Message'),
-        100,
-        scrollable: find.byType(Scrollable).first,
+      // Contact actions must be entirely visible without expanding or scrolling.
+      expect(
+        tester
+            .widget<DragSheetScaffold>(find.byType(DragSheetScaffold))
+            .collapsedHeight,
+        360,
       );
+      final cancel = tester.getRect(
+        find.ancestor(
+          of: find.textContaining('Cancel ride ·'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      for (final label in ['Message', 'Call']) {
+        final bounds = tester.getRect(
+          find.widgetWithText(OutlinedButton, label),
+        );
+        expect(bounds.height, greaterThanOrEqualTo(48));
+        expect(bounds.bottom, lessThanOrEqualTo(cancel.top));
+        expect(bounds.left, greaterThanOrEqualTo(0));
+        expect(bounds.right, lessThanOrEqualTo(320));
+      }
       expect(find.text('Message').hitTestable(), findsOneWidget);
       expect(find.text('Call').hitTestable(), findsOneWidget);
       for (final error in [Exception('offline'), StateError('rejected')]) {

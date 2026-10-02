@@ -58,7 +58,7 @@ final savedPlacesRepositoryProvider =
       );
     });
 
-/// Keeps Google-sourced saved places within Google's 30-day limit. Screens
+/// Resolves saved Google IDs without keeping provider content on disk. Screens
 /// that list saved places call this once when they open; true means rebuild.
 Future<bool> refreshStaleSavedPlaces(WidgetRef ref) async {
   try {
