@@ -12,8 +12,9 @@ plugins {
 
 // Release signing reads android/key.properties (gitignored, never
 // committed): storeFile, storePassword, keyAlias, keyPassword. Without it a
-// release build falls back to the debug key, which is fine for local testing
-// but not for a beta others install and later update.
+// release build stops, so an APK signed with the public debug key cannot be
+// handed out by accident. For a local test build on a machine without the
+// key, set ARANGCADA_ALLOW_DEBUG_SIGNING=1.
 val keyProperties = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -72,7 +73,15 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+                ?: if (System.getenv("ARANGCADA_ALLOW_DEBUG_SIGNING") == "1") {
+                    signingConfigs.getByName("debug")
+                } else {
+                    throw GradleException(
+                        "android/key.properties is missing, so this release " +
+                            "build has no signing key. Add it, or set " +
+                            "ARANGCADA_ALLOW_DEBUG_SIGNING=1 for a local test build.",
+                    )
+                }
             // R8 code + resource shrinking. The Flutter Gradle plugin already
             // turns both on for release and adds proguard-android-optimize.txt,
             // Flutter's keep rules and ./proguard-rules.pro (if present);

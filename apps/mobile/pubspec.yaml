@@ -40,6 +40,8 @@ dependencies:
   # Promoted from a transitive dependency of supabase_flutter so the direct
   # use in data/remote/ is declared. Same resolved version -- no new download.
   http: ^1.5.0
+  # Same again: main.dart listens for the password-reset link itself.
+  app_links: ^7.2.1
   # permission_handler removed: v14 android needs Manifest.permission.ACCESS_LOCAL_NETWORK
   # (API 37), which does not resolve on this SDK install. No Dart code used it,
   # and geolocator requests its own location permissions. See android/build.gradle.kts.

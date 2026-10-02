@@ -2,10 +2,12 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
 import '../../domain/models/fare_class_claim.dart';
 import '../mock/demo_state.dart';
 import '../repositories/auth_repository.dart';
+import 'push/push_notification_service.dart';
 
 /// Supabase Auth transport with role and test access resolved from profiles.
 /// User-editable metadata never determines application authorization.
@@ -80,7 +82,7 @@ class SupabaseAuthRepository implements AuthRepository {
     final profile = await _client
         .from('profiles')
         .select(
-          'role, display_name, is_internal_tester, phone_verified_at, avatar_path',
+          'role, display_name, is_internal_tester, phone_verified_at, avatar_path, fare_class',
         )
         .eq('id', user.id)
         .single();
@@ -106,7 +108,27 @@ class SupabaseAuthRepository implements AuthRepository {
       avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );
     _state.setCurrentUser(mapped);
+    _state.setUserFareClass(
+      await _approvedFareClass(profile['fare_class'] as String?),
+    );
     return mapped;
+  }
+
+  /// What the booking screens quote with. The server bills an approved rider
+  /// the discounted fare; without this the app quoted, and showed as locked,
+  /// the regular one. Student, Senior Citizen and PWD price the same, so the
+  /// claim is only read for the label.
+  Future<UserFareClass> _approvedFareClass(String? fareClass) async {
+    if (fareClass != 'discounted') return UserFareClass.regular;
+    final claim = await latestFareClassClaim();
+    if (claim?.status != FareClassClaimStatus.approved) {
+      return UserFareClass.student;
+    }
+    return switch (claim!.requestedClass) {
+      FareClassRequestedClass.student => UserFareClass.student,
+      FareClassRequestedClass.seniorCitizen => UserFareClass.seniorCitizen,
+      FareClassRequestedClass.pwd => UserFareClass.pwd,
+    };
   }
 
   /// A fresh signed URL for [avatarPath], or null when there is no photo or
@@ -376,9 +398,20 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     try {
+      // unregister_push_token is granted to signed-in callers only, so it has
+      // to go out while the session is still attached. Left to the signedOut
+      // listener in main.dart it is sent as anon and refused, and this device
+      // keeps receiving the signed-out account's ride notifications. Bounded so
+      // a phone with no signal can still sign out.
+      await PushNotificationService.unregisterForSession(
+        _client,
+      ).timeout(const Duration(seconds: 5), onTimeout: () {});
       await _client.auth.signOut();
     } finally {
-      _state.setCurrentUser(null);
+      await PushNotificationService.clearHistory();
+      // Not setCurrentUser(null): that keeps the last destination, booking
+      // and trip, which the next account to sign in on this phone would see.
+      _state.reset();
     }
   }
 

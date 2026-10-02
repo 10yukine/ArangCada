@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'dart:io';
 
 import 'package:arangcada/core/geo/haversine.dart';
@@ -195,15 +197,65 @@ void main() {
       expect(repository.places.single.id, 'google:nu-l');
     },
   );
+
+  test(
+    'a place saved or removed during a refresh is kept as the user left it',
+    () async {
+      const old = DemoPlace(
+        id: 'google:old',
+        name: 'Old Google Place',
+        address: 'Calamba',
+        coordinate: GeoCoordinate(latitude: 14.2, longitude: 121.16),
+      );
+      const removed = DemoPlace(
+        id: 'home',
+        name: 'Home',
+        address: 'Calamba',
+        coordinate: GeoCoordinate(latitude: 14.21, longitude: 121.17),
+      );
+      const added = DemoPlace(
+        id: 'work',
+        name: 'Work',
+        address: 'Calamba',
+        coordinate: GeoCoordinate(latitude: 14.22, longitude: 121.18),
+      );
+      await repository.save(old);
+      await repository.save(removed);
+
+      // While the lookup is in flight the user removes one place and saves another.
+      final geocoder = _Geocoder(old)
+        ..duringRefresh = () async {
+          await repository.remove(removed.id);
+          await repository.save(added);
+        };
+      await repository.refreshStale(
+        geocoder,
+        now: DateTime.now().add(const Duration(days: 31)),
+      );
+
+      final ids = [
+        for (final row
+            in jsonDecode(box.get('saved_places:account-a')!) as List)
+          (row as Map)['id'],
+      ];
+      expect(ids, ['google:old', 'work']);
+    },
+  );
 }
 
 class _Geocoder implements GeocodingRepository {
   _Geocoder(this.place);
 
   final DemoPlace? place;
+  Future<void> Function()? duringRefresh;
 
   @override
-  Future<GeocodedPlace?> refresh(String placeId) async => place == null
+  Future<GeocodedPlace?> refresh(String placeId) async {
+    await duringRefresh?.call();
+    return _refreshed(placeId);
+  }
+
+  GeocodedPlace? _refreshed(String placeId) => place == null
       ? null
       : GeocodedPlace(
           id: 'google:$placeId',

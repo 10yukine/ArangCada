@@ -5,7 +5,10 @@ import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/repositories/location_repository.dart';
 import 'package:arangcada/data/repositories/notifications_repository.dart';
+import 'package:arangcada/domain/fare/fare_calculator.dart';
+import 'package:arangcada/domain/fare/fare_matrix.dart';
 import 'package:arangcada/domain/models/app_notification.dart';
+import 'package:arangcada/domain/models/booking.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
 import 'package:arangcada/core/widgets/philippine_peso_icon.dart';
 import 'package:arangcada/features/home/commuter_home_screen.dart';
@@ -88,6 +91,46 @@ void main() {
     await tester.pump();
     return state;
   }
+
+  // A ride left running had no way back from Home, and booking again failed.
+  testWidgets('a ride still running offers Resume, a finished one does not', (
+    tester,
+  ) async {
+    final state = await render(
+      tester,
+      user: const DemoUser(
+        email: 'commuter@example.com',
+        displayName: 'Connected Commuter',
+        role: DemoRole.commuter,
+      ),
+      location: _LocationSpy(),
+    );
+    expect(find.text('Resume'), findsNothing);
+
+    final booking = DemoBooking.draft(
+      pickupName: 'Pickup',
+      destinationName: 'Destination',
+      rideType: RideType.special,
+      passengerCount: 1,
+      userFareClass: UserFareClass.regular,
+      paymentMethod: PaymentMethod.cash,
+      fareQuote: const FareCalculator().quote(
+        distanceMeters: 2000,
+        rideType: RideType.special,
+        passengerCount: 1,
+        discountClass: DiscountClass.full,
+      ),
+    )..status = BookingStatus.searching;
+    state.setActiveBooking(booking);
+    await tester.pump();
+    expect(find.text('You have a ride in progress'), findsOneWidget);
+    expect(find.text('Resume'), findsOneWidget);
+
+    booking.status = BookingStatus.completed;
+    state.bookingChanged();
+    await tester.pump();
+    expect(find.text('Resume'), findsNothing);
+  });
 
   testWidgets('real commuters request GPS and start from their live pickup', (
     tester,

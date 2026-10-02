@@ -73,34 +73,34 @@ class SavedPlacesRepository {
     final rows = _rows;
     if (!rows.any((row) => _stale(row, at))) return false;
     var changed = false;
-    final next = <Map<String, dynamic>>[];
+    final refreshed = <String, Map<String, dynamic>>{};
     for (final row in rows) {
-      if (!_stale(row, at)) {
-        next.add(row);
-        continue;
-      }
+      if (!_stale(row, at)) continue;
       final id = row['id'] as String;
       final fresh = await geocoding.refresh(id.substring('google:'.length));
       final coordinate = fresh?.coordinate;
       if (fresh != null && coordinate != null) {
-        next.add(
-          _row(
-            DemoPlace(
-              id: id,
-              name: fresh.name,
-              address: fresh.context,
-              coordinate: coordinate,
-            ),
-            at,
+        refreshed[id] = _row(
+          DemoPlace(
+            id: id,
+            name: fresh.name,
+            address: fresh.context,
+            coordinate: coordinate,
           ),
+          at,
         );
         changed = true;
       } else {
-        next.add({'id': id});
+        refreshed[id] = {'id': id};
         changed = changed || row.length > 1;
       }
     }
-    if (changed) await _write(next);
+    // The lookups above can take seconds. Write onto what is stored now, not
+    // onto the list read before them, so a place saved or removed meanwhile is
+    // neither lost nor brought back.
+    if (changed) {
+      await _write([for (final row in _rows) refreshed[row['id']] ?? row]);
+    }
     return changed;
   }
 

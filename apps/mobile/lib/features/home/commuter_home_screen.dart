@@ -181,6 +181,14 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen>
                   imageUrl: user?.avatarUrl,
                   hasUnreadNotifications: hasUnreadNotifications,
                 ),
+                // A ride left running (the app was closed while it was still
+                // searching, or the commuter backed out to Home) had no way
+                // back from here, and booking again was refused.
+                if (_liveRideRoute(state.activeBooking?.status)
+                    case final route?) ...[
+                  const SizedBox(height: 14),
+                  _ResumeRideBanner(onResume: () => context.go(route)),
+                ],
                 const SizedBox(height: 18),
                 Material(
                   color: AppColors.surface,
@@ -592,6 +600,49 @@ class _HomeHeader extends StatelessWidget {
           onPressed: () => context.push('/notifications'),
         ),
       ],
+    );
+  }
+}
+
+/// The screen a ride that is still running lives on. Null when there is none.
+String? _liveRideRoute(BookingStatus? status) => switch (status) {
+  BookingStatus.confirmed || BookingStatus.searching => '/booking/searching',
+  BookingStatus.matched ||
+  BookingStatus.approaching => '/booking/driver-matched',
+  BookingStatus.inProgress => '/trip/active',
+  _ => null,
+};
+
+class _ResumeRideBanner extends StatelessWidget {
+  const _ResumeRideBanner({required this.onResume});
+
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: const BoxDecoration(
+        color: AppColors.primaryFill,
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.lg)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_taxi_outlined, color: AppColors.primary),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'You have a ride in progress',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onResume, child: const Text('Resume')),
+        ],
+      ),
     );
   }
 }

@@ -158,6 +158,9 @@ class _ExpiringRide implements SupabaseRideRepository {
   };
 
   @override
+  bool get heartbeatStale => false;
+
+  @override
   Future<void> expireRide() async => expireCalls++;
 
   @override

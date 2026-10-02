@@ -38,6 +38,11 @@ class SupabaseRideRepository extends ChangeNotifier {
   }
 
   static const completionWindow = Duration(seconds: 60);
+
+  /// Shown when a trip is closed but [finishDriverTrip] could not put the
+  /// driver back online (no GPS fix, no connection, approval withdrawn).
+  static const driverOfflineNotice =
+      'You are offline. Switch Online to receive requests.';
   static const _uuid = Uuid();
 
   final SupabaseClient _client;
@@ -57,6 +62,8 @@ class SupabaseRideRepository extends ChangeNotifier {
   StreamSubscription<List<Map<String, dynamic>>>? _feedbackSubscription;
   Timer? _locationTicker;
   bool _publishingLocation = false;
+  DateTime? _lastHeartbeatOk;
+  bool _heartbeatStale = false;
   bool _disposed = false;
   List<Map<String, dynamic>> _trips = const [];
   Map<String, dynamic>? _activeTrip;
@@ -67,6 +74,12 @@ class SupabaseRideRepository extends ChangeNotifier {
   String? get connectionError => _connectionError;
   Map<String, dynamic>? get activeTrip => _activeTrip;
   List<Map<String, dynamic>> get trips => List.unmodifiable(_trips);
+
+  /// The driver reads Online, but the server has not taken a heartbeat for a
+  /// minute. Dispatch skips a driver it has not heard from (see
+  /// dispatch_settings.driver_fresh_seconds), so Driver Home says so instead
+  /// of "Ready for requests".
+  bool get heartbeatStale => _heartbeatStale;
 
   static BookingStatus commuterStatusFor(
     String status, {
@@ -143,8 +156,16 @@ class SupabaseRideRepository extends ChangeNotifier {
     }
     if (selected == null && rows.isNotEmpty) {
       final latest = rows.first;
-      if (latest['id'] == _state.liveTripId ||
-          latest['id'] == _state.pendingFeedbackTripId) {
+      // A closed trip is applied once, when it closes. The stream sends every
+      // row again after a reconnect, and applying the same closed trip again
+      // would put its pickup, destination and "completed" status onto whatever
+      // the rider is booking next.
+      final alreadyApplied =
+          _activeTrip?['id'] == latest['id'] &&
+          _activeTrip?['status'] == latest['status'];
+      if (!alreadyApplied &&
+          (latest['id'] == _state.liveTripId ||
+              latest['id'] == _state.pendingFeedbackTripId)) {
         selected = latest;
       }
     }
@@ -204,9 +225,17 @@ class SupabaseRideRepository extends ChangeNotifier {
     if (_isDriver) {
       final next = driverStatusFor(status);
       if (next != null) _state.driverTrip.status = next;
+      // The availability row goes offline when an offer is assigned, and that
+      // emission can stop the heartbeat before the offer itself arrives.
+      // Nothing else restarts it when the offer is declined, expires or is
+      // cancelled, and dispatch skips a driver it has not heard from.
+      if (next == DriverTripStatus.available) _ensureLocationUpdates();
       if (status == 'completed') unawaited(refreshFeedbackState());
     } else {
       final booking = _state.activeBooking ?? _restoreBooking(trip);
+      // The server prices the trip (it knows the rider's approved fare class);
+      // the phone's own estimate must not outlive the request.
+      booking.fareQuote = _serverFare(trip, booking.fareQuote);
       booking.driverAcceptedAt = DateTime.tryParse(
         trip['accepted_at'] as String? ?? '',
       )?.toUtc();
@@ -273,24 +302,7 @@ class SupabaseRideRepository extends ChangeNotifier {
       passengerCount: 1,
       discountClass: DiscountClass.full,
     );
-    final serverPesos = trip['final_fare'] ?? trip['fare_estimate'];
-    final serverCentavos = serverPesos == null
-        ? localQuote.partyTotalCentavos
-        : ((serverPesos as num).toDouble() * 100).round();
-    final quote = FareQuote(
-      unitFareCentavos: serverCentavos,
-      partyTotalCentavos: serverCentavos,
-      farePerPassengerCentavos: null,
-      baseFareCentavos: localQuote.baseFareCentavos,
-      additionalDistanceCentavos: serverCentavos - localQuote.baseFareCentavos,
-      distanceMeters: localQuote.distanceMeters,
-      chargeableKm: localQuote.chargeableKm,
-      rideType: RideType.special,
-      passengerCount: 1,
-      discountClass: DiscountClass.full,
-      fareMatrixVersion: localQuote.fareMatrixVersion,
-      createdAt: DateTime.now().toUtc(),
-    );
+    final quote = _serverFare(trip, localQuote);
     final booking = DemoBooking.draft(
       pickupName: _state.pickup.name,
       destinationName: destination.name,
@@ -302,6 +314,28 @@ class SupabaseRideRepository extends ChangeNotifier {
     );
     _state.activeBooking = booking;
     return booking;
+  }
+
+  /// [quote] with the amount the server put on [trip].
+  static FareQuote _serverFare(Map<String, dynamic> trip, FareQuote quote) {
+    final serverPesos = trip['final_fare'] ?? trip['fare_estimate'];
+    if (serverPesos == null) return quote;
+    final serverCentavos = ((serverPesos as num).toDouble() * 100).round();
+    if (serverCentavos == quote.partyTotalCentavos) return quote;
+    return FareQuote(
+      unitFareCentavos: serverCentavos,
+      partyTotalCentavos: serverCentavos,
+      farePerPassengerCentavos: null,
+      baseFareCentavos: quote.baseFareCentavos,
+      additionalDistanceCentavos: serverCentavos - quote.baseFareCentavos,
+      distanceMeters: quote.distanceMeters,
+      chargeableKm: quote.chargeableKm,
+      rideType: quote.rideType,
+      passengerCount: quote.passengerCount,
+      discountClass: quote.discountClass,
+      fareMatrixVersion: quote.fareMatrixVersion,
+      createdAt: quote.createdAt,
+    );
   }
 
   GeoCoordinate? _coordinate(Map<String, dynamic> row, String prefix) {
@@ -334,11 +368,10 @@ class SupabaseRideRepository extends ChangeNotifier {
             _state.driverTrip.status = row['is_online'] == true
                 ? DriverTripStatus.available
                 : DriverTripStatus.offline;
-            if (_state.driverTrip.isOnline && _locationTicker == null) {
-              _startLocationUpdates();
-            } else if (!_state.driverTrip.isOnline) {
+            if (_state.driverTrip.isOnline) {
+              _ensureLocationUpdates();
+            } else {
               _locationTicker?.cancel();
-              _locationTicker = null;
             }
           }
           _state.driverChanged();
@@ -398,6 +431,11 @@ class SupabaseRideRepository extends ChangeNotifier {
       throw switch (error.code) {
         '22023' || '42501' when error.message.isNotEmpty =>
           ApiRejectedException(error.message),
+        // trips_one_active_per_rider: a ride left running, for example after
+        // the app was closed while it was still searching.
+        '23505' => const ApiRejectedException(
+          'You already have a ride in progress. Resume it from Home.',
+        ),
         _ => const ApiUnexpectedException(),
       };
     }
@@ -449,6 +487,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     _state.driverTrip.status = online
         ? DriverTripStatus.available
         : DriverTripStatus.offline;
+    _heartbeatAccepted();
     _state.driverChanged();
     if (online) {
       _startLocationUpdates();
@@ -474,7 +513,38 @@ class SupabaseRideRepository extends ChangeNotifier {
       params: {'p_trip_id': tripId, 'p_reason': reason},
     );
     _applyTrip(_row(result));
+    try {
+      await finishDriverTrip();
+    } on Exception {
+      // The ride is cancelled either way. The driver stays Offline and can
+      // switch Online by hand.
+    }
+  }
+
+  /// Closes a finished or cancelled trip and puts the driver back online.
+  ///
+  /// The server sets a driver offline when a trip completes, and the app used
+  /// to keep showing Online without ever telling the server, so the driver
+  /// silently stopped receiving offers. Offline is shown first and Online only
+  /// once set_driver_availability agrees. Throws what [setDriverOnline] throws.
+  Future<void> finishDriverTrip() async {
+    _activeTrip = null;
+    if (_state.driverTrip.status == DriverTripStatus.completed) {
+      _state.finishDriverTrip();
+    } else {
+      // Otherwise a late trips emission re-selects the closed trip.
+      _state.liveTripId = null;
+    }
+    _showOffline();
+    await setDriverOnline(true);
+  }
+
+  void _showOffline() {
     _locationTicker?.cancel();
+    _heartbeatStale = false;
+    _state.driverTrip.status = DriverTripStatus.offline;
+    _state.driverChanged();
+    notifyListeners();
   }
 
   /// Server reason key -> what the driver reads. Keep in sync with
@@ -529,8 +599,19 @@ class SupabaseRideRepository extends ChangeNotifier {
 
   void _startLocationUpdates() {
     if (!_isDriver) return;
+    _lastHeartbeatOk ??= DateTime.now();
     unawaited(_publishLocation());
     _scheduleNextLocationUpdate();
+  }
+
+  void _ensureLocationUpdates() {
+    if (_locationTicker?.isActive ?? false) return;
+    _startLocationUpdates();
+  }
+
+  void _heartbeatAccepted() {
+    _lastHeartbeatOk = DateTime.now();
+    _heartbeatStale = false;
   }
 
   /// Adaptive publish cadence instead of one fixed interval: a driver just
@@ -560,17 +641,31 @@ class SupabaseRideRepository extends ChangeNotifier {
     });
   }
 
+  @visibleForTesting
+  Future<void> publishLocationNow() => _publishLocation();
+
   Future<void> _publishLocation() async {
     if (_publishingLocation || _disposed) return;
     _publishingLocation = true;
+    var idle = false;
     try {
       final fix = await _location.currentLocation();
-      if (_disposed || !_state.driverTrip.isOnline || fix.isCoarse) return;
+      final status = _state.driverTrip.status;
+      // A completed trip has nothing to report until the driver closes it
+      // (finishDriverTrip), which goes back online explicitly.
+      if (_disposed ||
+          status == DriverTripStatus.offline ||
+          status == DriverTripStatus.completed) {
+        return;
+      }
+      idle =
+          status == DriverTripStatus.available ||
+          status == DriverTripStatus.declined;
+      if (fix.isCoarse) return;
       _state.liveDriverLocation = fix.coordinate;
       _state.driverChanged();
       final tripId = _state.liveTripId;
-      if (tripId == null ||
-          _state.driverTrip.status == DriverTripStatus.available) {
+      if (tripId == null || idle) {
         await _client.rpc(
           'set_driver_availability',
           params: {
@@ -590,10 +685,27 @@ class SupabaseRideRepository extends ChangeNotifier {
           },
         );
       }
+      _heartbeatAccepted();
+    } on PostgrestException catch (error) {
+      // 42501 on the idle heartbeat means the server will not have this driver
+      // online at all (suspended, approval withdrawn, feedback due). Anything
+      // else, such as the 22023 a heartbeat gets while an offer is being
+      // assigned, is left for the next tick.
+      if (idle && error.code == '42501') _showOffline();
     } on Exception {
       // A missed foreground GPS fix must not end or rewrite the server trip.
     } finally {
       _publishingLocation = false;
+      final lastOk = _lastHeartbeatOk;
+      final stale =
+          _state.driverTrip.status == DriverTripStatus.available &&
+          lastOk != null &&
+          DateTime.now().difference(lastOk) > const Duration(seconds: 60);
+      if (stale != _heartbeatStale && !_disposed) {
+        _heartbeatStale = stale;
+        _state.driverChanged();
+        notifyListeners();
+      }
     }
   }
 
@@ -601,6 +713,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     if (!_isDriver || _disposed) return;
     try {
       final result = await _client.rpc('get_driver_feedback_state');
+      if (_disposed) return;
       final row = _row(result);
       _state.driverFeedbackPending = row['pending'] == true;
       _state.pendingFeedbackTripId = row['pending_trip_id'] as String?;
@@ -645,14 +758,12 @@ class SupabaseRideRepository extends ChangeNotifier {
     );
     _state.driverFeedbackPending = false;
     _state.pendingFeedbackTripId = null;
-    _activeTrip = null;
-    if (_state.driverTrip.status == DriverTripStatus.completed) {
-      _state.finishDriverTrip();
-    } else {
-      _state.driverTrip.status = DriverTripStatus.available;
-      _state.driverChanged();
+    try {
+      await finishDriverTrip();
+    } on Exception {
+      // The feedback is saved. The driver stays Offline and can switch Online
+      // by hand.
     }
-    _startLocationUpdates();
     notifyListeners();
   }
 

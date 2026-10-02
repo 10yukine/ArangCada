@@ -24,6 +24,9 @@ class _FeedbackRideRepository extends ChangeNotifier
   List<Map<String, dynamic>> get trips => const [];
 
   @override
+  bool get heartbeatStale => false;
+
+  @override
   Future<void> completeTrip() async {
     state.driverTrip.completeTrip();
     state.driverChanged();

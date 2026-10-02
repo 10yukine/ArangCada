@@ -30,8 +30,9 @@ hosting and support.
    sessions, private driver documents or development database dumps.
 4. Run `flutter pub get`, `flutter analyze` and `flutter test`. Build with
    `flutter build apk --dart-define-from-file=env.json` for acceptance testing.
-   Android currently uses debug signing for release builds; configure recipient
-   signing before distribution.
+   A release build needs `android/key.properties` (your own signing key);
+   without it the build stops. For a local test build only, set
+   `ARANGCADA_ALLOW_DEBUG_SIGNING=1` to sign with the debug key.
 5. Verify registration/login, map/search, cash booking, dispatch, trip completion,
    chat and notifications against the recipient services on physical devices.
 

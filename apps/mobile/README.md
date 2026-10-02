@@ -72,9 +72,10 @@ flutter run --dart-define-from-file=env.json
 flutter build apk --release --split-per-abi --dart-define-from-file=env.json
 ```
 
-Install `app-arm64-v8a-release.apk` on a modern device. Release is signed with
-the debug key: internal testing only. Uninstall any differently-signed build
-first to avoid `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
+Install `app-arm64-v8a-release.apk` on a modern device. The build needs
+`android/key.properties`; without it, set `ARANGCADA_ALLOW_DEBUG_SIGNING=1` to
+sign with the debug key (internal testing only). Uninstall any
+differently-signed build first to avoid `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
 
 ## Test
 

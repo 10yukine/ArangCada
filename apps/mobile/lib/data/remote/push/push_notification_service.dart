@@ -82,9 +82,7 @@ class PushNotificationService {
       return;
     }
 
-    FirebaseMessaging.onBackgroundMessage(
-      _firebaseMessagingBackgroundHandler,
-    );
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _localNotifications.initialize(
@@ -113,8 +111,7 @@ class PushNotificationService {
       unawaited(_recordNotification(message));
       _navigateForData(message.data);
     });
-    final initialMessage = await FirebaseMessaging.instance
-        .getInitialMessage();
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
       unawaited(_recordNotification(initialMessage));
       _navigateForData(initialMessage.data);
@@ -275,7 +272,9 @@ class PushNotificationService {
       final box = _notificationsBox;
       if (notification == null || box == null) return;
       final record = AppNotificationRecord(
-        id: message.messageId ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id:
+            message.messageId ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         title: notification.title ?? '',
         body: notification.body ?? '',
         receivedAt: DateTime.now(),
@@ -290,6 +289,17 @@ class PushNotificationService {
       }
     } catch (_) {
       // Swallow -- see the best-effort note above.
+    }
+  }
+
+  /// Empties the inbox. Called on sign-out: the box is one per device, not per
+  /// account, so the next person to sign in would otherwise read the previous
+  /// account's ride notifications.
+  static Future<void> clearHistory() async {
+    try {
+      await _notificationsBox?.clear();
+    } catch (_) {
+      // Best-effort, like the rest of the inbox; sign-out must not fail on it.
     }
   }
 

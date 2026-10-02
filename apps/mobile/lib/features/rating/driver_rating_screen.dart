@@ -7,6 +7,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/report_issue_sheet.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/remote/supabase_ride_repository.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 
 /// Mirrors [RatingScreen], rating the passenger instead of the driver.
@@ -76,10 +77,22 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
     }
     // Skipping the rating entirely is allowed -- the trip still has to
     // finish and hand the driver back to available either way.
-    if (state.driverTrip.status == DriverTripStatus.completed) {
+    final messenger = ScaffoldMessenger.of(context);
+    final goingOnline = liveRides?.finishDriverTrip();
+    if (liveRides == null &&
+        state.driverTrip.status == DriverTripStatus.completed) {
       state.finishDriverTrip();
     }
     context.go('/driver');
+    try {
+      await goingOnline;
+    } on Exception {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(SupabaseRideRepository.driverOfflineNotice),
+        ),
+      );
+    }
   }
 
   @override

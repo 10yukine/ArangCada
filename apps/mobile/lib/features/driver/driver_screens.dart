@@ -337,6 +337,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     }
   }
 
+  Future<void> _finishTrip() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) {
+      ref.read(demoStateProvider).finishDriverTrip();
+      return;
+    }
+    try {
+      await liveRides.finishDriverTrip();
+    } on Exception {
+      _showLiveActionError(SupabaseRideRepository.driverOfflineNotice);
+    }
+  }
+
   Future<void> _completeTrip() async {
     final state = ref.read(demoStateProvider);
     final liveRides = ref.read(liveRideRepositoryProvider);
@@ -398,6 +411,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
             // is no server-pushed invalidation for a local Hive cache, so
             // "how stale can the dot be" is bounded by how often this
             // screen already rebuilds.
+            final heartbeatStale =
+                ref.read(liveRideRepositoryProvider)?.heartbeatStale ?? false;
             final hasUnreadNotifications = ref
                 .read(notificationsRepositoryProvider)
                 .history()
@@ -475,15 +490,23 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 if (state.driverTrip.status == DriverTripStatus.available)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Row(
                       children: [
-                        Icon(Icons.radar, color: AppColors.primary),
-                        SizedBox(width: 12),
+                        Icon(
+                          heartbeatStale ? Icons.sync_problem : Icons.radar,
+                          color: heartbeatStale
+                              ? AppColors.textSecondary
+                              : AppColors.primary,
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Ready for requests. Keep the app open while you wait.',
+                            heartbeatStale
+                                ? 'Reconnecting. You will not get requests '
+                                      'until GPS and connection return.'
+                                : 'Ready for requests. Keep the app open while you wait.',
                             style: AppTypography.bodySm,
                           ),
                         ),
@@ -520,7 +543,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                     // `completed`, instead of re-opening rating.
                     alreadyRated: state.driverTripRating != null,
                     onRate: () => context.push('/driver/rating'),
-                    onFinish: state.finishDriverTrip,
+                    onFinish: _finishTrip,
                   ),
                 // Same row treatment as the commuter dashboard's shortcuts.
                 ListTile(

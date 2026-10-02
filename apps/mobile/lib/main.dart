@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'app/app.dart';
 import 'app/router.dart';
 import 'config/app_config.dart';
 import 'data/remote/push/push_notification_service.dart';
+import 'data/remote/reset_link.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +53,9 @@ Future<void> main() async {
       await Supabase.initialize(
         url: AppConfig.supabaseUrl,
         publishableKey: AppConfig.supabaseAnonKey,
+        // The SDK's own observer signs the app into whatever access_token a
+        // link carries. Only the reset link is redeemed; see redeemResetLink.
+        authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
       );
       final client = Supabase.instance.client;
       client.auth.onAuthStateChange.listen((data) {
@@ -70,6 +75,11 @@ Future<void> main() async {
             break;
         }
       });
+      // The link the app was opened with arrives on this stream too.
+      AppLinks().uriLinkStream.listen(
+        (uri) => unawaited(redeemResetLink(uri, client.auth)),
+        onError: (_) {},
+      );
     } catch (_) {
       // Never interpolate an SDK error: rejected configuration can be echoed
       // by exception messages. Hidden local test accounts remain available.
