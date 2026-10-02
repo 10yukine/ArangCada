@@ -906,6 +906,7 @@ class _PickupModeCard extends ConsumerWidget {
                   controller: mapController,
                   from: state.liveDriverLocation!,
                   to: state.pickup.coordinate,
+                  originMoves: true,
                   height: double.infinity,
                   borderRadius: BorderRadius.zero,
                   showCaption: false,
