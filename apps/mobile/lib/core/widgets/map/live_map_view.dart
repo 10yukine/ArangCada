@@ -196,6 +196,7 @@ class _LiveMapViewState extends State<LiveMapView> {
   gm.GoogleMapController? _google;
   gm.CameraPosition? _googleCamera;
   double _googleBottomInset = 0;
+  bool _googleInitialFitPending = true;
   final Map<(Color, double, Color), gm.BitmapDescriptor> _dots = {};
 
   static bool get _useGoogle => AppConfig.isGoogleMapsConfigured;
@@ -556,13 +557,6 @@ class _LiveMapViewState extends State<LiveMapView> {
     final inset = widget.controller?.bottomInset ?? 0;
     if (mounted && (inset - _googleBottomInset).abs() > 1) {
       setState(() => _googleBottomInset = inset);
-      // Initial bounds may have been fitted before the sheet/SDK padding
-      // existed. Refit after the padding rebuild; this makes no route request.
-      if (widget.route.length >= 2) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _fitRoute();
-        });
-      }
     }
   }
 
@@ -588,6 +582,14 @@ class _LiveMapViewState extends State<LiveMapView> {
           zoom: widget.zoom,
         ),
         onMapCreated: _onGoogleMapCreated,
+        onCameraIdle: () {
+          // The first fit can race native map layout. Retry once after the
+          // camera settles; clear first so this animation cannot loop.
+          if (_googleInitialFitPending && widget.route.length >= 2) {
+            _googleInitialFitPending = false;
+            _fitRoute();
+          }
+        },
         padding: EdgeInsets.only(bottom: _googleBottomInset),
         myLocationEnabled: widget.showUserLocation,
         myLocationButtonEnabled: false,
