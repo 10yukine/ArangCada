@@ -61,7 +61,14 @@ class AdminController extends Notifier<AdminState> {
       connected: true,
       loading: true,
     );
-    await refresh();
+    try {
+      await refresh();
+    } catch (_) {
+      // The administrator is signed in; only the first load failed. Letting
+      // this escape made the login page say "Check your credentials" for a
+      // network blip or one failing query. The console opens with the
+      // connection error refresh() recorded, and offers Retry.
+    }
     if (_connectedSession != session) return;
     ref
         .read(adminRepositoryProvider)!

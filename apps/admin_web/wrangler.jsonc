@@ -2,8 +2,12 @@
   // Cloudflare Workers static-assets config for the LGU/TODA admin console.
   //
   // Deployed with:
-  //   cd apps/admin_web && flutter build web --release --dart-define-from-file=env.json
+  //   cd apps/admin_web && flutter build web --release --no-web-resources-cdn --dart-define-from-file=env.json
   //   npx wrangler deploy --config apps/admin_web/wrangler.jsonc
+  //
+  // --no-web-resources-cdn makes the console load CanvasKit from its own
+  // build output. Without it the browser fetches it from www.gstatic.com on
+  // every visit, with nothing checking what arrives.
   //
   // No Git build pipeline. Flutter is not in Cloudflare's build image, and
   // wiring one for a capstone that redeploys occasionally would be machinery

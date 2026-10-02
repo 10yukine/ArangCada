@@ -15,7 +15,11 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
     this.hasSession = false,
     this.restoreCompleter,
     this.restoreError,
+    this.loadFailures = 0,
   });
+
+  /// How many load() calls fail before one succeeds.
+  int loadFailures;
 
   final AdminSession? session;
   @override
@@ -41,21 +45,24 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
   }
 
   @override
-  Future<AdminSnapshot> load(AdminSession session) async => const AdminSnapshot(
-    drivers: [],
-    reports: [],
-    complaints: [],
-    ratings: [],
-    fareClassClaims: [],
-    reportedChats: [],
-    rides: [],
-    boundaries: [],
-    feedbackSummaries: [],
-    feedbackResponses: [],
-    feedbackInterval: 1,
-    respondentTarget: 10,
-    repeatFeedback: false,
-  );
+  Future<AdminSnapshot> load(AdminSession session) async {
+    if (loadFailures-- > 0) throw StateError('one query failed');
+    return const AdminSnapshot(
+      drivers: [],
+      reports: [],
+      complaints: [],
+      ratings: [],
+      fareClassClaims: [],
+      reportedChats: [],
+      rides: [],
+      boundaries: [],
+      feedbackSummaries: [],
+      feedbackResponses: [],
+      feedbackInterval: 1,
+      respondentTarget: 10,
+      repeatFeedback: false,
+    );
+  }
 
   @override
   SupabaseClient get client => _FakeClient();
@@ -97,6 +104,48 @@ void main() {
     authRestoring.value = false;
     authError.value = null;
   });
+
+  // A failing query is not a wrong password. This used to stop at the login
+  // page with "Check your credentials", with the session left signed in.
+  testWidgets(
+    'a failed first load still opens the console, with the error and a Retry',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = _FakeRepository(
+        session: const AdminSession(
+          name: 'LGU Director',
+          email: 'director@calamba.gov.ph',
+          role: AdminRole.lgu,
+          connected: true,
+        ),
+        loadFailures: 1,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [adminRepositoryProvider.overrideWithValue(repo)],
+          child: const AdminApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'a@example.test',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'synthetic');
+      await tester.tap(find.text('Open console'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Check your credentials'), findsNothing);
+      expect(find.text('Operations overview'), findsOneWidget);
+      expect(find.textContaining('could not be refreshed'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('could not be refreshed'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+    },
+  );
 
   testWidgets(
     'page reload on /admins preserves /admins during session restore and renders AdminsScreen',

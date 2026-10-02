@@ -53,6 +53,26 @@ class AdminAccountsSnapshot {
   final List<(String id, String name)> todaZoneOptions;
 }
 
+/// Redeems the one link this console accepts a session from: the
+/// password-reset link it asked for (see [SupabaseAdminRepository.sendPasswordReset]).
+///
+/// supabase_flutter's own handling is switched off in main.dart because it
+/// also takes an `access_token`/`refresh_token` pair from any URL and replaces
+/// the signed-in session with it, so a crafted link could sign an
+/// administrator's browser into somebody else's account. A `code` is only
+/// exchanged together with the verifier this browser stored when it requested
+/// the reset, so a link made anywhere else is refused.
+Future<void> redeemResetLink(Uri uri, GoTrueClient auth) async {
+  final code = uri.queryParameters['code'];
+  if (uri.path != '/reset-password' || code == null) return;
+  try {
+    await auth.exchangeCodeForSession(code);
+  } on AuthException {
+    // Expired, already used, or not requested from this browser. The reset
+    // page then says the link has expired.
+  }
+}
+
 class SupabaseAdminRepository {
   SupabaseAdminRepository(this.client);
 

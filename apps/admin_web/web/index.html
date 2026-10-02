@@ -58,8 +58,12 @@
 
   <title>ArangCada Admin</title>
   <link rel="manifest" href="manifest.json">
-  <script src="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.css" rel="stylesheet">
+  <!-- Third-party scripts run with the signed-in admin's session, so each one
+       is an exact version with a Subresource Integrity hash: a later publish
+       to the CDN cannot change what this page runs. To upgrade, change the
+       version and recompute the hash (sha384, base64) of the new file. -->
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"></script>
+  <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
 
   <!-- cropperjs -- image_cropper's web implementation wraps this JS
        library directly (package:image_cropper_for_web); it is not
@@ -68,8 +72,8 @@
        this, the crop dialog still opens (it is a plain Flutter
        AlertDialog) but the actual crop surface inside it has nothing to
        run on -- confirmed live, 9 Sep 2026. -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" integrity="sha384-msRo/DUqciLiajfTHR4aynPm/OyeCwjTio3llAz/9Ajeq4fDBmSiNL1QDum77PDK" crossorigin="anonymous" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha384-jrOgQzBlDeUNdmQn3rUt/PZD+pdcRBdWd/HWRqRo+n2OR2QtGyjSaJC0GiCeH+ir" crossorigin="anonymous"></script>
 </head>
 <body>
   <!--

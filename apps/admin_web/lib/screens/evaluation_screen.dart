@@ -656,7 +656,9 @@ class _ResponseTile extends StatelessWidget {
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         title: Text(response.displayName, style: theme.textTheme.titleSmall),
         subtitle: Text(
-          '${response.toda} · ${shortTime(response.submittedAt)}',
+          // An anonymous response stores only its day, so that its time
+          // cannot be matched to a trip.
+          '${response.toda} · ${response.anonymous ? '${response.submittedAt.month}/${response.submittedAt.day}' : shortTime(response.submittedAt)}',
           style: theme.textTheme.bodySmall,
         ),
         trailing: Row(

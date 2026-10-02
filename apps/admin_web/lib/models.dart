@@ -682,6 +682,8 @@ String driverCancelReasonLabel(String? value) => switch (value) {
   'cannot_reach_pickup' => 'Could not reach the pickup',
   'vehicle_problem' => 'Vehicle problem',
   'safety_concern' => 'Safety concern',
+  // Written by admin_set_profile_status, not chosen by the driver.
+  'driver_suspended' => 'Ride released when the driver was suspended',
   _ => 'No reason given',
 };
 

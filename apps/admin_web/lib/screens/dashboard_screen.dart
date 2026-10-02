@@ -114,6 +114,14 @@ class DashboardScreen extends ConsumerWidget {
             style: theme.textTheme.bodySmall,
           ),
         ),
+        if (state.connectionError != null)
+          TextButton(
+            onPressed: state.loading
+                ? null
+                // refresh() records its own failure in connectionError.
+                : () => controller.refresh().catchError((_) {}),
+            child: const Text('Retry'),
+          ),
       ],
     );
 
