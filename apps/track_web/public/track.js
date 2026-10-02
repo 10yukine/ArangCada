@@ -20,6 +20,23 @@ const FAILURES_BEFORE_BACKOFF = 2;
 
 const cfg = window.ARANGCADA_CONFIG || {};
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl';
+// The browser refuses either file if the CDN ever serves different bytes.
+// Recompute both when the version changes:
+//   curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A
+const MAPLIBRE_INTEGRITY = {
+  css: 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V',
+  js: 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj',
+};
+// MapLibre's own attribution control writes the map style's attribution HTML
+// into the page through a sanitizer that every release before 6.4.1 gets wrong
+// (GHSA-jrc7-96c5-q579). 6.x is ESM-only and needs a newer browser than many
+// phones that open a shared link have, so the control is switched off and the
+// credits are fixed text instead. Update them if MAPTILER_STYLE_URL ever
+// points at another provider.
+const MAP_CREDITS = [
+  ['\u00a9 MapTiler', 'https://www.maptiler.com/copyright/'],
+  ['\u00a9 OpenStreetMap contributors', 'https://www.openstreetmap.org/copyright'],
+];
 
 const el = (id) => document.getElementById(id);
 const show = (id) => el(id).classList.remove('hidden');
@@ -33,6 +50,7 @@ let stopped = false;
 let hasRenderedOnce = false;
 let inFlight = false;
 let mapLibrary = null;
+let lastRows = null;
 
 const token = parseToken(window.location.pathname, window.location.search);
 
@@ -92,6 +110,16 @@ function renderActive(vm) {
   setRow('body-row', 'body-number', vm.bodyNumber);
   setRow('toda-row', 'toda-name', vm.todaName);
 
+  renderAge(vm);
+
+  loadMapLibrary()
+    .then(() => updateMap(vm))
+    // A blocked map CDN must not discard usable trip details.
+    .catch(() => console.error('track_web: map unavailable'));
+  hasRenderedOnce = true;
+}
+
+function renderAge(vm) {
   const age = el('position-age');
   if (!vm.hasDriverPosition) {
     age.textContent = 'Waiting for the driver’s location…';
@@ -102,12 +130,6 @@ function renderActive(vm) {
     // tricycle stopped" when it usually means the phone lost signal.
     age.classList.toggle('warn', vm.positionIsStale);
   }
-
-  loadMapLibrary()
-    .then(() => updateMap(vm))
-    // A blocked map CDN must not discard usable trip details.
-    .catch(() => console.error('track_web: map unavailable'));
-  hasRenderedOnce = true;
 }
 
 function setRow(rowId, valueId, value) {
@@ -124,8 +146,12 @@ function setRow(rowId, valueId, value) {
 // expired pages never download it.
 function loadMapLibrary() {
   if (!mapLibrary) {
-    const css = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `${MAPLIBRE}.css` });
-    const script = Object.assign(document.createElement('script'), { src: `${MAPLIBRE}.js` });
+    const css = Object.assign(document.createElement('link'), {
+      rel: 'stylesheet', href: `${MAPLIBRE}.css`, integrity: MAPLIBRE_INTEGRITY.css, crossOrigin: 'anonymous',
+    });
+    const script = Object.assign(document.createElement('script'), {
+      src: `${MAPLIBRE}.js`, integrity: MAPLIBRE_INTEGRITY.js, crossOrigin: 'anonymous',
+    });
     mapLibrary = Promise.all([css, script].map((node) => new Promise((resolve, reject) => {
       node.onload = resolve;
       node.onerror = reject;
@@ -145,9 +171,10 @@ function updateMap(vm) {
       style: cfg.mapStyleUrl,
       center: [focus.lng, focus.lat],
       zoom: 15,
-      attributionControl: true,
+      attributionControl: false,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    addCredits();
   }
 
   if (vm.driver) {
@@ -158,6 +185,18 @@ function updateMap(vm) {
     }
     map.easeTo({ center: [vm.driver.lng, vm.driver.lat], duration: 800 });
   }
+}
+
+function addCredits() {
+  const inner = Object.assign(document.createElement('div'), { className: 'maplibregl-ctrl-attrib-inner' });
+  for (const [text, href] of MAP_CREDITS) {
+    inner.append(Object.assign(document.createElement('a'), {
+      textContent: text, href, target: '_blank', rel: 'noopener noreferrer',
+    }), ' ');
+  }
+  const box = Object.assign(document.createElement('div'), { className: 'maplibregl-ctrl maplibregl-ctrl-attrib' });
+  box.append(inner);
+  map.getContainer().querySelector('.maplibregl-ctrl-bottom-right').append(box);
 }
 
 function addMarker(point, className, label) {
@@ -184,6 +223,7 @@ async function tick() {
       renderExpired();
       return;
     }
+    lastRows = rows;
     renderActive(vm);
   } catch (error) {
     consecutiveFailures += 1;
@@ -191,6 +231,9 @@ async function tick() {
     // failed is worse than showing a slightly old position with a note.
     if (hasRenderedOnce) {
       show('reconnecting');
+      // The position on screen keeps getting older while this page cannot
+      // reach the server. Without this it went on reading "updated just now".
+      renderAge(toViewModel(lastRows));
     } else if (consecutiveFailures >= FAILURES_BEFORE_BACKOFF) {
       // Network failure does not establish that a link has expired.
       el('state-loading').querySelector('p').textContent =

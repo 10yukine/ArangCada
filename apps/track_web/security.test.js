@@ -32,3 +32,34 @@ test('shared path and trailing slash load assets from the site root', () => {
     }
   }
 });
+
+test('the page cannot be framed and never sends its address as a referrer', () => {
+  const rules = readFileSync(new URL('./public/_headers', import.meta.url), 'utf8');
+  const everyPath = rules.slice(rules.indexOf('\n/*'));
+  assert.match(everyPath, /^\s+X-Frame-Options: DENY$/m);
+  assert.match(everyPath, /^\s+Content-Security-Policy: .*frame-ancestors 'none'/m);
+  assert.match(everyPath, /^\s+X-Content-Type-Options: nosniff$/m);
+  // The address is /t/<share token>.
+  assert.match(everyPath, /^\s+Referrer-Policy: no-referrer$/m);
+});
+
+test('only this site and the pinned map library may run script, and nothing inline', () => {
+  const rules = readFileSync(new URL('./public/_headers', import.meta.url), 'utf8');
+  const csp = rules.match(/^\s+Content-Security-Policy: (.*)$/m)[1];
+  assert.match(csp, /default-src 'none'/);
+  assert.match(csp, /script-src 'self' https:\/\/unpkg\.com;/);
+  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
+  // The policy above only holds while the page itself has nothing inline.
+  const html = readFileSync(new URL('./public/index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)|\sstyle="|\son[a-z]+="/);
+});
+
+test('the map library is pinned to exact bytes and its attribution control is off', () => {
+  const js = readFileSync(new URL('./public/track.js', import.meta.url), 'utf8');
+  assert.match(js, /maplibre-gl@\d+\.\d+\.\d+\//);
+  assert.equal(js.match(/'sha384-[A-Za-z0-9+/]{64}'/g).length, 2);
+  assert.equal(js.match(/integrity: MAPLIBRE_INTEGRITY\.(css|js), crossOrigin: 'anonymous'/g).length, 2);
+  // GHSA-jrc7-96c5-q579: the control's sanitizer is broken before 6.4.1.
+  assert.match(js, /attributionControl: false/);
+  assert.doesNotMatch(js, /AttributionControl|innerHTML/);
+});

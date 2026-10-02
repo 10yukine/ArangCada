@@ -3,3 +3,18 @@
 # of re-checking on every page view.
 /assets/fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Nothing on this site is meant to be embedded. /delete-account in particular
+# holds a form that deletes an account, so another site must not be able to
+# frame it (clickjacking). Both headers say the same thing; older browsers only
+# know X-Frame-Options.
+#
+# Content-Security-Policy: only this site's own scripts and Cloudflare
+# Turnstile (the check on /delete-account) may run, and nothing inline. The
+# one outside request is that form posting to the account-deletion function.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

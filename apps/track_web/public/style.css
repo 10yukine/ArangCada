@@ -195,6 +195,10 @@ p, li { text-wrap: pretty; }
   .dot-live, .dot-alert { animation: none; }
 }
 
+/* The brand <symbol> sheet. A style attribute would need 'unsafe-inline' in the
+   page's Content-Security-Policy. */
+.svg-defs { position: absolute; }
+
 /* ---- map --------------------------------------------------------------- */
 
 #map {
