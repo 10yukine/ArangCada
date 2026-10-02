@@ -14,8 +14,9 @@ import '../repositories/geocoding_repository.dart';
 /// Cost discipline:
 ///  * Every keystroke of one search shares a session token, and the session
 ///    ends with a single Place Details call asking only for `location`. Google
-///    then bills the whole search as one Place Details Essentials call; the
-///    suggestions themselves are free. A token left unused for [_sessionLife]
+///    bills the first 12 Autocomplete requests plus the terminating Place
+///    Details Essentials request; later Autocomplete requests in that session
+///    have no charge. A token left unused for [_sessionLife]
 ///    is replaced, because Google stops honouring an old one.
 ///  * A query already answered is served from a small in-memory cache.
 ///  * HTTP 429 (a Cloud Console quota cap reached) hands searches to the
