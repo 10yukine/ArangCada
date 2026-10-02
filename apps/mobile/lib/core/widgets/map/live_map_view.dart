@@ -556,6 +556,13 @@ class _LiveMapViewState extends State<LiveMapView> {
     final inset = widget.controller?.bottomInset ?? 0;
     if (mounted && (inset - _googleBottomInset).abs() > 1) {
       setState(() => _googleBottomInset = inset);
+      // Initial bounds may have been fitted before the sheet/SDK padding
+      // existed. Refit after the padding rebuild; this makes no route request.
+      if (widget.route.length >= 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _fitRoute();
+        });
+      }
     }
   }
 
