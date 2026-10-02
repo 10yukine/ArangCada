@@ -9,12 +9,14 @@
 # frame it (clickjacking). Both headers say the same thing; older browsers only
 # know X-Frame-Options.
 #
-# Content-Security-Policy: only this site's own scripts and Cloudflare
-# Turnstile (the check on /delete-account) may run, and nothing inline. The
-# one outside request is that form posting to the account-deletion function.
+# Content-Security-Policy: only this site's own scripts, Cloudflare Turnstile
+# (the check on /delete-account) and Cloudflare Web Analytics (the beacon
+# Cloudflare adds to every page) may run, and nothing inline. The outside
+# requests are that form posting to the account-deletion function and the
+# beacon reporting to cloudflareinsights.com.
 /*
   X-Frame-Options: DENY
-  Content-Security-Policy: default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
   Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

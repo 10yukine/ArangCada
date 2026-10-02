@@ -12,11 +12,11 @@ test('no page on the site can be framed by another site', () => {
   assert.match(everyPath, /^\s+X-Content-Type-Options: nosniff$/m);
 });
 
-test('only this site and Turnstile may run script, and nothing inline', () => {
+test('only this site, Turnstile and the Cloudflare beacon may run script, and nothing inline', () => {
   const rules = readFileSync(__dirname + '/public/_headers', 'utf8');
   const csp = rules.match(/^\s+Content-Security-Policy: (.*)$/m)[1];
   assert.match(csp, /default-src 'none'/);
-  assert.match(csp, /script-src 'self' https:\/\/challenges\.cloudflare\.com;/);
+  assert.match(csp, /script-src 'self' https:\/\/challenges\.cloudflare\.com https:\/\/static\.cloudflareinsights\.com;/);
   assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
   // The policy above only holds while no page has anything inline.
   for (const page of readdirSync(__dirname + '/public').filter((name) => name.endsWith('.html'))) {
