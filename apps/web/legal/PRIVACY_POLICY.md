@@ -14,7 +14,7 @@ ArangCada LGU/TODA admin web console.
 Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet
 O. Niega.
 
-**Last updated:** September 2026 · **Effective date:** September 2026 (Academic
+**Last updated:** October 2026 · **Effective date:** September 2026 (Academic
 Pilot)
 
 **Published at:** [arangcada.app/policy](https://arangcada.app/policy)
@@ -203,6 +203,20 @@ not a full copy of your account):
 - **Supabase** — hosts our database, authentication, file storage, and
   realtime updates (Auth, Postgres with Row Level Security, Storage,
   Realtime, Edge Functions).
+- **Cloudflare** (Cloudflare, Inc., United States) — serves our public
+  website (arangcada.app), the ride-tracking page and the admin web console
+  from its global network. It handles the requests your browser makes to
+  them, including your IP address and browser details, in order to deliver
+  the pages and protect them from abuse. The account-deletion page uses
+  Cloudflare Turnstile to tell people from automated scripts before a
+  deletion is attempted. The website and, for now, the admin console also
+  load **Cloudflare Web Analytics**, which counts page views and records the
+  page address, the referring page, the browser, operating system and device
+  type, the country, and page-load timings. It sets no cookies, stores
+  nothing on your device, and does not identify or follow individual
+  visitors. The ride-tracking page blocks it, because that page's address
+  contains your share link. Cloudflare is outside the Philippines; see
+  Section 6b.
 - **MapTiler** and **OpenStreetMap** — receive map tile requests (coordinates
   needed to draw the map), not your identity.
 - **openrouteservice** — receives coordinates to compute a route/ETA, not
@@ -267,6 +281,9 @@ In compliance with the Data Privacy Act of 2012 and NPC Circular 2020-03:
 - **Google Maps Platform (pilot builds):** Map, route and place-search
   requests are processed on Google's global infrastructure, including outside
   the Philippines and the EU, as described in Section 6.
+- **Website, ride-tracking page and admin console (Cloudflare):** These are
+  served from Cloudflare's global network, including locations outside the
+  Philippines, as described in Section 6.
 
 ## 7. How we protect it
 
