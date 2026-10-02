@@ -20,6 +20,20 @@ val keyProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 
+// Check the selected task graph, not configuration: Gradle configures the
+// release build type even when a recipient only asks for a debug build.
+gradle.taskGraph.whenReady {
+    if (keyProperties.isEmpty() &&
+        System.getenv("ARANGCADA_ALLOW_DEBUG_SIGNING") != "1" &&
+        allTasks.any { it.project == project && it.name.contains("Release", ignoreCase = true) }
+    ) {
+        throw GradleException(
+            "android/key.properties is missing, so this release build has no signing key. " +
+                "Add it, or set ARANGCADA_ALLOW_DEBUG_SIGNING=1 for a local test build.",
+        )
+    }
+}
+
 // GOOGLE_MAPS_API_KEY from --dart-define(-from-file), which Flutter hands to
 // Gradle as comma-separated base64 "KEY=value" entries. The Maps SDK only
 // reads its key from the manifest. Blank means the app keeps MapLibre.
@@ -73,15 +87,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
-                ?: if (System.getenv("ARANGCADA_ALLOW_DEBUG_SIGNING") == "1") {
-                    signingConfigs.getByName("debug")
-                } else {
-                    throw GradleException(
-                        "android/key.properties is missing, so this release " +
-                            "build has no signing key. Add it, or set " +
-                            "ARANGCADA_ALLOW_DEBUG_SIGNING=1 for a local test build.",
-                    )
-                }
+                ?: signingConfigs.getByName("debug")
             // R8 code + resource shrinking. The Flutter Gradle plugin already
             // turns both on for release and adds proguard-android-optimize.txt,
             // Flutter's keep rules and ./proguard-rules.pro (if present);
