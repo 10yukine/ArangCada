@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../app/mobile_settings.dart';
 import '../../config/app_config.dart';
 import '../mock/demo_state.dart';
 import '../remote/geolocator_location_repository.dart';
@@ -195,7 +196,11 @@ final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
 
   final google = GoogleRoutesRoutingRepository();
   ref.onDispose(google.dispose);
-  return FallbackRoutingRepository(primary: google, secondary: ors);
+  return ChosenRoutingRepository(
+    google: google,
+    ors: ors,
+    choice: () => serviceChoices.value.routing,
+  );
 });
 
 /// Place search and pin labels. Google Places when configured (with the
@@ -206,7 +211,10 @@ final geocodingRepositoryProvider = Provider<GeocodingRepository>((ref) {
   ref.onDispose(mapTiler.dispose);
   if (!AppConfig.isGooglePlacesConfigured) return mapTiler;
 
-  final google = GooglePlacesGeocodingRepository(fallback: mapTiler);
+  final google = GooglePlacesGeocodingRepository(
+    fallback: mapTiler,
+    enabled: () => serviceChoices.value.search == 'google',
+  );
   ref.onDispose(google.dispose);
   return google;
 });

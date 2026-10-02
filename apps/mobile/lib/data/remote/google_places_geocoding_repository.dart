@@ -15,7 +15,9 @@ import '../repositories/geocoding_repository.dart';
 ///  * Every keystroke of one search shares a session token, and the session
 ///    ends with a single Place Details call asking only for `location`. Google
 ///    then bills the whole search as one Place Details Essentials call; the
-///    suggestions themselves are free.
+///    suggestions themselves are free. A token left unused for [_sessionLife]
+///    is replaced, because Google stops honouring an old one.
+///  * A query already answered is served from a small in-memory cache.
 ///  * HTTP 429 (a Cloud Console quota cap reached) hands searches to the
 ///    fallback for [_cooldown]; 401/403 does so for the rest of the session.
 ///  * Pin labels (reverse lookups) always use the fallback: Google charges
@@ -27,15 +29,25 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   GooglePlacesGeocodingRepository({
     required this._fallback,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+    bool Function()? enabled,
+    DateTime Function()? now,
+  }) : _client = client ?? http.Client(),
+       _enabled = enabled ?? (() => true),
+       _now = now ?? DateTime.now;
 
   final GeocodingRepository _fallback;
   final http.Client _client;
+
+  /// False while the owner has switched Google search off (app_release).
+  final bool Function() _enabled;
+  final DateTime Function() _now;
 
   static const String _baseUrl = 'https://places.googleapis.com/v1';
   static const Duration _timeout = Duration(seconds: 10);
   static const Duration _cooldown = Duration(minutes: 5);
   static const int _minQueryLength = 3;
+  static const Duration _sessionLife = Duration(minutes: 3);
+  static const int _maxCacheEntries = 30;
 
   /// Same Calamba box as the MapTiler search, as a hard restriction.
   static const Map<String, Object> _calamba = {
@@ -46,14 +58,31 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   };
 
   String? _session;
+  DateTime? _sessionUsedAt;
+  final Map<String, List<GeocodedPlace>> _cache = {};
   int _requestSeq = 0;
   DateTime? _suspendedUntil;
   bool _disabled = false;
 
   bool get _useGoogle {
-    if (!AppConfig.isGooglePlacesConfigured || _disabled) return false;
+    if (!AppConfig.isGooglePlacesConfigured || _disabled || !_enabled()) {
+      return false;
+    }
     final until = _suspendedUntil;
-    return until == null || DateTime.now().isAfter(until);
+    return until == null || _now().isAfter(until);
+  }
+
+  /// The token for the search in progress; a new one when there is none or
+  /// the last one has gone unused too long.
+  String _sessionToken() {
+    final usedAt = _sessionUsedAt;
+    if (_session == null ||
+        usedAt == null ||
+        _now().difference(usedAt) >= _sessionLife) {
+      _session = const Uuid().v4();
+    }
+    _sessionUsedAt = _now();
+    return _session!;
   }
 
   Map<String, String> get _headers => {
@@ -68,6 +97,10 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
     if (trimmed.length < _minQueryLength) return const [];
     if (!_useGoogle) return _fallback.search(query);
 
+    final cacheKey = trimmed.toLowerCase();
+    final cached = _cache[cacheKey];
+    if (cached != null) return cached;
+
     final http.Response response;
     try {
       response = await _client
@@ -81,7 +114,7 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
             },
             body: jsonEncode({
               'input': trimmed,
-              'sessionToken': _session ??= const Uuid().v4(),
+              'sessionToken': _sessionToken(),
               'includedRegionCodes': ['ph'],
               'locationRestriction': _calamba,
             }),
@@ -97,12 +130,15 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
 
     try {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      return [
+      final places = [
         for (final raw in json['suggestions'] as List<dynamic>? ?? const [])
           if ((raw as Map<String, dynamic>)['placePrediction']
               case final Map<String, dynamic> prediction)
             _suggestion(prediction),
       ];
+      if (_cache.length >= _maxCacheEntries) _cache.remove(_cache.keys.first);
+      _cache[cacheKey] = places;
+      return places;
     } catch (_) {
       throw const ApiUnexpectedException('Place search returned bad data.');
     }
@@ -127,7 +163,12 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   Future<GeoCoordinate?> locate(GeocodedPlace place) async {
     final placeId = place.placeId;
     if (placeId == null) return place.coordinate;
-    final session = _session;
+    // A token gone stale is not sent: the lookup is then billed on its own,
+    // which costs the same as ending a live session.
+    final usedAt = _sessionUsedAt;
+    final session = usedAt != null && _now().difference(usedAt) < _sessionLife
+        ? _session
+        : null;
     // The session ends here whether or not the lookup succeeds.
     _session = null;
     final json = await _details(placeId, 'location', session: session);
@@ -192,7 +233,7 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
       case 200:
         return true;
       case 429:
-        _suspendedUntil = DateTime.now().add(_cooldown);
+        _suspendedUntil = _now().add(_cooldown);
       case 401 || 403:
         // Bad key, API not enabled or billing off: nothing will fix itself.
         _disabled = true;

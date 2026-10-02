@@ -9,6 +9,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/mobile_settings.dart';
 import 'app/router.dart';
 import 'config/app_config.dart';
 import 'data/remote/push/push_notification_service.dart';
@@ -60,6 +61,12 @@ Future<void> main() async {
         httpClient: staleClockRetryClient(),
       );
       final client = Supabase.instance.client;
+      unawaited(loadMobileSettings(client));
+      // Kept for the life of the process: asks again each time the app comes
+      // back to the foreground, so a switch reaches a phone left running.
+      AppLifecycleListener(
+        onResume: () => unawaited(loadMobileSettings(client)),
+      );
       client.auth.onAuthStateChange.listen((data) {
         switch (data.event) {
           case AuthChangeEvent.signedIn:

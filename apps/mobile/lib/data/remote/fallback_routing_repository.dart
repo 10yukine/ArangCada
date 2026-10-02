@@ -45,3 +45,41 @@ class FallbackRoutingRepository implements RoutingRepository {
     return secondaryResult;
   }
 }
+
+/// Orders Google Routes and openrouteservice by the owner's setting, read on
+/// every request so a change needs no restart (see app/mobile_settings.dart).
+/// 'ors_only' never calls Google, which bills per request.
+class ChosenRoutingRepository implements RoutingRepository {
+  ChosenRoutingRepository({
+    required RoutingRepository google,
+    required RoutingRepository ors,
+    required this._choice,
+  }) : _orsOnly = ors,
+       _orsFirst = FallbackRoutingRepository(primary: ors, secondary: google),
+       _googleFirst = FallbackRoutingRepository(
+         primary: google,
+         secondary: ors,
+       );
+
+  final String Function() _choice;
+  final RoutingRepository _orsOnly;
+  final RoutingRepository _orsFirst;
+  final RoutingRepository _googleFirst;
+  late RoutingRepository _last = _googleFirst;
+
+  @override
+  String get attribution => _last.attribution;
+
+  @override
+  Future<RouteResult> route({
+    required GeoCoordinate from,
+    required GeoCoordinate to,
+  }) {
+    _last = switch (_choice()) {
+      'ors_only' => _orsOnly,
+      'ors' => _orsFirst,
+      _ => _googleFirst,
+    };
+    return _last.route(from: from, to: to);
+  }
+}

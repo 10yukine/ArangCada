@@ -9,6 +9,7 @@ import '../domain/models/demo_user.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/reset_password_screen.dart';
 import '../features/auth/verify_phone_screen.dart';
+import '../features/auth/update_required_screen.dart';
 import '../features/profile/change_password_screen.dart';
 import '../features/profile/delete_account_screen.dart';
 import '../features/profile/edit_profile_screen.dart';
@@ -45,6 +46,7 @@ import '../features/trip/active_trip_screen.dart';
 import 'shells/commuter_shell.dart';
 import 'shells/driver_shell.dart';
 import 'theme/app_dimensions.dart';
+import 'mobile_settings.dart';
 
 CustomTransitionPage<T> _screenPage<T>(GoRouterState state, Widget child) {
   return CustomTransitionPage<T>(
@@ -108,9 +110,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
-    refreshListenable: Listenable.merge([demoState, passwordRecoveryPending]),
+    refreshListenable: Listenable.merge([
+      demoState,
+      passwordRecoveryPending,
+      updateRequired,
+    ]),
     redirect: (context, state) {
       final path = state.uri.path;
+      if (updateRequired.value) {
+        return path == '/update-required' ? null : '/update-required';
+      }
+      if (path == '/update-required') return '/splash';
       final restoration = ref.read(sessionRestorationProvider);
       if (restoration.isLoading || restoration.hasError) {
         return path == '/splash' ? null : '/splash';
@@ -174,6 +184,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         pageBuilder: (context, state) =>
             _screenPage(state, const SplashScreen()),
+      ),
+      GoRoute(
+        path: '/update-required',
+        pageBuilder: (context, state) =>
+            _screenPage(state, const UpdateRequiredScreen()),
       ),
       GoRoute(
         path: '/login',

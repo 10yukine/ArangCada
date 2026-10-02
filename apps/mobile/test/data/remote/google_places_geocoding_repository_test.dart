@@ -97,6 +97,101 @@ void main() {
     },
     skip: skip,
   );
+
+  http.Response suggestions(http.Request request) =>
+      request.url.path.endsWith('places:autocomplete')
+      ? http.Response(
+          jsonEncode({
+            'suggestions': [
+              {
+                'placePrediction': {
+                  'placeId': 'p1',
+                  'structuredFormat': {
+                    'mainText': {'text': 'Place'},
+                  },
+                },
+              },
+            ],
+          }),
+          200,
+        )
+      : http.Response(
+          jsonEncode({
+            'location': {'latitude': 14.2, 'longitude': 121.1},
+          }),
+          200,
+        );
+
+  test('a query already answered is not sent again', () async {
+    final requests = <http.Request>[];
+    final repository = GooglePlacesGeocodingRepository(
+      fallback: _Fallback(),
+      client: MockClient((request) async {
+        requests.add(request);
+        return suggestions(request);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    await repository.search('SM City');
+    final again = await repository.search('  sm city ');
+    expect(again.single.placeId, 'p1');
+    expect(requests, hasLength(1));
+  }, skip: skip);
+
+  test('a token left unused for three minutes is replaced', () async {
+    final requests = <http.Request>[];
+    var clock = DateTime(2026, 10, 2, 12);
+    final repository = GooglePlacesGeocodingRepository(
+      fallback: _Fallback(),
+      now: () => clock,
+      client: MockClient((request) async {
+        requests.add(request);
+        return suggestions(request);
+      }),
+    );
+    addTearDown(repository.dispose);
+    String token(http.Request r) => jsonDecode(r.body)['sessionToken'];
+
+    final first = await repository.search('Rizal');
+    clock = clock.add(const Duration(minutes: 2));
+    await repository.search('Rizal Shrine');
+    expect(token(requests[1]), token(requests[0]));
+
+    // The person walked away; the search screen was left without a choice.
+    clock = clock.add(const Duration(minutes: 4));
+    await repository.search('Crossing');
+    expect(token(requests[2]), isNot(token(requests[0])));
+
+    // A choice made long after the last keystroke carries no stale token.
+    clock = clock.add(const Duration(minutes: 4));
+    await repository.locate(first.single);
+    expect(
+      requests[3].url.queryParameters.containsKey('sessionToken'),
+      isFalse,
+    );
+  }, skip: skip);
+
+  test('switched off, every search goes to the fallback', () async {
+    var googleCalls = 0;
+    var enabled = false;
+    final fallback = _Fallback();
+    final repository = GooglePlacesGeocodingRepository(
+      fallback: fallback,
+      enabled: () => enabled,
+      client: MockClient((request) async {
+        googleCalls++;
+        return suggestions(request);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    expect((await repository.search('NU Laguna')).single.name, 'MapTiler');
+    expect(googleCalls, 0);
+    enabled = true;
+    expect((await repository.search('NU Laguna')).single.placeId, 'p1');
+    expect(googleCalls, 1);
+  }, skip: skip);
 }
 
 class _Fallback implements GeocodingRepository {
