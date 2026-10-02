@@ -76,11 +76,5 @@ abstract final class DemoData {
       address: 'NU-L · KM 53 Maharlika Highway, Milagrosa, Calamba City',
       coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
     ),
-    DemoPlace(
-      id: 'canlubang-plaza',
-      name: 'Canlubang Plaza',
-      address: 'Canlubang, Calamba City',
-      coordinate: GeoCoordinate(latitude: 14.1970, longitude: 121.0920),
-    ),
   ];
 }
