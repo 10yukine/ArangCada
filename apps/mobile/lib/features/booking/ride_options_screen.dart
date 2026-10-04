@@ -193,18 +193,13 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   _ZoneWarning(message: rejection),
                 ],
-                const SizedBox(height: AppSpacing.md),
-
-                // Espesyal is the only bookable ride type (since 31 Aug 2026),
-                // so there is no picker: this row states the ride and, above
-                // all, its price -- the one number people look for here.
-                _FareSummary(
-                  distanceKm: distanceMeters / 1000,
-                  amount: formatCentavos(special.partyTotalCentavos),
-                  discounted: discountClass == DiscountClass.discounted,
-                ),
-                const SizedBox(height: AppSpacing.md),
                 if (expanded) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _FareSummary(
+                    distanceKm: distanceMeters / 1000,
+                    amount: formatCentavos(special.partyTotalCentavos),
+                    discounted: discountClass == DiscountClass.discounted,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   _FareBreakdown(quote: special),
                 ],
@@ -347,7 +342,7 @@ class _PassengerRow extends StatelessWidget {
           spacing: AppSpacing.sm,
           runSpacing: 2,
           children: [
-            const Text('Passengers', style: AppTypography.label),
+            const Text('Espesyal · Passengers', style: AppTypography.label),
             // Espesyal is billed per trip, so the count never moves the
             // price. Saying so stops people under-reporting to save money.
             Text('Same fare for 1–$max', style: AppTypography.caption),
