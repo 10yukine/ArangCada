@@ -13,6 +13,11 @@
 -- With one city-wide zone, as hosted has today, the two rules give the same
 -- answer. They part as soon as a second TODA has its own boundary.
 --
+-- "Service area" here is the union of the active zones. It is Calamba only
+-- while that union is the city's verified boundary. Splitting it into TODA
+-- polygons later does not keep that true by itself: the union has to be
+-- checked against the city boundary whenever a zone is added or changed.
+--
 -- Now the driver has to be inside the service area: any active zone, where a
 -- developer-test zone counts only for a developer-test identity. Unchanged:
 -- approval, documents and suspension (can_driver_go_online), pending feedback,
