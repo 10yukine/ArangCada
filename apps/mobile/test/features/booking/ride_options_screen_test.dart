@@ -1,4 +1,5 @@
 import 'package:arangcada/core/widgets/map/route_preview_map.dart';
+import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/demo/demo_data.dart';
@@ -65,6 +66,63 @@ void main() {
     matching: find.text(label),
   );
 
+  for (final layout in [
+    (const Size(360, 800), 1.0),
+    (const Size(320, 568), 1.5),
+  ]) {
+    testWidgets(
+      'passenger controls stay above the footer at ${layout.$1.width}',
+      (tester) async {
+        tester.view.physicalSize = layout.$1;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final state = bookingState();
+        addTearDown(state.dispose);
+        state.setPickup(
+          const DemoPlace(
+            id: 'test-gps',
+            name: 'Current location',
+            address: 'Outside Calamba',
+            coordinate: GeoCoordinate(latitude: 14.28, longitude: 121.15),
+          ),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [demoStateProvider.overrideWithValue(state)],
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(layout.$2)),
+                child: child!,
+              ),
+              home: const Scaffold(
+                body: RideOptionsScreen(),
+                bottomNavigationBar: SizedBox(height: 72),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final review = tester.getRect(find.textContaining('Review Ride'));
+        expect(
+          find.textContaining('Review Ride · ₱').hitTestable(),
+          findsOneWidget,
+        );
+        final passengers = tester.getRect(find.byType(SegmentedButton<int>));
+        expect(passengers.bottom, lessThanOrEqualTo(review.top));
+        for (final value in ['1', '2', '3', '4']) {
+          expect(segment(value).hitTestable(), findsOneWidget);
+        }
+        await tester.tap(segment('4'));
+        await tester.pumpAndSettle();
+        expect(state.passengerCount, 4);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('passenger count reaches the LGU-approved four', (tester) async {
     final state = bookingState();
     addTearDown(state.dispose);
@@ -77,7 +135,8 @@ void main() {
       expect(
         segment(value),
         findsOneWidget,
-        reason: '$value passengers must be selectable under the LGU-approved '
+        reason:
+            '$value passengers must be selectable under the LGU-approved '
             'Espesyal cap of 4 (31 Aug 2026)',
       );
     }
@@ -85,7 +144,8 @@ void main() {
     expect(
       segment('5'),
       findsNothing,
-      reason: 'the cap moved from 3 to 4, it was not removed -- a fifth '
+      reason:
+          'the cap moved from 3 to 4, it was not removed -- a fifth '
           'passenger must not be offered',
     );
 

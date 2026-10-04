@@ -116,9 +116,8 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
         return Scaffold(
           body: DragSheetScaffold(
             sheetKey: _mapController.panelKey,
-            // Tall enough that the collapsed peek already shows the addresses,
-            // the fare, the passenger picker and the Review bar. The fare
-            // breakdown is what expanding is for.
+            // Passenger controls and the fare stay pinned in the footer.
+            // Expanding reveals the detailed fare breakdown.
             collapsedHeight: 420,
             handleSemanticLabel: 'Show fare breakdown',
             background: RoutePreviewMap(
@@ -146,30 +145,42 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                 ),
               ),
             ],
-            footer: _ReviewBar(
-              amount: formatCentavos(active.partyTotalCentavos),
-              // `active` is now always non-null: with pooling withdrawn there
-              // is exactly one quote and it is unconditional. Only the
-              // service-area rejection can block review.
-              onPressed: rejection != null
-                  ? null
-                  : () {
-                      // The review screen renders DemoState.activeBooking.
-                      // Pushing the route without creating the draft first
-                      // lands on an empty screen.
-                      state.setActiveBooking(
-                        DemoBooking.draft(
-                          pickupName: state.pickup.name,
-                          destinationName: destination.name,
-                          rideType: selected,
-                          passengerCount: state.passengerCount,
-                          userFareClass: state.userFareClass,
-                          paymentMethod: PaymentMethod.cash,
-                          fareQuote: active,
-                        ),
-                      );
-                      context.push('/booking/review');
-                    },
+            footer: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _PassengerRow(
+                  count: state.passengerCount,
+                  max: 4,
+                  onChanged: state.setPassengerCount,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _ReviewBar(
+                  amount: formatCentavos(active.partyTotalCentavos),
+                  // `active` is now always non-null: with pooling withdrawn there
+                  // is exactly one quote and it is unconditional. Only the
+                  // service-area rejection can block review.
+                  onPressed: rejection != null
+                      ? null
+                      : () {
+                          // The review screen renders DemoState.activeBooking.
+                          // Pushing the route without creating the draft first
+                          // lands on an empty screen.
+                          state.setActiveBooking(
+                            DemoBooking.draft(
+                              pickupName: state.pickup.name,
+                              destinationName: destination.name,
+                              rideType: selected,
+                              passengerCount: state.passengerCount,
+                              userFareClass: state.userFareClass,
+                              paymentMethod: PaymentMethod.cash,
+                              fareQuote: active,
+                            ),
+                          );
+                          context.push('/booking/review');
+                        },
+                ),
+              ],
             ),
             sheetBuilder: (context, expanded) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,11 +204,6 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
                   discounted: discountClass == DiscountClass.discounted,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _PassengerRow(
-                  count: state.passengerCount,
-                  max: 4,
-                  onChanged: state.setPassengerCount,
-                ),
                 if (expanded) ...[
                   const SizedBox(height: AppSpacing.md),
                   _FareBreakdown(quote: special),
@@ -336,11 +342,12 @@ class _PassengerRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: AppSpacing.sm,
+          runSpacing: 2,
           children: [
-            const Expanded(
-              child: Text('Passengers', style: AppTypography.label),
-            ),
+            const Text('Passengers', style: AppTypography.label),
             // Espesyal is billed per trip, so the count never moves the
             // price. Saying so stops people under-reporting to save money.
             Text('Same fare for 1–$max', style: AppTypography.caption),
@@ -534,10 +541,9 @@ class _ReviewBar extends StatelessWidget {
           onTap: onPressed,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
-            // The fare is stated right above in the sheet, so the button
-            // carries only the action (screen readers still hear the amount).
+            // Keep the fare visible even when the sheet content is clipped.
             child: Text(
-              'Review Ride',
+              'Review Ride · ${amount ?? 'Unavailable'}',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
