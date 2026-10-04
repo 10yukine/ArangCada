@@ -6,6 +6,7 @@ import 'package:arangcada/demo/demo_data.dart';
 import 'package:go_router/go_router.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/features/search/destination_search_screen.dart';
+import 'package:arangcada/features/search/pin_on_map_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,6 +104,11 @@ void main() {
           path: '/home/ride-options',
           builder: (_, _) => const Scaffold(body: Text('Ride options')),
         ),
+        GoRoute(
+          path: '/home/pin-on-map',
+          builder: (_, state) =>
+              PinOnMapScreen(suggested: state.extra as DemoPlace?),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -124,6 +130,13 @@ void main() {
     await tester.tap(find.text('Rizal Shrine Calamba').last);
     await tester.pumpAndSettle();
     expect(geocoder.lookups, 1);
+    // Nothing is chosen until the rider confirms the pin on the map.
+    expect(find.text('Confirm location'), findsOneWidget);
+    expect(state.destination, isNull);
+    expect(geocoder.reverseLookups, 0);
+
+    await tester.tap(find.text('Use this location'));
+    await tester.pumpAndSettle();
     expect(
       state.destination!.coordinate.latitude,
       _LivePlaces.coordinate.latitude,
@@ -132,8 +145,12 @@ void main() {
       state.destination!.coordinate.latitude,
       isNot(DemoData.places[2].coordinate.latitude),
     );
-    expect(state.destination!.id, 'google:verified');
-    expect(state.destination!.googleRetrievedAt, isNotNull);
+    // The booked place is the rider's pin in the rider's words: no Google ID,
+    // no Google name, and the search result went to no other map service.
+    expect(state.destination!.id, startsWith('geo-'));
+    expect(state.destination!.name, 'Rizal Shrine Calamba');
+    expect(state.destination!.googleRetrievedAt, isNull);
+    expect(geocoder.reverseLookups, 0);
     expect(find.text('Ride options'), findsOneWidget);
   });
 }
@@ -147,6 +164,7 @@ class _LivePlaces implements GeocodingRepository {
   );
   final queries = <String>[];
   int lookups = 0;
+  int reverseLookups = 0;
   @override
   Future<List<GeocodedPlace>> search(String query) async {
     queries.add(query);
@@ -169,7 +187,11 @@ class _LivePlaces implements GeocodingRepository {
   }
 
   @override
-  Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async => null;
+  Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async {
+    reverseLookups++;
+    return null;
+  }
+
   @override
   Future<GeocodedPlace?> refresh(String placeId) async => null;
 }

@@ -41,11 +41,21 @@ GeoCoordinate clampToRadius(
 /// [pickupAnchor], to fine-tune the pickup within [pickupAdjustRadiusMeters]
 /// of the GPS fix. Reverse geocoding labels the point when it can; selection
 /// is never blocked on the geocoder answering.
+///
+/// With [suggested] it shows a place found by search for the rider to confirm
+/// or move. What is booked, checked against the service area and stored is
+/// the pin the rider confirms here, not the search result: Google's terms do
+/// not let a Places coordinate be tested against a boundary, kept beyond 30
+/// days or handed to another map service.
 class PinOnMapScreen extends ConsumerStatefulWidget {
-  const PinOnMapScreen({this.pickupAnchor, super.key});
+  const PinOnMapScreen({this.pickupAnchor, this.suggested, super.key});
 
   /// The GPS fix a pickup adjustment is leashed to. Null for destinations.
   final GeoCoordinate? pickupAnchor;
+
+  /// The search result to confirm. Its name is shown here only; a Google
+  /// name is never passed on (see [DemoPlace.riderText]).
+  final DemoPlace? suggested;
 
   @override
   ConsumerState<PinOnMapScreen> createState() => _PinOnMapScreenState();
@@ -69,6 +79,13 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _onTap(anchor);
       });
+    }
+    final suggested = widget.suggested;
+    if (suggested != null) {
+      // No lookup: a search result's coordinate goes nowhere until the rider
+      // has confirmed or moved the pin.
+      _picked = suggested.coordinate;
+      _label = suggested.name;
     }
   }
 
@@ -99,7 +116,14 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
   void _confirm() {
     final coordinate = _picked;
     if (coordinate == null) return;
-    final label = _label ?? (_adjustingPickup ? 'Near you' : 'Pinned location');
+    final suggested = widget.suggested;
+    final label =
+        suggested != null && identical(coordinate, suggested.coordinate)
+        // Unmoved: a Google place is named in the rider's own words.
+        ? (suggested.id.startsWith('google:')
+              ? suggested.riderLabel('Pinned location')
+              : suggested.name)
+        : _label ?? (_adjustingPickup ? 'Near you' : 'Pinned location');
     Navigator.of(context).pop(
       DemoPlace(
         id: _adjustingPickup
@@ -122,7 +146,13 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_adjustingPickup ? 'Adjust pickup' : 'Pin on map'),
+        title: Text(
+          _adjustingPickup
+              ? 'Adjust pickup'
+              : widget.suggested != null
+              ? 'Confirm location'
+              : 'Pin on map',
+        ),
       ),
       body: Column(
         children: [
@@ -134,7 +164,11 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                     center: centre,
                     // At 15.5 the whole 100 m leash is ~30 dp across and every
                     // correcting tap lands on a pin; street level fits it.
-                    zoom: _adjustingPickup ? 18 : 15.5,
+                    zoom: _adjustingPickup
+                        ? 18
+                        : widget.suggested != null
+                        ? 17
+                        : 15.5,
                     borderRadius: BorderRadius.zero,
                     onMapTap: _onTap,
                     markers: [
@@ -187,6 +221,9 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
                               'It stays within ${pickupAdjustRadiusMeters.round()} m of your location.'
                         : _picked == null
                         ? 'Tap anywhere on the map to drop a pin.'
+                        : widget.suggested != null &&
+                              identical(_picked, widget.suggested!.coordinate)
+                        ? 'Check the pin. Tap or drag it if the spot is not exact.'
                         : '${_picked!.latitude.toStringAsFixed(5)}, '
                               '${_picked!.longitude.toStringAsFixed(5)}',
                     style: AppTypography.caption,

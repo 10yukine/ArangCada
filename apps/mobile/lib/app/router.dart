@@ -370,8 +370,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ),
                   GoRoute(
                     path: 'pin-on-map',
-                    pageBuilder: (context, state) =>
-                        _screenPage<DemoPlace>(state, const PinOnMapScreen()),
+                    pageBuilder: (context, state) => _screenPage<DemoPlace>(
+                      state,
+                      PinOnMapScreen(
+                        suggested: state.extra is DemoPlace
+                            ? state.extra! as DemoPlace
+                            : null,
+                      ),
+                    ),
                   ),
                   GoRoute(
                     path: 'ride-options',

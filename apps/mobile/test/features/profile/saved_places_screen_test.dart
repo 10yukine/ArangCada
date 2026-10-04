@@ -10,6 +10,7 @@ import 'package:arangcada/data/repositories/saved_places_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/features/profile/profile_detail_screens.dart';
 import 'package:arangcada/features/search/destination_search_screen.dart';
+import 'package:arangcada/features/search/pin_on_map_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +62,11 @@ void main() {
         GoRoute(
           path: '/home/ride-options',
           builder: (_, _) => const Scaffold(body: Text('Ride options')),
+        ),
+        GoRoute(
+          path: '/home/pin-on-map',
+          builder: (_, state) =>
+              PinOnMapScreen(suggested: state.extra as DemoPlace?),
         ),
       ],
     );
@@ -120,6 +126,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Rizal Shrine Calamba').last);
       await tester.pumpAndSettle();
+      // A search result is confirmed on the map before it is used.
+      expect(repository.places, isEmpty);
+      await tester.tap(find.text('Use this location'));
+      await tester.pumpAndSettle();
       expect(repository.places.single.name, 'Rizal Shrine Calamba');
       expect(state.destination, same(previousDestination));
       expect(find.text('No saved places'), findsNothing);
@@ -141,6 +151,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(state.destination, isNull);
     await tester.tap(find.text(DemoData.calambaCrossing.name).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Use this location'));
     await tester.pumpAndSettle();
     expect(state.destination?.name, DemoData.calambaCrossing.name);
     expect(find.text('Ride options'), findsOneWidget);

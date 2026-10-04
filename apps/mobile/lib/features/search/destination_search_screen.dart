@@ -131,14 +131,12 @@ class _DestinationSearchScreenState
       _searchPopular(place);
       return;
     }
-    _choose(
-      place.name,
-      place.address,
-      place.coordinate,
-      id: place.id,
-      googleRetrievedAt: place.googleRetrievedAt,
-      riderText: place.riderText,
-    );
+    // A saved Google place is a search result again each time it is used.
+    if (place.id.startsWith('google:')) {
+      _confirmOnMap(place);
+      return;
+    }
+    _choose(place.name, place.address, place.coordinate);
   }
 
   Future<void> _select(GeocodedPlace result) async {
@@ -146,45 +144,53 @@ class _DestinationSearchScreenState
         result.coordinate ??
         await ref.read(geocodingRepositoryProvider).locate(result);
     if (!mounted) return;
-    final internalTester =
-        ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
-    final problem = coordinate == null
-        ? "Couldn't load that place. Try again, or pin it on the map."
-        : !ServiceArea.contains(
-            coordinate,
-            allowCabuyaoTestException: internalTester,
-          )
-        ? '${result.name} is outside ${ServiceArea.name}.'
-        : null;
-    if (problem != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(problem)));
+    if (coordinate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't load that place. Try again, or pin it on the map.",
+          ),
+        ),
+      );
       return;
     }
-    _choose(
-      result.name,
-      result.context,
-      coordinate!,
-      // Google's place ID is the one part of a result that may be kept.
-      id: result.placeId == null ? null : result.id,
-      googleRetrievedAt: result.placeId == null ? null : DateTime.now(),
-      riderText: result.placeId == null ? null : _controller.text.trim(),
+    await _confirmOnMap(
+      DemoPlace(
+        id: result.placeId == null ? 'search' : result.id,
+        name: result.name,
+        address: result.context,
+        coordinate: coordinate,
+        riderText: result.placeId == null ? null : _controller.text.trim(),
+      ),
     );
   }
 
-  void _choose(
-    String name,
-    String address,
-    GeoCoordinate coordinate, {
-    String? id,
-    DateTime? googleRetrievedAt,
-    String? riderText,
-  }) {
+  /// The rider confirms a search result on the map, and the confirmed pin is
+  /// what gets booked. The service-area test runs on that pin, never on the
+  /// search result (see PinOnMapScreen.suggested).
+  Future<void> _confirmOnMap(DemoPlace suggested) async {
+    final pin = await context.push<DemoPlace>(
+      '/home/pin-on-map',
+      extra: suggested,
+    );
+    if (!mounted || pin == null) return;
+    final internalTester =
+        ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
+    if (!ServiceArea.contains(
+      pin.coordinate,
+      allowCabuyaoTestException: internalTester,
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('That pin is outside ${ServiceArea.name}.')),
+      );
+      return;
+    }
+    _choose(pin.name, pin.address, pin.coordinate);
+  }
+
+  void _choose(String name, String address, GeoCoordinate coordinate) {
     final place = DemoPlace(
-      id: id ?? 'geo-${coordinate.latitude},${coordinate.longitude}',
-      googleRetrievedAt: googleRetrievedAt,
-      riderText: riderText,
+      id: 'geo-${coordinate.latitude},${coordinate.longitude}',
       name: name,
       address: address,
       coordinate: coordinate,
