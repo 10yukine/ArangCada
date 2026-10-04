@@ -33,8 +33,9 @@ Pilot)
   reports** if you use that feature.
 - Pilot builds use **Google Maps** for the map, routes and place search.
   Google gets map areas, route coordinates and what you type in search, never
-  your name or account. Trip pickup and destination are deleted **30 days**
-  after the trip.
+  your name or account. Trip pickup and destination names and coordinates
+  are cleared by an hourly cleanup after **29 days from the ride request**;
+  financial and participant records are retained separately.
 - The only bookable ride is **Special, up to 4 passengers**. You're matched
   to the nearest available verified driver anywhere in Calamba City, not
   just drivers from your pickup's own TODA.
@@ -217,20 +218,27 @@ not a full copy of your account):
   visitors. The ride-tracking page blocks it, because that page's address
   contains your share link. Cloudflare is outside the Philippines; see
   Section 6b.
-- **MapTiler** and **OpenStreetMap** — receive map tile requests (coordinates
-  needed to draw the map), not your identity.
-- **openrouteservice** — receives coordinates to compute a route/ETA, not
-  your identity.
+- **MapTiler** — receives map tile requests for the admin console, tracking
+  page and mobile builds using the open map, plus place-search text when
+  selected or used as a search fallback and coordinates for pin labels.
+  Map data includes **OpenStreetMap** data. We do not send account names,
+  ride IDs or verification documents with these requests.
+- **openrouteservice** — receives route endpoint coordinates when the app
+  uses the open map and routing provider. It is not an automatic routing
+  fallback on the Google map. We do not send account identity with routes.
 - **Google Maps Platform** (Google LLC, United States) — used by pilot
   builds of the mobile app for the in-app map (Maps SDK for Android), road
-  routes and arrival estimates (Routes API), and place search (Places API).
+  route lines (Routes API), and place search (Places API).
   Google receives the map area being viewed, the two coordinates of a route
   lookup, and the text you type into place search, plus device and usage
   information its map SDK collects under Google's own privacy policy. It never
   receives your name, account, ride ID, phone number or documents from us.
-  Each Google service has a daily usage cap; when a cap is reached, or in
-  builds without a Google key, the app uses MapTiler and openrouteservice
-  instead. Google is outside the Philippines, so using it is a cross-border
+  If Google place search is unavailable, search may use MapTiler. If Google
+  routing is unavailable while the Google map is selected, the route line
+  is unavailable; the app does not send that request to openrouteservice.
+  Builds configured for the open map use MapTiler and openrouteservice.
+  Fare calculation does not use either provider's route distance.
+  Google is outside the Philippines, so using it is a cross-border
   transfer; we remain accountable for it under Section 21 of RA 10173 and
   send Google only what each request needs. Google Maps content is not
   shown in the admin console or on the ride-tracking page.
@@ -311,8 +319,8 @@ purposes:
 | Data Category | Retention Schedule | Deletion / Disposal Action |
 |---|---|---|
 | Account & profile data | Active duration of academic pilot + 6 months post-defense | Permanently purged from Supabase Auth & profiles table |
-| Live trip location pings (`trip_locations`) | High-frequency breadcrumbs purged within 48 hours of trip completion | Automatic server cleanup; start/end coordinates kept in trip history for 30 days (next row) |
-| Trip pickup and destination (names and coordinates) | 30 days after the trip ends | Automatic daily cleanup replaces them with "Pickup" and "Destination"; the rest of the trip record follows the next row |
+| Live trip location pings (`trip_locations`) | High-frequency breadcrumbs purged within 48 hours of trip completion | Automatic server cleanup; trip pickup/destination fields follow the next row |
+| Trip pickup and destination (names and coordinates) | Cleared after 29 days from the ride request, regardless of trip status | Hourly cleanup clears coordinates and replaces labels with "Pickup" and "Destination"; financial and participant records remain |
 | Ride-tracking link tokens (`ride_share_links`) | Expire automatically upon trip completion or cancellation, or manual revocation | Token deactivated immediately; record archived for audit |
 | Driver verification documents (`driver_documents`) | Duration of driver active verification + 30 days after deactivation or capstone end | File assets permanently purged from private storage bucket |
 | Trip and payment records (`trips`, `payments`) | 1 academic year (covering capstone research, evaluation, and defense) | Database rows scrubbed of direct user identifiers |

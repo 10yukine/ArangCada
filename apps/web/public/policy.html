@@ -90,8 +90,9 @@ document and correct it.</p>
   reports</strong> if you use that feature.</li>
 <li>Pilot builds use <strong>Google Maps</strong> for the map, routes and place search.
   Google gets map areas, route coordinates and what you type in search, never
-  your name or account. Trip pickup and destination are deleted <strong>30 days</strong>
-  after the trip.</li>
+  your name or account. Trip pickup and destination names and coordinates
+  are cleared by an hourly cleanup after <strong>29 days from the ride request</strong>;
+  financial and participant records are retained separately.</li>
 <li>The only bookable ride is <strong>Special, up to 4 passengers</strong>. You're matched
   to the nearest available verified driver anywhere in Calamba City, not
   just drivers from your pickup's own TODA.</li>
@@ -365,20 +366,27 @@ not a full copy of your account):</p>
   visitors. The ride-tracking page blocks it, because that page's address
   contains your share link. Cloudflare is outside the Philippines; see
   Section 6b.</li>
-<li><strong>MapTiler</strong> and <strong>OpenStreetMap</strong> — receive map tile requests (coordinates
-  needed to draw the map), not your identity.</li>
-<li><strong>openrouteservice</strong> — receives coordinates to compute a route/ETA, not
-  your identity.</li>
+<li><strong>MapTiler</strong> — receives map tile requests for the admin console, tracking
+  page and mobile builds using the open map, plus place-search text when
+  selected or used as a search fallback and coordinates for pin labels.
+  Map data includes <strong>OpenStreetMap</strong> data. We do not send account names,
+  ride IDs or verification documents with these requests.</li>
+<li><strong>openrouteservice</strong> — receives route endpoint coordinates when the app
+  uses the open map and routing provider. It is not an automatic routing
+  fallback on the Google map. We do not send account identity with routes.</li>
 <li><strong>Google Maps Platform</strong> (Google LLC, United States) — used by pilot
   builds of the mobile app for the in-app map (Maps SDK for Android), road
-  routes and arrival estimates (Routes API), and place search (Places API).
+  route lines (Routes API), and place search (Places API).
   Google receives the map area being viewed, the two coordinates of a route
   lookup, and the text you type into place search, plus device and usage
   information its map SDK collects under Google's own privacy policy. It never
   receives your name, account, ride ID, phone number or documents from us.
-  Each Google service has a daily usage cap; when a cap is reached, or in
-  builds without a Google key, the app uses MapTiler and openrouteservice
-  instead. Google is outside the Philippines, so using it is a cross-border
+  If Google place search is unavailable, search may use MapTiler. If Google
+  routing is unavailable while the Google map is selected, the route line
+  is unavailable; the app does not send that request to openrouteservice.
+  Builds configured for the open map use MapTiler and openrouteservice.
+  Fare calculation does not use either provider's route distance.
+  Google is outside the Philippines, so using it is a cross-border
   transfer; we remain accountable for it under Section 21 of RA 10173 and
   send Google only what each request needs. Google Maps content is not
   shown in the admin console or on the ride-tracking page.</li>
@@ -470,12 +478,12 @@ purposes:</p>
 <tr>
 <td>Live trip location pings (<code>trip_locations</code>)</td>
 <td>High-frequency breadcrumbs purged within 48 hours of trip completion</td>
-<td>Automatic server cleanup; start/end coordinates kept in trip history for 30 days (next row)</td>
+<td>Automatic server cleanup; trip pickup/destination fields follow the next row</td>
 </tr>
 <tr>
 <td>Trip pickup and destination (names and coordinates)</td>
-<td>30 days after the trip ends</td>
-<td>Automatic daily cleanup replaces them with "Pickup" and "Destination"; the rest of the trip record follows the next row</td>
+<td>Cleared after 29 days from the ride request, regardless of trip status</td>
+<td>Hourly cleanup clears coordinates and replaces labels with "Pickup" and "Destination"; financial and participant records remain</td>
 </tr>
 <tr>
 <td>Ride-tracking link tokens (<code>ride_share_links</code>)</td>
