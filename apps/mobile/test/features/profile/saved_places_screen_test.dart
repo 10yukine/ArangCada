@@ -10,7 +10,6 @@ import 'package:arangcada/data/repositories/saved_places_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/features/profile/profile_detail_screens.dart';
 import 'package:arangcada/features/search/destination_search_screen.dart';
-import 'package:arangcada/features/search/pin_on_map_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,11 +61,6 @@ void main() {
         GoRoute(
           path: '/home/ride-options',
           builder: (_, _) => const Scaffold(body: Text('Ride options')),
-        ),
-        GoRoute(
-          path: '/home/pin-on-map',
-          builder: (_, state) =>
-              PinOnMapScreen(suggested: state.extra as DemoPlace?),
         ),
       ],
     );

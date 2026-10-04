@@ -9,12 +9,14 @@ import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/network/api_exceptions.dart';
+import '../../core/widgets/adaptive_screen_frame.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../demo/demo_data.dart';
 import '../../domain/geo/service_area.dart';
+import 'pin_on_map_screen.dart';
 
 /// Destination picker following the prototype: pickup/destination card,
 /// "use current location" and "pin on map" accelerators, then results.
@@ -169,10 +171,7 @@ class _DestinationSearchScreenState
   /// what gets booked. The service-area test runs on that pin, never on the
   /// search result (see PinOnMapScreen.suggested).
   Future<void> _confirmOnMap(DemoPlace suggested) async {
-    final pin = await context.push<DemoPlace>(
-      '/home/pin-on-map',
-      extra: suggested,
-    );
+    final pin = await _openPin(suggested);
     if (!mounted || pin == null) return;
     final internalTester =
         ref.read(demoStateProvider).currentUser?.isInternalTester ?? false;
@@ -204,8 +203,18 @@ class _DestinationSearchScreenState
     context.go('/home/ride-options');
   }
 
+  /// Pushed directly, not as a go_router route: the router rebuilds whenever
+  /// app state changes, and a rebuild drops a route's `extra` and its result.
+  Future<DemoPlace?> _openPin([DemoPlace? suggested]) =>
+      Navigator.of(context).push<DemoPlace>(
+        MaterialPageRoute(
+          builder: (_) =>
+              AdaptiveScreenFrame(child: PinOnMapScreen(suggested: suggested)),
+        ),
+      );
+
   Future<void> _pinOnMap() async {
-    final place = await context.push<DemoPlace>('/home/pin-on-map');
+    final place = await _openPin();
     if (!mounted || place == null) return;
     _choose(place.name, place.address, place.coordinate);
   }

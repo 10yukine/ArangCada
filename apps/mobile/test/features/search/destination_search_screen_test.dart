@@ -6,7 +6,6 @@ import 'package:arangcada/demo/demo_data.dart';
 import 'package:go_router/go_router.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/features/search/destination_search_screen.dart';
-import 'package:arangcada/features/search/pin_on_map_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,11 +103,6 @@ void main() {
           path: '/home/ride-options',
           builder: (_, _) => const Scaffold(body: Text('Ride options')),
         ),
-        GoRoute(
-          path: '/home/pin-on-map',
-          builder: (_, state) =>
-              PinOnMapScreen(suggested: state.extra as DemoPlace?),
-        ),
       ],
     );
     addTearDown(router.dispose);
@@ -134,6 +128,12 @@ void main() {
     expect(find.text('Confirm location'), findsOneWidget);
     expect(state.destination, isNull);
     expect(geocoder.reverseLookups, 0);
+
+    // The router rebuilds whenever app state changes (a GPS fix, the screen
+    // waking). The place being confirmed and its result must survive that.
+    router.refresh();
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm location'), findsOneWidget);
 
     await tester.tap(find.text('Use this location'));
     await tester.pumpAndSettle();
