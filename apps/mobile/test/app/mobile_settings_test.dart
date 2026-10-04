@@ -133,6 +133,27 @@ void main() {
     const a = GeoCoordinate(latitude: 14.21, longitude: 121.16);
     const b = GeoCoordinate(latitude: 14.22, longitude: 121.17);
 
+    test('a map-bound router ignores later global provider changes', () async {
+      final google = _Router('google');
+      final ors = _Router('ors');
+      var useGoogle = true;
+      final chosen = ChosenRoutingRepository(
+        google: google,
+        ors: ors,
+        useGoogle: () => useGoogle,
+      );
+      final googleMap = chosen.forMap(useGoogle: true);
+      final openMap = chosen.forMap(useGoogle: false);
+      useGoogle = false;
+      await googleMap.route(from: a, to: b);
+      expect((google.calls, ors.calls), (1, 0));
+      expect(googleMap.attribution, 'google');
+      useGoogle = true;
+      await openMap.route(from: a, to: b);
+      expect((google.calls, ors.calls), (1, 1));
+      expect(openMap.attribution, 'ors');
+    });
+
     test(
       'with the Google map, only Google is asked, even with no route',
       () async {

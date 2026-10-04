@@ -149,6 +149,7 @@ class LiveMapView extends StatefulWidget {
     this.boundaries = const [],
     this.routeIsFallback = false,
     this.routeAttribution = '',
+    this.useGoogleMap,
     this.showUserLocation = false,
     this.interactive = true,
     this.onMapTap,
@@ -170,6 +171,10 @@ class LiveMapView extends StatefulWidget {
 
   /// Credit for the routing provider that produced [route].
   final String routeAttribution;
+
+  /// Pins the renderer to the routing provider selected by a route view.
+  /// Other maps continue selecting the current stack when mounted.
+  final bool? useGoogleMap;
 
   final bool showUserLocation;
   final bool interactive;
@@ -203,7 +208,8 @@ class _LiveMapViewState extends State<LiveMapView> {
   // Fixed for the life of this map: switching renderer under a live view
   // would leave it between two controllers.
   late final bool _useGoogle =
-      AppConfig.isGoogleMapsConfigured && useGoogleStack;
+      AppConfig.isGoogleMapsConfigured &&
+      (widget.useGoogleMap ?? useGoogleStack);
 
   /// If MapTiler never answers -- dead tile server, captive portal, no data --
   /// stop showing a spinner forever and degrade to the unavailable state so

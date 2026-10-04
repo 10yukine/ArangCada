@@ -1,4 +1,6 @@
 import 'package:arangcada/core/geo/haversine.dart';
+import 'package:arangcada/app/mobile_settings.dart';
+import 'package:arangcada/data/remote/chosen_routing_repository.dart';
 import 'package:arangcada/core/geo/route_progress.dart';
 import 'package:arangcada/core/widgets/map/route_preview_map.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
@@ -47,7 +49,7 @@ class _CountingRouter implements RoutingRepository {
 void main() {
   Future<void> show(
     WidgetTester tester,
-    _CountingRouter router,
+    RoutingRepository router,
     GeoCoordinate from, {
     GeoCoordinate to = _pickup,
     bool originMoves = true,
@@ -72,6 +74,26 @@ void main() {
   }
 
   // This used to be one billable request every 40 m.
+  testWidgets('a live map keeps its routing provider after settings change', (
+    tester,
+  ) async {
+    final previous = serviceChoices.value;
+    addTearDown(() => serviceChoices.value = previous);
+    serviceChoices.value = (routing: 'ors_only', search: 'maptiler');
+    final google = _CountingRouter();
+    final ors = _CountingRouter();
+    final chosen = ChosenRoutingRepository(
+      google: google,
+      ors: ors,
+      useGoogle: () => useGoogleStack,
+    );
+    await show(tester, chosen, _start, originMoves: false);
+    serviceChoices.value = (routing: 'google', search: 'google');
+    await show(tester, chosen, _at(100), originMoves: false);
+    expect(google.requests, isEmpty);
+    expect(ors.requests, hasLength(2));
+  });
+
   testWidgets('a driver following the route asks for it once', (tester) async {
     final router = _CountingRouter();
     await show(tester, router, _start);

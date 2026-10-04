@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../app/mobile_settings.dart';
+import '../../../config/app_config.dart';
 import '../../../core/geo/haversine.dart';
 import '../../../core/geo/route_progress.dart';
 import '../../../data/providers/repository_providers.dart';
+import '../../../data/remote/chosen_routing_repository.dart';
 import '../../../data/repositories/routing_repository.dart';
 import 'live_map_view.dart';
 
@@ -64,6 +67,8 @@ class RoutePreviewMap extends ConsumerStatefulWidget {
 class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
   RouteResult? _route;
   bool _loading = true;
+  late final bool _useGoogleMap;
+  late final RoutingRepository _routing;
 
   /// Guards against an older lookup overwriting a newer one.
   int _loadToken = 0;
@@ -79,6 +84,11 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
   @override
   void initState() {
     super.initState();
+    _useGoogleMap = AppConfig.isGoogleMapsConfigured && useGoogleStack;
+    final router = ref.read(routingRepositoryProvider);
+    _routing = router is ChosenRoutingRepository
+        ? router.forMap(useGoogle: _useGoogleMap)
+        : router;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
     });
@@ -136,9 +146,7 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
     setState(() => _loading = true);
     // The repository never throws: unavailable road routes are marked as
     // fallback, so there is no error branch to render here.
-    final route = await ref
-        .read(routingRepositoryProvider)
-        .route(from: from, to: to);
+    final route = await _routing.route(from: from, to: to);
     if (!mounted || token != _loadToken) return;
     setState(() {
       _route = route;
@@ -155,6 +163,7 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
     );
 
     final map = LiveMapView(
+      useGoogleMap: _useGoogleMap,
       controller: widget.controller,
       center: midpoint,
       height: widget.height,
@@ -168,7 +177,7 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
       routeIsFallback: route?.isFallback ?? false,
       routeAttribution: route == null || route.isFallback
           ? ''
-          : ref.read(routingRepositoryProvider).attribution,
+          : _routing.attribution,
       interactive: widget.interactive,
       boundaries: widget.boundaries,
       markers: [

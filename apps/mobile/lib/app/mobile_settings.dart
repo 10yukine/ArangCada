@@ -21,7 +21,8 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
 /// maps and other map services' content off its map. Any routing choice other
 /// than 'google' selects MapLibre, MapTiler search and openrouteservice.
 // ponytail: read when a map or request starts; a map already on screen keeps
-// its renderer until it is rebuilt. No automatic switch when Google's quota
+// its renderer and matching router until a new map is opened. No automatic
+// switch when Google's quota
 // runs out (the route line is simply absent); add one if the cap is hit.
 bool get useGoogleStack => serviceChoices.value.routing == 'google';
 

@@ -187,13 +187,11 @@ final chatUnreadCountProvider = Provider<int>((ref) {
 /// coverage than ORS in Calamba) while the Google map is on, and
 /// openrouteservice otherwise -- never one as a fallback for the other, since
 /// Google's terms keep each provider's route on its own map (see
-/// ChosenRoutingRepository). With no Google key configured, this is exactly
-/// the previous ORS-only behavior.
+/// ChosenRoutingRepository). A Google map with no Routes key shows no road
+/// line; it must not silently draw an ORS route on the Google map.
 final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
   final ors = OpenRouteServiceRoutingRepository();
   ref.onDispose(ors.dispose);
-  if (!AppConfig.isGoogleRoutesConfigured) return ors;
-
   final google = GoogleRoutesRoutingRepository();
   ref.onDispose(google.dispose);
   return ChosenRoutingRepository(

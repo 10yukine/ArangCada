@@ -27,6 +27,11 @@ class ChosenRoutingRepository implements RoutingRepository {
   @override
   String get attribution => _last.attribution;
 
+  /// A mounted map keeps its renderer, so its requests must keep the matching
+  /// provider even if foreground settings change before the next lookup.
+  RoutingRepository forMap({required bool useGoogle}) =>
+      useGoogle ? _google : _ors;
+
   @override
   Future<RouteResult> route({
     required GeoCoordinate from,
