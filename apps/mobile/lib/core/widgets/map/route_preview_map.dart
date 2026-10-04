@@ -204,6 +204,10 @@ class _RoutePreviewMapState extends ConsumerState<RoutePreviewMap> {
     if (route.isFallback) {
       return 'Route preview unavailable. Fare is unaffected.';
     }
+    // Google routes carry the line only (see GoogleRoutesConfig).
+    if (route.distanceMeters <= 0) {
+      return 'Fare is billed on straight-line distance.';
+    }
     final km = (route.distanceMeters / 1000).toStringAsFixed(1);
     final mins = (route.durationSeconds / 60).round();
     return 'About $km km by road · roughly $mins min. '

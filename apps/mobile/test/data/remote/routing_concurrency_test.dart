@@ -75,6 +75,36 @@ void main() {
         const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
   );
 
+  // Without these the key cannot be restricted to the app in Google Cloud.
+  test(
+    'Google route requests say which app is calling',
+    () async {
+      final headers = <Map<String, String>>[];
+      final client = MockClient((request) async {
+        headers.add(request.headers);
+        return http.Response('{}', 500);
+      });
+      addTearDown(client.close);
+
+      await GoogleRoutesRoutingRepository(client: client).route(
+        from: const GeoCoordinate(latitude: 14.2, longitude: 121.1),
+        to: const GeoCoordinate(latitude: 14.3, longitude: 121.2),
+      );
+
+      // Coordinates are the only part of a route the terms let the app keep.
+      expect(
+        headers.single['X-Goog-FieldMask'],
+        'routes.polyline.encodedPolyline',
+      );
+      expect(headers.single['X-Android-Package'], 'ph.calamba.arangcada');
+      expect(
+        headers.single['X-Android-Cert'],
+        matches(RegExp(r'^[0-9A-F]{40}$')),
+      );
+    },
+    skip: const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
+  );
+
   test(
     'Google over its daily quota hands routes to the free provider',
     () async {

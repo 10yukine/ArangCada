@@ -44,6 +44,22 @@ class AppConfig {
     'GOOGLE_PLACES_API_KEY',
   );
 
+  /// Tells Google's web services which Android app is calling, so the
+  /// Places/Routes key can be restricted to this app in Google Cloud ("Android
+  /// apps": this package and certificate fingerprint). Without these headers
+  /// the key could only be left usable from anywhere. Google ignores them
+  /// while the key has no app restriction. A build signed with another
+  /// certificate (a debug build) passes its own fingerprint as
+  /// ANDROID_CERT_SHA1, and that fingerprint has to be on the key too.
+  static const String androidCertSha1 = String.fromEnvironment(
+    'ANDROID_CERT_SHA1',
+    defaultValue: 'D1A9788DBB48F046C50486B30BAD751D208B4AF4',
+  );
+  static const Map<String, String> googleAppIdentityHeaders = {
+    'X-Android-Package': 'ph.calamba.arangcada',
+    'X-Android-Cert': androidCertSha1,
+  };
+
   /// Per-service readiness. Each live integration degrades on its own rather
   /// than the whole app refusing to start, so a missing MapTiler key costs the
   /// map but not authentication.

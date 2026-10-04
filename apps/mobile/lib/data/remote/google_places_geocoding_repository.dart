@@ -86,6 +86,7 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'X-Goog-Api-Key': AppConfig.googlePlacesApiKey,
+    ...AppConfig.googleAppIdentityHeaders,
   };
 
   @override

@@ -6,17 +6,19 @@ import 'app_config.dart';
 /// not the legacy `maps.googleapis.com/maps/api/directions` endpoint, which
 /// Google itself now steers new integrations away from.
 ///
-/// SCOPE: display/ETA routing only, exactly like openrouteservice before it.
-/// `distanceMeters`/`duration` from this API must NEVER reach the fare
+/// SCOPE: drawing the route only. Nothing from this API reaches the fare
 /// calculator -- billing stays Haversine + the Ordinance 743 matrix
 /// (`domain/fare/`). This constant file changes NOTHING about that boundary;
 /// only `GoogleRoutesRoutingRepository` exists to feed the same
 /// display-only `RoutingRepository` contract that ORS already implements.
 ///
-/// COST CONTROL: the field mask below requests only `duration`,
-/// `distanceMeters`, and `polyline.encodedPolyline`. Routes API bills by
-/// which response fields you ask for -- this exact field set is what keeps
-/// every call on the cheapest "Routes Essentials" SKU. Do not add fields
+/// COST CONTROL AND TERMS: the field mask below requests only
+/// `polyline.encodedPolyline`. Google's terms let the app keep a route's
+/// coordinates (the repository reuses them for 30 minutes) and nothing else
+/// from it; distance and duration were requested once, never shown, and kept
+/// in that cache. Routes API also bills by which response fields you ask
+/// for -- this field keeps every call on the cheapest "Routes Essentials"
+/// SKU. Do not add fields
 /// (e.g. traffic-aware duration, multiple route alternatives) without
 /// checking https://developers.google.com/maps/billing-and-pricing/pricing
 /// first, since several fields silently upgrade the whole request to a more
@@ -32,8 +34,7 @@ class GoogleRoutesConfig {
 
   /// Restricts the response to the cheapest billable SKU. See the class doc
   /// before changing this.
-  static const String fieldMask =
-      'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline';
+  static const String fieldMask = 'routes.polyline.encodedPolyline';
 
   /// DRIVE is used rather than TWO_WHEELER. The Philippines does support
   /// TWO_WHEELER (checked 2026-09-30), but two-wheeled routing is billed as

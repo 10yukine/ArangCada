@@ -66,6 +66,15 @@ void main() {
       expect(details.headers['X-Goog-FieldMask'], 'location');
       expect(details.url.queryParameters['sessionToken'], token(requests[0]));
 
+      // Without these the key cannot be restricted to the app in Google Cloud.
+      for (final request in requests) {
+        expect(request.headers['X-Android-Package'], 'ph.calamba.arangcada');
+        expect(
+          request.headers['X-Android-Cert'],
+          matches(RegExp(r'^[0-9A-F]{40}$')),
+        );
+      }
+
       // The next search starts a new session.
       await repository.search('SM City');
       expect(token(requests[3]), isNot(token(requests[0])));

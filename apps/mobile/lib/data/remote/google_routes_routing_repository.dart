@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../config/app_config.dart';
 import '../../config/google_routes_config.dart';
 import '../../core/geo/haversine.dart';
 import '../../core/network/api_exceptions.dart';
@@ -24,8 +25,8 @@ import '../repositories/routing_repository.dart';
 ///  * Every failure returns an unavailable route without inventing road
 ///    geometry, so booking is never blocked by the routing service being down.
 ///
-/// Its distance/duration must never reach the fare calculator -- see
-/// `domain/fare/` and the doc comment on `RouteResult`.
+/// Only the route's line is requested and kept; its distance and duration
+/// are not, so they are always 0 here.
 class GoogleRoutesRoutingRepository implements RoutingRepository {
   GoogleRoutesRoutingRepository({http.Client? client})
     : _client = client ?? http.Client();
@@ -137,7 +138,9 @@ class GoogleRoutesRoutingRepository implements RoutingRepository {
   }
 
   Future<RouteResult> _request(GeoCoordinate from, GeoCoordinate to) async {
-    final uri = Uri.parse('${GoogleRoutesConfig.baseUrl}/directions/v2:computeRoutes');
+    final uri = Uri.parse(
+      '${GoogleRoutesConfig.baseUrl}/directions/v2:computeRoutes',
+    );
 
     http.Response response;
     try {
@@ -150,18 +153,25 @@ class GoogleRoutesRoutingRepository implements RoutingRepository {
               'X-Goog-Api-Key': GoogleRoutesConfig.apiKey,
               'X-Goog-FieldMask': GoogleRoutesConfig.fieldMask,
               'Content-Type': 'application/json',
+              ...AppConfig.googleAppIdentityHeaders,
             },
             // Only the two coordinates required for this lookup are sent --
             // no names, ride ids, or user identifiers (SECURITY.md).
             body: jsonEncode({
               'origin': {
                 'location': {
-                  'latLng': {'latitude': from.latitude, 'longitude': from.longitude},
+                  'latLng': {
+                    'latitude': from.latitude,
+                    'longitude': from.longitude,
+                  },
                 },
               },
               'destination': {
                 'location': {
-                  'latLng': {'latitude': to.latitude, 'longitude': to.longitude},
+                  'latLng': {
+                    'latitude': to.latitude,
+                    'longitude': to.longitude,
+                  },
                 },
               },
               'travelMode': GoogleRoutesConfig.travelMode,
@@ -211,25 +221,17 @@ class GoogleRoutesRoutingRepository implements RoutingRepository {
           : _decodePolyline(encoded);
       if (geometry.length < 2) return _unavailableRoute();
 
-      final distanceMeters = (route['distanceMeters'] as num?)?.toDouble() ?? 0;
-      final durationSeconds = _parseDuration(route['duration'] as String?);
-
+      // Only the line is requested (GoogleRoutesConfig.fieldMask).
       return RouteResult(
         geometry: geometry,
-        distanceMeters: distanceMeters,
-        durationSeconds: durationSeconds,
+        distanceMeters: 0,
+        durationSeconds: 0,
         isFallback: false,
         retrievedAt: DateTime.now(),
       );
     } catch (_) {
       return _unavailableRoute();
     }
-  }
-
-  /// Routes API returns duration as a string like `"723s"`.
-  static double _parseDuration(String? raw) {
-    if (raw == null || !raw.endsWith('s')) return 0;
-    return double.tryParse(raw.substring(0, raw.length - 1)) ?? 0;
   }
 
   /// Decodes Google's encoded polyline algorithm format (precision 5),
