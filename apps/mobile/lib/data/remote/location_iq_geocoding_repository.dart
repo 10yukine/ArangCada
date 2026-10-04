@@ -8,8 +8,9 @@ import '../../core/geo/haversine.dart';
 import '../../core/network/api_exceptions.dart';
 import '../repositories/geocoding_repository.dart';
 
-/// LocationIQ place search (autocomplete). Local evaluation builds only: see
-/// [AppConfig.locationIqKey].
+/// LocationIQ place search (autocomplete), in builds made for it: see
+/// [AppConfig.locationIqKey]. Its coordinates are not Google's, so they may
+/// be tested against the service area and stored.
 ///
 /// The free plan allows 2 requests a second, 60 a minute and 5,000 a day for
 /// the whole key, so:

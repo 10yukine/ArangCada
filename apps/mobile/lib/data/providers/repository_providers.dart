@@ -205,11 +205,13 @@ final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
 
 /// Place search and pin labels. Google Places when configured (with the
 /// Google map), else MapTiler, which also backs Google when its quota runs
-/// out and always answers pin labels. A local evaluation build searches with
-/// LocationIQ instead of both (AppConfig.locationIqKey).
+/// out and always answers pin labels. A build made for LocationIQ searches
+/// with it instead of both (AppConfig.locationIqKey).
 final geocodingRepositoryProvider = Provider<GeocodingRepository>((ref) {
   final mapTiler = MapTilerGeocodingRepository();
   ref.onDispose(mapTiler.dispose);
+  // No Google place search in such a build, so no Google coordinate is ever
+  // tested against the service area.
   if (AppConfig.isLocationIqConfigured) {
     final locationIq = LocationIqGeocodingRepository(pins: mapTiler);
     ref.onDispose(locationIq.dispose);
