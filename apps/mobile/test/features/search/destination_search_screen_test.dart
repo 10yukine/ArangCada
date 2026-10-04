@@ -145,11 +145,12 @@ void main() {
       state.destination!.coordinate.latitude,
       isNot(DemoData.places[2].coordinate.latitude),
     );
-    // The booked place is the rider's pin in the rider's words: no Google ID,
-    // no Google name, and the search result went to no other map service.
-    expect(state.destination!.id, startsWith('geo-'));
-    expect(state.destination!.name, 'Rizal Shrine Calamba');
-    expect(state.destination!.googleRetrievedAt, isNull);
+    // Left where it was, a Google result is still Google's: it keeps its ID
+    // and retrieval time so the rules for Google's data keep applying to it,
+    // and it went to no other map service.
+    expect(state.destination!.id, 'google:verified');
+    expect(state.destination!.googleRetrievedAt, isNotNull);
+    expect(state.destination!.riderText, 'Rizal Shrine Calamba');
     expect(geocoder.reverseLookups, 0);
     expect(find.text('Ride options'), findsOneWidget);
   });

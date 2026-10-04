@@ -164,6 +164,8 @@ class _DestinationSearchScreenState
         name: result.name,
         address: result.context,
         coordinate: coordinate,
+        // Google's place ID is the one part of a result that may be kept.
+        googleRetrievedAt: result.placeId == null ? null : DateTime.now(),
         riderText: result.placeId == null ? null : _controller.text.trim(),
       ),
     );
@@ -171,7 +173,8 @@ class _DestinationSearchScreenState
 
   /// The rider confirms a search result on the map, and the confirmed pin is
   /// what gets booked and tested against the service area (see
-  /// PinOnMapScreen.suggested). An unmoved pin has the result's coordinates.
+  /// PinOnMapScreen.suggested). A Google result left where it was is still
+  /// Google's, so it keeps its ID and the rules for Google's data.
   Future<void> _confirmOnMap(DemoPlace suggested) async {
     final pin = await _openPin(suggested);
     if (!mounted || pin == null) return;
@@ -186,12 +189,29 @@ class _DestinationSearchScreenState
       );
       return;
     }
-    _choose(pin.name, pin.address, pin.coordinate);
+    final google = pin.id.startsWith('google:');
+    _choose(
+      pin.name,
+      pin.address,
+      pin.coordinate,
+      id: google ? pin.id : null,
+      googleRetrievedAt: google ? pin.googleRetrievedAt : null,
+      riderText: google ? pin.riderText : null,
+    );
   }
 
-  void _choose(String name, String address, GeoCoordinate coordinate) {
+  void _choose(
+    String name,
+    String address,
+    GeoCoordinate coordinate, {
+    String? id,
+    DateTime? googleRetrievedAt,
+    String? riderText,
+  }) {
     final place = DemoPlace(
-      id: 'geo-${coordinate.latitude},${coordinate.longitude}',
+      id: id ?? 'geo-${coordinate.latitude},${coordinate.longitude}',
+      googleRetrievedAt: googleRetrievedAt,
+      riderText: riderText,
       name: name,
       address: address,
       coordinate: coordinate,

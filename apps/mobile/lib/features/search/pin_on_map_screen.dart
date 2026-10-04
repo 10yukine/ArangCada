@@ -43,18 +43,18 @@ GeoCoordinate clampToRadius(
 /// is never blocked on the geocoder answering.
 ///
 /// With [suggested] it shows a place found by search for the rider to confirm
-/// or move. The confirmed pin is what is booked, checked against the service
-/// area and stored, with no Google ID or name. A pin the rider leaves where
-/// it was still has the search result's coordinates, so this step does not
-/// by itself settle what Google's terms say about Places coordinates.
+/// or move. The confirmed pin is what is booked and checked against the
+/// service area. A result the rider leaves where it was is returned as it
+/// came, Google identity included, so the rules for Google's data keep
+/// applying to it. Only a pin the rider moved is the rider's own point.
 class PinOnMapScreen extends ConsumerStatefulWidget {
   const PinOnMapScreen({this.pickupAnchor, this.suggested, super.key});
 
   /// The GPS fix a pickup adjustment is leashed to. Null for destinations.
   final GeoCoordinate? pickupAnchor;
 
-  /// The search result to confirm. Its name is shown here only; a Google
-  /// name is never passed on (see [DemoPlace.riderText]).
+  /// The search result to confirm. A Google name is shown to the rider only;
+  /// the driver and storage get [DemoPlace.riderText].
   final DemoPlace? suggested;
 
   @override
@@ -117,19 +117,16 @@ class _PinOnMapScreenState extends ConsumerState<PinOnMapScreen> {
     final coordinate = _picked;
     if (coordinate == null) return;
     final suggested = widget.suggested;
-    final label =
-        suggested != null && identical(coordinate, suggested.coordinate)
-        // Unmoved: a Google place is named in the rider's own words.
-        ? (suggested.id.startsWith('google:')
-              ? suggested.riderLabel('Pinned location')
-              : suggested.name)
-        : _label ?? (_adjustingPickup ? 'Near you' : 'Pinned location');
+    if (suggested != null && identical(coordinate, suggested.coordinate)) {
+      Navigator.of(context).pop(suggested);
+      return;
+    }
     Navigator.of(context).pop(
       DemoPlace(
         id: _adjustingPickup
             ? adjustedPickupId
             : 'pin-${coordinate.latitude},${coordinate.longitude}',
-        name: label,
+        name: _label ?? (_adjustingPickup ? 'Near you' : 'Pinned location'),
         address:
             '${coordinate.latitude.toStringAsFixed(5)}, '
             '${coordinate.longitude.toStringAsFixed(5)}',

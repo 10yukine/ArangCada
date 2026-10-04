@@ -77,76 +77,79 @@ void main() {
     expect(state.destination, isNull);
   });
 
-  // The rider confirms a search result on the map: a Google name is not
-  // passed on, and an unmoved result's coordinate is not sent to another map
-  // service.
-  testWidgets('a search result is confirmed as the rider own pin', (
-    tester,
-  ) async {
-    final state = DemoState();
-    addTearDown(state.dispose);
-    final geocoder = _Geocoder();
-    const found = GeoCoordinate(latitude: 14.2046, longitude: 121.1553);
-    DemoPlace? picked;
-    Future<void> open() async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            demoStateProvider.overrideWithValue(state),
-            geocodingRepositoryProvider.overrideWithValue(geocoder),
-          ],
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: TextButton(
-                  onPressed: () async {
-                    picked = await Navigator.of(context).push<DemoPlace>(
-                      MaterialPageRoute(
-                        builder: (_) => const PinOnMapScreen(
-                          suggested: DemoPlace(
-                            id: 'google:p1',
-                            name: 'SM City Calamba',
-                            address: 'National Highway',
-                            coordinate: found,
-                            riderText: 'sm calamba',
+  // A search result left where it is stays that result, Google identity
+  // included, and its coordinate is sent to no other map service. Only a pin
+  // the rider moved is the rider's own point.
+  testWidgets(
+    'a result left in place stays that result; a moved pin does not',
+    (tester) async {
+      final state = DemoState();
+      addTearDown(state.dispose);
+      final geocoder = _Geocoder();
+      const found = GeoCoordinate(latitude: 14.2046, longitude: 121.1553);
+      DemoPlace? picked;
+      Future<void> open() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              demoStateProvider.overrideWithValue(state),
+              geocodingRepositoryProvider.overrideWithValue(geocoder),
+            ],
+            child: MaterialApp(
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: TextButton(
+                    onPressed: () async {
+                      picked = await Navigator.of(context).push<DemoPlace>(
+                        MaterialPageRoute(
+                          builder: (_) => const PinOnMapScreen(
+                            suggested: DemoPlace(
+                              id: 'google:p1',
+                              name: 'SM City Calamba',
+                              address: 'National Highway',
+                              coordinate: found,
+                              riderText: 'sm calamba',
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                  child: const Text('Open map'),
+                      );
+                    },
+                    child: const Text('Open map'),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('Open map'));
+        );
+        await tester.tap(find.text('Open map'));
+        await tester.pumpAndSettle();
+      }
+
+      // Confirmed where it is: the rider's words, no lookup anywhere.
+      await open();
+      expect(find.text('Confirm location'), findsOneWidget);
+      expect(find.text('SM City Calamba'), findsOneWidget);
+      await tester.tap(find.text('Use this location'));
       await tester.pumpAndSettle();
-    }
+      expect(picked!.coordinate, found);
+      expect(picked!.id, 'google:p1');
+      expect(picked!.riderText, 'sm calamba');
+      expect(geocoder.reversed, isEmpty);
 
-    // Confirmed where it is: the rider's words, no lookup anywhere.
-    await open();
-    expect(find.text('Confirm location'), findsOneWidget);
-    expect(find.text('SM City Calamba'), findsOneWidget);
-    await tester.tap(find.text('Use this location'));
-    await tester.pumpAndSettle();
-    expect(picked!.coordinate, found);
-    expect(picked!.name, 'sm calamba');
-    expect(picked!.id, startsWith('pin-'));
-    expect(geocoder.reversed, isEmpty);
-
-    // Moved: the rider's own point is what gets looked up and named.
-    await open();
-    const moved = GeoCoordinate(latitude: 14.2050, longitude: 121.1560);
-    tester.widget<LiveMapView>(find.byType(LiveMapView)).onMapTap!(moved);
-    await tester.pump();
-    await tester.tap(find.text('Use this location'));
-    await tester.pumpAndSettle();
-    expect(picked!.coordinate, moved);
-    expect(picked!.name, 'Burgos Street');
-    expect(geocoder.reversed, [moved]);
-  });
+      // Moved: the rider's own point is what gets looked up and named.
+      await open();
+      const moved = GeoCoordinate(latitude: 14.2050, longitude: 121.1560);
+      tester.widget<LiveMapView>(find.byType(LiveMapView)).onMapTap!(moved);
+      await tester.pump();
+      await tester.tap(find.text('Use this location'));
+      await tester.pumpAndSettle();
+      expect(picked!.coordinate, moved);
+      expect(picked!.id, startsWith('pin-'));
+      expect(picked!.riderText, isNull);
+      expect(picked!.name, 'Burgos Street');
+      expect(geocoder.reversed, [moved]);
+    },
+  );
 
   test('clampToRadius keeps near points and pulls far ones to the edge', () {
     const anchor = GeoCoordinate(latitude: 14.2085, longitude: 121.1555);
