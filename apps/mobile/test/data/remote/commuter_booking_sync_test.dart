@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/core/network/api_exceptions.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/mock/mock_fare_repository.dart';
 import 'package:arangcada/data/remote/supabase_auth_repository.dart';
 import 'package:arangcada/data/remote/supabase_ride_repository.dart';
+import 'package:arangcada/data/repositories/geocoding_repository.dart';
 import 'package:arangcada/data/repositories/location_repository.dart';
 import 'package:arangcada/demo/demo_data.dart';
 import 'package:arangcada/domain/fare/fare_matrix.dart';
@@ -28,6 +30,30 @@ class _NoGps implements LocationRepository {
 
 Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 50));
 
+class _OtherGeocoder implements GeocodingRepository {
+  int reverseLookups = 0;
+
+  @override
+  Future<GeocodedPlace?> reverse(GeoCoordinate coordinate) async {
+    reverseLookups++;
+    return const GeocodedPlace(
+      id: 'other',
+      name: 'From another map service',
+      context: 'Calamba',
+      coordinate: null,
+    );
+  }
+
+  @override
+  Future<List<GeocodedPlace>> search(String query) async => const [];
+
+  @override
+  Future<GeoCoordinate?> locate(GeocodedPlace place) async => place.coordinate;
+
+  @override
+  Future<GeocodedPlace?> refresh(String placeId) async => null;
+}
+
 void main() {
   late SupabaseClient client;
   late DemoState state;
@@ -36,9 +62,11 @@ void main() {
   var profile = <String, dynamic>{};
   var claims = <Map<String, dynamic>>[];
   Object? photoLinkSeconds;
+  Map<String, dynamic>? requestRideBody;
 
   setUp(() async {
     photoLinkSeconds = null;
+    requestRideBody = null;
     profile = {'role': 'commuter', 'display_name': 'Test Rider'};
     claims = [];
     client = SupabaseClient(
@@ -66,6 +94,7 @@ void main() {
             },
           };
         } else if (path.endsWith('/rpc/request_ride')) {
+          requestRideBody = jsonDecode(request.body) as Map<String, dynamic>;
           (status, data) = requestRideAnswer;
         } else if (path.endsWith('/profiles')) {
           data = profile;
@@ -106,12 +135,15 @@ void main() {
     await client.dispose();
   });
 
-  Future<(SupabaseRideRepository, DemoBooking)> book() async {
+  Future<(SupabaseRideRepository, DemoBooking)> book({
+    GeocodingRepository? geocoding,
+  }) async {
     final rides = SupabaseRideRepository(
       client,
       state,
       _NoGps(),
       const MockFareRepository(),
+      geocoding: geocoding,
     );
     addTearDown(rides.dispose);
     await settle();
@@ -155,6 +187,55 @@ void main() {
 
     expect(booking.fareQuote.partyTotalCentavos, 5400);
     expect(booking.fareQuote.unitFareCentavos, 5400);
+  });
+
+  // Google's place name may not be stored, and its coordinate may not go to
+  // another map service to fetch a label.
+  test('a Google destination is sent in the rider own words', () async {
+    requestRideAnswer = (
+      200,
+      {'id': 'trip-1', 'status': 'searching_driver', 'fare_estimate': 54.0},
+    );
+    final geocoder = _OtherGeocoder();
+    state.setDestination(
+      DemoPlace(
+        id: 'google:p1',
+        name: 'SM City Calamba',
+        address: 'National Highway',
+        coordinate: const GeoCoordinate(latitude: 14.2046, longitude: 121.1553),
+        googleRetrievedAt: DateTime.now(),
+        riderText: 'sm calamba',
+      ),
+    );
+    final (rides, booking) = await book(geocoding: geocoder);
+
+    await rides.requestRide(booking);
+
+    expect(requestRideBody!['p_destination_label'], 'sm calamba');
+    expect(geocoder.reverseLookups, 0);
+
+    // Without the rider's words the label is generic, still with no lookup.
+    state.setDestination(
+      DemoPlace(
+        id: 'google:p2',
+        name: 'Calamba City Hall',
+        address: 'Real',
+        coordinate: const GeoCoordinate(latitude: 14.2117, longitude: 121.1653),
+        googleRetrievedAt: DateTime.now(),
+      ),
+    );
+    final again = DemoBooking.draft(
+      pickupName: state.pickup.name,
+      destinationName: state.destination!.name,
+      rideType: RideType.special,
+      passengerCount: 1,
+      userFareClass: UserFareClass.regular,
+      paymentMethod: PaymentMethod.cash,
+      fareQuote: booking.fareQuote,
+    );
+    await rides.requestRide(again);
+    expect(requestRideBody!['p_destination_label'], 'Destination');
+    expect(geocoder.reverseLookups, 0);
   });
 
   // trips_one_active_per_rider. This used to read "Something went wrong".

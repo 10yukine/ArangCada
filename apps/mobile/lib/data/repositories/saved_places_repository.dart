@@ -8,8 +8,9 @@ import 'geocoding_repository.dart';
 
 /// Device-local places, partitioned by authenticated account ID.
 ///
-/// Google places persist only their IDs. Coordinates and labels are resolved
-/// for the current screen session, never written to disk.
+/// A Google place persists its ID and the rider's own words for it (what they
+/// typed to find it), nothing of Google's. Its coordinate is resolved for the
+/// current screen session and never written to disk.
 class SavedPlacesRepository {
   SavedPlacesRepository(this.box, this.accountId);
 
@@ -36,7 +37,12 @@ class SavedPlacesRepository {
         jsonEncode([
           for (final row in rows)
             if ((row['id'] as String).startsWith('google:'))
-              {'id': row['id']}
+              // 'label' is only ever the rider's own text; older builds wrote
+              // Google's name under 'name', which is dropped here.
+              {
+                'id': row['id'],
+                if (row['label'] is String) 'label': row['label'],
+              }
             else
               row,
         ]),
@@ -87,10 +93,11 @@ class SavedPlacesRepository {
     if (place.id.startsWith('google:')) {
       _resolved[place.id] = DemoPlace(
         id: place.id,
-        name: 'Saved place',
+        name: place.riderLabel('Saved place'),
         address: 'Calamba City',
         coordinate: place.coordinate,
         googleRetrievedAt: place.googleRetrievedAt,
+        riderText: place.riderText,
       );
     }
   }
@@ -103,10 +110,12 @@ class SavedPlacesRepository {
     GeocodingRepository geocoding, {
     DateTime? now,
   }) async {
-    final ids = [
+    final labels = {
       for (final row in _rows)
-        if ((row['id'] as String).startsWith('google:')) row['id'] as String,
-    ];
+        if ((row['id'] as String).startsWith('google:'))
+          row['id'] as String: row['label'] as String?,
+    };
+    final ids = labels.keys.toList();
     for (final id in ids) {
       if (_resolved[id]?.googleCoordinateIsFresh(now ?? DateTime.now()) ==
           true) {
@@ -118,10 +127,11 @@ class SavedPlacesRepository {
       if (fresh?.coordinate case final coordinate?) {
         _resolved[id] = DemoPlace(
           id: id,
-          name: fresh!.name,
-          address: fresh.context,
+          name: labels[id] ?? fresh!.name,
+          address: fresh!.context,
           coordinate: coordinate,
           googleRetrievedAt: now ?? DateTime.now(),
+          riderText: labels[id],
         );
       } else {
         _resolved.remove(id);
@@ -132,7 +142,11 @@ class SavedPlacesRepository {
 
   static Map<String, dynamic> _row(DemoPlace place) =>
       place.id.startsWith('google:')
-      ? {'id': place.id}
+      ? {
+          'id': place.id,
+          if ((place.riderText ?? '').trim().isNotEmpty)
+            'label': place.riderLabel(''),
+        }
       : {
           'id': place.id,
           'name': place.name,

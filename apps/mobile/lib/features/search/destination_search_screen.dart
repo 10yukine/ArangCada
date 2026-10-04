@@ -137,6 +137,7 @@ class _DestinationSearchScreenState
       place.coordinate,
       id: place.id,
       googleRetrievedAt: place.googleRetrievedAt,
+      riderText: place.riderText,
     );
   }
 
@@ -168,6 +169,7 @@ class _DestinationSearchScreenState
       // Google's place ID is the one part of a result that may be kept.
       id: result.placeId == null ? null : result.id,
       googleRetrievedAt: result.placeId == null ? null : DateTime.now(),
+      riderText: result.placeId == null ? null : _controller.text.trim(),
     );
   }
 
@@ -177,10 +179,12 @@ class _DestinationSearchScreenState
     GeoCoordinate coordinate, {
     String? id,
     DateTime? googleRetrievedAt,
+    String? riderText,
   }) {
     final place = DemoPlace(
       id: id ?? 'geo-${coordinate.latitude},${coordinate.longitude}',
       googleRetrievedAt: googleRetrievedAt,
+      riderText: riderText,
       name: name,
       address: address,
       coordinate: coordinate,

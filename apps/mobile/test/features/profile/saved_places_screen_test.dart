@@ -206,6 +206,34 @@ void main() {
     expect(repository.places.single.id, 'google:nu-l');
   });
 
+  // Google's name may not be kept, and its coordinate may not go to another
+  // map service for a label, so the rider's own search words are the label.
+  test(
+    'a saved Google place keeps the rider words, nothing of Google',
+    () async {
+      final place = DemoPlace(
+        googleRetrievedAt: DateTime.now(),
+        id: 'google:nu-l',
+        name: 'National University Laguna',
+        address: 'Milagrosa, Calamba',
+        coordinate: GeoCoordinate(latitude: 14.1778, longitude: 121.1363),
+        riderText: 'nu laguna',
+      );
+      const stored = '[{"id":"google:nu-l","label":"nu laguna"}]';
+      await repository.save(place);
+      expect(repository.places.single.name, 'nu laguna');
+      expect(box.get('saved_places:account-a'), stored);
+
+      // The words survive the start-up purge and a reopen.
+      await SavedPlacesRepository.purgeGoogleContent(box);
+      repository = SavedPlacesRepository(box, 'account-a');
+      await repository.refreshStale(_Geocoder(place), now: DateTime.now());
+      expect(repository.places.single.name, 'nu laguna');
+      expect(repository.places.single.riderText, 'nu laguna');
+      expect(box.get('saved_places:account-a'), stored);
+    },
+  );
+
   test('legacy Google content is purged for every stored account', () async {
     for (final account in ['account-a', 'account-b']) {
       await box.put(

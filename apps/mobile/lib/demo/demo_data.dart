@@ -7,6 +7,7 @@ class DemoPlace {
     required this.address,
     required this.coordinate,
     this.googleRetrievedAt,
+    this.riderText,
   });
 
   final String id;
@@ -14,6 +15,19 @@ class DemoPlace {
   final String address;
   final GeoCoordinate coordinate;
   final DateTime? googleRetrievedAt;
+
+  /// What the rider typed or tapped to find a Google place. It is the only
+  /// description of that place the app may keep or pass on: the name is
+  /// Google's, and Google's terms do not let the coordinate go to another map
+  /// service to fetch a label.
+  final String? riderText;
+
+  /// [riderText] for the driver and for storage, or [fallback] without it.
+  String riderLabel(String fallback) {
+    final text = riderText?.trim() ?? '';
+    if (text.isEmpty) return fallback;
+    return text.length <= 80 ? text : text.substring(0, 80);
+  }
 
   bool googleCoordinateIsFresh(DateTime now) =>
       !id.startsWith('google:') ||

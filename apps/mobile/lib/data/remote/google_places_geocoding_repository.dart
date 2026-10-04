@@ -172,18 +172,14 @@ class GooglePlacesGeocodingRepository implements GeocodingRepository {
     final json = await _details(placeId, 'location');
     final coordinate = json == null ? null : _coordinate(json);
     if (coordinate == null) return null;
-    // Labels come from the existing fallback, not a Pro-tier Google field.
-    GeocodedPlace? label;
-    try {
-      label = await _fallback.reverse(coordinate);
-    } catch (_) {
-      // A label failure must not prevent resolving a saved coordinate.
-    }
+    // No label: Google's name is a Pro-tier field, and the coordinate may not
+    // go to another map service to fetch one. SavedPlacesRepository shows the
+    // rider's own words instead.
     return GeocodedPlace(
       id: 'google:$placeId',
       placeId: placeId,
-      name: label?.name ?? 'Saved place',
-      context: label?.context ?? 'Calamba City',
+      name: 'Saved place',
+      context: 'Calamba City',
       coordinate: coordinate,
     );
   }

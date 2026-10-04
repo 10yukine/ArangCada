@@ -386,9 +386,9 @@ class SupabaseRideRepository extends ChangeNotifier {
   /// name. The driver also gets the exact pin on the map either way.
   Future<String> _pickupLabelForDriver() async {
     final pickup = _state.pickup;
-    if (pickup.id != 'gps' && !pickup.id.startsWith('google:')) {
-      return pickup.name;
-    }
+    // A Google place is described in the rider's own words (DemoPlace.riderText).
+    if (pickup.id.startsWith('google:')) return pickup.riderLabel('Pickup');
+    if (pickup.id != 'gps') return pickup.name;
     GeocodedPlace? place;
     try {
       place = await _geocoding
@@ -414,19 +414,9 @@ class SupabaseRideRepository extends ChangeNotifier {
         !_state.pickup.googleCoordinateIsFresh(now)) {
       throw StateError('Choose your places again before booking.');
     }
-    var destinationLabel = destination.name;
-    if (destination.id.startsWith('google:')) {
-      try {
-        destinationLabel =
-            (await _geocoding
-                    ?.reverse(destination.coordinate)
-                    .timeout(const Duration(seconds: 3)))
-                ?.name ??
-            'Destination';
-      } catch (_) {
-        destinationLabel = 'Destination';
-      }
-    }
+    final destinationLabel = destination.id.startsWith('google:')
+        ? destination.riderLabel('Destination')
+        : destination.name;
     final idempotencyKey = _bookingKeys.putIfAbsent(booking, _uuid.v4);
     final pickupLabel = await _pickupLabelForDriver();
     final dynamic result;
