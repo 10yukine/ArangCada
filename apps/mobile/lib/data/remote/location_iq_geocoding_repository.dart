@@ -49,6 +49,14 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
   int _requestSeq = 0;
   DateTime _nextRequestAt = DateTime(0);
   DateTime _busyUntil = DateTime(0);
+  ApiException? _disabledFailure;
+
+  void _checkAvailability() {
+    if (_disabledFailure case final failure?) throw failure;
+    if (DateTime.now().isBefore(_busyUntil)) {
+      throw const ApiRateLimitedException('Place search is busy.');
+    }
+  }
 
   @override
   Future<List<GeocodedPlace>> search(String query) async {
@@ -58,15 +66,15 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
     if (_key.isEmpty) {
       throw const ApiNotConfiguredException('Place search is not configured.');
     }
-    if (DateTime.now().isBefore(_busyUntil)) {
-      throw const ApiRateLimitedException('Place search is busy.');
-    }
+    _checkAvailability();
 
     final wait = _nextRequestAt.difference(DateTime.now());
     if (wait > Duration.zero) {
       await Future<void>.delayed(wait);
       if (seq != _requestSeq) return const [];
     }
+    // A previous request may have disabled search while this query waited.
+    _checkAvailability();
     _nextRequestAt = DateTime.now().add(_minInterval);
 
     final uri = Uri.https('api.locationiq.com', '/v1/autocomplete', {
@@ -89,6 +97,19 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
       throw const ApiNetworkException();
     }
 
+    // Provider limits apply even when a newer keystroke supersedes the result.
+    switch (response.statusCode) {
+      case 401:
+        _disabledFailure = const ApiUnauthorizedException(
+          'Place search is unavailable.',
+        );
+      case 403:
+        _disabledFailure = const ApiQuotaException(
+          'Place search is unavailable.',
+        );
+      case 429:
+        _busyUntil = DateTime.now().add(_busyFor);
+    }
     // A newer keystroke already issued a request; this answer is stale.
     if (seq != _requestSeq) return const [];
 
@@ -103,7 +124,6 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
       case 403:
         throw const ApiQuotaException('Place search is unavailable.');
       case 429:
-        _busyUntil = DateTime.now().add(_busyFor);
         throw const ApiRateLimitedException('Place search is busy.');
       default:
         throw const ApiUnexpectedException('Place search failed.');

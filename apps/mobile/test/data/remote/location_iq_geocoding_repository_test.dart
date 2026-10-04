@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:arangcada/core/geo/haversine.dart';
@@ -9,6 +10,57 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  for (final status in [401, 403]) {
+    test('a $status stops subsequent requests for this session', () async {
+      var calls = 0;
+      final pins = _Pins();
+      final repository = LocationIqGeocodingRepository(
+        pins: pins,
+        key: 'test-key',
+        minInterval: Duration.zero,
+        client: MockClient((request) async {
+          calls++;
+          return http.Response('{}', status);
+        }),
+      );
+      addTearDown(repository.dispose);
+      await expectLater(
+        repository.search('sm city'),
+        throwsA(isA<ApiException>()),
+      );
+      await expectLater(
+        repository.search('rizal shrine'),
+        throwsA(isA<ApiException>()),
+      );
+      expect(calls, 1);
+      expect(pins.searches, 0);
+    });
+  }
+
+  for (final status in [401, 403, 429]) {
+    test('a superseded $status also stops a queued request', () async {
+      var calls = 0;
+      final response = Completer<http.Response>();
+      final repository = LocationIqGeocodingRepository(
+        pins: _Pins(),
+        key: 'test-key',
+        minInterval: const Duration(milliseconds: 80),
+        client: MockClient((request) {
+          calls++;
+          return response.future;
+        }),
+      );
+      addTearDown(repository.dispose);
+      final first = repository.search('sm city');
+      final queued = repository.search('rizal shrine');
+      final stopped = expectLater(queued, throwsA(isA<ApiException>()));
+      response.complete(http.Response('{}', status));
+      expect(await first, isEmpty);
+      await stopped;
+      expect(calls, 1);
+    });
+  }
+
   http.Response found(http.Request request) => http.Response(
     jsonEncode([
       {
