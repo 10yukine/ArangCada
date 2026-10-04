@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../app/mobile_settings.dart';
 import '../../config/app_config.dart';
 import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
@@ -1299,8 +1300,8 @@ class _VisibleMapAttribution extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        AppConfig.isGoogleMapsConfigured
-            ? 'Routing: Google or openrouteservice · © OpenStreetMap'
+        AppConfig.isGoogleMapsConfigured && useGoogleStack
+            ? 'Routing: Google Routes API'
             : '© MapTiler © OpenStreetMap · routing: openrouteservice when available',
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 9, color: AppColors.textMuted),

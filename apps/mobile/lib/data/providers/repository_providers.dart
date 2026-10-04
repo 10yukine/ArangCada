@@ -11,7 +11,7 @@ import '../remote/maptiler_geocoding_repository.dart';
 import '../remote/openrouteservice_routing_repository.dart';
 import '../remote/google_places_geocoding_repository.dart';
 import '../remote/google_routes_routing_repository.dart';
-import '../remote/fallback_routing_repository.dart';
+import '../remote/chosen_routing_repository.dart';
 import '../remote/supabase_chat_repository.dart';
 import '../remote/supabase_ride_repository.dart';
 import '../mock/local_chat_repository.dart';
@@ -183,12 +183,11 @@ final chatUnreadCountProvider = Provider<int>((ref) {
 /// the fare calculator -- billing uses Haversine (see `domain/fare/`).
 ///
 /// Google Routes is preferred when configured (better unnamed/barangay-road
-/// coverage than ORS in Calamba), with openrouteservice as the automatic
-/// fallback -- never the other way around, and never both queried for a
-/// route the primary already answered. With no Google key configured, this
-/// is exactly the previous ORS-only behavior. Google is only used while the
-/// Google map is on (see AppConfig.isGoogleRoutesConfigured): its terms
-/// forbid showing Routes results on a MapLibre map.
+/// coverage than ORS in Calamba) while the Google map is on, and
+/// openrouteservice otherwise -- never one as a fallback for the other, since
+/// Google's terms keep each provider's route on its own map (see
+/// ChosenRoutingRepository). With no Google key configured, this is exactly
+/// the previous ORS-only behavior.
 final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
   final ors = OpenRouteServiceRoutingRepository();
   ref.onDispose(ors.dispose);
@@ -199,7 +198,7 @@ final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
   return ChosenRoutingRepository(
     google: google,
     ors: ors,
-    choice: () => serviceChoices.value.routing,
+    useGoogle: () => useGoogleStack,
   );
 });
 
@@ -213,7 +212,7 @@ final geocodingRepositoryProvider = Provider<GeocodingRepository>((ref) {
 
   final google = GooglePlacesGeocodingRepository(
     fallback: mapTiler,
-    enabled: () => serviceChoices.value.search == 'google',
+    enabled: () => useGoogleStack && serviceChoices.value.search == 'google',
   );
   ref.onDispose(google.dispose);
   return google;

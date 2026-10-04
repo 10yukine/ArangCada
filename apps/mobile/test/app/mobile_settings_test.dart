@@ -5,7 +5,7 @@ import 'package:arangcada/app/app.dart';
 import 'package:arangcada/app/mobile_settings.dart';
 import 'package:arangcada/config/app_build.dart';
 import 'package:arangcada/core/geo/haversine.dart';
-import 'package:arangcada/data/remote/fallback_routing_repository.dart';
+import 'package:arangcada/data/remote/chosen_routing_repository.dart';
 import 'package:arangcada/data/repositories/routing_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -127,58 +127,59 @@ void main() {
     expect(find.text('Log In'), findsNothing);
   });
 
-  group('routing follows the owner’s choice', () {
+  // Google's terms keep each provider's route on its own map, so neither is
+  // ever the other's fallback.
+  group('one routing provider at a time', () {
     const a = GeoCoordinate(latitude: 14.21, longitude: 121.16);
     const b = GeoCoordinate(latitude: 14.22, longitude: 121.17);
 
     test(
-      'Google first by default, openrouteservice only when it has none',
+      'with the Google map, only Google is asked, even with no route',
       () async {
-        final google = _Router('google');
+        final google = _Router('google', hasRoute: false);
         final ors = _Router('ors');
         final chosen = ChosenRoutingRepository(
           google: google,
           ors: ors,
-          choice: () => 'google',
+          useGoogle: () => true,
         );
-        await chosen.route(from: a, to: b);
+        final result = await chosen.route(from: a, to: b);
+        expect(result.isFallback, isTrue);
         expect((google.calls, ors.calls), (1, 0));
         expect(chosen.attribution, 'google');
       },
     );
 
-    test('ors_only never calls Google, even when ORS has no route', () async {
-      final google = _Router('google');
-      final ors = _Router('ors', hasRoute: false);
-      final chosen = ChosenRoutingRepository(
-        google: google,
-        ors: ors,
-        choice: () => 'ors_only',
-      );
-      final result = await chosen.route(from: a, to: b);
-      expect(result.isFallback, isTrue);
-      expect((google.calls, ors.calls), (0, 1));
-    });
-
     test(
-      'ors puts openrouteservice first and a change applies at once',
+      'off Google, only openrouteservice is asked, and a switch applies at once',
       () async {
         final google = _Router('google');
-        final ors = _Router('ors');
-        var choice = 'ors';
+        final ors = _Router('ors', hasRoute: false);
+        var useGoogle = false;
         final chosen = ChosenRoutingRepository(
           google: google,
           ors: ors,
-          choice: () => choice,
+          useGoogle: () => useGoogle,
         );
-        await chosen.route(from: a, to: b);
+        expect((await chosen.route(from: a, to: b)).isFallback, isTrue);
         expect((google.calls, ors.calls), (0, 1));
         expect(chosen.attribution, 'ors');
 
-        choice = 'google';
+        useGoogle = true;
         await chosen.route(from: a, to: b);
         expect((google.calls, ors.calls), (1, 1));
       },
     );
+
+    test('any routing choice but google leaves the Google stack', () {
+      for (final (routing, google) in [
+        ('google', true),
+        ('ors', false),
+        ('ors_only', false),
+      ]) {
+        serviceChoices.value = (routing: routing, search: 'google');
+        expect(useGoogleStack, google);
+      }
+    });
   });
 }

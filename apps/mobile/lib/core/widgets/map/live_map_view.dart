@@ -11,6 +11,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../app/mobile_settings.dart';
 import '../../../config/app_config.dart';
 import '../../../config/map_style.dart';
 import '../../geo/haversine.dart';
@@ -199,7 +200,10 @@ class _LiveMapViewState extends State<LiveMapView> {
   Timer? _googleInitialFitTimer;
   final Map<(Color, double, Color), gm.BitmapDescriptor> _dots = {};
 
-  static bool get _useGoogle => AppConfig.isGoogleMapsConfigured;
+  // Fixed for the life of this map: switching renderer under a live view
+  // would leave it between two controllers.
+  late final bool _useGoogle =
+      AppConfig.isGoogleMapsConfigured && useGoogleStack;
 
   /// If MapTiler never answers -- dead tile server, captive portal, no data --
   /// stop showing a spinner forever and degrade to the unavailable state so

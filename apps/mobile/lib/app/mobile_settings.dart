@@ -8,12 +8,22 @@ import '../config/app_build.dart';
 final updateRequired = ValueNotifier<bool>(false);
 
 /// Which services the owner has chosen (get_mobile_settings, 20261002150000).
-/// routing: 'google' | 'ors' | 'ors_only'. search: 'google' | 'maptiler'.
+/// routing: 'google', or 'ors' / 'ors_only' (the same thing now: no Google at
+/// all, see [useGoogleStack]). search: 'google' | 'maptiler'.
 /// Google bills per request; the other values are how it is switched off.
 final serviceChoices = ValueNotifier<({String routing, String search})>((
   routing: 'google',
   search: 'google',
 ));
+
+/// Whether the Google map, Google Places and Google Routes are in use. They
+/// are used together or not at all: Google's terms keep its content off other
+/// maps and other map services' content off its map. Any routing choice other
+/// than 'google' selects MapLibre, MapTiler search and openrouteservice.
+// ponytail: read when a map or request starts; a map already on screen keeps
+// its renderer until it is rebuilt. No automatic switch when Google's quota
+// runs out (the route line is simply absent); add one if the cap is hit.
+bool get useGoogleStack => serviceChoices.value.routing == 'google';
 
 /// Asks the server for the oldest build it still accepts and which services
 /// to use. Called at start and whenever the app returns to the foreground.

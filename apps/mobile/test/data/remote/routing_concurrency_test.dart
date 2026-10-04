@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:arangcada/core/geo/haversine.dart';
-import 'package:arangcada/data/remote/fallback_routing_repository.dart';
+import 'package:arangcada/data/remote/chosen_routing_repository.dart';
 import 'package:arangcada/data/remote/google_routes_routing_repository.dart';
 import 'package:arangcada/data/remote/openrouteservice_routing_repository.dart';
 import 'package:arangcada/data/repositories/routing_repository.dart';
@@ -106,7 +106,7 @@ void main() {
   );
 
   test(
-    'Google over its daily quota hands routes to the free provider',
+    'Google over its daily quota shows no line and asks nobody else',
     () async {
       var googleCalls = 0;
       final client = MockClient((_) async {
@@ -116,22 +116,23 @@ void main() {
       });
       addTearDown(client.close);
       final free = _FreeRouter();
-      final repository = FallbackRoutingRepository(
-        primary: GoogleRoutesRoutingRepository(client: client),
-        secondary: free,
+      final repository = ChosenRoutingRepository(
+        google: GoogleRoutesRoutingRepository(client: client),
+        ors: free,
+        useGoogle: () => true,
       );
       const from = GeoCoordinate(latitude: 14.2, longitude: 121.1);
       const to = GeoCoordinate(latitude: 14.3, longitude: 121.2);
       const other = GeoCoordinate(latitude: 14.4, longitude: 121.3);
 
       final first = await repository.route(from: from, to: to);
-      expect(first.isFallback, isFalse);
-      expect(repository.attribution, free.attribution);
+      expect(first.isFallback, isTrue);
 
-      // During the cooldown Google is not asked again.
+      // During the cooldown Google is not asked again, and the other router's
+      // line never goes on the Google map.
       await repository.route(from: from, to: other);
       expect(googleCalls, 1);
-      expect(free.calls, 2);
+      expect(free.calls, 0);
     },
     skip: const String.fromEnvironment('GOOGLE_ROUTES_API_KEY').isEmpty,
   );
