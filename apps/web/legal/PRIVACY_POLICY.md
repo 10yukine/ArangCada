@@ -31,9 +31,11 @@ Pilot)
   role), **driver documents** (license, vehicle papers, photo) if you
   register as a driver, **trip and payment records**, and **SOS/safety
   reports** if you use that feature.
-- Pilot builds use **Google Maps** for the map, routes and place search.
-  Google gets map areas, route coordinates and what you type in search, never
-  your name or account. Trip pickup and destination names and coordinates
+- Pilot builds use **Google Maps** for the map and route lines. Place search
+  uses Google Places, MapTiler or **LocationIQ**, depending on the build.
+  The selected search provider receives what you type; Google receives map
+  areas and route coordinates. We do not include your name or account in
+  these requests. Trip pickup and destination names and coordinates
   are cleared by an hourly cleanup after **29 days from the ride request**;
   financial and participant records are retained separately.
 - The only bookable ride is **Special, up to 4 passengers**. You're matched
@@ -230,14 +232,24 @@ not a full copy of your account):
 - **openrouteservice** — receives route endpoint coordinates when the app
   uses the open map and routing provider. It is not an automatic routing
   fallback on the Google map. We do not send account identity with routes.
+- **LocationIQ** — builds configured for LocationIQ send it place-search
+  text and a fixed search box around Calamba. They do not use Google Places
+  for search. Pin labels still use MapTiler; map and route requests remain
+  with their configured providers. We do not send your account, ride ID,
+  phone number or documents with LocationIQ requests. LocationIQ records API
+  usage, request timestamps and IP addresses under its
+  [privacy policy](https://locationiq.com/privacy). If LocationIQ search is
+  unavailable, the app offers map pin selection rather than automatically
+  calling another place-search provider.
 - **Google Maps Platform** (Google LLC, United States) — used by pilot
   builds of the mobile app for the in-app map (Maps SDK for Android), road
-  route lines (Routes API), and place search (Places API).
+  route lines (Routes API), and place search when configured for Google
+  Places (Places API).
   Google receives the map area being viewed, the two coordinates of a route
   lookup, and the text you type into place search, plus device and usage
   information its map SDK collects under Google's own privacy policy. It never
   receives your name, account, ride ID, phone number or documents from us.
-  If Google place search is unavailable, search may use MapTiler. If Google
+  In Google Places builds, unavailable place search may use MapTiler. If Google
   routing is unavailable while the Google map is selected, the route line
   is unavailable; the app does not send that request to openrouteservice.
   Builds configured for the open map use MapTiler and openrouteservice.
