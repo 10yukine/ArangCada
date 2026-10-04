@@ -23,6 +23,15 @@ class AppConfig {
   static const String mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
   static const String orsApiKey = String.fromEnvironment('ORS_API_KEY');
 
+  /// LocationIQ place search, for local evaluation builds only. It needs both
+  /// `--dart-define=SEARCH_PROVIDER=locationiq` and LOCATIONIQ_API_KEY; without
+  /// the first, the key is not compiled into the app and the search provider
+  /// is unchanged.
+  static const String locationIqKey =
+      String.fromEnvironment('SEARCH_PROVIDER') == 'locationiq'
+      ? String.fromEnvironment('LOCATIONIQ_API_KEY')
+      : '';
+
   /// Optional. Google Routes API is a paid, opt-in upgrade over
   /// openrouteservice for unnamed/barangay-road accuracy -- see
   /// GoogleRoutesConfig. Absent by default; the app must keep working with
@@ -69,6 +78,8 @@ class AppConfig {
   static bool get isMapTilerConfigured => mapTilerKey.isNotEmpty;
 
   static bool get isOrsConfigured => orsApiKey.isNotEmpty;
+
+  static bool get isLocationIqConfigured => locationIqKey.isNotEmpty;
 
   static bool get isGoogleMapsConfigured => googleMapsApiKey.isNotEmpty;
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/adaptive_screen_frame.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../data/mock/demo_state.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../data/remote/location_iq_geocoding_repository.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../demo/demo_data.dart';
 import '../../domain/geo/service_area.dart';
@@ -394,6 +396,15 @@ class _DestinationSearchScreenState
                   hasQuery &&
                   _results.any((place) => place.placeId != null))
                 const _GoogleMapsCredit(),
+              if (!_searching &&
+                  _error == null &&
+                  hasQuery &&
+                  _results.any(
+                    (place) => place.id.startsWith(
+                      LocationIqGeocodingRepository.idPrefix,
+                    ),
+                  ))
+                const _LocationIqCredit(),
             ],
           ),
         ),
@@ -475,6 +486,28 @@ class _GoogleMapsCredit extends StatelessWidget {
             fontSize: 12,
             color: Color(0xFF5E5E5E),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// LocationIQ's free plan asks for this link wherever its results are shown.
+class _LocationIqCredit extends StatelessWidget {
+  const _LocationIqCredit();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () => launchUrl(
+          Uri.parse('https://locationiq.com'),
+          mode: LaunchMode.externalApplication,
+        ).catchError((_) => false),
+        child: const Text(
+          'Search by LocationIQ.com · © OpenStreetMap contributors',
+          style: TextStyle(fontSize: 12),
         ),
       ),
     );

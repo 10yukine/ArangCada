@@ -7,6 +7,7 @@ import '../../app/mobile_settings.dart';
 import '../../config/app_config.dart';
 import '../mock/demo_state.dart';
 import '../remote/geolocator_location_repository.dart';
+import '../remote/location_iq_geocoding_repository.dart';
 import '../remote/maptiler_geocoding_repository.dart';
 import '../remote/openrouteservice_routing_repository.dart';
 import '../remote/google_places_geocoding_repository.dart';
@@ -204,10 +205,16 @@ final routingRepositoryProvider = Provider<RoutingRepository>((ref) {
 
 /// Place search and pin labels. Google Places when configured (with the
 /// Google map), else MapTiler, which also backs Google when its quota runs
-/// out and always answers pin labels.
+/// out and always answers pin labels. A local evaluation build searches with
+/// LocationIQ instead of both (AppConfig.locationIqKey).
 final geocodingRepositoryProvider = Provider<GeocodingRepository>((ref) {
   final mapTiler = MapTilerGeocodingRepository();
   ref.onDispose(mapTiler.dispose);
+  if (AppConfig.isLocationIqConfigured) {
+    final locationIq = LocationIqGeocodingRepository(pins: mapTiler);
+    ref.onDispose(locationIq.dispose);
+    return locationIq;
+  }
   if (!AppConfig.isGooglePlacesConfigured) return mapTiler;
 
   final google = GooglePlacesGeocodingRepository(
