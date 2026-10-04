@@ -168,8 +168,8 @@ class _DestinationSearchScreenState
   }
 
   /// The rider confirms a search result on the map, and the confirmed pin is
-  /// what gets booked. The service-area test runs on that pin, never on the
-  /// search result (see PinOnMapScreen.suggested).
+  /// what gets booked and tested against the service area (see
+  /// PinOnMapScreen.suggested). An unmoved pin has the result's coordinates.
   Future<void> _confirmOnMap(DemoPlace suggested) async {
     final pin = await _openPin(suggested);
     if (!mounted || pin == null) return;

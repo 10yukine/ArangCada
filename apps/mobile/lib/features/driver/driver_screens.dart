@@ -1344,7 +1344,7 @@ class _AvailabilityCard extends StatelessWidget {
                   Text(
                     online
                         ? 'You can receive ride requests.'
-                        : 'Go online to join the terminal queue.',
+                        : 'Go online to receive ride requests.',
                     style: TextStyle(color: colors.onSurfaceVariant),
                   ),
                 ],

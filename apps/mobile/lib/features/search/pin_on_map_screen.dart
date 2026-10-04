@@ -43,10 +43,10 @@ GeoCoordinate clampToRadius(
 /// is never blocked on the geocoder answering.
 ///
 /// With [suggested] it shows a place found by search for the rider to confirm
-/// or move. What is booked, checked against the service area and stored is
-/// the pin the rider confirms here, not the search result: Google's terms do
-/// not let a Places coordinate be tested against a boundary, kept beyond 30
-/// days or handed to another map service.
+/// or move. The confirmed pin is what is booked, checked against the service
+/// area and stored, with no Google ID or name. A pin the rider leaves where
+/// it was still has the search result's coordinates, so this step does not
+/// by itself settle what Google's terms say about Places coordinates.
 class PinOnMapScreen extends ConsumerStatefulWidget {
   const PinOnMapScreen({this.pickupAnchor, this.suggested, super.key});
 

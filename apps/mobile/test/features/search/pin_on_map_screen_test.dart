@@ -77,9 +77,9 @@ void main() {
     expect(state.destination, isNull);
   });
 
-  // The booked point is the pin the rider confirms, not the search result:
-  // a Google name is not passed on, and a search result's coordinate is not
-  // sent to another map service.
+  // The rider confirms a search result on the map: a Google name is not
+  // passed on, and an unmoved result's coordinate is not sent to another map
+  // service.
   testWidgets('a search result is confirmed as the rider own pin', (
     tester,
   ) async {
