@@ -244,31 +244,16 @@ not a full copy of your account):
   shown in the admin console or on the ride-tracking page.
 - **Semaphore** (SOMBRA, Inc., Philippines) — designed to receive your mobile
   number and a one-time verification code in order to deliver that code by
-  SMS when you register. **Not active for real messages yet**: verification
-  currently runs in a development "stub" mode, where the code is written to
-  a server-side function log instead of being sent by SMS, so Semaphore does
-  not yet receive live traffic. The project owner confirmed on 4 Sept 2026
-  that stub mode stays on for now because the project has not purchased
-  Semaphore SMS credits — this is a budget decision, not a technical one; the
-  provider itself is already chosen. This entry applies in full from the day
-  credits are purchased and stub mode is switched off. Semaphore is an
-  NPC-registered Philippine domestic processor that retains transmission logs
-  and recipient mobile numbers for thirty (30) to ninety (90) days solely for
-  carrier delivery status reconciliation and billing verification, after which
-  logs are permanently purged. Semaphore does not receive your name, email
-  address, location, or trip history.
-- **Resend** — receives an invited administrator's email address, and only
-  that address, in order to deliver a one-time account-creation link when an
-  LGU administrator invites a new LGU or TODA admin through the admin web
-  console. This never applies to
-  commuters or drivers — only to the small number of LGU/TODA staff being
-  added as administrators. **Not active for real messages yet**: the sending
-  domain and API key are staged but no real invite has gone out. Resend, Inc.
-  processes email dispatch through AWS infrastructure in US-East (N. Virginia)
-  under SOC 2 Type II compliance, retaining delivery metadata and recipient
-  addresses for thirty (30) days for bounce mitigation and audit logging,
-  after which records are deleted. Resend does not receive your name, phone
-  number, location, trip history, or password.
+  SMS when live SMS delivery is enabled. The current alpha testing mode
+  delivers the code to the account's email through Resend instead; Semaphore
+  is not used for those deliveries. Email delivery does not prove ownership
+  of the supplied mobile number. The app does not intentionally log the code.
+- **Resend** — receives recipient email addresses and message content for
+  administrator invitations and alpha verification-code emails. The code is
+  included in the email subject and body. These deliveries can apply to
+  commuters and drivers as well as administrators. The verification email
+  does not include your phone number, precise location, trip history or
+  password. Real SMS ownership verification remains a separate pilot gate.
 
 ### 6b. Physical server infrastructure and cross-border transfers
 
