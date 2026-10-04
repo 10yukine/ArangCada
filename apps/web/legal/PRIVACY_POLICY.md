@@ -68,7 +68,7 @@ ArangCada has three kinds of users:
 | Role | What ArangCada does for/with them |
 |---|---|
 | Commuter | Books a Special tricycle ride (up to 4 passengers), sees a fare estimate, tracks the assigned driver, can share a live ride-tracking link, can send an SOS report |
-| Driver | Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares live location while on a trip, completes mandatory in-app feedback |
+| Driver | Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares location while available online and during an assigned trip, completes mandatory in-app feedback |
 | LGU/TODA administrator | Approves drivers, manages TODA zones, reviews trips and complaints, monitors dispatch, views evaluation results |
 
 ## 2. What we collect
@@ -76,7 +76,7 @@ ArangCada has three kinds of users:
 | Category | Examples | Where it lives | Who it's for |
 |---|---|---|---|
 | Account/profile info | Display name, phone number, role, account status | `profiles` table, Supabase Auth | You, and admins for verification |
-| Location data | Live GPS while you have an active ride, pickup/destination points, Calamba service-area checks | `trip_locations` table (active trips only) | Dispatch, geofencing, fare distance |
+| Location data | Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, pickup/destination points and service-area checks | App state; driver location in `driver_availability`; active-trip updates in `trip_locations`; pickup/destination in `trips` | Dispatch, service-area validation, fare distance and tracking |
 | Driver verification documents | Driver's license, vehicle OR/CR, profile photo | `driver_documents` table + private Supabase Storage bucket (not public) | LGU/TODA admin review only |
 | Trip records | Pickup/destination, ride type (currently always Special), passenger count (1–4), fare amount, status history | `trips` table | You, your matched driver, TODA/LGU admin |
 | Ride-tracking link data | An unguessable link code, the trip it points to, when it was created or revoked | `ride_share_links` table | You (the creator); anyone holding the link sees only a limited live view — see Section 6a |
@@ -87,16 +87,20 @@ ArangCada has three kinds of users:
 | Mandatory driver app-usage feedback | Bilingual five-point Likert responses, collected after a configurable number of completed trips (currently every trip) | Evaluation dataset (admin console) | Capstone research + LGU/TODA program review, reported with per-TODA counts and item means |
 
 We **do not** intentionally collect: government ID numbers beyond what's on
-an uploaded driver document image itself, health data, biometric data
-(no facial recognition), or precise location from anyone who is not
-currently a rider/driver on an active trip.
+an uploaded driver document image itself, health data or biometric data
+(no facial recognition). Location is also used before a trip: Home reads
+GPS for the map and pickup preview, and online drivers share availability
+coordinates for matching. Device location access requires permission.
 
 ## 3. How we collect it
 
 - **Directly from you**: registration forms, document uploads, in-app
   feedback surveys, complaint/SOS submissions.
-- **Automatically, only during an active ride**: device GPS via the
-  `geolocator` package, sent only while a trip is in progress.
+- **With device location permission**: Home reads GPS for the map and pickup
+  preview before a ride. Online drivers send availability coordinates to
+  the backend for matching; during an assigned trip they send location
+  updates for rider tracking. Map, route and pin-label requests can also
+  send coordinates to the configured providers described in Section 6a.
 - **From LGU/TODA administrators**: approval/rejection decisions, TODA-zone
   assignment.
 

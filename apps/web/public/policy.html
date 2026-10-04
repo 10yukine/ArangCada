@@ -132,7 +132,7 @@ this document is supposed to describe reality, not the other way around.</p>
 </tr>
 <tr>
 <td>Driver</td>
-<td>Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares live location while on a trip, completes mandatory in-app feedback</td>
+<td>Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares location while available online and during an assigned trip, completes mandatory in-app feedback</td>
 </tr>
 <tr>
 <td>LGU/TODA administrator</td>
@@ -159,9 +159,9 @@ this document is supposed to describe reality, not the other way around.</p>
 </tr>
 <tr>
 <td>Location data</td>
-<td>Live GPS while you have an active ride, pickup/destination points, Calamba service-area checks</td>
-<td><code>trip_locations</code> table (active trips only)</td>
-<td>Dispatch, geofencing, fare distance</td>
+<td>Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, pickup/destination points and service-area checks</td>
+<td>App state; driver location in <code>driver_availability</code>; active-trip updates in <code>trip_locations</code>; pickup/destination in <code>trips</code></td>
+<td>Dispatch, service-area validation, fare distance and tracking</td>
 </tr>
 <tr>
 <td>Driver verification documents</td>
@@ -214,15 +214,19 @@ this document is supposed to describe reality, not the other way around.</p>
 </tbody>
 </table>
 <p>We <strong>do not</strong> intentionally collect: government ID numbers beyond what's on
-an uploaded driver document image itself, health data, biometric data
-(no facial recognition), or precise location from anyone who is not
-currently a rider/driver on an active trip.</p>
+an uploaded driver document image itself, health data or biometric data
+(no facial recognition). Location is also used before a trip: Home reads
+GPS for the map and pickup preview, and online drivers share availability
+coordinates for matching. Device location access requires permission.</p>
 <h2 id="3-how-we-collect-it">3. How we collect it<a class="anchor" href="#3-how-we-collect-it" title="Link to this section">#</a></h2>
 <ul>
 <li><strong>Directly from you</strong>: registration forms, document uploads, in-app
   feedback surveys, complaint/SOS submissions.</li>
-<li><strong>Automatically, only during an active ride</strong>: device GPS via the
-  <code>geolocator</code> package, sent only while a trip is in progress.</li>
+<li><strong>With device location permission</strong>: Home reads GPS for the map and pickup
+  preview before a ride. Online drivers send availability coordinates to
+  the backend for matching; during an assigned trip they send location
+  updates for rider tracking. Map, route and pin-label requests can also
+  send coordinates to the configured providers described in Section 6a.</li>
 <li><strong>From LGU/TODA administrators</strong>: approval/rejection decisions, TODA-zone
   assignment.</li>
 </ul>
