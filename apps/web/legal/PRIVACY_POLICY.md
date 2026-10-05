@@ -290,6 +290,11 @@ In compliance with the Data Privacy Act of 2012 and NPC Circular 2020-03:
 - **Google Maps Platform (pilot builds):** Map, route and place-search
   requests are processed on Google's global infrastructure, including outside
   the Philippines and the EU, as described in Section 6.
+- **Place search in LocationIQ builds (LocationIQ):** Search text is sent to
+  LocationIQ, operated by Unwired Labs (India) Pvt. Ltd., and processed on its
+  servers outside the Philippines; it lists data centres in the United States
+  and the European Union. This is a cross-border transfer, as described in
+  Section 6.
 - **Website, ride-tracking page and admin console (Cloudflare):** These are
   served from Cloudflare's global network, including locations outside the
   Philippines, as described in Section 6.
