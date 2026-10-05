@@ -4,6 +4,8 @@ import 'package:flutter/services.dart' show TextInput;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
+import 'package:maplibre_gl/maplibre_gl.dart'
+    show MapLibreJsSource, MapLibreMap;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,6 +39,14 @@ Future<void> main() async {
   // wrangler.jsonc's own not_found_handling: "single-page-application"
   // already anticipated clean-path URLs; this is what actually turns it on.
   usePathUrlStrategy();
+  // The map library is served from this site (web/vendor), not from a CDN:
+  // scripts here run with the signed-in administrator's session. The folder
+  // name is the version maplibre_gl's web code is written against; change
+  // both together.
+  MapLibreMap.webLibrarySource = const MapLibreJsSource.urls(
+    scriptUrl: '/vendor/maplibre-gl-6.4.1/maplibre-gl.mjs',
+    styleUrl: '/vendor/maplibre-gl-6.4.1/maplibre-gl.css',
+  );
   if (AdminAppConfig.isSupabaseConfigured) {
     await Supabase.initialize(
       url: AdminAppConfig.supabaseUrl,

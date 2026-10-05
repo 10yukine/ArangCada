@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,7 +20,7 @@ void main() {
             )
             .toList();
 
-    expect(tags, isNotEmpty, reason: 'the page loads MapLibre and cropperjs');
+    expect(tags, isNotEmpty, reason: 'the page loads cropperjs');
     for (final tag in tags) {
       final url = RegExp(r'(?:src|href)="([^"]+)"').firstMatch(tag)!.group(1)!;
       expect(
@@ -55,4 +57,27 @@ void main() {
       expect(policy, contains("frame-ancestors 'none'"));
     },
   );
+
+  // The map library is served from this site. The list was written when the
+  // files were taken from the npm release (checked against the registry's own
+  // checksum), so an edited or swapped file fails here.
+  test('the self-hosted map library is the published release', () {
+    const folder = 'web/vendor/maplibre-gl-6.4.1';
+    final sums = File('$folder/SHA384SUMS').readAsLinesSync();
+    expect(sums, hasLength(4));
+    for (final line in sums) {
+      final [hash, name] = line.split('  ');
+      final digest = sha384.convert(File('$folder/$name').readAsBytesSync());
+      expect('sha384-${base64.encode(digest.bytes)}', hash, reason: name);
+    }
+    expect(
+      File('lib/main.dart').readAsStringSync(),
+      contains("scriptUrl: '/vendor/maplibre-gl-6.4.1/maplibre-gl.mjs'"),
+    );
+    expect(
+      File('web/index.html').readAsStringSync(),
+      isNot(contains('unpkg.com/maplibre-gl')),
+      reason: 'a tag here would override the copy the plugin loads',
+    );
+  });
 }

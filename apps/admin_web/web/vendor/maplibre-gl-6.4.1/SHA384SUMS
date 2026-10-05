@@ -1,0 +1,4 @@
+sha384-ZEPnMfN8RZc+VuGJWD9jEpjkXJqDSwBZ66IXRH7T0Be/2XwFByZDpJIREH3zPqAB  maplibre-gl.mjs
+sha384-XWb7kIXVtN5GCUk0iH+L55pX/uMSUVIAbVx9/RfelwfMQzTtw/UQDETr+882qhsN  maplibre-gl-shared.mjs
+sha384-ygGedBpT/8a9NbgMRGCS5I7jTHBttCpCxMWcXAkhhcIEVFdHJAbSyd/svyJwrvnH  maplibre-gl-worker.mjs
+sha384-Q5Blg3vUVAlUKqIPJYz7wGnz40Vwrx4pVuFVicI73+8c/26Zr5hhckfuIiIUflLE  maplibre-gl.css
