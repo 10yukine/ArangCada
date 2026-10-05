@@ -12,7 +12,7 @@ with a web administration console and a browser-based ride-tracking page.
 
 ## Download
 
-Android test builds are published under [Releases](https://github.com/KumaYuki1/ArangCada/releases)
+Android test builds are published under [Releases](https://github.com/10yukine/ArangCada/releases)
 and on the [project website](https://arangcada.app/download).
 
 ## What it does
