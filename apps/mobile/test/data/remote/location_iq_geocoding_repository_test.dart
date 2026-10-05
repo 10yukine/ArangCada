@@ -10,50 +10,91 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  final endpoint = Uri.parse(
+    'https://project.example/functions/v1/place-search',
+  );
+
+  LocationIqGeocodingRepository repositoryWith(
+    MockClient client, {
+    GeocodingRepository? pins,
+    Duration minInterval = Duration.zero,
+    String? Function()? accessToken,
+  }) {
+    final repository = LocationIqGeocodingRepository(
+      pins: pins ?? _Pins(),
+      accessToken: accessToken ?? () => 'rider-token',
+      endpoint: endpoint,
+      anonKey: 'anon-key',
+      minInterval: minInterval,
+      client: client,
+    );
+    addTearDown(repository.dispose);
+    return repository;
+  }
+
+  // The session is refreshed by the app; a refusal says nothing about the
+  // search service, so it must not switch search off.
   for (final status in [401, 403]) {
-    test('a $status stops subsequent requests for this session', () async {
+    test('a $status is not remembered: the next search is sent', () async {
       var calls = 0;
-      final pins = _Pins();
-      final repository = LocationIqGeocodingRepository(
-        pins: pins,
-        key: 'test-key',
-        minInterval: Duration.zero,
-        client: MockClient((request) async {
+      final repository = repositoryWith(
+        MockClient((request) async {
           calls++;
           return http.Response('{}', status);
         }),
       );
-      addTearDown(repository.dispose);
       await expectLater(
         repository.search('sm city'),
-        throwsA(isA<ApiException>()),
+        throwsA(isA<ApiUnauthorizedException>()),
       );
       await expectLater(
         repository.search('rizal shrine'),
-        throwsA(isA<ApiException>()),
+        throwsA(isA<ApiUnauthorizedException>()),
       );
-      expect(calls, 1);
-      expect(pins.searches, 0);
+      expect(calls, 2);
     });
   }
 
-  for (final status in [401, 403, 429]) {
+  for (final status in [429, 502]) {
+    test('a $status stops requests for a while', () async {
+      var calls = 0;
+      final pins = _Pins();
+      final repository = repositoryWith(
+        pins: pins,
+        MockClient((request) async {
+          calls++;
+          return http.Response('{"error":"place search is busy"}', status);
+        }),
+      );
+      await expectLater(
+        repository.search('sm city'),
+        throwsA(isA<ApiRateLimitedException>()),
+      );
+      await expectLater(
+        repository.search('rizal shrine'),
+        throwsA(isA<ApiRateLimitedException>()),
+      );
+      expect(calls, 1);
+      // No other provider answers in its place.
+      expect(pins.searches, 0);
+    });
+
     test('a superseded $status also stops a queued request', () async {
       var calls = 0;
       final response = Completer<http.Response>();
-      final repository = LocationIqGeocodingRepository(
-        pins: _Pins(),
-        key: 'test-key',
+      final repository = repositoryWith(
         minInterval: const Duration(milliseconds: 80),
-        client: MockClient((request) {
+        MockClient((request) {
           calls++;
           return response.future;
         }),
       );
-      addTearDown(repository.dispose);
       final first = repository.search('sm city');
       final queued = repository.search('rizal shrine');
-      final stopped = expectLater(queued, throwsA(isA<ApiException>()));
+      final stopped = expectLater(
+        queued,
+        throwsA(isA<ApiRateLimitedException>()),
+      );
       response.complete(http.Response('{}', status));
       expect(await first, isEmpty);
       await stopped;
@@ -77,17 +118,14 @@ void main() {
   );
 
   test(
-    'a search is limited to Calamba and its results are marked as LocationIQ',
+    'a search sends only the text, with the rider session and no provider key',
     () async {
       final requests = <http.Request>[];
-      final repository = LocationIqGeocodingRepository(
-        pins: _Pins(),
-        key: 'test-key',
-        minInterval: Duration.zero,
-        client: MockClient((request) async {
+      final repository = repositoryWith(
+        MockClient((request) async {
           requests.add(request);
-          return request.url.queryParameters['q'] == 'zzzz'
-              ? http.Response('{"error":"Unable to geocode"}', 404)
+          return jsonDecode(request.body)['q'] == 'zzzz'
+              ? http.Response('[]', 200)
               : found(request);
         }),
       );
@@ -104,34 +142,44 @@ void main() {
       expect(place.coordinate!.longitude, 121.1553);
       expect(await repository.locate(place), place.coordinate);
 
-      final sent = requests.single.url;
-      expect(sent.host, 'api.locationiq.com');
-      expect(sent.path, '/v1/autocomplete');
-      expect(sent.queryParameters, {
-        'key': 'test-key',
-        'q': 'sm city',
-        'countrycodes': 'ph',
-        'viewbox': '121.00,14.28,121.24,14.12',
-        'bounded': '1',
-        'limit': '8',
-        'dedupe': '1',
-        'normalizecity': '1',
-      });
+      final sent = requests.single;
+      expect(sent.method, 'POST');
+      expect(sent.url, endpoint);
+      expect(sent.headers['Authorization'], 'Bearer rider-token');
+      expect(sent.headers['apikey'], 'anon-key');
+      expect(jsonDecode(sent.body), {'q': 'sm city'});
 
       expect(await repository.search('zzzz'), isEmpty);
+
+      await repository.search('x' * 200);
+      expect((jsonDecode(requests.last.body)['q'] as String).length, 80);
     },
   );
+
+  test('nothing is sent when nobody is signed in', () async {
+    var calls = 0;
+    final repository = repositoryWith(
+      accessToken: () => null,
+      MockClient((request) async {
+        calls++;
+        return found(request);
+      }),
+    );
+    await expectLater(
+      repository.search('sm city'),
+      throwsA(isA<ApiUnauthorizedException>()),
+    );
+    expect(calls, 0);
+  });
 
   test(
     'typing fast sends one request an interval, and only the last is shown',
     () async {
       final sentAt = <DateTime>[];
       const interval = Duration(milliseconds: 300);
-      final repository = LocationIqGeocodingRepository(
-        pins: _Pins(),
-        key: 'test-key',
+      final repository = repositoryWith(
         minInterval: interval,
-        client: MockClient((request) async {
+        MockClient((request) async {
           sentAt.add(DateTime.now());
           return found(request);
         }),
@@ -149,34 +197,6 @@ void main() {
         sentAt[1].difference(sentAt[0]),
         greaterThanOrEqualTo(interval - const Duration(milliseconds: 20)),
       );
-    },
-  );
-
-  test(
-    'after a 429 nothing is sent for a while and no other provider is asked',
-    () async {
-      var calls = 0;
-      final pins = _Pins();
-      final repository = LocationIqGeocodingRepository(
-        pins: pins,
-        key: 'test-key',
-        minInterval: Duration.zero,
-        client: MockClient((request) async {
-          calls++;
-          return http.Response('{"error":"Rate Limited Minute"}', 429);
-        }),
-      );
-
-      await expectLater(
-        repository.search('sm city'),
-        throwsA(isA<ApiRateLimitedException>()),
-      );
-      await expectLater(
-        repository.search('rizal shrine'),
-        throwsA(isA<ApiRateLimitedException>()),
-      );
-      expect(calls, 1);
-      expect(pins.searches, 0);
     },
   );
 }

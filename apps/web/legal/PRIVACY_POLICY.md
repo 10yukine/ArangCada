@@ -232,12 +232,18 @@ not a full copy of your account):
 - **openrouteservice** — receives route endpoint coordinates when the app
   uses the open map and routing provider. It is not an automatic routing
   fallback on the Google map. We do not send account identity with routes.
-- **LocationIQ** — builds configured for LocationIQ send it place-search
-  text and a fixed search box around Calamba. They do not use Google Places
-  for search. Pin labels still use MapTiler; map and route requests remain
-  with their configured providers. We do not send your account, ride ID,
-  phone number or documents with LocationIQ requests. LocationIQ records API
-  usage, request timestamps and IP addresses under its
+- **LocationIQ** — builds configured for LocationIQ send what you type in
+  place search to our own server, which adds a fixed search box around
+  Calamba and passes the text to LocationIQ. LocationIQ receives the text
+  and our server's address, not your phone's. One earlier build, alpha.3
+  build 4046, sent the text to LocationIQ straight from the phone, so
+  LocationIQ also received that phone's IP address. These builds do not use
+  Google Places for search. Pin labels still use MapTiler; map and route
+  requests remain with their configured providers. We do not send your
+  account, ride ID, phone number or documents to LocationIQ. To stay within
+  LocationIQ's limits we count how many searches each account makes per day;
+  we do not store what was searched. LocationIQ records API usage, request
+  timestamps and IP addresses under its
   [privacy policy](https://locationiq.com/privacy). If LocationIQ search is
   unavailable, the app offers map pin selection rather than automatically
   calling another place-search provider.

@@ -83,3 +83,10 @@ enabled = true
 # deletes only that account (see functions/account-deletion/delete.ts).
 verify_jwt = false
 entrypoint = "./functions/account-deletion/index.ts"
+
+[functions.place-search]
+enabled = true
+# True -- called from the mobile app with a signed-in rider's session. The
+# function counts each search against that account (consume_place_search), so
+# the gateway must reject callers without a JWT.
+verify_jwt = true

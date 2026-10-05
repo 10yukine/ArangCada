@@ -9,50 +9,61 @@ import '../../core/network/api_exceptions.dart';
 import '../repositories/geocoding_repository.dart';
 
 /// LocationIQ place search (autocomplete), in builds made for it: see
-/// [AppConfig.locationIqKey]. Its coordinates are not Google's, so they may
-/// be tested against the service area and stored.
+/// [AppConfig.isLocationIqConfigured]. Its coordinates are not Google's, so
+/// they may be tested against the service area and stored.
 ///
-/// The free plan allows 2 requests a second, 60 a minute and 5,000 a day for
-/// the whole key, so:
+/// The app does not hold the provider key. It sends the typed text to the
+/// `place-search` Edge Function with the rider's session; the function adds
+/// the key, the box around Calamba and a daily budget for each account.
+///
+/// The provider's free plan allows 2 requests a second, 60 a minute and 5,000
+/// a day for everyone together, so:
 ///  * this device sends at most one request a second, and a query typed over
 ///    while it waits is dropped,
 ///  * queries shorter than [_minQueryLength] never reach the network,
-///  * a 429 stops requests for [_busyFor]. Search then says it is busy and the
-///    rider can still pin the place on the map,
+///  * a 429 (the provider is busy, or this account has used its day's budget)
+///    or a server-side failure stops requests for [_busyFor]. Search then
+///    says it is busy and the rider can still pin the place on the map,
 ///  * nothing is cached.
 ///
 /// No other provider answers for it, so a result is always LocationIQ's own
-/// (id `locationiq:…`) and the search screen credits it as such. Results are
-/// limited to a box around Calamba; the caller still tests each one against
-/// the service area. Pin labels stay with [_pins].
+/// (id `locationiq:…`) and the search screen credits it as such. The caller
+/// still tests each result against the service area. Pin labels stay with
+/// [_pins].
 class LocationIqGeocodingRepository implements GeocodingRepository {
   LocationIqGeocodingRepository({
     required this._pins,
-    this._key = AppConfig.locationIqKey,
+    required this._accessToken,
+    Uri? endpoint,
+    this._anonKey = AppConfig.supabaseAnonKey,
     this._minInterval = const Duration(seconds: 1),
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : _endpoint =
+           endpoint ??
+           Uri.parse('${AppConfig.supabaseUrl}/functions/v1/place-search'),
+       _client = client ?? http.Client();
 
   final GeocodingRepository _pins;
-  final String _key;
+
+  /// The signed-in rider's access token, read for each request so a refreshed
+  /// session is picked up. Null when nobody is signed in.
+  final String? Function() _accessToken;
+  final Uri _endpoint;
+  final String _anonKey;
   final Duration _minInterval;
   final http.Client _client;
 
   static const String idPrefix = 'locationiq:';
   static const int _minQueryLength = 3;
+  static const int _maxQueryLength = 80;
   static const Duration _timeout = Duration(seconds: 10);
   static const Duration _busyFor = Duration(minutes: 1);
-
-  /// Two corners of a box around Calamba: lon,lat,lon,lat.
-  static const String _viewbox = '121.00,14.28,121.24,14.12';
 
   int _requestSeq = 0;
   DateTime _nextRequestAt = DateTime(0);
   DateTime _busyUntil = DateTime(0);
-  ApiException? _disabledFailure;
 
   void _checkAvailability() {
-    if (_disabledFailure case final failure?) throw failure;
     if (DateTime.now().isBefore(_busyUntil)) {
       throw const ApiRateLimitedException('Place search is busy.');
     }
@@ -63,9 +74,6 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
     final trimmed = query.trim();
     final seq = ++_requestSeq;
     if (trimmed.length < _minQueryLength) return const [];
-    if (_key.isEmpty) {
-      throw const ApiNotConfiguredException('Place search is not configured.');
-    }
     _checkAvailability();
 
     final wait = _nextRequestAt.difference(DateTime.now());
@@ -73,42 +81,41 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
       await Future<void>.delayed(wait);
       if (seq != _requestSeq) return const [];
     }
-    // A previous request may have disabled search while this query waited.
+    // A previous request may have paused search while this query waited.
     _checkAvailability();
-    _nextRequestAt = DateTime.now().add(_minInterval);
 
-    final uri = Uri.https('api.locationiq.com', '/v1/autocomplete', {
-      'key': _key,
-      'q': trimmed,
-      'countrycodes': 'ph',
-      'viewbox': _viewbox,
-      'bounded': '1',
-      'limit': '8',
-      'dedupe': '1',
-      'normalizecity': '1',
-    });
+    final token = _accessToken();
+    if (token == null) {
+      throw const ApiUnauthorizedException('Sign in to search for a place.');
+    }
+    _nextRequestAt = DateTime.now().add(_minInterval);
 
     late http.Response response;
     try {
-      response = await _client.get(uri).timeout(_timeout);
+      response = await _client
+          .post(
+            _endpoint,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'apikey': _anonKey,
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'q': trimmed.length > _maxQueryLength
+                  ? trimmed.substring(0, _maxQueryLength)
+                  : trimmed,
+            }),
+          )
+          .timeout(_timeout);
     } on TimeoutException {
       throw const ApiNetworkException('Place search timed out.');
     } catch (_) {
       throw const ApiNetworkException();
     }
 
-    // Provider limits apply even when a newer keystroke supersedes the result.
-    switch (response.statusCode) {
-      case 401:
-        _disabledFailure = const ApiUnauthorizedException(
-          'Place search is unavailable.',
-        );
-      case 403:
-        _disabledFailure = const ApiQuotaException(
-          'Place search is unavailable.',
-        );
-      case 429:
-        _busyUntil = DateTime.now().add(_busyFor);
+    // Limits apply even when a newer keystroke supersedes the result.
+    if (response.statusCode == 429 || response.statusCode >= 500) {
+      _busyUntil = DateTime.now().add(_busyFor);
     }
     // A newer keystroke already issued a request; this answer is stale.
     if (seq != _requestSeq) return const [];
@@ -116,14 +123,10 @@ class LocationIqGeocodingRepository implements GeocodingRepository {
     switch (response.statusCode) {
       case 200:
         return _parse(response.body);
-      case 404:
-        // LocationIQ's "nothing found".
-        return const [];
-      case 401:
+      case 401 || 403:
+        // The session, not the service: the next search uses the fresh token.
         throw const ApiUnauthorizedException('Place search is unavailable.');
-      case 403:
-        throw const ApiQuotaException('Place search is unavailable.');
-      case 429:
+      case 429 || >= 500:
         throw const ApiRateLimitedException('Place search is busy.');
       default:
         throw const ApiUnexpectedException('Place search failed.');
