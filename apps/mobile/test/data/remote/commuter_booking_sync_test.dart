@@ -73,6 +73,11 @@ void main() {
       'https://example.test',
       'test-key',
       authOptions: const AuthClientOptions(autoRefreshToken: false),
+      // No realtime server here. Refuse at once instead of dialling a real
+      // socket: a dial still pending at tearDown hangs client.dispose().
+      realtimeClientOptions: RealtimeClientOptions(
+        transport: (_, _) => throw StateError('no realtime in tests'),
+      ),
       httpClient: MockClient((request) async {
         dynamic data = [];
         var status = 200;
