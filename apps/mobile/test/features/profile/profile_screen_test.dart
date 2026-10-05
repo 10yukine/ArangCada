@@ -2,6 +2,7 @@ import 'package:arangcada/core/widgets/arang_ui.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
 import 'package:arangcada/data/repositories/auth_repository.dart';
+import 'package:arangcada/data/repositories/email_confirmation_repository.dart';
 import 'package:arangcada/domain/models/demo_user.dart';
 import 'package:arangcada/domain/models/fare_class_claim.dart';
 import 'package:arangcada/features/profile/profile_screen.dart';
@@ -108,6 +109,33 @@ class _FakeAuthRepository implements AuthRepository {
   Future<FareClassClaim?> latestFareClassClaim() => throw UnimplementedError();
 }
 
+/// Stands in for the server: counts sends, can refuse one, and can report the
+/// email as confirmed the next time the app looks.
+class _FakeEmailConfirmation implements EmailConfirmationRepository {
+  _FakeEmailConfirmation(this._state);
+
+  final DemoState _state;
+  int sends = 0;
+  int refreshes = 0;
+  String? refusal;
+  bool confirmedOnServer = false;
+
+  @override
+  Future<void> send() async {
+    sends++;
+    if (refusal != null) throw DemoAuthException(refusal!);
+  }
+
+  @override
+  Future<void> refresh() async {
+    refreshes++;
+    final user = _state.currentUser;
+    if (confirmedOnServer && user != null) {
+      _state.setCurrentUser(user.copyWithEmailConfirmed(true));
+    }
+  }
+}
+
 void main() {
   late DemoState state;
   late _FakeAuthRepository auth;
@@ -119,10 +147,11 @@ void main() {
 
   tearDown(() => state.dispose());
 
-  Widget harness() => ProviderScope(
+  Widget harness({EmailConfirmationRepository? email}) => ProviderScope(
     overrides: [
       demoStateProvider.overrideWithValue(state),
       authRepositoryProvider.overrideWithValue(auth),
+      emailConfirmationRepositoryProvider.overrideWithValue(email),
     ],
     child: const MaterialApp(home: ProfileScreen()),
   );
@@ -218,4 +247,131 @@ void main() {
       expect(find.text('TODA membership'), findsNothing);
     },
   );
+
+  group('confirm your email', () {
+    DemoUser rider({
+      bool confirmed = false,
+      DemoRole role = DemoRole.commuter,
+    }) => DemoUser(
+      email: 'juan@example.test',
+      displayName: 'Juan Dela Cruz',
+      role: role,
+      emailConfirmed: confirmed,
+    );
+
+    testWidgets('a confirmed account is not asked', (tester) async {
+      state.setCurrentUser(rider(confirmed: true));
+      await tester.pumpWidget(harness(email: _FakeEmailConfirmation(state)));
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsNothing);
+    });
+
+    testWidgets('demo mode, with no server, never asks', (tester) async {
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness());
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsNothing);
+    });
+
+    testWidgets('the prompt sits under the header and sends the link once', (
+      tester,
+    ) async {
+      final email = _FakeEmailConfirmation(state);
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness(email: email));
+      await tester.pump();
+
+      expect(find.text('Confirm your email'), findsOneWidget);
+      expect(
+        find.text('Open the link we send to juan@example.test.'),
+        findsOneWidget,
+      );
+      expect(find.text('Not your email? You can change it.'), findsOneWidget);
+      expect(find.text('Change email'), findsOneWidget);
+      // Between the profile header and the first section.
+      expect(
+        tester.getTopLeft(find.text('Confirm your email')).dy,
+        greaterThan(tester.getTopLeft(find.text('Juan Dela Cruz')).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('Confirm your email')).dy,
+        lessThan(tester.getTopLeft(find.text('Account')).dy),
+      );
+      // Opening the screen looks once for a confirmation made elsewhere.
+      expect(email.refreshes, 1);
+      expect(email.sends, 0);
+
+      await tester.tap(find.text('Send link'));
+      await tester.pump();
+      await tester.pump();
+      expect(email.sends, 1);
+      expect(
+        find.text(
+          'Link sent to juan@example.test. Open it from your inbox to confirm.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Send again'), findsOneWidget);
+    });
+
+    testWidgets('a refusal from the server is shown in its own words', (
+      tester,
+    ) async {
+      final email = _FakeEmailConfirmation(state)
+        ..refusal = 'Please wait a minute before asking for another link.';
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness(email: email));
+      await tester.pump();
+      await tester.tap(find.text('Send link'));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        find.text('Please wait a minute before asking for another link.'),
+        findsOneWidget,
+      );
+      // Not reported as sent.
+      expect(find.text('Send link'), findsOneWidget);
+    });
+
+    testWidgets('a driver is pointed to the office, not to an edit screen', (
+      tester,
+    ) async {
+      state.setCurrentUser(rider(role: DemoRole.driver));
+      await tester.pumpWidget(harness(email: _FakeEmailConfirmation(state)));
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsOneWidget);
+      expect(
+        find.text('Not your email? Ask your LGU/TODA office to correct it.'),
+        findsOneWidget,
+      );
+      expect(find.text('Change email'), findsNothing);
+    });
+
+    testWidgets('the prompt goes away once the link has been opened', (
+      tester,
+    ) async {
+      final email = _FakeEmailConfirmation(state);
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness(email: email));
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsOneWidget);
+
+      // The link is opened in a browser; the app comes back to the front.
+      email.confirmedOnServer = true;
+      for (final next in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(next);
+      }
+      await tester.pump();
+      await tester.pump();
+      expect(email.refreshes, 2);
+      expect(find.text('Confirm your email'), findsNothing);
+    });
+  });
 }

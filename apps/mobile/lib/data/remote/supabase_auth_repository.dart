@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,6 +29,7 @@ class SupabaseAuthRepository implements AuthRepository {
     bool isInternalTester = false,
     String? mobileNumber,
     bool phoneVerified = false,
+    bool emailConfirmed = true,
     String? avatarUrl,
   }) {
     final normalizedName = displayName?.trim();
@@ -47,6 +49,7 @@ class SupabaseAuthRepository implements AuthRepository {
       isAdminAccount: profileRole == 'admin',
       mobileNumber: mobileNumber,
       phoneVerified: phoneVerified,
+      emailConfirmed: emailConfirmed,
       avatarUrl: avatarUrl,
     );
   }
@@ -82,7 +85,8 @@ class SupabaseAuthRepository implements AuthRepository {
     final profile = await _client
         .from('profiles')
         .select(
-          'role, display_name, is_internal_tester, phone_verified_at, avatar_path, fare_class',
+          'role, display_name, is_internal_tester, phone_verified_at, '
+          'email_confirmed_at, avatar_path, fare_class',
         )
         .eq('id', user.id)
         .single();
@@ -105,6 +109,7 @@ class SupabaseAuthRepository implements AuthRepository {
       // that mirrors it can lag a hair behind the session, so accept either.
       phoneVerified:
           profile['phone_verified_at'] != null || user.phoneConfirmedAt != null,
+      emailConfirmed: profile['email_confirmed_at'] != null,
       avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );
     _state.driverTodaName = role == 'driver'
@@ -322,7 +327,24 @@ class SupabaseAuthRepository implements AuthRepository {
             : error.message,
       );
     }
-    return restoreProfile(_client.auth.currentUser ?? user);
+    final restored = await restoreProfile(_client.auth.currentUser ?? user);
+    // A new address is unconfirmed again (the server clears it).
+    if (!restored.emailConfirmed) _mailEmailConfirmation();
+    return restored;
+  }
+
+  /// Mails the confirmation link without holding anything up. The Profile
+  /// screen offers to send it again if this one never arrives.
+  void _mailEmailConfirmation() {
+    try {
+      unawaited(
+        _client.functions
+            .invoke('send-email-confirmation')
+            .then<void>((_) {}, onError: (_) {}),
+      );
+    } catch (_) {
+      // Never let a missing email stop sign-up or an email change.
+    }
   }
 
   @override
@@ -383,7 +405,10 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const DemoAuthException('Your session expired. Sign in again.');
       }
-      return await restoreProfile(user);
+      final restored = await restoreProfile(user);
+      // Sign-up ends here: the number is proved, now ask for the email.
+      if (!restored.emailConfirmed) _mailEmailConfirmation();
+      return restored;
     } on AuthException {
       throw const DemoAuthException(
         'That code is incorrect or has expired. Request a new one.',

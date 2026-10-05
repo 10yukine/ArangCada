@@ -20,8 +20,10 @@ import '../mock/mock_fare_repository.dart';
 import '../mock/mock_safety_repository.dart';
 import '../remote/hive_notifications_repository.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/email_confirmation_repository.dart';
 import '../repositories/hybrid_auth_repository.dart';
 import '../remote/supabase_auth_repository.dart';
+import '../remote/supabase_email_confirmation_repository.dart';
 import '../repositories/chat_repository.dart';
 import '../repositories/geocoding_repository.dart';
 import '../repositories/location_repository.dart';
@@ -106,6 +108,18 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     live: client == null ? null : SupabaseAuthRepository(client, state),
   );
 });
+
+/// Null without a Supabase project (demo mode): there is nothing to confirm.
+final emailConfirmationRepositoryProvider =
+    Provider<EmailConfirmationRepository?>((ref) {
+      final client = _supabaseClient();
+      return client == null
+          ? null
+          : SupabaseEmailConfirmationRepository(
+              client,
+              ref.watch(demoStateProvider),
+            );
+    });
 
 final fareRepositoryProvider = Provider<FareRepository>((ref) {
   return const MockFareRepository();

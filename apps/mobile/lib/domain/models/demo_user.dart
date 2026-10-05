@@ -9,6 +9,7 @@ class DemoUser {
     this.isAdminAccount = false,
     this.mobileNumber,
     this.phoneVerified = false,
+    this.emailConfirmed = true,
     this.avatarUrl,
   });
 
@@ -34,6 +35,12 @@ class DemoUser {
   /// still cannot book, drive, or share a link.
   final bool phoneVerified;
 
+  /// Whether the account holder has opened the confirmation link sent to
+  /// [email]. Mirrors `profiles.email_confirmed_at` and only decides whether
+  /// the Profile screen shows its prompt; nothing is withheld on it. True
+  /// until the profile says otherwise, so demo accounts are never asked.
+  final bool emailConfirmed;
+
   /// A freshly minted signed URL into the `profile-photos` bucket, valid
   /// for longer than the app stays open, or null when the account has no
   /// photo yet. Never persisted --
@@ -55,6 +62,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    emailConfirmed: emailConfirmed,
     avatarUrl: avatarUrl,
   );
 
@@ -66,7 +74,20 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    emailConfirmed: emailConfirmed,
     avatarUrl: value,
+  );
+
+  DemoUser copyWithEmailConfirmed(bool value) => DemoUser(
+    email: email,
+    displayName: displayName,
+    role: role,
+    isInternalTester: isInternalTester,
+    isAdminAccount: isAdminAccount,
+    mobileNumber: mobileNumber,
+    phoneVerified: phoneVerified,
+    emailConfirmed: value,
+    avatarUrl: avatarUrl,
   );
 
   DemoUser withPendingPhone(String number) => DemoUser(
@@ -77,6 +98,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: number,
     phoneVerified: false,
+    emailConfirmed: emailConfirmed,
     avatarUrl: avatarUrl,
   );
 
