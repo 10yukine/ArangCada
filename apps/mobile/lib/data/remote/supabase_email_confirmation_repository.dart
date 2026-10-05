@@ -26,11 +26,9 @@ class SupabaseEmailConfirmationRepository
       // or that the email is already confirmed.
       final details = error.details;
       final message = details is Map ? details['error'] : null;
-      throw DemoAuthException(
-        error.status == 429 && message is String && message.isNotEmpty
-            ? message
-            : _unavailable,
-      );
+      throw error.status == 429 && message is String && message.isNotEmpty
+          ? EmailConfirmationWait(message)
+          : const DemoAuthException(_unavailable);
     } catch (_) {
       throw const DemoAuthException(_unavailable);
     }

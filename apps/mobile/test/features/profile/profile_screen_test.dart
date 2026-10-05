@@ -117,13 +117,13 @@ class _FakeEmailConfirmation implements EmailConfirmationRepository {
   final DemoState _state;
   int sends = 0;
   int refreshes = 0;
-  String? refusal;
+  DemoAuthException? failure;
   bool confirmedOnServer = false;
 
   @override
   Future<void> send() async {
     sends++;
-    if (refusal != null) throw DemoAuthException(refusal!);
+    if (failure != null) throw failure!;
   }
 
   @override
@@ -283,10 +283,13 @@ void main() {
 
       expect(find.text('Confirm your email'), findsOneWidget);
       expect(
-        find.text('Open the link we send to juan@example.test.'),
+        find.text(
+          "We'll send a link to juan@example.test. Open it from your inbox "
+          'to confirm.',
+          findRichText: true,
+        ),
         findsOneWidget,
       );
-      expect(find.text('Not your email? You can change it.'), findsOneWidget);
       expect(find.text('Change email'), findsOneWidget);
       // Between the profile header and the first section.
       expect(
@@ -308,17 +311,39 @@ void main() {
       expect(
         find.text(
           'Link sent to juan@example.test. Open it from your inbox to confirm.',
+          findRichText: true,
         ),
         findsOneWidget,
       );
-      expect(find.text('Send again'), findsOneWidget);
+
+      // The server sends one link a minute, so the button waits it out.
+      expect(
+        find.text('Wait 60s before requesting another link'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Send again'));
+      await tester.pump();
+      expect(email.sends, 1);
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        find.text('Wait 59s before requesting another link'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 59));
+      expect(find.textContaining('before requesting'), findsNothing);
+      await tester.tap(find.text('Send again'));
+      await tester.pump();
+      await tester.pump();
+      expect(email.sends, 2);
     });
 
-    testWidgets('a refusal from the server is shown in its own words', (
+    testWidgets('being told to wait is shown calmly, in the server\'s words', (
       tester,
     ) async {
       final email = _FakeEmailConfirmation(state)
-        ..refusal = 'Please wait a minute before asking for another link.';
+        ..failure = const EmailConfirmationWait(
+          'Please wait a minute before asking for another link.',
+        );
       state.setCurrentUser(rider());
       await tester.pumpWidget(harness(email: email));
       await tester.pump();
@@ -329,8 +354,51 @@ void main() {
         find.text('Please wait a minute before asking for another link.'),
         findsOneWidget,
       );
-      // Not reported as sent.
+      expect(find.byIcon(Icons.schedule), findsOneWidget);
+      // Not reported as sent, and it looks again in case the reason was that
+      // the email is already confirmed.
       expect(find.text('Send link'), findsOneWidget);
+      expect(email.refreshes, 2);
+    });
+
+    testWidgets('a send that failed is shown as an error', (tester) async {
+      final email = _FakeEmailConfirmation(state)
+        ..failure = const DemoAuthException(
+          'Could not send the confirmation email. Try again later.',
+        );
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness(email: email));
+      await tester.pump();
+      await tester.tap(find.text('Send link'));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        find.text('Could not send the confirmation email. Try again later.'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.schedule), findsNothing);
+      expect(find.text('Send link'), findsOneWidget);
+    });
+
+    testWidgets('closing the prompt hides it for that address', (tester) async {
+      state.setCurrentUser(rider());
+      await tester.pumpWidget(harness(email: _FakeEmailConfirmation(state)));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Hide for now'));
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsNothing);
+
+      // A different address has not been asked about yet.
+      state.setCurrentUser(
+        const DemoUser(
+          email: 'other@example.test',
+          displayName: 'Juan Dela Cruz',
+          role: DemoRole.commuter,
+          emailConfirmed: false,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Confirm your email'), findsOneWidget);
     });
 
     testWidgets('a driver is pointed to the office, not to an edit screen', (
