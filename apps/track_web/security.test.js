@@ -59,7 +59,10 @@ test('the map library is pinned to exact bytes and its attribution control is of
   assert.match(js, /maplibre-gl@\d+\.\d+\.\d+\//);
   assert.equal(js.match(/'sha384-[A-Za-z0-9+/]{64}'/g).length, 2);
   assert.equal(js.match(/integrity: MAPLIBRE_INTEGRITY\.(css|js), crossOrigin: 'anonymous'/g).length, 2);
-  // GHSA-jrc7-96c5-q579: the control's sanitizer is broken before 6.4.1.
+  // GHSA-jrc7-96c5-q579: the library's HTML sanitizer is broken before 6.4.1,
+  // and this page stays on 4.7.1 so that older phones keep their map (decided
+  // again on 5 Oct 2026). So nothing here may hand the library HTML to clean:
+  // no attribution control, no popup HTML.
   assert.match(js, /attributionControl: false/);
-  assert.doesNotMatch(js, /AttributionControl|innerHTML/);
+  assert.doesNotMatch(js, /AttributionControl|innerHTML|setHTML/);
 });

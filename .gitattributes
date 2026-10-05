@@ -2,3 +2,6 @@
 # Force LF regardless of the checkout platform.
 *.sh  text eol=lf
 *.sql text eol=lf
+
+# Third-party files kept byte for byte: a test checks their published hashes.
+apps/admin_web/web/vendor/** -text

@@ -5,13 +5,31 @@ import 'package:arangcada_admin/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maplibre_gl/maplibre_gl.dart'
+    show MapLibreMethodChannel, MapLibrePlatform;
 
 import 'support/admin_fixture.dart';
+
+/// A widget test never creates the native map view. maplibre_gl 0.27.1 closes
+/// a map that was never created through a channel it has not opened yet and
+/// throws, on the native code path only; the browser build does not use it.
+class _MapNeverCreated extends MapLibreMethodChannel {
+  @override
+  void dispose() {
+    try {
+      super.dispose();
+    } on Error {
+      // The channel was never opened.
+    }
+  }
+}
 
 /// Every console page must lay out without a Flutter layout error (overflow,
 /// unbounded size) at common window sizes, in both themes, for both roles,
 /// and at 1.3x text on a phone.
 void main() {
+  MapLibrePlatform.createInstance = _MapNeverCreated.new;
+
   const routes = [
     '/dashboard',
     '/live-map',
