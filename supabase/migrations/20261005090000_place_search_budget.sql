@@ -10,7 +10,7 @@
 -- JWT. It answers true and counts one search, or false when the caller is not
 -- a verified account or has used the day's budget. A day is a UTC day.
 --
--- Regression: supabase/tests/96_place_search_budget_test.sql
+-- Regression: supabase/tests/97_place_search_budget_test.sql
 
 create table public.place_search_usage (
   user_id  uuid not null references public.profiles (id) on delete cascade,
