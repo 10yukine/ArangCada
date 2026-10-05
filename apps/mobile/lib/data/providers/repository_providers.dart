@@ -100,12 +100,26 @@ final sessionRestorationProvider = FutureProvider<void>((ref) async {
   await SupabaseAuthRepository(client, state).restoreProfile(user);
 }, retry: (_, _) => null);
 
+/// The human check shown before a sign-in, sign-up or reset request. It
+/// answers with nothing here; the app supplies the real one at start-up,
+/// because it needs a screen to appear on.
+final authCaptchaProvider = Provider<Future<String?> Function()>(
+  (ref) =>
+      () async => null,
+);
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final state = ref.watch(demoStateProvider);
   final client = _supabaseClient();
   return HybridAuthRepository(
     state: state,
-    live: client == null ? null : SupabaseAuthRepository(client, state),
+    live: client == null
+        ? null
+        : SupabaseAuthRepository(
+            client,
+            state,
+            captcha: ref.watch(authCaptchaProvider),
+          ),
   );
 });
 

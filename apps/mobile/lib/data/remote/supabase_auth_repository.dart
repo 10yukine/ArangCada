@@ -13,10 +13,20 @@ import 'push/push_notification_service.dart';
 /// Supabase Auth transport with role and test access resolved from profiles.
 /// User-editable metadata never determines application authorization.
 class SupabaseAuthRepository implements AuthRepository {
-  SupabaseAuthRepository(this._client, this._state);
+  SupabaseAuthRepository(
+    this._client,
+    this._state, {
+    this._captcha = _noCaptcha,
+  });
 
   final SupabaseClient _client;
   final DemoState _state;
+
+  /// Asked for a fresh token before each request Auth's CAPTCHA would gate.
+  /// Supplied by the app, which owns the screen the check appears on.
+  final Future<String?> Function() _captcha;
+
+  static Future<String?> _noCaptcha() async => null;
 
   @override
   DemoUser? get currentUser => _state.currentUser;
@@ -187,6 +197,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final response = await _client.auth.signInWithPassword(
         email: email.trim(),
         password: password,
+        captchaToken: await _captcha(),
       );
       final user = response.user;
       if (user == null) {
@@ -211,6 +222,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final response = await _client.auth.signInWithPassword(
         phone: phone,
         password: password,
+        captchaToken: await _captcha(),
       );
       final user = response.user;
       if (user == null) throw const AuthException('No user');
@@ -236,6 +248,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final response = await _client.auth.signUp(
         email: email.trim(),
         password: password,
+        captchaToken: await _captcha(),
         data: {
           'display_name': displayName.trim(),
           'mobile_number': mobileNumber.trim(),
@@ -271,6 +284,7 @@ class SupabaseAuthRepository implements AuthRepository {
       await _client.auth.resetPasswordForEmail(
         email.trim(),
         redirectTo: 'ph.calamba.arangcada://reset-password',
+        captchaToken: await _captcha(),
       );
     } on AuthException {
       throw const DemoAuthException(
@@ -293,6 +307,7 @@ class SupabaseAuthRepository implements AuthRepository {
       await _client.auth.signInWithPassword(
         email: email,
         password: currentPassword,
+        captchaToken: await _captcha(),
       );
     } on AuthException {
       throw const DemoAuthException('That password is incorrect.');

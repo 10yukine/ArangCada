@@ -20,6 +20,14 @@ class AppConfig {
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
   );
+
+  /// The web page that runs the human check for sign-in, sign-up and reset
+  /// requests once Supabase Auth's CAPTCHA is on. Empty in a build made
+  /// without one, and then no token is asked for.
+  static const String authCaptchaUrl = String.fromEnvironment(
+    'AUTH_CAPTCHA_URL',
+  );
+
   static const String mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
   static const String orsApiKey = String.fromEnvironment('ORS_API_KEY');
 

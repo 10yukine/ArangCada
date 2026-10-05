@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ArangCada — Security check</title>
+<script src="/captcha.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+<!-- Shown inside the ArangCada app before it signs someone in. The widget is
+     the one the account-deletion page uses; Supabase Auth checks its tokens. -->
+<div class="cf-turnstile" data-sitekey="0x4AAAAAAFIj6IpYAO3n37zx" data-theme="light" data-size="flexible" data-action="sign-in" data-callback="captchaDone" data-error-callback="captchaFailed"></div>
+</body>
+</html>

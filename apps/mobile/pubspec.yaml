@@ -63,6 +63,7 @@ dependencies:
   audioplayers: 6.8.1
   path_provider: ^2.1.5
   share_plus: ^13.3.0
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   flutter_test:

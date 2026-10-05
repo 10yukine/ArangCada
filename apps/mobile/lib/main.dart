@@ -9,9 +9,11 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/auth_captcha.dart';
 import 'app/mobile_settings.dart';
 import 'app/router.dart';
 import 'config/app_config.dart';
+import 'data/providers/repository_providers.dart';
 import 'data/remote/push/push_notification_service.dart';
 import 'data/remote/reset_link.dart';
 import 'data/repositories/saved_places_repository.dart';
@@ -100,5 +102,10 @@ Future<void> main() async {
     }
   }
 
-  runApp(const ProviderScope(child: ArangCadaApp()));
+  runApp(
+    ProviderScope(
+      overrides: [authCaptchaProvider.overrideWithValue(authCaptchaToken)],
+      child: const ArangCadaApp(),
+    ),
+  );
 }
