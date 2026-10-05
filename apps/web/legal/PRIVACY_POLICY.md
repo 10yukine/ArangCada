@@ -216,7 +216,10 @@ not a full copy of your account):
   them, including your IP address and browser details, in order to deliver
   the pages and protect them from abuse. The account-deletion page uses
   Cloudflare Turnstile to tell people from automated scripts before a
-  deletion is attempted. The website and, for now, the admin console also
+  deletion is attempted. Where that protection is switched on, the app and
+  the admin console show the same check before a sign-in, a sign-up or a
+  password-reset request; in the app it runs on a page from this website,
+  so Cloudflare handles that request in the same way. The website and, for now, the admin console also
   load **Cloudflare Web Analytics**, which counts page views and records the
   page address, the referring page, the browser, operating system and device
   type, the country, and page-load timings. It sets no cookies, stores
