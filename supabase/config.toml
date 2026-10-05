@@ -90,3 +90,18 @@ enabled = true
 # function counts each search against that account (consume_place_search), so
 # the gateway must reject callers without a JWT.
 verify_jwt = true
+
+[functions.send-email-confirmation]
+enabled = true
+# True -- called from the mobile app with a signed-in session. The function
+# asks Supabase Auth who the caller is and mails the link to that account's
+# own address, so the gateway must reject callers without a JWT.
+verify_jwt = true
+
+[functions.confirm-email]
+enabled = true
+# MUST stay false: arangcada.app/confirm-email calls it with no session. The
+# person opening the email may not be signed in on that device, so the
+# single-use token in the link is the only credential, checked inside the
+# function.
+verify_jwt = false

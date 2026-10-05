@@ -442,3 +442,11 @@ main{overflow-x:clip}
   .delete-card{margin:20px -4px;padding:20px 18px}
   .delete-button{width:100%;min-height:54px}
 }
+/* /confirm-email: one button and its result. */
+.confirm-button{border:0;cursor:pointer;justify-content:center}
+.confirm-button:disabled{opacity:.6;cursor:progress}
+.confirm-button[hidden]{display:none}
+#confirm-status{min-height:1.5em;margin:14px 0 0;line-height:1.45}
+#confirm-status[data-tone=error]{color:#b42318}
+:root[data-theme=dark] #confirm-status[data-tone=error]{color:#ff9b8f}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) #confirm-status[data-tone=error]{color:#ff9b8f}}
