@@ -105,7 +105,9 @@ Deno.serve(async (req: Request) => {
   } catch {
     return jsonResponse(502, { error: "place search returned bad data" });
   }
-  if (!Array.isArray(places)) {
+  if (!Array.isArray(places) || places.some((place) =>
+    place === null || typeof place !== "object" || Array.isArray(place)
+  )) {
     return jsonResponse(502, { error: "place search returned bad data" });
   }
   return jsonResponse(
