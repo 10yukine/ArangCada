@@ -76,7 +76,8 @@ test('the link goes to the address on file, and the caller gets neither token no
   assert.equal(mail.to, 'rider@example.test');
   const link = new URL(mail.link);
   assert.equal(link.origin + link.pathname, 'https://arangcada.app/confirm-email');
-  const token = link.searchParams.get('token');
+  assert.equal(link.search, '');
+  const token = new URLSearchParams(link.hash.slice(1)).get('token');
   assert.ok(token.length >= 40);
   // Only the hash is stored, and it is the hash of the token that was mailed.
   assert.equal(createHash('sha256').update(token).digest('hex'), rpc.params.p_token_hash);

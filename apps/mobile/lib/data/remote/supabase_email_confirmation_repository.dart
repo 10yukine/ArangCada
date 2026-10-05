@@ -50,6 +50,7 @@ class SupabaseEmailConfirmationRepository
       final current = _state.currentUser;
       // Only for the account and address that were asked about.
       if (row?['email_confirmed_at'] != null &&
+          _client.auth.currentUser?.id == id &&
           current != null &&
           current.email == user.email) {
         _state.setCurrentUser(current.copyWithEmailConfirmed(true));

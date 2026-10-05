@@ -54,8 +54,7 @@ export async function sendConfirmationEmail(
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    console.error(`send-email-confirmation: Resend rejected the send (HTTP ${response.status})`, detail);
+    console.error(`send-email-confirmation: Resend rejected the send (HTTP ${response.status})`);
     throw new Error(`Resend HTTP ${response.status}`);
   }
 }

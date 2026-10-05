@@ -4,7 +4,10 @@
   const button = document.getElementById('confirm-button');
   const status = document.getElementById('confirm-status');
   const say = (text, tone = 'error') => { status.textContent = text; status.dataset.tone = tone; };
-  const token = new URLSearchParams(window.location.search).get('token') || '';
+  const token = new URLSearchParams(window.location.hash.slice(1)).get('token') ||
+    new URLSearchParams(window.location.search).get('token') || '';
+  // Keep the credential out of later navigation, analytics and browser history.
+  window.history.replaceState(null, '', window.location.pathname);
   if (!token) {
     button.hidden = true;
     say('This link is incomplete. Open the link in your email again, or ask for a new one in the app.');

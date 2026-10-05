@@ -78,7 +78,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    await sendConfirmationEmail(email, `${CONFIRM_PAGE}?token=${token}`, resendKey);
+    await sendConfirmationEmail(email, `${CONFIRM_PAGE}#token=${token}`, resendKey);
   } catch {
     return jsonResponse(502, { error: "could not send the confirmation email" });
   }
