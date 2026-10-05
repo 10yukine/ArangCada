@@ -23,14 +23,12 @@ class AppConfig {
   static const String mapTilerKey = String.fromEnvironment('MAPTILER_KEY');
   static const String orsApiKey = String.fromEnvironment('ORS_API_KEY');
 
-  /// LocationIQ place search. A build uses it only when made with both
-  /// `--dart-define=SEARCH_PROVIDER=locationiq` and LOCATIONIQ_API_KEY; without
-  /// the first, the key is not compiled into the app and search stays with
-  /// Google Places or MapTiler.
-  static const String locationIqKey =
-      String.fromEnvironment('SEARCH_PROVIDER') == 'locationiq'
-      ? String.fromEnvironment('LOCATIONIQ_API_KEY')
-      : '';
+  /// LocationIQ place search, asked for with
+  /// `--dart-define=SEARCH_PROVIDER=locationiq`. The provider key is not in
+  /// the app: searches go through the `place-search` Edge Function. Without
+  /// the define, search stays with Google Places or MapTiler.
+  static const bool _locationIqRequested =
+      String.fromEnvironment('SEARCH_PROVIDER') == 'locationiq';
 
   /// Optional. Google Routes API is a paid, opt-in upgrade over
   /// openrouteservice for unnamed/barangay-road accuracy -- see
@@ -79,7 +77,8 @@ class AppConfig {
 
   static bool get isOrsConfigured => orsApiKey.isNotEmpty;
 
-  static bool get isLocationIqConfigured => locationIqKey.isNotEmpty;
+  static bool get isLocationIqConfigured =>
+      _locationIqRequested && isSupabaseConfigured;
 
   static bool get isGoogleMapsConfigured => googleMapsApiKey.isNotEmpty;
 
