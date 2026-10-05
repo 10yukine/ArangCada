@@ -11,7 +11,10 @@ void main() {
     final client = _client(httpClient);
     addTearDown(client.dispose);
 
-    await SupabaseAdminRepository(client).updateOwnPassword(
+    await SupabaseAdminRepository(
+      client,
+      captcha: () async => 'fresh-token',
+    ).updateOwnPassword(
       expectedUserId: 'admin-1',
       email: 'admin@example.com',
       currentPassword: 'current-password',
@@ -22,10 +25,11 @@ void main() {
       'POST',
       'PUT',
     ]);
+    // With CAPTCHA on, Auth refuses a password check that carries no token.
     expect(jsonDecode(httpClient.requests.first.body), {
       'email': 'admin@example.com',
       'password': 'current-password',
-      'gotrue_meta_security': {'captcha_token': null},
+      'gotrue_meta_security': {'captcha_token': 'fresh-token'},
     });
     expect(jsonDecode(httpClient.requests.last.body), {
       'password': 'new-password',
@@ -55,13 +59,58 @@ void main() {
       );
     },
   );
+
+  test('sign-in and the reset request each carry their own token', () async {
+    final httpClient = _AuthClient(signInUserId: 'admin-1');
+    final client = _client(httpClient);
+    addTearDown(client.dispose);
+    var asked = 0;
+    final repository = SupabaseAdminRepository(
+      client,
+      captcha: () async => 'token-${++asked}',
+    );
+
+    await repository.sendPasswordReset('admin@example.com');
+    // What follows the sign-in (reading the administrator's record) is not
+    // faked here and is not what this test is about.
+    await repository
+        .signIn(email: 'admin@example.com', password: 'a-password')
+        .then<void>((_) {}, onError: (_) {});
+
+    final reset = httpClient.requests.firstWhere(
+      (request) => request.url.path.endsWith('/recover'),
+    );
+    final signIn = httpClient.requests.firstWhere(
+      (request) => request.url.path.endsWith('/token'),
+    );
+    expect(_tokenIn(reset), 'token-1');
+    expect(_tokenIn(signIn), 'token-2');
+  });
+
+  test('a build with no site key asks for no token', () async {
+    final httpClient = _AuthClient(signInUserId: 'admin-1');
+    final client = _client(httpClient);
+    addTearDown(client.dispose);
+
+    await SupabaseAdminRepository(client).sendPasswordReset('a@example.com');
+
+    expect(_tokenIn(httpClient.requests.single), isNull);
+  });
 }
+
+/// The token a request carried, read the way Auth reads it.
+Object? _tokenIn(_Request request) =>
+    (jsonDecode(request.body)['gotrue_meta_security'] as Map)['captcha_token'];
 
 SupabaseClient _client(http.Client httpClient) => SupabaseClient(
   'https://example.supabase.co',
   'test-anon-key',
   httpClient: httpClient,
-  authOptions: const AuthClientOptions(autoRefreshToken: false),
+  // The reset request needs no stored state this way.
+  authOptions: const AuthClientOptions(
+    autoRefreshToken: false,
+    authFlowType: AuthFlowType.implicit,
+  ),
 );
 
 class _AuthClient extends http.BaseClient {

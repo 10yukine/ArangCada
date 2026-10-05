@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'captcha.dart';
 import 'models.dart';
 
 class AdminSnapshot {
@@ -81,9 +82,12 @@ Future<bool> redeemResetLink(Uri uri, GoTrueClient auth) async {
 }
 
 class SupabaseAdminRepository {
-  SupabaseAdminRepository(this.client);
+  SupabaseAdminRepository(this.client, {this.captcha = captchaToken});
 
   final SupabaseClient client;
+
+  /// Asked for a fresh token before each request Auth's CAPTCHA would gate.
+  final Future<String?> Function() captcha;
   RealtimeChannel? _channel;
   Timer? _refreshDebounce;
 
@@ -104,6 +108,7 @@ class SupabaseAdminRepository {
     await client.auth.resetPasswordForEmail(
       email.trim(),
       redirectTo: kIsWeb ? '${Uri.base.origin}/reset-password' : null,
+      captchaToken: await captcha(),
     );
   }
 
@@ -121,6 +126,7 @@ class SupabaseAdminRepository {
     final result = await client.auth.signInWithPassword(
       email: email.trim(),
       password: password,
+      captchaToken: await captcha(),
     );
     final user = result.user;
     if (user == null) {
@@ -253,6 +259,7 @@ class SupabaseAdminRepository {
     final result = await client.auth.signInWithPassword(
       email: email,
       password: currentPassword,
+      captchaToken: await captcha(),
     );
     if (result.user?.id != expectedUserId) {
       await client.auth.signOut();

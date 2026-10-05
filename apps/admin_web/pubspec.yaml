@@ -43,6 +43,8 @@ dependencies:
   # Already resolved through supabase_flutter; declared because
   # lib/stale_clock_retry.dart uses it directly.
   http: ^1.6.0
+  # The Turnstile check on the sign-in pages talks to the page directly.
+  web: ^1.1.1
 
 dev_dependencies:
   # Checks the self-hosted map library against its published hashes.
