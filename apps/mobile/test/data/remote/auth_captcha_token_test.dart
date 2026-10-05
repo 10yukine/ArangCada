@@ -15,10 +15,12 @@ void main() {
   late SupabaseClient client;
   late DemoState state;
   var asked = 0;
+  var failCaptcha = false;
 
   setUp(() {
     sent = [];
     asked = 0;
+    failCaptcha = false;
     client = SupabaseClient(
       'https://example.test',
       'synthetic',
@@ -29,6 +31,13 @@ void main() {
       ),
       httpClient: MockClient((request) async {
         sent.add(request);
+        if (failCaptcha) {
+          return http.Response(
+            jsonEncode({'error_code': 'captcha_failed', 'msg': 'CAPTCHA failed'}),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+        }
         final signedIn = request.url.path.endsWith('/token');
         return http.Response(
           jsonEncode(
@@ -111,4 +120,35 @@ void main() {
     expect(tokensTo('/token'), [null]);
     expect(tokensTo('/recover'), [null]);
   });
+
+  test(
+    'all five requests report a security check failure accurately',
+    () async {
+      final auth = SupabaseAuthRepository(client, state);
+      await attempt(auth.signIn(email: 'rider@example.test', password: 'pw'));
+      failCaptcha = true;
+      for (final request in <Future<Object?> Function()>[
+        () => auth.signIn(email: 'rider@example.test', password: 'pw'),
+        () => auth.signInWithPhone(phone: '+639171234567', password: 'pw'),
+        () => auth.signUp(
+          email: 'new@example.test',
+          password: 'pw',
+          displayName: 'Rider',
+          mobileNumber: '+639171234567',
+        ),
+        () => auth.sendPasswordReset('rider@example.test'),
+        () => auth.reauthenticate('pw'),
+      ]) {
+        await expectLater(
+          request(),
+          throwsA(
+            predicate(
+              (error) =>
+                  error.toString().contains('security check did not finish'),
+            ),
+          ),
+        );
+      }
+    },
+  );
 }

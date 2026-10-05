@@ -98,7 +98,16 @@ export async function handle(req: Request, config: Config): Promise<Response> {
       signal: AbortSignal.timeout(10_000),
       headers: { apikey: config.anonKey, Authorization: `Bearer ${bearer}` },
     }).catch(() => null);
-    sessionUserId = me?.ok ? ((await me.json())?.id ?? null) : null;
+    const sessionUser = me?.ok ? await me.json() : null;
+    sessionUserId = sessionUser?.id ?? null;
+    const sessionPhone = credential(sessionUser?.phone ?? "");
+    // A session cannot use the privileged password check to guess another
+    // account's password. Bind its identifier before contacting Auth.
+    if (sessionUserId && ("email" in who
+      ? sessionUser.email?.toLowerCase() !== who.email
+      : !sessionPhone || !("phone" in sessionPhone) || sessionPhone.phone !== who.phone)) {
+      return json(401, { error: "That sign-in or password is incorrect." });
+    }
   }
   if (!sessionUserId && !(await turnstilePassed(String(body.turnstile ?? ""), config.turnstileSecret))) {
     return json(403, { error: "Complete the security check and try again." });

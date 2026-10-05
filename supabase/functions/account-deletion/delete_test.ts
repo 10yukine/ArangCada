@@ -62,6 +62,7 @@ test("an app session can only delete its own account", async () => {
   );
   assert.equal(res.status, 401);
   assert.ok(!calls.some((c) => c.url.includes("delete_account") || c.url.includes("siteverify")));
+  assert.ok(!calls.some((c) => c.url.includes("/auth/v1/token")), "refuse another account before the privileged password check");
 });
 
 test("a blocker from the database reaches the person", async () => {
@@ -77,7 +78,7 @@ test("a blocker from the database reaches the person", async () => {
 
 test("the app deletes its own account, then its files, then emails a notice", async () => {
   const calls = mockFetch({
-    "/auth/v1/user": [200, { id: uid }],
+    "/auth/v1/user": [200, { id: uid, phone: "639171234567" }],
     "/auth/v1/token": [200, { user: { id: uid, email: "ana@example.test" } }],
     "delete_account": [200, { "trip-voice-notes": ["t/u/m.m4a"], "profile-photos": [`${uid}/a.jpg`] }],
     "/object/list/profile-photos": [200, [{ id: "x", name: "a.jpg" }, { id: "y", name: "b.jpg" }]],
@@ -108,7 +109,7 @@ test("the app deletes its own account, then its files, then emails a notice", as
 // said the files were gone.
 test("files that cannot be removed are retried, the operator is told, and the notice says so", async () => {
   const calls = mockFetch({
-    "/auth/v1/user": [200, { id: uid }],
+    "/auth/v1/user": [200, { id: uid, email: "ana@example.test" }],
     "/auth/v1/token": [200, { user: { id: uid, email: "ana@example.test" } }],
     "delete_account": [200, { "profile-photos": [`${uid}/a.jpg`] }],
     "/storage/v1/object/profile-photos": [503, {}],

@@ -28,6 +28,14 @@ class SupabaseAuthRepository implements AuthRepository {
 
   static Future<String?> _noCaptcha() async => null;
 
+  static void _checkCaptchaError(Object error) {
+    if (error is AuthException && error.code == 'captcha_failed') {
+      throw const DemoAuthException(
+        'The security check did not finish. Please try again.',
+      );
+    }
+  }
+
   @override
   DemoUser? get currentUser => _state.currentUser;
 
@@ -206,7 +214,8 @@ class SupabaseAuthRepository implements AuthRepository {
         );
       }
       return await restoreProfile(user);
-    } catch (_) {
+    } catch (error) {
+      _checkCaptchaError(error);
       throw const DemoAuthException(
         'Unable to sign in. Check your credentials and try again.',
       );
@@ -227,7 +236,8 @@ class SupabaseAuthRepository implements AuthRepository {
       final user = response.user;
       if (user == null) throw const AuthException('No user');
       return await restoreProfile(user);
-    } catch (_) {
+    } catch (error) {
+      _checkCaptchaError(error);
       // Same message whether the number is unknown, unverified or the
       // password is wrong, so the form never confirms who has an account.
       throw const DemoAuthException(
@@ -265,6 +275,7 @@ class SupabaseAuthRepository implements AuthRepository {
         user: mapped,
       );
     } on AuthException catch (error) {
+      _checkCaptchaError(error);
       if (error.code == 'user_already_exists' || error.code == 'email_exists') {
         throw const ExistingAccountException();
       }
@@ -286,7 +297,8 @@ class SupabaseAuthRepository implements AuthRepository {
         redirectTo: 'ph.calamba.arangcada://reset-password',
         captchaToken: await _captcha(),
       );
-    } on AuthException {
+    } on AuthException catch (error) {
+      _checkCaptchaError(error);
       throw const DemoAuthException(
         'Password recovery is unavailable right now.',
       );
@@ -309,7 +321,8 @@ class SupabaseAuthRepository implements AuthRepository {
         password: currentPassword,
         captchaToken: await _captcha(),
       );
-    } on AuthException {
+    } on AuthException catch (error) {
+      _checkCaptchaError(error);
       throw const DemoAuthException('That password is incorrect.');
     }
   }

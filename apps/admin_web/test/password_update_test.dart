@@ -1,11 +1,26 @@
 import 'dart:convert';
 
 import 'package:arangcada_admin/supabase_admin_repository.dart';
+import 'package:arangcada_admin/captcha.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  test('CAPTCHA failure is distinguished from incorrect credentials', () {
+    expect(
+      captchaFailureMessage(
+        const AuthException('failed', code: 'captcha_failed'),
+      ),
+      contains('security check did not finish'),
+    );
+    expect(
+      captchaFailureMessage(
+        const AuthException('wrong password', code: 'invalid_credentials'),
+      ),
+      isNull,
+    );
+  });
   test('password update confirms identity and forwards credentials', () async {
     final httpClient = _AuthClient(signInUserId: 'admin-1');
     final client = _client(httpClient);

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'admin_controller.dart';
 import 'app_config.dart';
+import 'captcha.dart';
 import 'models.dart';
 import 'screens.dart';
 import 'session.dart';
@@ -326,7 +327,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // it offers to save or update the password.
       TextInput.finishAutofillContext();
       if (mounted) auth.value = session;
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         // Firefox: after a failed submit the browser's hidden login form keeps
         // keyboard focus on a stale input, so the password field looked locked
@@ -335,6 +336,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         TextInput.finishAutofillContext(shouldSave: false);
         setState(
           () => signInError =
+              captchaFailureMessage(error) ??
               'Unable to sign in. Check your credentials and try again.',
         );
       }
@@ -707,13 +709,14 @@ Future<void> _showForgotPassword(BuildContext context, WidgetRef ref) async {
                               sending = false;
                               sent = true;
                             });
-                          } catch (_) {
+                          } catch (error) {
                             setDialogState(() => sending = false);
                             if (dialogContext.mounted) {
                               ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                    'The reset email could not be sent. Try again.',
+                                    captchaFailureMessage(error) ??
+                                        'The reset email could not be sent. Try again.',
                                   ),
                                 ),
                               );

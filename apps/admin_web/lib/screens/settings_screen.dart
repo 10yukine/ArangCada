@@ -4,6 +4,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../admin_controller.dart';
+import '../captcha.dart';
 import '../models.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -460,12 +461,13 @@ class _PasswordSettingsPanelState
           context,
         ).showSnackBar(const SnackBar(content: Text('Password updated.')));
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Password could not be updated. Check your current password and try again.',
+              captchaFailureMessage(error) ??
+                  'Password could not be updated. Check your current password and try again.',
             ),
           ),
         );
