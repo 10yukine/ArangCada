@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/domain/geo/service_area.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +32,51 @@ void main() {
           reason: '${entry.key} must be inside the service area',
         );
       }
+    });
+
+    test('is the same outline the server holds', () {
+      final sql = File(
+        '../../supabase/pilot/20260930_bjmp_toda_zone.sql',
+      ).readAsStringSync();
+      final ring = RegExp(
+        r'POLYGON\(\((.*?)\)\)',
+        dotAll: true,
+      ).firstMatch(sql)!.group(1)!;
+      final server = [
+        for (final pair in ring.split(',')) pair.trim().split(RegExp(r'\s+')),
+      ];
+      // The file repeats its first point to close the ring.
+      expect(server.length, ServiceArea.boundary.length + 1);
+      for (var i = 0; i < ServiceArea.boundary.length; i++) {
+        expect(
+          [ServiceArea.boundary[i].longitude, ServiceArea.boundary[i].latitude],
+          [double.parse(server[i][0]), double.parse(server[i][1])],
+          reason: 'point $i',
+        );
+      }
+    });
+
+    test('follows the city limit where the old rough outline did not', () {
+      // Upland Canlubang, which the old outline refused.
+      expect(
+        ServiceArea.contains(
+          const GeoCoordinate(latitude: 14.1721, longitude: 121.0416),
+        ),
+        isTrue,
+      );
+      // Malitlit in Santa Rosa and Los Banos, which it let through.
+      expect(
+        ServiceArea.contains(
+          const GeoCoordinate(latitude: 14.2465, longitude: 121.1107),
+        ),
+        isFalse,
+      );
+      expect(
+        ServiceArea.contains(
+          const GeoCoordinate(latitude: 14.1820, longitude: 121.2214),
+        ),
+        isFalse,
+      );
     });
 
     test('rejects places well outside Calamba', () {
