@@ -30,4 +30,29 @@ void main() {
       expect(tag, contains('crossorigin="anonymous"'), reason: url);
     }
   });
+
+  // The policy is what stops an injected script reading the administrator's
+  // session. Report-only logs and blocks nothing.
+  test(
+    'the content-security policy is enforced and allows no inline script',
+    () {
+      final headers = File('web/_headers').readAsLinesSync();
+      expect(
+        headers.where(
+          (line) => line.contains('Content-Security-Policy-Report-Only'),
+        ),
+        isEmpty,
+      );
+      final policy = headers.singleWhere(
+        (line) => line.trimLeft().startsWith('Content-Security-Policy:'),
+      );
+      final scripts = RegExp(
+        r"script-src ([^;]+)",
+      ).firstMatch(policy)!.group(1)!;
+      expect(scripts, isNot(contains("'unsafe-inline'")));
+      expect(scripts, isNot(contains("'unsafe-eval'")));
+      expect(policy, contains("object-src 'none'"));
+      expect(policy, contains("frame-ancestors 'none'"));
+    },
+  );
 }
