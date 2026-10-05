@@ -15,7 +15,16 @@ import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/dashboard_back_button.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/email_confirmation_repository.dart';
 import '../../domain/models/demo_user.dart';
+
+/// The address whose confirm-email prompt was closed. Kept until the app
+/// restarts, so the prompt comes back next time rather than never.
+final _confirmEmailHiddenFor = Provider<ValueNotifier<String?>>((ref) {
+  final hidden = ValueNotifier<String?>(null);
+  ref.onDispose(hidden.dispose);
+  return hidden;
+});
 
 /// One profile screen for both roles.
 ///
@@ -211,6 +220,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final promptHiddenFor = ref.watch(_confirmEmailHiddenFor);
     final isDriver = state.currentUser?.role == DemoRole.driver;
 
     return Scaffold(
@@ -220,7 +230,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: state,
+          listenable: Listenable.merge([state, promptHiddenFor]),
           builder: (context, _) {
             final user = state.currentUser;
 
@@ -242,6 +252,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 if (user != null &&
                     !user.emailConfirmed &&
+                    promptHiddenFor.value != user.email &&
                     ref.watch(emailConfirmationRepositoryProvider) != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Padding(
@@ -479,8 +490,16 @@ class _ConfirmEmailPrompt extends ConsumerStatefulWidget {
 
 class _ConfirmEmailPromptState extends ConsumerState<_ConfirmEmailPrompt> {
   late final AppLifecycleListener _lifecycle;
+  Timer? _ticker;
   bool _sending = false;
   bool _sent = false;
+
+  /// Seconds until another link may be asked for. The server sends one a
+  /// minute.
+  int _wait = 0;
+
+  /// The server's own words when it will not send a link yet.
+  String? _notice;
   String? _error;
 
   @override
@@ -492,6 +511,7 @@ class _ConfirmEmailPromptState extends ConsumerState<_ConfirmEmailPrompt> {
 
   @override
   void dispose() {
+    _ticker?.cancel();
     _lifecycle.dispose();
     super.dispose();
   }
@@ -499,16 +519,35 @@ class _ConfirmEmailPromptState extends ConsumerState<_ConfirmEmailPrompt> {
   void _refresh() =>
       unawaited(ref.read(emailConfirmationRepositoryProvider)?.refresh());
 
+  void _startWait() {
+    _wait = 60;
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() => _wait--);
+      if (_wait <= 0) timer.cancel();
+    });
+  }
+
   Future<void> _send() async {
     final repository = ref.read(emailConfirmationRepositoryProvider);
     if (repository == null || _sending) return;
     setState(() {
       _sending = true;
+      _notice = null;
       _error = null;
     });
     try {
       await repository.send();
-      if (mounted) setState(() => _sent = true);
+      if (mounted) {
+        setState(() {
+          _sent = true;
+          _startWait();
+        });
+      }
+    } on EmailConfirmationWait catch (wait) {
+      if (mounted) setState(() => _notice = wait.message);
+      // One reason to be refused is that it is already confirmed.
+      _refresh();
     } on DemoAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -518,90 +557,147 @@ class _ConfirmEmailPromptState extends ConsumerState<_ConfirmEmailPrompt> {
 
   @override
   Widget build(BuildContext context) {
-    final caption = AppTypography.caption.copyWith(
-      color: AppColors.primaryText,
+    final body = AppTypography.bodySm.copyWith(
+      color: AppColors.textSecondary,
       height: 1.4,
     );
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
-      decoration: BoxDecoration(
-        color: AppColors.primaryFill,
-        borderRadius: BorderRadius.circular(AppRadii.card),
+    final address = TextSpan(
+      text: widget.email,
+      style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+    );
+    final waiting = _wait > 0;
+    final note = waiting
+        ? 'Wait ${_wait}s before requesting another link'
+        : _notice;
+
+    return ArangCard(
+      color: AppColors.primaryFill,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.mark_email_unread_outlined,
-                size: 18,
-                color: AppColors.primaryText,
+              const ArangRowIcon(
+                Icons.mail_outline_rounded,
+                background: AppColors.surface,
+                foreground: AppColors.primary,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Confirm your email',
-                      style: caption.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _sent
-                          ? 'Link sent to ${widget.email}. Open it from '
-                                'your inbox to confirm.'
-                          : 'Open the link we send to ${widget.email}.',
-                      style: caption,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.isDriver
-                          ? 'Not your email? Ask your LGU/TODA office to '
-                                'correct it.'
-                          : 'Not your email? You can change it.',
-                      style: caption,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        _error!,
-                        style: caption.copyWith(
-                          color: AppColors.dangerDeep,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Text('Confirm your email', style: AppTypography.h2),
+              ),
+              IconButton(
+                tooltip: 'Hide for now',
+                onPressed: () =>
+                    ref.read(_confirmEmailHiddenFor).value = widget.email,
+                icon: const Icon(
+                  Icons.close,
+                  size: 18,
+                  color: AppColors.textMuted,
                 ),
               ),
             ],
           ),
-          Wrap(
-            alignment: WrapAlignment.end,
-            children: [
-              if (!widget.isDriver)
-                TextButton(
-                  onPressed: () => context.push('/profile/edit'),
-                  child: const Text('Change email'),
+          Padding(
+            padding: const EdgeInsets.only(
+              top: AppSpacing.xxs,
+              right: AppSpacing.xs,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    style: body,
+                    children: [
+                      TextSpan(
+                        text: _sent ? 'Link sent to ' : "We'll send a link to ",
+                      ),
+                      address,
+                      const TextSpan(
+                        text: '. Open it from your inbox to confirm.',
+                      ),
+                    ],
+                  ),
                 ),
-              TextButton(
-                onPressed: _sending ? null : _send,
-                child: Text(
-                  _sending
-                      ? 'Sending…'
-                      : _sent
-                      ? 'Send again'
-                      : 'Send link',
+                if (widget.isDriver) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    'Not your email? Ask your LGU/TODA office to correct it.',
+                    style: body,
+                  ),
+                ],
+                if (note != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          note,
+                          style: body.copyWith(color: AppColors.textMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _error!,
+                    style: body.copyWith(
+                      color: AppColors.dangerDeep,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1, color: AppColors.borderStrong),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.xs,
+                    children: [
+                      if (!widget.isDriver)
+                        TextButton(
+                          onPressed: () => context.push('/profile/edit'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textRow,
+                          ),
+                          child: const Text('Change email'),
+                        ),
+                      ArangButton(
+                        label: _sending
+                            ? 'Sending…'
+                            : _sent
+                            ? 'Send again'
+                            : 'Send link',
+                        expand: false,
+                        onPressed: _sending || waiting ? null : _send,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
