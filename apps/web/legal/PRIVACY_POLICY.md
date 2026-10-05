@@ -276,6 +276,11 @@ not a full copy of your account):
   commuters and drivers as well as administrators. The verification email
   does not include your phone number, precise location, trip history or
   password. Real SMS ownership verification remains a separate pilot gate.
+  Resend also delivers the email-confirmation message: after your number is
+  verified, and when you ask from the Profile screen, we email a single-use
+  link to the address on your account. We keep a scrambled copy of that link
+  (not the link itself), the address it was sent to and whether it was used,
+  and we record the date you confirmed. Changing your email clears that date.
 
 ### 6b. Physical server infrastructure and cross-border transfers
 
