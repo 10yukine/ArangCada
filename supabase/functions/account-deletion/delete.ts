@@ -104,10 +104,19 @@ export async function handle(req: Request, config: Config): Promise<Response> {
     return json(403, { error: "Complete the security check and try again." });
   }
 
+  // The service-role bearer is for CAPTCHA. Once it is switched on, Auth
+  // refuses a password sign-in that carries no token, except from a request
+  // with this role. A person has already been demanded above (the app's live
+  // session, or Turnstile), and a Turnstile token can be redeemed only once,
+  // so it could not be handed on to Auth as well.
   const signIn = await fetch(`${config.supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: "POST",
     signal: AbortSignal.timeout(10_000),
-    headers: { apikey: config.anonKey, "Content-Type": "application/json" },
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ ...who, password: body.password }),
   });
   if (signIn.status === 429) return json(429, { error: "Too many attempts. Wait a few minutes and try again." });
