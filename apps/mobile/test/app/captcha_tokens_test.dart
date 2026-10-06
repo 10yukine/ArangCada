@@ -161,7 +161,7 @@ void main() {
       },
     );
 
-    testWidgets('a check that never finishes is refused here, not sent', (
+    testWidgets('a timeout leaves enforcement to Auth without a second dialog', (
       tester,
     ) async {
       var dialogs = 0;
@@ -180,9 +180,7 @@ void main() {
       expect(outcome, isNull);
       await tester.pump(const Duration(seconds: 2));
 
-      // What Auth itself answers without a token, so the screen says the
-      // same thing it would have said.
-      expect(outcome, refused);
+      expect(outcome, isNull);
       expect(dialogs, 0);
     });
 
@@ -214,8 +212,8 @@ void main() {
         await captchaFrom(null, () async => 'from-the-dialog'),
         'from-the-dialog',
       );
-      // Closed or failed: refused, not sent without a token.
-      await expectLater(captchaFrom(null, () async => null), throwsA(refused));
+      // Auth enforces missing tokens, preserving the server-side undo.
+      expect(await captchaFrom(null, () async => null), isNull);
     });
   });
 }

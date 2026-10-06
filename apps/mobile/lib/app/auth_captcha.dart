@@ -19,9 +19,9 @@ import 'theme/app_dimensions.dart';
 /// only check such a screen ever shows. A screen without one opens the check
 /// in a dialog.
 ///
-/// Null only in a build that has no check page; Auth then decides by itself.
-/// With a page, a check that ends without a token throws what Auth would have
-/// answered, `captcha_failed`: the caller reports it and nothing is sent.
+/// A missing token is left to Auth to refuse while CAPTCHA is enforced.
+/// This preserves server-side recovery if the check service is unavailable.
+/// Leaving the screen aborts locally instead of submitting after navigation.
 Future<String?> authCaptchaToken() async {
   final page = Uri.tryParse(AppConfig.authCaptchaUrl);
   if (page == null || !page.isScheme('https')) return null;
@@ -40,16 +40,18 @@ Future<String?> authCaptchaToken() async {
 /// that screen has none. Never one after the other: a second check on top of
 /// one the person can already see only starts the wait again.
 @visibleForTesting
-Future<String> captchaFrom(
+Future<String?> captchaFrom(
   CaptchaTokens? inScreen,
   Future<String?> Function() dialog,
 ) async {
   final token = inScreen != null ? await inScreen.take() : await dialog();
-  if (token != null) return token;
-  throw const AuthException(
-    'The security check did not finish',
-    code: 'captcha_failed',
-  );
+  if (inScreen?.isDisposed ?? false) {
+    throw const AuthException(
+      'The security check did not finish',
+      code: 'captcha_failed',
+    );
+  }
+  return token;
 }
 
 /// The human check as part of a screen. It takes up no room while Cloudflare

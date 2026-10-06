@@ -33,6 +33,8 @@ class CaptchaTokens extends ChangeNotifier {
   bool _pageDown = false;
   bool _gone = false;
 
+  bool get isDisposed => _gone;
+
   /// How tall the page has to be while a tap is wanted; null when there is
   /// nothing to show.
   double? get openHeight => _openHeight;
