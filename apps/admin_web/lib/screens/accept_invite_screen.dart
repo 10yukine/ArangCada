@@ -97,18 +97,20 @@ class _AcceptInviteScreenState extends ConsumerState<AcceptInviteScreen> {
             lastName: lastName.text,
             password: password.text,
           );
-      final repository = ref.read(adminRepositoryProvider);
-      if (repository == null) {
-        throw StateError('The connected administrator service is unavailable.');
+      // The account exists from here on and the invite is spent. If signing
+      // in now fails (no connection, or the security check did not finish),
+      // this form could only fail again, so the sign-in page takes over.
+      try {
+        final session = await ref
+            .read(adminRepositoryProvider)!
+            .signIn(email: resolvedEmail, password: password.text);
+        await ref.read(adminProvider.notifier).connect(session);
+        if (!mounted) return;
+        auth.value = session;
+        context.go('/dashboard');
+      } catch (_) {
+        if (mounted) context.go('/login');
       }
-      final session = await repository.signIn(
-        email: resolvedEmail,
-        password: password.text,
-      );
-      await ref.read(adminProvider.notifier).connect(session);
-      if (!mounted) return;
-      auth.value = session;
-      context.go('/dashboard');
     } catch (caught) {
       if (!mounted) return;
       setState(() {
