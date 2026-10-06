@@ -99,7 +99,7 @@ class CaptchaTokens extends ChangeNotifier {
   /// screen has gone.
   Future<String?> take({
     Duration patience = const Duration(seconds: 10),
-    Duration limit = const Duration(minutes: 2),
+    Duration limit = const Duration(seconds: 45),
   }) async {
     // The page replaces a token only when Cloudflare's own five minutes are
     // up, which is later than this gives up on one.
