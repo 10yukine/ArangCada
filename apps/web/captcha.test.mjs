@@ -14,6 +14,7 @@ test("the app's check page uses the widget Auth is set up for and runs no inline
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/);
   assert.match(html, /data-callback="captchaDone"/);
   assert.match(html, /data-error-callback="captchaFailed"/);
+  assert.match(html, /data-size="compact"/);
 });
 
 test('the token goes to the app, and nowhere in an ordinary browser', () => {

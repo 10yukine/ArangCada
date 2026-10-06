@@ -10,9 +10,15 @@ String? captchaFailureMessage(Object error) =>
 /// build made without one, and then no token is asked for.
 const turnstileSiteKey = String.fromEnvironment('TURNSTILE_SITE_KEY');
 
-/// A fresh, single-use token for one sign-in or reset request, or null when no
-/// site key is built in or the check could not be completed.
-///
-/// A missing token is not an error here. Auth decides what it means: nothing
-/// while CAPTCHA is off, a refusal once it is on.
-Future<String?> captchaToken() => turnstileToken(turnstileSiteKey);
+/// A fresh token, or null only when this build has no configured check.
+Future<String?> captchaToken() async {
+  if (turnstileSiteKey.isEmpty) return null;
+  final token = await turnstileToken(turnstileSiteKey);
+  if (token == null || token.isEmpty) {
+    throw const AuthException(
+      'Security check incomplete',
+      code: 'captcha_failed',
+    );
+  }
+  return token;
+}

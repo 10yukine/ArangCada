@@ -33,7 +33,10 @@ void main() {
         sent.add(request);
         if (failCaptcha) {
           return http.Response(
-            jsonEncode({'error_code': 'captcha_failed', 'msg': 'CAPTCHA failed'}),
+            jsonEncode({
+              'error_code': 'captcha_failed',
+              'msg': 'CAPTCHA failed',
+            }),
             400,
             headers: {'content-type': 'application/json'},
           );
@@ -119,6 +122,49 @@ void main() {
 
     expect(tokensTo('/token'), [null]);
     expect(tokensTo('/recover'), [null]);
+  });
+
+  test('an unfinished check stops all five Auth requests', () async {
+    await attempt(
+      SupabaseAuthRepository(
+        client,
+        state,
+      ).signIn(email: 'rider@example.test', password: 'pw'),
+    );
+    sent.clear();
+    final auth = SupabaseAuthRepository(
+      client,
+      state,
+      captcha: () async {
+        throw const AuthException(
+          'Security check incomplete',
+          code: 'captcha_failed',
+        );
+      },
+    );
+    for (final request in <Future<Object?> Function()>[
+      () => auth.signIn(email: 'rider@example.test', password: 'pw'),
+      () => auth.signInWithPhone(phone: '+639171234567', password: 'pw'),
+      () => auth.signUp(
+        email: 'new@example.test',
+        password: 'pw',
+        displayName: 'Rider',
+        mobileNumber: '+639171234567',
+      ),
+      () => auth.sendPasswordReset('rider@example.test'),
+      () => auth.reauthenticate('pw'),
+    ]) {
+      await expectLater(
+        request(),
+        throwsA(
+          predicate(
+            (error) =>
+                error.toString().contains('security check did not finish'),
+          ),
+        ),
+      );
+    }
+    expect(sent, isEmpty);
   });
 
   test(
