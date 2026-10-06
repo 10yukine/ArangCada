@@ -122,7 +122,7 @@ export async function handle(req: Request, config: Config): Promise<Response> {
     method: "POST",
     signal: AbortSignal.timeout(10_000),
     headers: {
-      apikey: config.anonKey,
+      apikey: config.serviceRoleKey,
       Authorization: `Bearer ${config.serviceRoleKey}`,
       "Content-Type": "application/json",
     },

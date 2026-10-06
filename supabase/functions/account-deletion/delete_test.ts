@@ -93,6 +93,7 @@ test("the app deletes its own account, then its files, then emails a notice", as
   assert.deepEqual(JSON.parse(String(signIn.init.body)), { phone: "+639171234567", password: "pw" });
   // Auth's CAPTCHA lets a server-role request through; nothing else would.
   assert.equal((signIn.init.headers as Record<string, string>).Authorization, "Bearer service");
+  assert.equal((signIn.init.headers as Record<string, string>).apikey, "service");
   assert.deepEqual(JSON.parse(String(calls.find((c) => c.url.includes("delete_account"))!.init.body)), { p_user_id: uid });
   const removals = calls.filter((c) => c.init.method === "DELETE").map((c) => [c.url.split("/").pop(), JSON.parse(String(c.init.body)).prefixes]);
   assert.deepEqual(removals, [
