@@ -3,6 +3,7 @@ Future<String?> turnstileToken(String siteKey) async => null;
 
 /// See captcha_web.dart.
 void setCaptchaHost(
+  Object slot,
   Object? element, {
   bool dark = false,
   void Function(bool open)? onOpen,

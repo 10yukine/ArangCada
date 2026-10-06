@@ -668,17 +668,26 @@ Future<void> _showForgotPassword(BuildContext context, WidgetRef ref) async {
                 width: 380,
                 child: Form(
                   key: formKey,
-                  child: TextFormField(
-                    errorBuilder: adminFieldError,
-                    controller: resetEmail,
-                    autofocus: true,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
-                    ),
-                    validator: (value) => (value?.contains('@') ?? false)
-                        ? null
-                        : 'Enter a valid email address.',
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        errorBuilder: adminFieldError,
+                        controller: resetEmail,
+                        autofocus: true,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                        ),
+                        validator: (value) => (value?.contains('@') ?? false)
+                            ? null
+                            : 'Enter a valid email address.',
+                      ),
+                      const SizedBox(height: 12),
+                      // Its own slot: the sign-in form's is behind this dialog.
+                      const CaptchaSlot(),
+                    ],
                   ),
                 ),
               ),

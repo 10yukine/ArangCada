@@ -34,6 +34,7 @@ class _CaptchaSlotState extends State<CaptchaSlot> {
   bool _open = false;
 
   void _name(bool dark) => setCaptchaHost(
+    this,
     _element,
     dark: dark,
     onOpen: (open) {
@@ -43,7 +44,7 @@ class _CaptchaSlotState extends State<CaptchaSlot> {
 
   @override
   void dispose() {
-    setCaptchaHost(null);
+    setCaptchaHost(this, null);
     super.dispose();
   }
 

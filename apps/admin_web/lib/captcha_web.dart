@@ -29,20 +29,35 @@ Future<void> _load() => _loading ??= () {
   return done.future;
 }();
 
-web.HTMLElement? _host;
-bool _hostDark = false;
-void Function(bool open)? _hostOpen;
+typedef _Host = ({
+  web.HTMLElement element,
+  bool dark,
+  void Function(bool open)? onOpen,
+});
 
-/// Names the place on the form in front where the check should appear if a
-/// tap is wanted (see `CaptchaSlot`), or clears it with null.
+// In the order the slots appeared, so the last is the form in front: a dialog
+// opens over the page that was already there.
+final _hosts = <Object, _Host>{};
+
+/// Names the place where the check should appear if a tap is wanted (see
+/// `CaptchaSlot`), or withdraws it with a null element. The newest slot on
+/// the page is the one used.
 void setCaptchaHost(
+  Object slot,
   Object? element, {
   bool dark = false,
   void Function(bool open)? onOpen,
 }) {
-  _host = element as web.HTMLElement?;
-  _hostDark = dark;
-  _hostOpen = onOpen;
+  if (element == null) {
+    _hosts.remove(slot);
+  } else {
+    // Assigning to a slot already in the map keeps its place in the order.
+    _hosts[slot] = (
+      element: element as web.HTMLElement,
+      dark: dark,
+      onOpen: onOpen,
+    );
+  }
 }
 
 /// Runs the check and answers with its token. Nothing is shown while
@@ -58,8 +73,9 @@ Future<String?> turnstileToken(String siteKey) async {
   final turnstile = globalContext['turnstile'] as JSObject?;
   if (turnstile == null) return null;
 
-  final host = _host;
-  final open = _hostOpen;
+  final named = _hosts.values.lastOrNull;
+  final host = named?.element;
+  final open = named?.onOpen;
   final box = web.HTMLDivElement();
   if (host == null) {
     box.style.cssText =
@@ -78,7 +94,7 @@ Future<String?> turnstileToken(String siteKey) async {
     ..['sitekey'] = siteKey.toJS
     ..['appearance'] = 'interaction-only'.toJS
     ..['size'] = (host == null ? 'normal' : 'flexible').toJS
-    ..['theme'] = (host == null ? 'auto' : (_hostDark ? 'dark' : 'light')).toJS
+    ..['theme'] = (named == null ? 'auto' : (named.dark ? 'dark' : 'light')).toJS
     ..['callback'] = ((JSString value) => finish(value.toDart)).toJS
     ..['error-callback'] = ((JSAny? _) {
       finish(null);
