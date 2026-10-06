@@ -1,18 +1,25 @@
+import 'dart:async';
+
+import 'package:arangcada/app/auth_captcha.dart';
 import 'package:arangcada/app/captcha_tokens.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 /// The in-screen human check hands the app tokens ahead of time. Each works
 /// once and for five minutes, so what is handed to Auth has to be the right
 /// one, and exactly once.
 void main() {
-  late int asked;
+  late int startedOver;
   late DateTime clock;
   late CaptchaTokens tokens;
 
+  CaptchaTokens holder() =>
+      CaptchaTokens(startOver: () => startedOver++, now: () => clock);
+
   setUp(() {
-    asked = 0;
+    startedOver = 0;
     clock = DateTime(2026, 10, 6, 10);
-    tokens = CaptchaTokens(askAgain: () => asked++, now: () => clock);
+    tokens = holder();
   });
 
   tearDown(() => tokens.dispose());
@@ -20,12 +27,12 @@ void main() {
   const brief = Duration(milliseconds: 60);
 
   test(
-    'a ready token is handed out once and a fresh one is asked for',
+    'a ready token is handed out once and the page starts over for the next',
     () async {
       tokens.onMessage('token:first');
 
       expect(await tokens.take(patience: brief), 'first');
-      expect(asked, 1);
+      expect(startedOver, 1);
       // The same token is never given twice.
       expect(await tokens.take(patience: brief), isNull);
     },
@@ -45,7 +52,7 @@ void main() {
     clock = clock.add(const Duration(minutes: 4, seconds: 40));
 
     final taking = tokens.take(patience: const Duration(seconds: 2));
-    expect(asked, 1);
+    expect(startedOver, 1);
     tokens.onMessage('token:fresh');
 
     expect(await taking, 'fresh');
@@ -58,7 +65,6 @@ void main() {
 
     tokens.onMessage('token:');
     expect(await tokens.take(patience: brief), isNull);
-    expect(asked, 0);
   });
 
   test(
@@ -84,4 +90,132 @@ void main() {
       expect(changes, 2);
     },
   );
+
+  test(
+    'a check that is getting nowhere has its page started afresh, once',
+    () async {
+      final taking = tokens.take(patience: const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(startedOver, 1);
+      tokens.onMessage('token:from-the-new-page');
+
+      expect(await taking, 'from-the-new-page');
+      // Once while waiting, once more for the token after this one.
+      expect(startedOver, 2);
+    },
+  );
+
+  test('a page that did not load is started afresh without waiting', () async {
+    tokens.pageFailed();
+
+    final taking = tokens.take(patience: const Duration(seconds: 2));
+    expect(startedOver, 1);
+    tokens.onMessage('token:loaded-this-time');
+
+    expect(await taking, 'loaded-this-time');
+  });
+
+  test('a wait ends when its screen goes', () async {
+    final gone = holder();
+    final taking = gone.take(patience: const Duration(seconds: 30));
+    gone.dispose();
+
+    expect(await taking, isNull);
+    expect(startedOver, 0);
+  });
+
+  // The owner's report, 6 Oct 2026: a second sign-in attempt on the Login
+  // screen found the in-screen check still working, and after eight seconds
+  // the old "Security check" dialog opened on top of it.
+  group('which check answers', () {
+    final refused = isA<AuthException>().having(
+      (error) => error.code,
+      'code',
+      'captcha_failed',
+    );
+
+    testWidgets(
+      'a screen that carries the check never opens the dialog as well',
+      (tester) async {
+        var dialogs = 0;
+        Object? outcome;
+        unawaited(
+          captchaFrom(tokens, () async {
+            dialogs++;
+            return 'from-the-dialog';
+          }).then<void>(
+            (token) => outcome = token,
+            onError: (Object error) => outcome = error,
+          ),
+        );
+
+        // Slower than the old eight seconds, and after one fresh start.
+        await tester.pump(const Duration(seconds: 14));
+        expect(outcome, isNull);
+        expect(startedOver, 1);
+        tokens.onMessage('token:slow-but-in-the-screen');
+        await tester.pump();
+
+        expect(outcome, 'slow-but-in-the-screen');
+        expect(dialogs, 0);
+      },
+    );
+
+    testWidgets('a check that never finishes is refused here, not sent', (
+      tester,
+    ) async {
+      var dialogs = 0;
+      Object? outcome;
+      unawaited(
+        captchaFrom(tokens, () async {
+          dialogs++;
+          return 'from-the-dialog';
+        }).then<void>(
+          (token) => outcome = token,
+          onError: (Object error) => outcome = error,
+        ),
+      );
+
+      await tester.pump(const Duration(seconds: 19));
+      expect(outcome, isNull);
+      await tester.pump(const Duration(seconds: 2));
+
+      // What Auth itself answers without a token, so the screen says the
+      // same thing it would have said.
+      expect(outcome, refused);
+      expect(dialogs, 0);
+    });
+
+    testWidgets('a wait whose screen has gone opens nothing either', (
+      tester,
+    ) async {
+      final gone = holder();
+      var dialogs = 0;
+      Object? outcome;
+      unawaited(
+        captchaFrom(gone, () async {
+          dialogs++;
+          return 'from-the-dialog';
+        }).then<void>(
+          (token) => outcome = token,
+          onError: (Object error) => outcome = error,
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      gone.dispose();
+      await tester.pump();
+
+      expect(outcome, refused);
+      expect(dialogs, 0);
+    });
+
+    test('a screen without one uses the dialog', () async {
+      expect(
+        await captchaFrom(null, () async => 'from-the-dialog'),
+        'from-the-dialog',
+      );
+      // Closed or failed: refused, not sent without a token.
+      await expectLater(captchaFrom(null, () async => null), throwsA(refused));
+    });
+  });
 }

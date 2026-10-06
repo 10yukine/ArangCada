@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../config/app_config.dart';
@@ -14,24 +15,40 @@ import 'theme/app_dimensions.dart';
 ///
 /// Cloudflare Turnstile has no Android SDK; it runs on a web page in a web
 /// view. A screen that signs someone in carries an [AuthCaptchaBox], which
-/// has usually finished before the button is pressed. Where there is no box,
-/// or it has no answer in time, the check opens in a dialog instead.
+/// has usually finished before the button is pressed, and that box is the
+/// only check such a screen ever shows. A screen without one opens the check
+/// in a dialog.
 ///
-/// Null when this build has no check page, when the person closes it, or when
-/// it cannot finish. A missing token is not an error here: Auth ignores tokens
-/// while CAPTCHA is off and refuses the request once it is on, and that
-/// refusal is what the caller reports.
+/// Null only in a build that has no check page; Auth then decides by itself.
+/// With a page, a check that ends without a token throws what Auth would have
+/// answered, `captcha_failed`: the caller reports it and nothing is sent.
 Future<String?> authCaptchaToken() async {
   final page = Uri.tryParse(AppConfig.authCaptchaUrl);
   if (page == null || !page.isScheme('https')) return null;
-  final inScreen = await AuthCaptchaBox.take();
-  if (inScreen != null) return inScreen;
-  final context = rootNavigatorKey.currentContext;
-  if (context == null || !context.mounted) return null;
-  return showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _AuthCaptchaDialog(page),
+  return captchaFrom(AuthCaptchaBox.inFront, () async {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null || !context.mounted) return null;
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AuthCaptchaDialog(page),
+    );
+  });
+}
+
+/// The token from the check on the screen in front, or from [dialog] where
+/// that screen has none. Never one after the other: a second check on top of
+/// one the person can already see only starts the wait again.
+@visibleForTesting
+Future<String> captchaFrom(
+  CaptchaTokens? inScreen,
+  Future<String?> Function() dialog,
+) async {
+  final token = inScreen != null ? await inScreen.take() : await dialog();
+  if (token != null) return token;
+  throw const AuthException(
+    'The security check did not finish',
+    code: 'captcha_failed',
   );
 }
 
@@ -47,10 +64,9 @@ class AuthCaptchaBox extends StatefulWidget {
 
   static final _onScreen = <_AuthCaptchaBoxState>[];
 
-  /// A token from the box on the screen in front. Null when there is no box
-  /// there or it had nothing in time.
-  static Future<String?> take() async =>
-      _onScreen.isEmpty ? null : _onScreen.last._tokens.take();
+  /// The check on the screen in front, if that screen carries one.
+  static CaptchaTokens? get inFront =>
+      _onScreen.isEmpty ? null : _onScreen.last._tokens;
 
   @override
   State<AuthCaptchaBox> createState() => _AuthCaptchaBoxState();
@@ -61,9 +77,14 @@ class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
   static const _pageHeight = 160.0;
 
   WebViewController? _web;
+  Uri? _page;
   late final _tokens = CaptchaTokens(
-    askAgain: () =>
-        unawaited(_web?.runJavaScript('captchaAgain()').catchError((_) {})),
+    startOver: () {
+      final page = _page;
+      if (page != null) {
+        unawaited(_web?.loadRequest(page).catchError((_) {}));
+      }
+    },
   );
 
   @override
@@ -75,6 +96,7 @@ class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
         !page.isScheme('https')) {
       return;
     }
+    _page = page;
     _web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -89,6 +111,9 @@ class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
               request.isMainFrame && request.url != page.toString()
               ? NavigationDecision.prevent
               : NavigationDecision.navigate,
+          onWebResourceError: (error) {
+            if (error.isForMainFrame ?? false) _tokens.pageFailed();
+          },
         ),
       )
       ..loadRequest(page);
