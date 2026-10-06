@@ -74,6 +74,18 @@ class CaptchaTokens extends ChangeNotifier {
     _arrived = null;
   }
 
+  void _reload() {
+    if (_gone) return;
+    // A page that was asking for a tap goes with the reload and may never get
+    // to say it has stopped. Left open, the screen would go on showing an
+    // empty box and the line telling the person to tap it.
+    if (_openHeight != null) {
+      _openHeight = null;
+      notifyListeners();
+    }
+    startOver();
+  }
+
   bool get _held => _token?.isNotEmpty ?? false;
   bool get _fresh => _held && _now().difference(_since!) < _life;
 
@@ -93,7 +105,7 @@ class CaptchaTokens extends ChangeNotifier {
     // up, which is later than this gives up on one.
     if (_held && !_fresh) {
       _token = null;
-      startOver();
+      _reload();
     }
     var startedOver = false;
     var waited = Duration.zero;
@@ -107,7 +119,7 @@ class CaptchaTokens extends ChangeNotifier {
         _pageDown = false;
         _token = null;
         waited = Duration.zero;
-        startOver();
+        _reload();
         continue;
       }
       final left = allowed - waited;
@@ -120,7 +132,7 @@ class CaptchaTokens extends ChangeNotifier {
     }
     final token = _token;
     _token = null;
-    startOver();
+    _reload();
     return token;
   }
 }

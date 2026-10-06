@@ -91,6 +91,21 @@ void main() {
     },
   );
 
+  test('a box left open by a page that is reloaded shuts with it', () async {
+    tokens.onMessage('interactive:81');
+    final taking = tokens.take(
+      patience: brief,
+      limit: const Duration(seconds: 2),
+    );
+    // The tap succeeds and the token is spent at once, which reloads the
+    // page before it has said it no longer wants a tap.
+    tokens.onMessage('token:after-tap');
+
+    expect(await taking, 'after-tap');
+    expect(startedOver, 1);
+    expect(tokens.openHeight, isNull);
+  });
+
   test(
     'a check that is getting nowhere has its page started afresh, once',
     () async {
