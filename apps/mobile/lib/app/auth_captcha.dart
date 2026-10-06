@@ -137,7 +137,12 @@ class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
             alignment: Alignment.topCenter,
             minHeight: _pageHeight,
             maxHeight: _pageHeight,
-            child: WebViewWidget(controller: web),
+            // Shut, the page is still there at full size under the clip. A
+            // screen reader must not find a box nobody can see.
+            child: ExcludeSemantics(
+              excluding: open == null,
+              child: WebViewWidget(controller: web),
+            ),
           ),
         ),
       ),
