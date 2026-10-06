@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/auth_captcha.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
@@ -119,6 +120,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       iconTrailing: true,
                       onPressed: _sending ? null : _send,
                     ),
+                    const AuthCaptchaBox(),
                   ] else ...[
                     const SizedBox(height: AppSpacing.md),
                     ArangButton(

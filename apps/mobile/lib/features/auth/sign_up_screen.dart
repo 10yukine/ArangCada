@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/auth_captcha.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
@@ -375,6 +376,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const AuthCaptchaBox(),
           FilledButton(onPressed: _primaryAction, child: Text(_primaryLabel)),
           // Hidden while typing: with the keyboard up it only covers the
           // field being filled in (seen on a Galaxy S20 FE).

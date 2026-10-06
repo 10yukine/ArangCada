@@ -539,6 +539,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
+                            const CaptchaSlot(),
                             if (effectiveError != null) ...[
                               Text(
                                 effectiveError,

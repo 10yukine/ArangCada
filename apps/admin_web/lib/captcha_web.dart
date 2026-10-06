@@ -29,9 +29,25 @@ Future<void> _load() => _loading ??= () {
   return done.future;
 }();
 
-/// Shows the Turnstile widget at the bottom of the page until it yields a
-/// token. Usually nothing needs clicking; when Cloudflare wants a click, the
-/// box is there to click.
+web.HTMLElement? _host;
+bool _hostDark = false;
+void Function(bool open)? _hostOpen;
+
+/// Names the place on the form in front where the check should appear if a
+/// tap is wanted (see `CaptchaSlot`), or clears it with null.
+void setCaptchaHost(
+  Object? element, {
+  bool dark = false,
+  void Function(bool open)? onOpen,
+}) {
+  _host = element as web.HTMLElement?;
+  _hostDark = dark;
+  _hostOpen = onOpen;
+}
+
+/// Runs the check and answers with its token. Nothing is shown while
+/// Cloudflare can decide by itself. When it wants a tap, its box appears in
+/// the form's own slot, or at the foot of the page where a form has none.
 Future<String?> turnstileToken(String siteKey) async {
   if (siteKey.isEmpty) return null;
   try {
@@ -42,11 +58,17 @@ Future<String?> turnstileToken(String siteKey) async {
   final turnstile = globalContext['turnstile'] as JSObject?;
   if (turnstile == null) return null;
 
-  final box = web.HTMLDivElement()
-    ..style.cssText =
+  final host = _host;
+  final open = _hostOpen;
+  final box = web.HTMLDivElement();
+  if (host == null) {
+    box.style.cssText =
         'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);'
         'z-index:2147483647';
-  web.document.body!.append(box);
+    web.document.body!.append(box);
+  } else {
+    host.append(box);
+  }
   final token = Completer<String?>();
   void finish(String? value) {
     if (!token.isCompleted) token.complete(value);
@@ -54,11 +76,16 @@ Future<String?> turnstileToken(String siteKey) async {
 
   final options = JSObject()
     ..['sitekey'] = siteKey.toJS
+    ..['appearance'] = 'interaction-only'.toJS
+    ..['size'] = (host == null ? 'normal' : 'flexible').toJS
+    ..['theme'] = (host == null ? 'auto' : (_hostDark ? 'dark' : 'light')).toJS
     ..['callback'] = ((JSString value) => finish(value.toDart)).toJS
     ..['error-callback'] = ((JSAny? _) {
       finish(null);
       return true.toJS; // handled; keeps Turnstile from logging it as well
-    }).toJS;
+    }).toJS
+    ..['before-interactive-callback'] = (() => open?.call(true)).toJS
+    ..['after-interactive-callback'] = (() => open?.call(false)).toJS;
   final widget = turnstile.callMethod<JSAny?>('render'.toJS, box, options);
   try {
     return await token.future.timeout(
@@ -66,6 +93,7 @@ Future<String?> turnstileToken(String siteKey) async {
       onTimeout: () => null,
     );
   } finally {
+    open?.call(false);
     if (widget != null) turnstile.callMethod<JSAny?>('remove'.toJS, widget);
     box.remove();
   }

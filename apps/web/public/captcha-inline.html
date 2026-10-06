@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ArangCada — Security check</title>
+<script src="/captcha-inline.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=captchaReady" async defer></script>
+</head>
+<body>
+<!-- Sits inside the ArangCada app's sign-in screens. The widget is the one
+     /captcha and the account-deletion page use; Supabase Auth checks its
+     tokens. It shows nothing unless Cloudflare needs a tap. -->
+<div id="check" data-sitekey="0x4AAAAAAFIj6IpYAO3n37zx"></div>
+</body>
+</html>

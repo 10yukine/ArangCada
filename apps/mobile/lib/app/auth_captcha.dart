@@ -5,14 +5,17 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../config/app_config.dart';
 import '../core/widgets/arang_dialog.dart';
+import 'captcha_tokens.dart';
 import 'router.dart';
+import 'theme/app_dimensions.dart';
 
 /// Runs the human check Supabase Auth asks for before a sign-in, sign-up or
 /// reset request, and answers with its single-use token.
 ///
-/// Cloudflare Turnstile has no Android SDK; it runs on a web page, so the
-/// check is a small web view over whatever screen is showing. Usually it
-/// passes without a tap.
+/// Cloudflare Turnstile has no Android SDK; it runs on a web page in a web
+/// view. A screen that signs someone in carries an [AuthCaptchaBox], which
+/// has usually finished before the button is pressed. Where there is no box,
+/// or it has no answer in time, the check opens in a dialog instead.
 ///
 /// Null when this build has no check page, when the person closes it, or when
 /// it cannot finish. A missing token is not an error here: Auth ignores tokens
@@ -20,13 +23,126 @@ import 'router.dart';
 /// refusal is what the caller reports.
 Future<String?> authCaptchaToken() async {
   final page = Uri.tryParse(AppConfig.authCaptchaUrl);
+  if (page == null || !page.isScheme('https')) return null;
+  final inScreen = await AuthCaptchaBox.take();
+  if (inScreen != null) return inScreen;
   final context = rootNavigatorKey.currentContext;
-  if (page == null || !page.isScheme('https') || context == null) return null;
+  if (context == null || !context.mounted) return null;
   return showDialog<String>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _AuthCaptchaDialog(page),
   );
+}
+
+/// The human check as part of a screen. It takes up no room while Cloudflare
+/// can decide by itself, which is nearly always; when a tap is wanted it
+/// opens to the height of Cloudflare's box, where the screen placed it.
+class AuthCaptchaBox extends StatefulWidget {
+  const AuthCaptchaBox({super.key});
+
+  /// Stands in for the web view in widget tests and sample renders.
+  @visibleForTesting
+  static WidgetBuilder? debugStandIn;
+
+  static final _onScreen = <_AuthCaptchaBoxState>[];
+
+  /// A token from the box on the screen in front. Null when there is no box
+  /// there or it had nothing in time.
+  static Future<String?> take() async =>
+      _onScreen.isEmpty ? null : _onScreen.last._tokens.take();
+
+  @override
+  State<AuthCaptchaBox> createState() => _AuthCaptchaBoxState();
+}
+
+class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
+  // Room for Cloudflare's taller, compact box and the page's margins.
+  static const _pageHeight = 160.0;
+
+  WebViewController? _web;
+  late final _tokens = CaptchaTokens(
+    askAgain: () =>
+        unawaited(_web?.runJavaScript('captchaAgain()').catchError((_) {})),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final page = Uri.tryParse('${AppConfig.authCaptchaUrl}-inline');
+    if (AppConfig.authCaptchaUrl.isEmpty ||
+        page == null ||
+        !page.isScheme('https')) {
+      return;
+    }
+    _web = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        // The name captcha-inline.js on the website posts to.
+        'ArangCaptcha',
+        onMessageReceived: (message) => _tokens.onMessage(message.message),
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) =>
+              request.isMainFrame && request.url != page.toString()
+              ? NavigationDecision.prevent
+              : NavigationDecision.navigate,
+        ),
+      )
+      ..loadRequest(page);
+    _tokens.addListener(_opened);
+    AuthCaptchaBox._onScreen.add(this);
+  }
+
+  @override
+  void dispose() {
+    AuthCaptchaBox._onScreen.remove(this);
+    _tokens.dispose();
+    super.dispose();
+  }
+
+  void _opened() {
+    if (!mounted) return;
+    setState(() {});
+    if (_tokens.openHeight == null) return;
+    // It may have opened below the fold while the keyboard is up.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final standIn = AuthCaptchaBox.debugStandIn;
+    if (standIn != null) return standIn(context);
+    final web = _web;
+    if (web == null) return const SizedBox.shrink();
+    final open = _tokens.openHeight;
+    // The page keeps its full size while shut, so it goes on running; only a
+    // sliver of it takes up room.
+    return Padding(
+      padding: EdgeInsets.only(top: open == null ? 0 : AppSpacing.md),
+      child: SizedBox(
+        height: open ?? 1,
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topCenter,
+            minHeight: _pageHeight,
+            maxHeight: _pageHeight,
+            child: WebViewWidget(controller: web),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AuthCaptchaDialog extends StatefulWidget {
@@ -100,10 +216,12 @@ class _AuthCaptchaDialogState extends State<_AuthCaptchaDialog> {
         if (!_failed) ...[
           const SizedBox(height: 12),
           // Turnstile compact is 150x140 CSS pixels, plus the page margins.
-          SizedBox(
-            width: 180,
-            height: 164,
-            child: WebViewWidget(controller: _web),
+          Center(
+            child: SizedBox(
+              width: 180,
+              height: 164,
+              child: WebViewWidget(controller: _web),
+            ),
           ),
         ],
       ],

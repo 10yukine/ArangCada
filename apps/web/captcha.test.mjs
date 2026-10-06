@@ -29,3 +29,51 @@ test('the token goes to the app, and nowhere in an ordinary browser', () => {
   vm.runInNewContext(page('captcha.js'), { window: browser });
   browser.captchaDone('a-token'); // no channel: nothing sent, nothing thrown
 });
+
+// The in-screen page newer builds use. /captcha stays as it is for the builds
+// already installed, which read every message as a token.
+test('the in-screen check uses the same widget and tells the app what it needs', () => {
+  const html = page('captcha-inline.html');
+  const key = (source) => source.match(/data-sitekey="([^"]+)"/)[1];
+  assert.equal(key(html), key(page('delete-account.html')));
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/);
+
+  const posted = [];
+  const resets = [];
+  let options;
+  const run = (width) => {
+    const window = {
+      ArangCaptcha: { postMessage: (message) => posted.push(message) },
+      turnstile: {
+        render: (_, given) => { options = given; return 'widget-1'; },
+        reset: (id) => resets.push(id),
+      },
+    };
+    const box = { clientWidth: width, dataset: { sitekey: 'the-key' } };
+    vm.runInNewContext(page('captcha-inline.js'), { window, document: { getElementById: () => box } });
+    window.captchaAgain(); // before the widget exists: nothing to reset
+    window.captchaReady();
+    return window;
+  };
+
+  const wide = run(320);
+  assert.equal(options.sitekey, 'the-key');
+  assert.equal(options.size, 'flexible');
+  // Out of sight unless Cloudflare needs a tap.
+  assert.equal(options.appearance, 'interaction-only');
+  options['before-interactive-callback']();
+  options.callback('a-token');
+  options['after-interactive-callback']();
+  options['expired-callback']();
+  assert.equal(options['error-callback'](), true);
+  wide.captchaAgain();
+  assert.deepEqual(posted, ['interactive:81', 'token:a-token', 'idle', 'expired', 'failed']);
+  assert.deepEqual(resets, ['widget-1']);
+
+  // A phone too narrow for the wide box gets the compact one, and its height.
+  posted.length = 0;
+  run(280);
+  assert.equal(options.size, 'compact');
+  options['before-interactive-callback']();
+  assert.deepEqual(posted, ['interactive:156']);
+});

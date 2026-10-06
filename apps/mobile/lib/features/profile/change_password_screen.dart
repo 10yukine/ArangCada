@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/auth_captcha.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../core/widgets/arang_ui.dart';
@@ -188,6 +189,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     label: _saving ? 'Saving...' : 'Save',
                     onPressed: _saving ? null : _save,
                   ),
+                  const AuthCaptchaBox(),
                 ],
               ),
             ),
