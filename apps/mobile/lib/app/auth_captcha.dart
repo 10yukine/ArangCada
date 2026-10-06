@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../config/app_config.dart';
@@ -15,30 +14,19 @@ import 'router.dart';
 /// check is a small web view over whatever screen is showing. Usually it
 /// passes without a tap.
 ///
-/// Null only when this build has no check page. A configured check must
-/// finish before sending an Auth request, even before server enforcement.
+/// Null when this build has no check page, when the person closes it, or when
+/// it cannot finish. A missing token is not an error here: Auth ignores tokens
+/// while CAPTCHA is off and refuses the request once it is on, and that
+/// refusal is what the caller reports.
 Future<String?> authCaptchaToken() async {
-  if (AppConfig.authCaptchaUrl.isEmpty) return null;
   final page = Uri.tryParse(AppConfig.authCaptchaUrl);
   final context = rootNavigatorKey.currentContext;
-  if (page == null || !page.isScheme('https') || context == null) {
-    throw const AuthException(
-      'Security check unavailable',
-      code: 'captcha_failed',
-    );
-  }
-  final token = await showDialog<String>(
+  if (page == null || !page.isScheme('https') || context == null) return null;
+  return showDialog<String>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _AuthCaptchaDialog(page),
   );
-  if (token == null || token.isEmpty) {
-    throw const AuthException(
-      'Security check incomplete',
-      code: 'captcha_failed',
-    );
-  }
-  return token;
 }
 
 class _AuthCaptchaDialog extends StatefulWidget {
