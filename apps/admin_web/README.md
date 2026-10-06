@@ -10,6 +10,8 @@ E:\Dev\flutter\bin\flutter.bat run -d chrome
 
 For the connected console, copy `env.json.example` to the ignored `env.json` file and supply the approved project's Supabase URL, public anonymous key, and optional restricted MapTiler public key. Never commit `env.json`, a service-role key, or any API secret.
 
+`TURNSTILE_SITE_KEY` is the public site key of the Cloudflare Turnstile widget whose secret Supabase Auth holds. Set it whenever CAPTCHA is switched on there; a console built without it sends no token and nobody can sign in.
+
 ```powershell
 E:\Dev\flutter\bin\flutter.bat run -d chrome --web-port 58080 --dart-define-from-file=env.json
 ```
@@ -25,3 +27,5 @@ E:\Dev\flutter\bin\flutter.bat analyze
 E:\Dev\flutter\bin\flutter.bat test
 E:\Dev\flutter\bin\flutter.bat build web --release
 ```
+
+Build what gets deployed with `--no-web-resources-cdn --dart-define-from-file=env.json` added. `web/_headers` enforces a content-security policy that does not allow Google's CDN, so CanvasKit has to be served from the console's own files; without the flag the page stays blank.

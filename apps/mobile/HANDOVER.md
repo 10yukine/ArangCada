@@ -16,6 +16,8 @@ hosting and support.
 | Google Maps SDK (optional) | `GOOGLE_MAPS_API_KEY`, restricted to the Android package and signing SHA-1. Replaces the MapTiler map; Google's terms forbid Routes results on a non-Google map |
 | Google Places (optional) | `GOOGLE_PLACES_API_KEY` for Places API (New), restricted to that API with a daily quota. Only used with the Google map; MapTiler stays the fallback. Trip places are purged after 30 days by `purge_trip_places()` |
 | Firebase Messaging | Their own Firebase project, Android registration and push sender configuration |
+| Cloudflare Turnstile | Their own widget for the sign-in and account-deletion check. Its public site key goes in `apps/web/public/captcha.html`, `captcha-inline.html` and `delete-account.html`, and in the admin console's `TURNSTILE_SITE_KEY`. Its secret goes in Supabase Auth's CAPTCHA setting and in the `account-deletion` function's `TURNSTILE_SECRET_KEY`. The mobile build needs `AUTH_CAPTCHA_URL` |
+| LocationIQ (optional) | Their own key as the `place-search` function's `LOCATIONIQ_API_KEY`, for builds made with `--dart-define=SEARCH_PROVIDER=locationiq` |
 | SMS/email | Their own providers and server-side credentials for authentication and notifications |
 | Public pages and tracking | Their own hosting/domain configuration; update mobile legal links and backend tracking URLs before acceptance |
 | Android distribution | Their own signing/upload key and distribution account |

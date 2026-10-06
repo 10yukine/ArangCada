@@ -47,6 +47,7 @@ MAPTILER_KEY
 ORS_API_KEY
 SUPABASE_URL
 SUPABASE_ANON_KEY
+AUTH_CAPTCHA_URL
 ```
 
 Copy `env.json.example` to `env.json` and fill it in. `env.json` is gitignored
@@ -60,6 +61,12 @@ maintainer for setup guidance; do not reuse their credentials or commit either f
 Each integration reports readiness on its own (`AppConfig.isMapTilerConfigured`
 and friends), so a missing map key costs the map, not authentication.
 
+`AUTH_CAPTCHA_URL` is the address of the website's `/captcha` page, for
+example `https://your-site.example/captcha`. The app runs the sign-in
+security check on that page and on `<address>-inline`. Set it whenever
+CAPTCHA is switched on in Supabase Auth: a build without it sends no token,
+and Auth then refuses sign-in, sign-up and password reset.
+
 ## Run
 
 ```bash
@@ -71,6 +78,14 @@ flutter run --dart-define-from-file=env.json
 ```bash
 flutter build apk --release --split-per-abi --dart-define-from-file=env.json
 ```
+
+Raise the build number in both `pubspec.yaml` and `lib/config/app_build.dart`.
+The forced-update prompt compares the server's minimum with the second one, so
+a build that carries an old number there locks its own users out.
+
+The published alpha adds `--dart-define=SEARCH_PROVIDER=locationiq`, which
+sends place search through the `place-search` Edge Function (server secret
+`LOCATIONIQ_API_KEY`). Without it, search stays with Google Places or MapTiler.
 
 Install `app-arm64-v8a-release.apk` on a modern device. The build needs
 `android/key.properties`; without it, set `ARANGCADA_ALLOW_DEBUG_SIGNING=1` to
