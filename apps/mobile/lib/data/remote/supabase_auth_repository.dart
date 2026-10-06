@@ -28,10 +28,20 @@ class SupabaseAuthRepository implements AuthRepository {
 
   static Future<String?> _noCaptcha() async => null;
 
-  static void _checkCaptchaError(Object error) {
+  /// The failures that have words of their own, whichever request met them.
+  static void _checkKnownFailure(Object error) {
     if (error is AuthException && error.code == 'captcha_failed') {
       throw const DemoAuthException(
         'The security check did not finish. Please try again.',
+      );
+    }
+    // How the Auth client reports a request that got no answer at all. With a
+    // status it is the server that is in trouble, and that keeps the general
+    // message. Without this a phone with no signal is told to check its
+    // password.
+    if (error is AuthRetryableFetchException && error.statusCode == null) {
+      throw const DemoAuthException(
+        'No connection. Check your internet and try again.',
       );
     }
   }
@@ -215,7 +225,7 @@ class SupabaseAuthRepository implements AuthRepository {
       }
       return await restoreProfile(user);
     } catch (error) {
-      _checkCaptchaError(error);
+      _checkKnownFailure(error);
       throw const DemoAuthException(
         'Unable to sign in. Check your credentials and try again.',
       );
@@ -237,7 +247,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) throw const AuthException('No user');
       return await restoreProfile(user);
     } catch (error) {
-      _checkCaptchaError(error);
+      _checkKnownFailure(error);
       // Same message whether the number is unknown, unverified or the
       // password is wrong, so the form never confirms who has an account.
       throw const DemoAuthException(
@@ -275,7 +285,7 @@ class SupabaseAuthRepository implements AuthRepository {
         user: mapped,
       );
     } on AuthException catch (error) {
-      _checkCaptchaError(error);
+      _checkKnownFailure(error);
       if (error.code == 'user_already_exists' || error.code == 'email_exists') {
         throw const ExistingAccountException();
       }
@@ -298,7 +308,7 @@ class SupabaseAuthRepository implements AuthRepository {
         captchaToken: await _captcha(),
       );
     } on AuthException catch (error) {
-      _checkCaptchaError(error);
+      _checkKnownFailure(error);
       throw const DemoAuthException(
         'Password recovery is unavailable right now.',
       );
@@ -322,7 +332,7 @@ class SupabaseAuthRepository implements AuthRepository {
         captchaToken: await _captcha(),
       );
     } on AuthException catch (error) {
-      _checkCaptchaError(error);
+      _checkKnownFailure(error);
       throw const DemoAuthException('That password is incorrect.');
     }
   }

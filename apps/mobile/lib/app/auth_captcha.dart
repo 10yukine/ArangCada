@@ -8,7 +8,9 @@ import '../config/app_config.dart';
 import '../core/widgets/arang_dialog.dart';
 import 'captcha_tokens.dart';
 import 'router.dart';
+import 'theme/app_colors.dart';
 import 'theme/app_dimensions.dart';
+import 'theme/app_typography.dart';
 
 /// Runs the human check Supabase Auth asks for before a sign-in, sign-up or
 /// reset request, and answers with its single-use token.
@@ -75,9 +77,6 @@ class AuthCaptchaBox extends StatefulWidget {
 }
 
 class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
-  // Room for Cloudflare's taller, compact box and the page's margins.
-  static const _pageHeight = 160.0;
-
   WebViewController? _web;
   Uri? _page;
   late final _tokens = CaptchaTokens(
@@ -152,26 +151,83 @@ class _AuthCaptchaBoxState extends State<AuthCaptchaBox> {
     if (standIn != null) return standIn(context);
     final web = _web;
     if (web == null) return const SizedBox.shrink();
-    final open = _tokens.openHeight;
-    // The page keeps its full size while shut, so it goes on running; only a
-    // sliver of it takes up room.
+    return CaptchaSlotLayout(
+      open: _tokens.openHeight,
+      child: WebViewWidget(controller: web),
+    );
+  }
+}
+
+/// Where the check sits in a screen: a sliver while shut, and while a tap is
+/// wanted, Cloudflare's box with a line above it saying what to do. The box
+/// itself says "Verify you are human" in English and nothing else.
+@visibleForTesting
+class CaptchaSlotLayout extends StatelessWidget {
+  const CaptchaSlotLayout({required this.open, required this.child, super.key});
+
+  /// How tall Cloudflare's box is while it wants a tap; null while shut.
+  final double? open;
+  final Widget child;
+
+  // Room for Cloudflare's taller, compact box and the page's margins.
+  static const _pageHeight = 160.0;
+  static const _pageMargin = 8.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = this.open;
     return Padding(
       padding: EdgeInsets.only(top: open == null ? 0 : AppSpacing.md),
-      child: SizedBox(
-        height: open ?? 1,
-        child: ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.topCenter,
-            minHeight: _pageHeight,
-            maxHeight: _pageHeight,
-            // Shut, the page is still there at full size under the clip. A
-            // screen reader must not find a box nobody can see.
-            child: ExcludeSemantics(
-              excluding: open == null,
-              child: WebViewWidget(controller: web),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (open != null)
+            // Read out when it appears: it arrives without being asked for.
+            Semantics(
+              liveRegion: true,
+              child: Padding(
+                // Starts where Cloudflare's box does: the check page draws
+                // it this far in.
+                padding: const EdgeInsets.fromLTRB(
+                  _pageMargin,
+                  0,
+                  _pageMargin,
+                  AppSpacing.xs,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'I-tap ang kahon para magpatuloy.',
+                      style: AppTypography.bodySm,
+                    ),
+                    Text(
+                      'Tap the box to continue.',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // The page keeps its full size while shut, so it goes on running;
+          // only a sliver of it takes up room.
+          SizedBox(
+            height: open ?? 1,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: _pageHeight,
+                maxHeight: _pageHeight,
+                // Shut, the page is still there at full size under the clip.
+                // A screen reader must not find a box nobody can see.
+                child: ExcludeSemantics(excluding: open == null, child: child),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -16,11 +16,13 @@ void main() {
   late DemoState state;
   var asked = 0;
   var failCaptcha = false;
+  var offline = false;
 
   setUp(() {
     sent = [];
     asked = 0;
     failCaptcha = false;
+    offline = false;
     client = SupabaseClient(
       'https://example.test',
       'synthetic',
@@ -30,6 +32,7 @@ void main() {
         authFlowType: AuthFlowType.implicit,
       ),
       httpClient: MockClient((request) async {
+        if (offline) throw http.ClientException('Failed host lookup');
         sent.add(request);
         if (failCaptcha) {
           return http.Response(
@@ -154,4 +157,32 @@ void main() {
       }
     },
   );
+  // Seen on a phone with Wi-Fi off, 6 Oct 2026: "Check your credentials".
+  test('with no connection all five requests say so', () async {
+    final auth = SupabaseAuthRepository(client, state);
+    await attempt(auth.signIn(email: 'rider@example.test', password: 'pw'));
+    offline = true;
+    for (final request in <Future<Object?> Function()>[
+      () => auth.signIn(email: 'rider@example.test', password: 'pw'),
+      () => auth.signInWithPhone(phone: '+639171234567', password: 'pw'),
+      () => auth.signUp(
+        email: 'new@example.test',
+        password: 'pw',
+        displayName: 'Rider',
+        mobileNumber: '+639171234567',
+      ),
+      () => auth.sendPasswordReset('rider@example.test'),
+      () => auth.reauthenticate('pw'),
+    ]) {
+      await expectLater(
+        request(),
+        throwsA(
+          predicate(
+            (error) => error.toString().contains('No connection'),
+            'says there is no connection',
+          ),
+        ),
+      );
+    }
+  });
 }
