@@ -45,8 +45,8 @@ class CaptchaTokens extends ChangeNotifier {
     }
   }
 
-  bool get _fresh =>
-      (_token?.isNotEmpty ?? false) && _now().difference(_since!) < _life;
+  bool get _held => _token?.isNotEmpty ?? false;
+  bool get _fresh => _held && _now().difference(_since!) < _life;
 
   /// The token, waiting [patience] for one that is on its way, and up to
   /// [limit] while the person is being asked to tap. Null if none came.
@@ -54,6 +54,12 @@ class CaptchaTokens extends ChangeNotifier {
     Duration patience = const Duration(seconds: 8),
     Duration limit = const Duration(minutes: 2),
   }) async {
+    // The page replaces a token only when Cloudflare's own five minutes are
+    // up, which is later than this gives up on one.
+    if (_held && !_fresh) {
+      _token = null;
+      askAgain();
+    }
     final waited = Stopwatch()..start();
     while (!_fresh) {
       final left = (_openHeight == null ? patience : limit) - waited.elapsed;

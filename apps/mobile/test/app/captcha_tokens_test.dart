@@ -39,11 +39,19 @@ void main() {
     expect(await taking, 'late');
   });
 
-  test('an old or withdrawn token is not used', () async {
+  test('a token that has grown old is replaced, not waited out', () async {
     tokens.onMessage('token:stale');
-    clock = clock.add(const Duration(minutes: 5));
-    expect(await tokens.take(patience: brief), isNull);
+    // Too old to send, yet not old enough for the page to replace it.
+    clock = clock.add(const Duration(minutes: 4, seconds: 40));
 
+    final taking = tokens.take(patience: const Duration(seconds: 2));
+    expect(asked, 1);
+    tokens.onMessage('token:fresh');
+
+    expect(await taking, 'fresh');
+  });
+
+  test('a withdrawn or empty token is not used', () async {
     tokens.onMessage('token:spent-by-cloudflare');
     tokens.onMessage('expired');
     expect(await tokens.take(patience: brief), isNull);
