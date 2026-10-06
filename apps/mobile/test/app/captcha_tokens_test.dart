@@ -161,28 +161,31 @@ void main() {
       },
     );
 
-    testWidgets('a timeout leaves enforcement to Auth without a second dialog', (
-      tester,
-    ) async {
-      var dialogs = 0;
-      Object? outcome;
-      unawaited(
-        captchaFrom(tokens, () async {
-          dialogs++;
-          return 'from-the-dialog';
-        }).then<void>(
-          (token) => outcome = token,
-          onError: (Object error) => outcome = error,
-        ),
-      );
+    testWidgets(
+      'a timeout leaves enforcement to Auth without a second dialog',
+      (tester) async {
+        var dialogs = 0;
+        // Not null to begin with: null is the answer this test is waiting for.
+        Object? outcome = 'still waiting';
+        unawaited(
+          captchaFrom(tokens, () async {
+            dialogs++;
+            return 'from-the-dialog';
+          }).then<void>(
+            (token) => outcome = token,
+            onError: (Object error) => outcome = error,
+          ),
+        );
 
-      await tester.pump(const Duration(seconds: 19));
-      expect(outcome, isNull);
-      await tester.pump(const Duration(seconds: 2));
+        await tester.pump(const Duration(seconds: 19));
+        expect(outcome, 'still waiting');
+        await tester.pump(const Duration(seconds: 2));
 
-      expect(outcome, isNull);
-      expect(dialogs, 0);
-    });
+        // It ends, and with no token, so the request goes to Auth without one.
+        expect(outcome, isNull);
+        expect(dialogs, 0);
+      },
+    );
 
     testWidgets('a wait whose screen has gone opens nothing either', (
       tester,
