@@ -194,6 +194,35 @@ void main() {
     expect(booking.fareQuote.unitFareCentavos, 5400);
   });
 
+  // A driver from beyond the free distance: the server adds the pickup charge
+  // to the fare and says how far the driver was (20261008090000). The rider's
+  // screens show what the server said, not an amount worked out on the phone.
+  test('the pickup charge and the driver distance are the server’s', () async {
+    requestRideAnswer = (
+      200,
+      {
+        'id': 'trip-1',
+        'status': 'searching_driver',
+        'fare_estimate': 78.0,
+        'pickup_fare': 10,
+        'pickup_distance_m': 1800,
+        'pickup_lat': 14.2117,
+        'pickup_lng': 121.1653,
+        'destination_lat': 14.22,
+        'destination_lng': 121.17,
+      },
+    );
+    final (rides, booking) = await book();
+    expect(booking.pickupChargeCentavos, 0);
+    expect(booking.pickupDistanceMeters, isNull);
+
+    await rides.requestRide(booking);
+
+    expect(booking.fareQuote.partyTotalCentavos, 7800);
+    expect(booking.pickupChargeCentavos, 1000);
+    expect(booking.pickupDistanceMeters, 1800);
+  });
+
   // Google's place name may not be stored, and its coordinate may not go to
   // another map service to fetch a label.
   test('a Google destination is sent in the rider own words', () async {

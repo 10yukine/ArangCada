@@ -700,6 +700,8 @@ class _IncomingRequestCard extends ConsumerWidget {
     final state = ref.watch(demoStateProvider);
     final trip = ref.read(liveRideRepositoryProvider)?.activeTrip;
     final fare = trip?['fare_estimate'] as num?;
+    // What the fare includes for this driver's way to the pickup, if anything.
+    final pickupCharge = (((trip?['pickup_fare'] as num?) ?? 0) * 100).round();
     // The server gives a driver at most 30 s to answer an offer.
     const window = 30;
     final urgent = secondsRemaining <= 10;
@@ -752,8 +754,11 @@ class _IncomingRequestCard extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Text(
-                      'Espesyal na Byahe · cash',
+                    Text(
+                      pickupCharge > 0
+                          ? 'Espesyal na Byahe · cash · includes '
+                                '${formatCentavos(pickupCharge)} pickup charge'
+                          : 'Espesyal na Byahe · cash',
                       style: AppTypography.caption,
                     ),
                   ],

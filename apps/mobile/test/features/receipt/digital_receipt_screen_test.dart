@@ -10,22 +10,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Future<void> render(WidgetTester tester, PaymentMethod payment) async {
+  Future<void> render(
+    WidgetTester tester,
+    PaymentMethod payment, {
+    int pickupChargeCentavos = 0,
+    int? pickupDistanceMeters,
+  }) async {
     final quote = const MockFareRepository().quote(
       distanceMeters: 1000,
       rideType: RideType.special,
       passengerCount: 1,
       discountClass: DiscountClass.full,
     );
-    final booking = DemoBooking.draft(
-      pickupName: 'Current location',
-      destinationName: 'SM City Calamba',
-      rideType: RideType.special,
-      passengerCount: 1,
-      userFareClass: UserFareClass.regular,
-      paymentMethod: payment,
-      fareQuote: quote,
-    )..status = BookingStatus.completed;
+    final booking =
+        DemoBooking.draft(
+            pickupName: 'Current location',
+            destinationName: 'SM City Calamba',
+            rideType: RideType.special,
+            passengerCount: 1,
+            userFareClass: UserFareClass.regular,
+            paymentMethod: payment,
+            fareQuote: quote,
+          )
+          ..status = BookingStatus.completed
+          ..pickupChargeCentavos = pickupChargeCentavos
+          ..pickupDistanceMeters = pickupDistanceMeters;
     final state = DemoState()..activeBooking = booking;
     addTearDown(state.dispose);
 
@@ -48,6 +57,22 @@ void main() {
     expect(find.text('Cash'), findsOneWidget);
     expect(find.textContaining('sandbox'), findsNothing);
     expect(find.textContaining('balance'), findsNothing);
+  });
+
+  testWidgets('the receipt lists a pickup charge with the driver distance', (
+    tester,
+  ) async {
+    await render(tester, PaymentMethod.cash);
+    expect(find.textContaining('Pickup charge'), findsNothing);
+
+    await render(
+      tester,
+      PaymentMethod.cash,
+      pickupChargeCentavos: 1000,
+      pickupDistanceMeters: 1800,
+    );
+    expect(find.text('Pickup charge · driver 1.8 km away'), findsOneWidget);
+    expect(find.text('₱10.00'), findsOneWidget);
   });
 
   // Asserted as an absence on purpose. The receipt renders after the rating
