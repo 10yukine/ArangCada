@@ -100,6 +100,25 @@ void main() {
     expect(updateRequired.value, isFalse);
   });
 
+  test('the pickup charge limit is taken up, and absent means none', () async {
+    addTearDown(() => pickupChargeMaxMeters.value = 0);
+    final on = _serverAnswering(200, {
+      ..._settings(),
+      'pickup_charge_max_m': 3000,
+    });
+    addTearDown(on.dispose);
+    await loadMobileSettings(on);
+    expect(pickupChargeMaxMeters.value, 3000);
+
+    final off = _serverAnswering(200, {
+      ..._settings(),
+      'pickup_charge_max_m': 0,
+    });
+    addTearDown(off.dispose);
+    await loadMobileSettings(off);
+    expect(pickupChargeMaxMeters.value, 0);
+  });
+
   // Locking everyone out, or dropping a switch the owner set, because the
   // question could not be asked would be worse than waiting for the next ask.
   test('a server that cannot answer changes nothing', () async {

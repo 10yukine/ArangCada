@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:arangcada/app/mobile_settings.dart';
 import 'package:arangcada/app/theme/app_theme.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
@@ -92,4 +93,53 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('the review says what the pickup charge can add, when charged', (
+    tester,
+  ) async {
+    Future<void> show() async {
+      final state = DemoState();
+      addTearDown(state.dispose);
+      state.setActiveBooking(
+        DemoBooking.draft(
+          pickupName: 'Pickup',
+          destinationName: 'Destination',
+          rideType: RideType.special,
+          passengerCount: 1,
+          userFareClass: UserFareClass.regular,
+          paymentMethod: PaymentMethod.cash,
+          fareQuote: const FareCalculator().quote(
+            distanceMeters: 2400,
+            rideType: RideType.special,
+            passengerCount: 1,
+            discountClass: DiscountClass.full,
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          key: UniqueKey(),
+          overrides: [
+            demoStateProvider.overrideWithValue(state),
+            liveRideRepositoryProvider.overrideWithValue(_PendingRide()),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const BookingReviewScreen(),
+          ),
+        ),
+      );
+    }
+
+    addTearDown(() => pickupChargeMaxMeters.value = 0);
+    await show();
+    expect(find.text('LGU fare · locked when you request'), findsOneWidget);
+
+    pickupChargeMaxMeters.value = 3000;
+    await show();
+    expect(find.text('₱68.00'), findsOneWidget);
+    expect(find.textContaining('up to ₱24.00'), findsOneWidget);
+    expect(find.text('LGU fare · locked when you request'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

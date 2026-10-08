@@ -16,6 +16,11 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
   search: 'google',
 ));
 
+/// The farthest a driver can be from a pickup, in metres, when the fare
+/// includes the driver's way there (20261008090000); 0 when it does not.
+/// It bounds the pickup charge quoted before booking.
+final pickupChargeMaxMeters = ValueNotifier<int>(0);
+
 /// Whether the Google map, Google Places and Google Routes are in use. They
 /// are used together or not at all: Google's terms keep its content off other
 /// maps and other map services' content off its map. Any routing choice other
@@ -45,6 +50,8 @@ Future<void> loadMobileSettings(SupabaseClient client) async {
     if (routing is String && search is String) {
       serviceChoices.value = (routing: routing, search: search);
     }
+    final pickupMax = settings['pickup_charge_max_m'];
+    if (pickupMax is int) pickupChargeMaxMeters.value = pickupMax;
   } catch (_) {
     // Offline, or a server that does not have the function yet.
   }

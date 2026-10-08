@@ -147,6 +147,14 @@ void main() {
     });
   });
 
+  test('the pickup charge is bounded by the farthest a driver can be', () {
+    // 2.4 km is the 3 km fare; with the driver 3 km away it is the 6 km fare.
+    final trip = quote(distanceMeters: 2400, rideType: RideType.special);
+    expect(trip.partyTotalCentavos, 6800);
+    expect(calculator.pickupChargeCapCentavos(trip, 3000), 9200 - 6800);
+    expect(calculator.pickupChargeCapCentavos(trip, 0), 0);
+  });
+
   test('rejects NaN, infinity, and negative distance', () {
     for (final distance in [double.nan, double.infinity, -0.001]) {
       expect(() => quote(distanceMeters: distance), throwsArgumentError);

@@ -34,6 +34,20 @@ class FareQuote {
 class FareCalculator {
   const FareCalculator();
 
+  /// The most the driver's way to the pickup can add to [trip]: the fare with
+  /// the driver [maxMeters] away, less the trip's own. The server adds the
+  /// driver's real distance to the trip's and reads the table once.
+  int pickupChargeCapCentavos(FareQuote trip, int maxMeters) {
+    if (maxMeters <= 0) return 0;
+    final farthest = quote(
+      distanceMeters: trip.distanceMeters + maxMeters,
+      rideType: trip.rideType,
+      passengerCount: trip.passengerCount,
+      discountClass: trip.discountClass,
+    );
+    return farthest.partyTotalCentavos - trip.partyTotalCentavos;
+  }
+
   FareQuote quote({
     required double distanceMeters,
     required RideType rideType,

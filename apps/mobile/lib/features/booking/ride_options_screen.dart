@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/mobile_settings.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
@@ -421,6 +422,10 @@ class _FareBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pooling = quote.rideType == RideType.pooling;
+    final pickupCap = const FareCalculator().pickupChargeCapCentavos(
+      quote,
+      pickupChargeMaxMeters.value,
+    );
     return Container(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       decoration: const BoxDecoration(
@@ -443,6 +448,11 @@ class _FareBreakdown extends StatelessWidget {
             label: 'Billed distance',
             value: '${quote.chargeableKm} km',
           ),
+          if (pickupCap > 0)
+            _BreakdownLine(
+              label: 'Pickup charge, added when a driver is found',
+              value: 'up to ${formatCentavos(pickupCap)}',
+            ),
           const Divider(height: AppSpacing.lg),
           Row(
             children: [
@@ -473,6 +483,15 @@ class _FareBreakdown extends StatelessWidget {
             'rate once their ID is verified.',
             style: AppTypography.caption.copyWith(height: 1.45),
           ),
+          if (pickupCap > 0) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              "The pickup charge covers your driver's way to you. Its distance "
+              "is added to your trip's, so the nearer the driver, the less it "
+              'is.',
+              style: AppTypography.caption.copyWith(height: 1.45),
+            ),
+          ],
         ],
       ),
     );

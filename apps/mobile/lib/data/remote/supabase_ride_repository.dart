@@ -236,6 +236,8 @@ class SupabaseRideRepository extends ChangeNotifier {
       // The server prices the trip (it knows the rider's approved fare class);
       // the phone's own estimate must not outlive the request.
       booking.fareQuote = _serverFare(trip, booking.fareQuote);
+      booking.pickupChargeCentavos =
+          (((trip['pickup_fare'] as num?) ?? 0) * 100).round();
       booking.driverAcceptedAt = DateTime.tryParse(
         trip['accepted_at'] as String? ?? '',
       )?.toUtc();

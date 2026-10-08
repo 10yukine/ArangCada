@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/mobile_settings.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
@@ -130,6 +132,10 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           );
         }
         final quote = booking.fareQuote;
+        final pickupCap = const FareCalculator().pickupChargeCapCentavos(
+          quote,
+          pickupChargeMaxMeters.value,
+        );
         final espesyal = booking.rideType != RideType.pooling;
         return Scaffold(
           appBar: AppBar(title: const Text('Review booking')),
@@ -161,7 +167,11 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'LGU fare · locked when you request',
+                  pickupCap > 0
+                      ? 'Trip fare. A pickup charge of up to '
+                            '${formatCentavos(pickupCap)} is added when a '
+                            'driver is found.'
+                      : 'LGU fare · locked when you request',
                   style: AppTypography.bodySm.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -193,9 +203,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 const SizedBox(height: AppSpacing.xs),
                 _ReviewRow(
                   label: 'Ride',
-                  value: espesyal
-                      ? 'Espesyal na Byahe'
-                      : 'Regular na Byahe',
+                  value: espesyal ? 'Espesyal na Byahe' : 'Regular na Byahe',
                 ),
                 _ReviewRow(
                   label: 'Passengers',
@@ -214,7 +222,10 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                       ' · billed as ${quote.chargeableKm} km',
                 ),
                 // Cash is the only payment method, so a plain row says so.
-                const _ReviewRow(label: 'Payment', value: 'Cash · pay your driver'),
+                const _ReviewRow(
+                  label: 'Payment',
+                  value: 'Cash · pay your driver',
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 const Divider(height: 1),
                 const SizedBox(height: AppSpacing.md),

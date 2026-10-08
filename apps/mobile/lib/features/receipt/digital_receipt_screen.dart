@@ -52,6 +52,9 @@ class DigitalReceiptScreen extends ConsumerWidget {
               return const Center(child: Text('No completed trip receipt.'));
             }
             final rawFare = trip?['final_fare'] ?? trip?['fare_estimate'];
+            final pickupCharge = connectedReceipt
+                ? (((trip?['pickup_fare'] as num?) ?? 0) * 100).round()
+                : booking!.pickupChargeCentavos;
             final reference = connectedReceipt
                 ? (trip!['receipt_ref'] as String? ??
                       'TRIP-${trip['id'].toString().split('-').first.toUpperCase()}')
@@ -125,6 +128,11 @@ class DigitalReceiptScreen extends ConsumerWidget {
                                         : payment?.toString() ?? 'Unavailable')
                                   : booking!.paymentMethod.label,
                             ),
+                            if (pickupCharge > 0)
+                              _ReceiptRow(
+                                label: 'Pickup charge, included',
+                                value: formatCentavos(pickupCharge),
+                              ),
                             const Divider(height: AppSpacing.lg),
                             _ReceiptRow(
                               label: 'Total fare',

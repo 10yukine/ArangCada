@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/format/money_format.dart';
 import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/drag_sheet_scaffold.dart';
@@ -472,6 +473,17 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   eta,
                   style: AppTypography.label.copyWith(color: AppColors.primary),
                 ),
+                // The total is only known now: it includes the driver's way
+                // to the pickup, which the review screen could only bound.
+                if (booking.pickupChargeCentavos > 0) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Fare ${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
+                    'includes ${formatCentavos(booking.pickupChargeCentavos)} '
+                    'pickup charge',
+                    style: AppTypography.bodySm,
+                  ),
+                ],
                 if (expanded) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
