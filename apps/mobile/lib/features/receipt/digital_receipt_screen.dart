@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/format/distance_format.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/report_issue_sheet.dart';
@@ -55,6 +56,9 @@ class DigitalReceiptScreen extends ConsumerWidget {
             final pickupCharge = connectedReceipt
                 ? (((trip?['pickup_fare'] as num?) ?? 0) * 100).round()
                 : booking!.pickupChargeCentavos;
+            final pickupDistance = connectedReceipt
+                ? (trip?['pickup_distance_m'] as num?)?.round()
+                : booking!.pickupDistanceMeters;
             final reference = connectedReceipt
                 ? (trip!['receipt_ref'] as String? ??
                       'TRIP-${trip['id'].toString().split('-').first.toUpperCase()}')
@@ -130,7 +134,10 @@ class DigitalReceiptScreen extends ConsumerWidget {
                             ),
                             if (pickupCharge > 0)
                               _ReceiptRow(
-                                label: 'Pickup charge, included',
+                                label: pickupDistance == null
+                                    ? 'Pickup charge, included'
+                                    : 'Pickup charge · driver '
+                                          '${formatMeters(pickupDistance)} away',
                                 value: formatCentavos(pickupCharge),
                               ),
                             const Divider(height: AppSpacing.lg),

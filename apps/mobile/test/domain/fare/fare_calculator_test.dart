@@ -147,12 +147,21 @@ void main() {
     });
   });
 
-  test('the pickup charge is bounded by the most that can be billed', () {
-    // 2.4 km is the 3 km fare; with 2 km billed on top it is the 5 km fare.
-    final trip = quote(distanceMeters: 2400, rideType: RideType.special);
-    expect(trip.partyTotalCentavos, 6800);
-    expect(calculator.pickupChargeCapCentavos(trip, 2000), 8400 - 6800);
-    expect(calculator.pickupChargeCapCentavos(trip, 0), 0);
+  // The same figures as supabase/tests/100_pickup_leg_fare_test.sql: the
+  // phone's quote and the server's charge must not part.
+  test('the pickup charge is the per-km rate by the metre, to the peso', () {
+    final regular = quote(distanceMeters: 2400, rideType: RideType.special);
+    expect(calculator.pickupChargeCentavos(regular, 0), 0);
+    expect(calculator.pickupChargeCentavos(regular, 400), 300); // 3.20
+    expect(calculator.pickupChargeCentavos(regular, 1200), 1000); // 9.60
+    expect(calculator.pickupChargeCentavos(regular, 2400), 1900); // 19.20
+
+    final discounted = quote(
+      distanceMeters: 2400,
+      rideType: RideType.special,
+      discountClass: DiscountClass.discounted,
+    );
+    expect(calculator.pickupChargeCentavos(discounted, 1200), 800); // 7.68
   });
 
   test('rejects NaN, infinity, and negative distance', () {

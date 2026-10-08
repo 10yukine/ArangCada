@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_build.dart';
+import '../core/format/distance_format.dart';
 
 /// Set when the server says this build is too old to keep using. While set,
 /// the only screen is /update-required.
@@ -24,13 +25,8 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
 final pickupFreeMeters = ValueNotifier<int>(0);
 final pickupChargeMaxMeters = ValueNotifier<int>(0);
 
-/// "600 m", "1 km", "1.5 km": the free distance as the screens say it.
-String get pickupFreeDistance {
-  final meters = pickupFreeMeters.value;
-  if (meters < 1000) return '$meters m';
-  final km = meters / 1000;
-  return '${km == km.roundToDouble() ? km.round() : km.toStringAsFixed(1)} km';
-}
+/// The free distance as the screens say it.
+String get pickupFreeDistance => formatMeters(pickupFreeMeters.value);
 
 /// Whether the Google map, Google Places and Google Routes are in use. They
 /// are used together or not at all: Google's terms keep its content off other

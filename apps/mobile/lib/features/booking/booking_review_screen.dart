@@ -132,7 +132,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           );
         }
         final quote = booking.fareQuote;
-        final pickupCap = const FareCalculator().pickupChargeCapCentavos(
+        final pickupCap = const FareCalculator().pickupChargeCentavos(
           quote,
           pickupChargeMaxMeters.value,
         );

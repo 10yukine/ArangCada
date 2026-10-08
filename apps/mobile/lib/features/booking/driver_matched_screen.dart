@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
+import '../../core/format/distance_format.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/arang_dialog.dart';
 import '../../core/widgets/arang_ui.dart';
@@ -480,7 +481,8 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   Text(
                     'Fare ${formatCentavos(booking.fareQuote.partyTotalCentavos)} · '
                     'includes ${formatCentavos(booking.pickupChargeCentavos)} '
-                    'pickup charge',
+                    'pickup charge'
+                    '${booking.pickupDistanceMeters == null ? '' : ', driver ${formatMeters(booking.pickupDistanceMeters!)} away'}',
                     style: AppTypography.bodySm,
                   ),
                 ],

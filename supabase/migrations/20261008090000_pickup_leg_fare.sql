@@ -1,24 +1,30 @@
--- The fare covers the driver's way to the pickup, beyond a free distance.
+-- A pickup charge for the driver's way to the pickup, beyond a free distance.
 --
 -- Owner, 8 Oct 2026, approved by the group's capstone adviser. This is not an
 -- LGU approval: Ordinance 743 prices the trip, and nothing here records the
 -- LGU agreeing to a charge for the way to the pickup.
 --
 -- A driver within mobile_settings.pickup_free_m of the pickup (600 m) costs
--- nothing extra. For a driver farther away, the metres beyond that are added
--- to the trip's metres and the total is read from the same ordinance table in
--- one lookup: a 2.6 km trip with the driver 1.8 km away is billed as
--- 2.6 + 1.2 km.
+-- nothing extra. For a driver farther away, the metres beyond that are charged
+-- at the ordinance's own per-kilometre rate for the rider's fare class
+-- (fare_matrix.per_km_centavos, or discount_per_km_centavos), counted by the
+-- metre and rounded to the peso. A driver 1.8 km away is 1.2 km beyond the
+-- free distance: 1.2 x P8 = P9.60, so P10 is added to the trip's fare.
+--
+-- By the metre, not by the started kilometre, so that a few metres either
+-- side of the free distance are worth centavos and not a whole step: the
+-- driver's position is a phone's, up to a heartbeat old. It also depends on
+-- nothing but the driver's distance, so the charge can be checked by hand.
 --
 -- The free distance is its own number, not a search range. Dispatch already
 -- gives a booking to the nearest driver, so searching a smaller range first
 -- would only make a commuter wait for the driver they get anyway.
 --
--- Both distances are straight lines, as the trip's has always been
--- (request_ride). The driver's is the one dispatch already measures to choose
--- the nearest driver, at the moment it assigns them. What is billed never
--- exceeds widened_radius_m - pickup_free_m, which is the largest amount the
--- app quotes before booking ("pickup charge up to ...").
+-- The distance is a straight line, as the trip's has always been
+-- (request_ride): the one dispatch already measures to choose the nearest
+-- driver, at the moment it assigns them. What is charged never covers more
+-- than widened_radius_m - pickup_free_m, which is the largest amount the app
+-- quotes before booking ("pickup charge up to ...").
 --
 -- A trip is given a driver in two places, request_ride and retry_dispatch,
 -- and at most once: a declined or expired offer ends the trip. A trigger on
@@ -28,7 +34,7 @@
 --                             moment. Recorded on every assignment, charged
 --                             or not, so the free distance can be set from
 --                             what the pilot shows.
---   trips.pickup_fare         what was added; fare_estimate is the total.
+--   trips.pickup_fare         the charge; fare_estimate is the total.
 --                             Null while the charge is off.
 --
 -- OFF until the owner switches it on:
@@ -53,9 +59,9 @@ alter table public.trips
   add column pickup_fare numeric check (pickup_fare >= 0);
 
 comment on column public.trips.pickup_distance_m is
-  'Straight-line metres from the assigned driver to the pickup when the booking was given to them. Recorded whether or not the pickup leg is charged.';
+  'Straight-line metres from the assigned driver to the pickup when the booking was given to them. Recorded whether or not the pickup charge is on.';
 comment on column public.trips.pickup_fare is
-  'The part of fare_estimate added for the driver''s metres beyond mobile_settings.pickup_free_m; 0 for a driver inside it. Null when the charge was switched off.';
+  'The pickup charge inside fare_estimate: the driver''s metres beyond mobile_settings.pickup_free_m at the fare matrix''s per-kilometre rate, rounded to the peso; 0 for a driver inside the free distance. Null when the charge was switched off.';
 
 create function public.trips_add_pickup_leg()
 returns trigger
@@ -66,8 +72,9 @@ as $$
 declare
   v_driver   public.driver_availability%rowtype;
   v_settings public.mobile_settings%rowtype;
+  v_bracket  public.fare_matrix%rowtype;
   v_billed   integer;
-  v_total    numeric;
+  v_rate     integer;
 begin
   if new.driver_id is null
      or new.status <> 'driver_assigned'
@@ -91,11 +98,23 @@ begin
   ))::integer;
 
   select * into v_settings from public.mobile_settings where id;
-  if not v_settings.charge_pickup_leg then
+  -- A trip with no fare has nothing to add to.
+  if not v_settings.charge_pickup_leg or new.fare_estimate is null then
     return new;
   end if;
 
-  -- Only the metres beyond the free distance are billed, and never more than
+  -- The same bracket compute_fare reads for this ride type.
+  select * into v_bracket
+    from public.fare_matrix
+   where ride_type = new.ride_type
+     and is_active
+   limit 1;
+
+  if not found then
+    return new;
+  end if;
+
+  -- Only the metres beyond the free distance are charged, and never more than
   -- the search can reach.
   v_billed := greatest(
     least(new.pickup_distance_m,
@@ -103,19 +122,16 @@ begin
       - v_settings.pickup_free_m,
     0);
 
-  v_total := public.compute_fare(
-    new.distance_m + v_billed,
-    new.ride_type,
-    (select p.fare_class from public.profiles p where p.id = new.rider_id),
-    new.passenger_count);
+  v_rate := case
+    when (select p.fare_class from public.profiles p where p.id = new.rider_id)
+         = 'discounted'
+      then v_bracket.discount_per_km_centavos
+    else v_bracket.per_km_centavos
+  end;
 
-  -- No price for the whole way: leave the trip's own fare as it is.
-  if v_total is null or v_total < new.fare_estimate then
-    return new;
-  end if;
-
-  new.pickup_fare := v_total - new.fare_estimate;
-  new.fare_estimate := v_total;
+  -- Metres x centavos per kilometre, to whole pesos.
+  new.pickup_fare := round(v_billed::numeric * v_rate / 100000);
+  new.fare_estimate := new.fare_estimate + new.pickup_fare;
   return new;
 end;
 $$;

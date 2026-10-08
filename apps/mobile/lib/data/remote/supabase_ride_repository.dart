@@ -238,6 +238,8 @@ class SupabaseRideRepository extends ChangeNotifier {
       booking.fareQuote = _serverFare(trip, booking.fareQuote);
       booking.pickupChargeCentavos =
           (((trip['pickup_fare'] as num?) ?? 0) * 100).round();
+      booking.pickupDistanceMeters = (trip['pickup_distance_m'] as num?)
+          ?.round();
       booking.driverAcceptedAt = DateTime.tryParse(
         trip['accepted_at'] as String? ?? '',
       )?.toUtc();

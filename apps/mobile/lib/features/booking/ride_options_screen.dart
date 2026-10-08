@@ -422,7 +422,7 @@ class _FareBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pooling = quote.rideType == RideType.pooling;
-    final pickupCap = const FareCalculator().pickupChargeCapCentavos(
+    final pickupCap = const FareCalculator().pickupChargeCentavos(
       quote,
       pickupChargeMaxMeters.value,
     );
@@ -487,8 +487,9 @@ class _FareBreakdown extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'No pickup charge if your driver is within $pickupFreeDistance. '
-              'For a driver farther away, the distance beyond that is added '
-              "to your trip's.",
+              'Beyond that it is '
+              '${formatCentavos(const FareCalculator().pickupRateCentavos(quote))} '
+              "per km of your driver's way to you, counted by the metre.",
               style: AppTypography.caption.copyWith(height: 1.45),
             ),
           ],

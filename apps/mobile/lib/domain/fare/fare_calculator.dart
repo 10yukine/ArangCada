@@ -34,20 +34,19 @@ class FareQuote {
 class FareCalculator {
   const FareCalculator();
 
-  /// The most the driver's way to the pickup can add to [trip]: the fare with
-  /// [maxMeters] billed on top of the trip, less the trip's own. The server
-  /// adds the driver's metres beyond the free range to the trip's and reads
-  /// the table once.
-  int pickupChargeCapCentavos(FareQuote trip, int maxMeters) {
-    if (maxMeters <= 0) return 0;
-    final farthest = quote(
-      distanceMeters: trip.distanceMeters + maxMeters,
-      rideType: trip.rideType,
-      passengerCount: trip.passengerCount,
-      discountClass: trip.discountClass,
-    );
-    return farthest.partyTotalCentavos - trip.partyTotalCentavos;
+  /// What the driver's way to the pickup adds to [trip] for [billedMeters]
+  /// beyond the free distance: the matrix's per-kilometre rate for the
+  /// rider's fare class, counted by the metre and rounded to the peso, as the
+  /// server does (20261008090000). With the most that can be billed, it is
+  /// the largest pickup charge, which is what is quoted before booking.
+  int pickupChargeCentavos(FareQuote trip, int billedMeters) {
+    if (billedMeters <= 0) return 0;
+    return (billedMeters * pickupRateCentavos(trip) / 100000).round() * 100;
   }
+
+  /// Centavos per kilometre of the driver's way beyond the free distance.
+  int pickupRateCentavos(FareQuote trip) =>
+      FareMatrix.incrementPast20Centavos(trip.rideType, trip.discountClass);
 
   FareQuote quote({
     required double distanceMeters,

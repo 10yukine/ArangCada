@@ -145,7 +145,7 @@ void main() {
     expect(
       find.text(
         'Trip fare. If your driver is more than 600 m away, a pickup charge '
-        'of up to ₱16.00 is added.',
+        'of up to ₱19.00 is added.',
       ),
       findsOneWidget,
     );
