@@ -16,17 +16,19 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
   search: 'google',
 ));
 
-/// The fare includes the driver's way to the pickup beyond the first search
-/// range (20261008090000). [pickupFreeMeters] is that range, which costs
+/// The fare includes the driver's way to the pickup beyond a free distance
+/// (20261008090000). [pickupFreeMeters] is that distance, which costs
 /// nothing; [pickupChargeMaxMeters] is the most that can be billed beyond it,
 /// which bounds the pickup charge quoted before booking. Both 0 when the
 /// charge is off.
 final pickupFreeMeters = ValueNotifier<int>(0);
 final pickupChargeMaxMeters = ValueNotifier<int>(0);
 
-/// "1 km", "1.5 km": the free range as the screens say it.
+/// "600 m", "1 km", "1.5 km": the free distance as the screens say it.
 String get pickupFreeDistance {
-  final km = pickupFreeMeters.value / 1000;
+  final meters = pickupFreeMeters.value;
+  if (meters < 1000) return '$meters m';
+  final km = meters / 1000;
   return '${km == km.roundToDouble() ? km.round() : km.toStringAsFixed(1)} km';
 }
 

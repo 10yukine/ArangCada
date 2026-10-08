@@ -138,13 +138,13 @@ void main() {
     await show();
     expect(find.text('LGU fare · locked when you request'), findsOneWidget);
 
-    pickupFreeMeters.value = 1000;
-    pickupChargeMaxMeters.value = 2000;
+    pickupFreeMeters.value = 600;
+    pickupChargeMaxMeters.value = 2400;
     await show();
     expect(find.text('₱68.00'), findsOneWidget);
     expect(
       find.text(
-        'Trip fare. If your driver is more than 1 km away, a pickup charge '
+        'Trip fare. If your driver is more than 600 m away, a pickup charge '
         'of up to ₱16.00 is added.',
       ),
       findsOneWidget,

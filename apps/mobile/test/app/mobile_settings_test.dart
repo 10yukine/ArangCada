@@ -109,14 +109,18 @@ void main() {
       });
       final on = _serverAnswering(200, {
         ..._settings(),
-        'pickup_free_m': 1000,
-        'pickup_charge_max_m': 2000,
+        'pickup_free_m': 600,
+        'pickup_charge_max_m': 2400,
       });
       addTearDown(on.dispose);
       await loadMobileSettings(on);
-      expect(pickupFreeMeters.value, 1000);
-      expect(pickupChargeMaxMeters.value, 2000);
+      expect(pickupFreeMeters.value, 600);
+      expect(pickupChargeMaxMeters.value, 2400);
+      expect(pickupFreeDistance, '600 m');
+      pickupFreeMeters.value = 1000;
       expect(pickupFreeDistance, '1 km');
+      pickupFreeMeters.value = 1500;
+      expect(pickupFreeDistance, '1.5 km');
 
       final off = _serverAnswering(200, {
         ..._settings(),
