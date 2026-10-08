@@ -16,10 +16,19 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
   search: 'google',
 ));
 
-/// The farthest a driver can be from a pickup, in metres, when the fare
-/// includes the driver's way there (20261008090000); 0 when it does not.
-/// It bounds the pickup charge quoted before booking.
+/// The fare includes the driver's way to the pickup beyond the first search
+/// range (20261008090000). [pickupFreeMeters] is that range, which costs
+/// nothing; [pickupChargeMaxMeters] is the most that can be billed beyond it,
+/// which bounds the pickup charge quoted before booking. Both 0 when the
+/// charge is off.
+final pickupFreeMeters = ValueNotifier<int>(0);
 final pickupChargeMaxMeters = ValueNotifier<int>(0);
+
+/// "1 km", "1.5 km": the free range as the screens say it.
+String get pickupFreeDistance {
+  final km = pickupFreeMeters.value / 1000;
+  return '${km == km.roundToDouble() ? km.round() : km.toStringAsFixed(1)} km';
+}
 
 /// Whether the Google map, Google Places and Google Routes are in use. They
 /// are used together or not at all: Google's terms keep its content off other
@@ -50,8 +59,12 @@ Future<void> loadMobileSettings(SupabaseClient client) async {
     if (routing is String && search is String) {
       serviceChoices.value = (routing: routing, search: search);
     }
+    final pickupFree = settings['pickup_free_m'];
     final pickupMax = settings['pickup_charge_max_m'];
-    if (pickupMax is int) pickupChargeMaxMeters.value = pickupMax;
+    if (pickupFree is int && pickupMax is int) {
+      pickupFreeMeters.value = pickupFree;
+      pickupChargeMaxMeters.value = pickupMax;
+    }
   } catch (_) {
     // Offline, or a server that does not have the function yet.
   }

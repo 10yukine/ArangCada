@@ -3,7 +3,7 @@ begin;
 select plan(11);
 
 select is(public.get_mobile_settings(),
-  '{"min_mobile_build": 0, "routing": "google", "search": "google", "pickup_charge_max_m": 0}'::jsonb,
+  '{"min_mobile_build": 0, "routing": "google", "search": "google", "pickup_free_m": 0, "pickup_charge_max_m": 0}'::jsonb,
   'the defaults accept every build and use Google first');
 
 set local role anon;
@@ -30,7 +30,7 @@ reset role;
 update public.mobile_settings set min_mobile_build = 4035, routing = 'ors_only', search = 'maptiler';
 set local role anon;
 select is(public.get_mobile_settings(),
-  '{"min_mobile_build": 4035, "routing": "ors_only", "search": "maptiler", "pickup_charge_max_m": 0}'::jsonb,
+  '{"min_mobile_build": 4035, "routing": "ors_only", "search": "maptiler", "pickup_free_m": 0, "pickup_charge_max_m": 0}'::jsonb,
   'the app sees what the owner set');
 reset role;
 

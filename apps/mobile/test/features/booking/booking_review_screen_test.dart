@@ -131,14 +131,24 @@ void main() {
       );
     }
 
-    addTearDown(() => pickupChargeMaxMeters.value = 0);
+    addTearDown(() {
+      pickupFreeMeters.value = 0;
+      pickupChargeMaxMeters.value = 0;
+    });
     await show();
     expect(find.text('LGU fare · locked when you request'), findsOneWidget);
 
-    pickupChargeMaxMeters.value = 3000;
+    pickupFreeMeters.value = 1000;
+    pickupChargeMaxMeters.value = 2000;
     await show();
     expect(find.text('₱68.00'), findsOneWidget);
-    expect(find.textContaining('up to ₱24.00'), findsOneWidget);
+    expect(
+      find.text(
+        'Trip fare. If your driver is more than 1 km away, a pickup charge '
+        'of up to ₱16.00 is added.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('LGU fare · locked when you request'), findsNothing);
     expect(tester.takeException(), isNull);
   });

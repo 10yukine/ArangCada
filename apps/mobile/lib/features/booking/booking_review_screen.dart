@@ -168,9 +168,9 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 const SizedBox(height: 2),
                 Text(
                   pickupCap > 0
-                      ? 'Trip fare. A pickup charge of up to '
-                            '${formatCentavos(pickupCap)} is added when a '
-                            'driver is found.'
+                      ? 'Trip fare. If your driver is more than '
+                            '$pickupFreeDistance away, a pickup charge of up '
+                            'to ${formatCentavos(pickupCap)} is added.'
                       : 'LGU fare · locked when you request',
                   style: AppTypography.bodySm.copyWith(
                     color: AppColors.textSecondary,

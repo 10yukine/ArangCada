@@ -1,14 +1,16 @@
--- 20261008090000: the driver's way to the pickup is added to the trip's
--- kilometres and the fare is read once from the ordinance table.
+-- 20261008090000: a driver from beyond the first search range adds the metres
+-- past that range to the trip's, and the fare is read once from the
+-- ordinance table. A driver inside the first range adds nothing.
 --
---   CAL-CAN-01   lon 121.050-121.080, lat 14.170-14.200
---   driver       14.185, 121.0650
---   pickup       14.185, 121.0724   about 800 m east of the driver
---   destination  14.172, 121.0520   about 2.6 km from the pickup (3 km fare)
+--   CAL-CAN-01    lon 121.050-121.080, lat 14.170-14.200
+--   pickup        14.185, 121.0724
+--   destination   14.172, 121.0520   about 2.6 km from the pickup (3 km fare)
+--   near driver   14.185, 121.0650   about 0.8 km from the pickup
+--   far driver    14.185, 121.0557   about 1.8 km from the pickup
 --
 -- Everything from "switched on" down fails on the schema before the migration.
 begin;
-select plan(13);
+select plan(15);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000100a1', 'pl-rider@example.test',
@@ -56,81 +58,104 @@ reset role;
 
 -- Switched on.
 update public.mobile_settings set charge_pickup_leg = true;
-select is(public.get_mobile_settings() -> 'pickup_charge_max_m', '3000'::jsonb,
-  'the app is told the farthest a driver can be, which bounds the charge');
+select is(
+  public.get_mobile_settings() - 'min_mobile_build' - 'routing' - 'search',
+  '{"pickup_free_m": 1000, "pickup_charge_max_m": 2000}'::jsonb,
+  'the app is told the free range and the most that can be billed beyond it');
 
+-- A driver inside the first search range.
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
 select public.set_driver_availability(true, 14.185, 121.065);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100a1';
-select public.request_ride(14.185, 121.0724, 14.172, 121.052, 'Pickup', 'Destination', 'pl-on');
+select public.request_ride(14.185, 121.0724, 14.172, 121.052, 'Pickup', 'Destination', 'pl-near');
 reset role;
 
 select is(
-  (select status::text from public.trips where idempotency_key = 'pl-on'),
-  'driver_assigned', 'the booking reaches the driver');
+  (select status::text from public.trips where idempotency_key = 'pl-near'),
+  'driver_assigned', 'the booking reaches the near driver');
 select ok(
-  (select pickup_distance_m between 700 and 900 from public.trips where idempotency_key = 'pl-on'),
+  (select pickup_distance_m between 700 and 900 from public.trips where idempotency_key = 'pl-near'),
   'the driver''s distance to the pickup is recorded');
-select is(
-  (select fare_estimate from public.trips where idempotency_key = 'pl-on'),
-  (select public.compute_fare(distance_m + pickup_distance_m, 'special', 'standard', 1)
-     from public.trips where idempotency_key = 'pl-on'),
-  'the fare is one lookup on the combined distance');
 select results_eq(
-  $$select fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-on'$$,
-  $$values (76::numeric, 8::numeric)$$,
-  'about 2.6 km plus about 0.8 km is the 4 km fare, 8 pesos more than the trip alone');
+  $$select fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-near'$$,
+  $$values (68::numeric, 0::numeric)$$,
+  'a driver inside the first search range adds nothing');
 
--- Accepting changes nothing, and the completed trip is charged the total.
+-- The completed trip is charged what was offered.
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
-select public.accept_ride((select id from public.trips where idempotency_key = 'pl-on'));
+select public.accept_ride((select id from public.trips where idempotency_key = 'pl-near'));
 reset role;
-select is(
-  (select fare_estimate from public.trips where idempotency_key = 'pl-on'),
-  76::numeric, 'accepting leaves the fare as it was offered');
-update public.trips set status = 'in_progress' where idempotency_key = 'pl-on';
+update public.trips set status = 'in_progress' where idempotency_key = 'pl-near';
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
-select public.complete_trip((select id from public.trips where idempotency_key = 'pl-on'));
+select public.complete_trip((select id from public.trips where idempotency_key = 'pl-near'));
 reset role;
 select is(
-  (select final_fare from public.trips where idempotency_key = 'pl-on'),
-  76::numeric, 'the completed trip is charged the total');
+  (select final_fare from public.trips where idempotency_key = 'pl-near'),
+  68::numeric, 'the completed trip is charged the trip fare');
 
--- No driver at first; one comes online and the retry assigns them.
+-- A driver beyond the first range is found only once the search has widened.
 delete from public.driver_feedback_obligations
  where driver_id = '00000000-0000-0000-0000-0000000100b1';
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100a1';
-select public.request_ride(14.185, 121.0724, 14.172, 121.052, 'Pickup', 'Destination', 'pl-retry');
+select public.request_ride(14.185, 121.0724, 14.172, 121.052, 'Pickup', 'Destination', 'pl-far');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
+select public.set_driver_availability(true, 14.185, 121.0557);
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100a1';
+select public.retry_dispatch((select id from public.trips where idempotency_key = 'pl-far'));
 reset role;
 select results_eq(
   $$select status::text, pickup_distance_m, fare_estimate
-      from public.trips where idempotency_key = 'pl-retry'$$,
+      from public.trips where idempotency_key = 'pl-far'$$,
   $$values ('searching_driver', null::integer, 68::numeric)$$,
   'while nobody is assigned the trip carries its own fare');
 
+update public.trips set requested_at = now() - interval '4 minutes'
+ where idempotency_key = 'pl-far';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100a1';
+select public.retry_dispatch((select id from public.trips where idempotency_key = 'pl-far'));
+reset role;
+
+select is(
+  (select status::text from public.trips where idempotency_key = 'pl-far'),
+  'driver_assigned', 'the widened search reaches the far driver');
+select ok(
+  (select pickup_distance_m between 1700 and 1900 from public.trips where idempotency_key = 'pl-far'),
+  'the far driver''s whole distance is recorded');
+select is(
+  (select fare_estimate from public.trips where idempotency_key = 'pl-far'),
+  (select public.compute_fare(distance_m + pickup_distance_m - 1000, 'special', 'standard', 1)
+     from public.trips where idempotency_key = 'pl-far'),
+  'the fare is one lookup on the trip plus the metres beyond the first range');
+select results_eq(
+  $$select fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-far'$$,
+  $$values (76::numeric, 8::numeric)$$,
+  'about 2.6 km plus about 0.8 km billed is the 4 km fare, 8 pesos more');
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
-select public.set_driver_availability(true, 14.185, 121.065);
-set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100a1';
-select public.retry_dispatch((select id from public.trips where idempotency_key = 'pl-retry'));
+select public.accept_ride((select id from public.trips where idempotency_key = 'pl-far'));
 reset role;
-select results_eq(
-  $$select status::text, fare_estimate, pickup_fare
-      from public.trips where idempotency_key = 'pl-retry'$$,
-  $$values ('driver_assigned', 76::numeric, 8::numeric)$$,
-  'a driver found on a retry adds the pickup leg too');
+select is(
+  (select fare_estimate from public.trips where idempotency_key = 'pl-far'),
+  76::numeric, 'accepting leaves the fare as it was offered');
 
--- A later change to the driver column of a finished trip (account deletion
--- clears it) must not reprice the trip.
-update public.trips set driver_id = null where idempotency_key = 'pl-on';
+-- The completed trip is charged the total, and a later change to its driver
+-- column (account deletion clears it) must not reprice it.
+update public.trips set status = 'in_progress' where idempotency_key = 'pl-far';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';
+select public.complete_trip((select id from public.trips where idempotency_key = 'pl-far'));
+reset role;
+update public.trips set driver_id = null where idempotency_key = 'pl-far';
 select results_eq(
-  $$select final_fare, fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-on'$$,
+  $$select final_fare, fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-far'$$,
   $$values (76::numeric, 76::numeric, 8::numeric)$$,
-  'a finished trip keeps its fare when its driver is removed');
+  'the completed trip is charged the total and keeps it when its driver is removed');
 
 set local role authenticated;
 select throws_ok($$ update public.mobile_settings set charge_pickup_leg = false $$,

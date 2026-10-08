@@ -450,7 +450,7 @@ class _FareBreakdown extends StatelessWidget {
           ),
           if (pickupCap > 0)
             _BreakdownLine(
-              label: 'Pickup charge, added when a driver is found',
+              label: 'Pickup charge, driver over $pickupFreeDistance away',
               value: 'up to ${formatCentavos(pickupCap)}',
             ),
           const Divider(height: AppSpacing.lg),
@@ -486,9 +486,9 @@ class _FareBreakdown extends StatelessWidget {
           if (pickupCap > 0) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              "The pickup charge covers your driver's way to you. Its distance "
-              "is added to your trip's, so the nearer the driver, the less it "
-              'is.',
+              'No pickup charge if your driver is within $pickupFreeDistance. '
+              'For a driver farther away, the distance beyond that is added '
+              "to your trip's.",
               style: AppTypography.caption.copyWith(height: 1.45),
             ),
           ],

@@ -100,24 +100,34 @@ void main() {
     expect(updateRequired.value, isFalse);
   });
 
-  test('the pickup charge limit is taken up, and absent means none', () async {
-    addTearDown(() => pickupChargeMaxMeters.value = 0);
-    final on = _serverAnswering(200, {
-      ..._settings(),
-      'pickup_charge_max_m': 3000,
-    });
-    addTearDown(on.dispose);
-    await loadMobileSettings(on);
-    expect(pickupChargeMaxMeters.value, 3000);
+  test(
+    'the pickup charge ranges are taken up, and switched off again',
+    () async {
+      addTearDown(() {
+        pickupFreeMeters.value = 0;
+        pickupChargeMaxMeters.value = 0;
+      });
+      final on = _serverAnswering(200, {
+        ..._settings(),
+        'pickup_free_m': 1000,
+        'pickup_charge_max_m': 2000,
+      });
+      addTearDown(on.dispose);
+      await loadMobileSettings(on);
+      expect(pickupFreeMeters.value, 1000);
+      expect(pickupChargeMaxMeters.value, 2000);
+      expect(pickupFreeDistance, '1 km');
 
-    final off = _serverAnswering(200, {
-      ..._settings(),
-      'pickup_charge_max_m': 0,
-    });
-    addTearDown(off.dispose);
-    await loadMobileSettings(off);
-    expect(pickupChargeMaxMeters.value, 0);
-  });
+      final off = _serverAnswering(200, {
+        ..._settings(),
+        'pickup_free_m': 0,
+        'pickup_charge_max_m': 0,
+      });
+      addTearDown(off.dispose);
+      await loadMobileSettings(off);
+      expect(pickupChargeMaxMeters.value, 0);
+    },
+  );
 
   // Locking everyone out, or dropping a switch the owner set, because the
   // question could not be asked would be worse than waiting for the next ask.

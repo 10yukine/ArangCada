@@ -147,11 +147,11 @@ void main() {
     });
   });
 
-  test('the pickup charge is bounded by the farthest a driver can be', () {
-    // 2.4 km is the 3 km fare; with the driver 3 km away it is the 6 km fare.
+  test('the pickup charge is bounded by the most that can be billed', () {
+    // 2.4 km is the 3 km fare; with 2 km billed on top it is the 5 km fare.
     final trip = quote(distanceMeters: 2400, rideType: RideType.special);
     expect(trip.partyTotalCentavos, 6800);
-    expect(calculator.pickupChargeCapCentavos(trip, 3000), 9200 - 6800);
+    expect(calculator.pickupChargeCapCentavos(trip, 2000), 8400 - 6800);
     expect(calculator.pickupChargeCapCentavos(trip, 0), 0);
   });
 
