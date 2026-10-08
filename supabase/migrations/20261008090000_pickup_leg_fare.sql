@@ -4,12 +4,12 @@
 -- LGU approval: Ordinance 743 prices the trip, and nothing here records the
 -- LGU agreeing to a charge for the way to the pickup.
 --
--- A driver within mobile_settings.pickup_free_m of the pickup (600 m) costs
+-- A driver within mobile_settings.pickup_free_m of the pickup (500 m) costs
 -- nothing extra. For a driver farther away, the metres beyond that are charged
 -- at the ordinance's own per-kilometre rate for the rider's fare class
 -- (fare_matrix.per_km_centavos, or discount_per_km_centavos), counted by the
--- metre and rounded to the peso. A driver 1.8 km away is 1.2 km beyond the
--- free distance: 1.2 x P8 = P9.60, so P10 is added to the trip's fare.
+-- metre and rounded to the peso. A driver 1.8 km away is 1.3 km beyond the
+-- free distance: 1.3 x P8 = P10.40, so P10 is added to the trip's fare.
 --
 -- By the metre, not by the started kilometre, so that a few metres either
 -- side of the free distance are worth centavos and not a whole step: the
@@ -51,7 +51,7 @@
 -- Regression: supabase/tests/100_pickup_leg_fare_test.sql
 alter table public.mobile_settings
   add column charge_pickup_leg boolean not null default false,
-  add column pickup_free_m integer not null default 600
+  add column pickup_free_m integer not null default 500
     check (pickup_free_m >= 0);
 
 alter table public.trips

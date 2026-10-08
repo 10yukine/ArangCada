@@ -8,9 +8,9 @@
 --   destination   14.172, 121.0520   about 2.6 km from the pickup (3 km fare:
 --                                    P68 regular, P54 discounted)
 --   near driver   14.185, 121.0687   about 0.4 km from the pickup
---   far driver    14.185, 121.0557   about 1.8 km from the pickup, so 1.2 km
---                                    beyond the free 600 m: P9.60 at P8 a
---                                    kilometre, P7.68 at the discounted P6.40
+--   far driver    14.185, 121.0557   about 1.8 km from the pickup, so 1.3 km
+--                                    beyond the free 500 m: P10.40 at P8 a
+--                                    kilometre, P8.32 at the discounted P6.40
 --
 -- Everything fails on the schema before the migration.
 begin;
@@ -69,7 +69,7 @@ reset role;
 update public.mobile_settings set charge_pickup_leg = true;
 select is(
   public.get_mobile_settings() - 'min_mobile_build' - 'routing' - 'search',
-  '{"pickup_free_m": 600, "pickup_charge_max_m": 2400}'::jsonb,
+  '{"pickup_free_m": 500, "pickup_charge_max_m": 2500}'::jsonb,
   'the app is told the free distance and the most that can be charged beyond it');
 
 -- A driver inside the free distance.
@@ -134,13 +134,13 @@ select ok(
   'the far driver''s whole distance is recorded');
 select is(
   (select pickup_fare from public.trips where idempotency_key = 'pl-far'),
-  (select round((pickup_distance_m - 600) * 800 / 100000.0)
+  (select round((pickup_distance_m - 500) * 800 / 100000.0)
      from public.trips where idempotency_key = 'pl-far'),
   'the charge is the metres beyond the free distance at P8 a kilometre, to the peso');
 select results_eq(
   $$select fare_estimate, pickup_fare from public.trips where idempotency_key = 'pl-far'$$,
   $$values (78::numeric, 10::numeric)$$,
-  'about 1.2 km beyond the free distance adds 10 pesos to the 68 peso trip');
+  'about 1.3 km beyond the free distance adds 10 pesos to the 68 peso trip');
 
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000100b1';

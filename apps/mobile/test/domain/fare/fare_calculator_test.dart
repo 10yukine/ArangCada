@@ -153,15 +153,15 @@ void main() {
     final regular = quote(distanceMeters: 2400, rideType: RideType.special);
     expect(calculator.pickupChargeCentavos(regular, 0), 0);
     expect(calculator.pickupChargeCentavos(regular, 400), 300); // 3.20
-    expect(calculator.pickupChargeCentavos(regular, 1200), 1000); // 9.60
-    expect(calculator.pickupChargeCentavos(regular, 2400), 1900); // 19.20
+    expect(calculator.pickupChargeCentavos(regular, 1300), 1000); // 10.40
+    expect(calculator.pickupChargeCentavos(regular, 2500), 2000); // 20.00
 
     final discounted = quote(
       distanceMeters: 2400,
       rideType: RideType.special,
       discountClass: DiscountClass.discounted,
     );
-    expect(calculator.pickupChargeCentavos(discounted, 1200), 800); // 7.68
+    expect(calculator.pickupChargeCentavos(discounted, 1300), 800); // 8.32
   });
 
   test('rejects NaN, infinity, and negative distance', () {
