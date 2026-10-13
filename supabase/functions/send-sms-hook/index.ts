@@ -31,7 +31,7 @@
 // school, the City and the telcos were told.
 //
 // ============================================================================
-// THE TEXT AND THE SENDER NAME ARE THE APPROVED ONES. DO NOT REWORD.
+// THE SENDER NAME AND THE SHAPE OF THE TEXT ARE WHAT WAS APPROVED.
 // ============================================================================
 //
 // The telcos approved the sender name "Arangcada" for one-time codes only
@@ -39,6 +39,11 @@
 //
 //   Arangcada: Your ArangCada verification code is 123456. Do not share this
 //   code with anyone.
+//
+// What is sent is that sample without its second "ArangCada", by the owner's
+// decision of 13 Oct 2026 (the name read twice on the phone). The shorter
+// wording was not put to Semaphore. If texts stop arriving on a network that
+// had been receiving them, go back to the sample word for word first.
 //
 // Every text must start with the sender name and a colon or it may be
 // filtered, so the text is built from SEMAPHORE_SENDER_NAME and live mode
@@ -407,10 +412,10 @@ Deno.serve(async (req) => {
   }
 
   // ---- LIVE MODE ---------------------------------------------------------
-  // The approved sample, word for word (see the top of this file). With the
-  // sender name "Arangcada" it is 90 characters: one billable segment.
+  // See the top of this file. With the sender name "Arangcada" it is 80
+  // characters: one billable segment.
   const message =
-    `${SEMAPHORE_SENDER}: Your ArangCada verification code is ${otp}. ` +
+    `${SEMAPHORE_SENDER}: Your verification code is ${otp}. ` +
     `Do not share this code with anyone.`
 
   try {

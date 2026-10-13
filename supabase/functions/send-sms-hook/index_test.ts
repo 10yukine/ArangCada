@@ -68,8 +68,8 @@ Deno.test('a send without a permit from the resend schedule is refused', async (
 });
 
 // Live mode, signed the way Supabase Auth signs. What reaches Semaphore must be
-// the sender name and the sample the telcos approved (request #29111), and
-// nothing may go out past the pilot's limits.
+// the approved sender name (request #29111) and the one text the owner settled
+// on, and nothing may go out past the pilot's limits.
 const hookSecret = btoa('test-secret-bytes');
 const liveEnv = {
   SMS_HOOK_MODE: 'live',
@@ -127,7 +127,7 @@ async function sendLive(env: Record<string, string>, permit: string) {
   }
 }
 
-Deno.test('a live text is the approved sample under the approved sender name', async () => {
+Deno.test('a live text starts with the approved sender name and carries only the code', async () => {
   const {res, calls} = await sendLive(liveEnv, 'ok');
   assert.equal(res.status, 200);
   assert.equal(calls.length, 2);
@@ -138,7 +138,7 @@ Deno.test('a live text is the approved sample under the approved sender name', a
   assert.equal(sent.get('number'), '639171234567');
   assert.equal(
     sent.get('message'),
-    'Arangcada: Your ArangCada verification code is 654321. Do not share this code with anyone.',
+    'Arangcada: Your verification code is 654321. Do not share this code with anyone.',
   );
 });
 Deno.test('live mode without the sender name sends nothing and spends no permit', async () => {
