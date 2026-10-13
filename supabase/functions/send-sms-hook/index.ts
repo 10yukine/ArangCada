@@ -25,6 +25,26 @@
 // first resend, 120 s before each later one, four codes per hour. A send the
 // app did not request through that schedule is refused here.
 //
+// Live mode also holds each text to the pilot's limits (sms_send_permit,
+// migration 20261013090000): how many different numbers, how many numbers per
+// account, how many texts in 30 days, and the last day. They are what the
+// school, the City and the telcos were told.
+//
+// ============================================================================
+// THE TEXT AND THE SENDER NAME ARE THE APPROVED ONES. DO NOT REWORD.
+// ============================================================================
+//
+// The telcos approved the sender name "Arangcada" for one-time codes only
+// (Semaphore request #29111), with this sample:
+//
+//   Arangcada: Your ArangCada verification code is 123456. Do not share this
+//   code with anyone.
+//
+// Every text must start with the sender name and a colon or it may be
+// filtered, so the text is built from SEMAPHORE_SENDER_NAME and live mode
+// refuses to send without it. Add nothing: a link in particular is what
+// telcos block.
+//
 // An unset or unknown mode rejects delivery. Stub mode must be explicitly
 // selected for development and never records authentication codes.
 //
@@ -98,9 +118,27 @@ const reject = (status: number, message: string) =>
     headers: { 'Content-Type': 'application/json' },
   })
 
-/** Spends the permit record_otp_send() issued for this user and number. */
-async function consumePermit(userId: string, phone: string): Promise<boolean> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/otp_consume_permit`, {
+// What the person is told when a code is not sent. Auth passes it to the app,
+// which shows it as written.
+const REFUSALS: Record<string, string> = {
+  no_permit: 'Request a new code from the app and try again.',
+  recipient_cap:
+    'Text verification is full for this pilot test. Please contact the ArangCada team.',
+  account_cap:
+    'You have tried too many different numbers. Please contact the ArangCada team.',
+  month_cap: 'Text verification is paused for now. Please try again later.',
+  ended: 'Text verification for this pilot test has ended.',
+}
+
+/**
+ * Spends the permit record_otp_send() issued for this user and number. In
+ * live mode the same call holds the text to the pilot's limits. Answers 'ok'
+ * or the reason it was refused.
+ */
+async function spendPermit(userId: string, phone: string): Promise<string> {
+  const live = MODE === 'live'
+  const rpc = live ? 'sms_send_permit' : 'otp_consume_permit'
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${rpc}`, {
     method: 'POST',
     signal: AbortSignal.timeout(10_000),
     headers: {
@@ -111,7 +149,9 @@ async function consumePermit(userId: string, phone: string): Promise<boolean> {
     body: JSON.stringify({ p_user_id: userId, p_phone: phone }),
   })
   if (!res.ok) throw new Error(`permit check failed (HTTP ${res.status})`)
-  return (await res.json()) === true
+  const answer = await res.json()
+  if (live) return typeof answer === 'string' ? answer : 'no_permit'
+  return answer === true ? 'ok' : 'no_permit'
 }
 
 async function sendViaEmail(to: string, otp: string): Promise<void> {
@@ -191,12 +231,10 @@ async function sendViaSemaphore(phone: string, message: string): Promise<void> {
     apikey: SEMAPHORE_KEY,
     number: toSemaphoreNumber(phone),
     message,
+    // Always named: left out, Semaphore uses whatever the account's default
+    // sender happens to be.
+    sendername: SEMAPHORE_SENDER,
   })
-  // Omitting sendername lets Semaphore fall back to the account's default
-  // registered sender name. If the account has none registered at all,
-  // Semaphore throws -- which is why the pre-beta checklist has you confirm a
-  // sender name exists before switching to live.
-  if (SEMAPHORE_SENDER) form.set('sendername', SEMAPHORE_SENDER)
 
   const response = await fetch(
     `https://api.semaphore.co/api/v4/${SEMAPHORE_ENDPOINT}`,
@@ -304,18 +342,35 @@ Deno.serve(async (req) => {
     })
   }
 
-  // The resend schedule. Fail closed: if the check cannot run, send nothing.
+  // Checked before the permit is spent, so a misconfigured live deployment
+  // does not use up a place on the pilot's recipient list. Fail loudly rather
+  // than falling back: without the key nothing can be sent, and without the
+  // sender name the text would go out under the account's default sender and
+  // without the prefix the telcos approved.
+  if (MODE === 'live' && (!SEMAPHORE_KEY || !SEMAPHORE_SENDER)) {
+    console.error(
+      'send-sms-hook: live mode is missing ' +
+        `${!SEMAPHORE_KEY ? 'SEMAPHORE_API_KEY' : 'SEMAPHORE_SENDER_NAME'}`,
+    )
+    return new Response(
+      JSON.stringify({ error: { message: 'SMS provider is not configured' } }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // The resend schedule and, in live mode, the pilot's limits. Fail closed: if
+  // the check cannot run, send nothing.
   if (MODE !== 'stub' || SERVICE_ROLE_KEY) {
-    let permitted = false
+    let verdict: string
     try {
-      permitted = await consumePermit(payload.user.id, phone)
+      verdict = await spendPermit(payload.user.id, phone)
     } catch (error) {
       console.error(`send-sms-hook: ${(error as Error).message}`)
       return reject(503, 'Could not send the code right now. Try again in a moment.')
     }
-    if (!permitted) {
-      console.warn(`send-sms-hook: no permit for ${maskPhone(phone)}; not sent`)
-      return reject(429, 'Request a new code from the app and try again.')
+    if (verdict !== 'ok') {
+      console.warn(`send-sms-hook: ${verdict} for ${maskPhone(phone)}; not sent`)
+      return reject(429, REFUSALS[verdict] ?? REFUSALS.no_permit)
     }
   }
 
@@ -338,12 +393,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Kept under 160 characters so it stays a single billable segment. It must
-  // also not begin with the word "TEST" -- Semaphore silently discards those.
-  const message =
-    `${otp} is your ArangCada verification code. ` +
-    `It expires in 10 minutes. Do not share it with anyone.`
-
   if (MODE !== 'live') {
     // ---- STUB MODE -------------------------------------------------------
     // Keep the delivery diagnostic without exposing an authentication code.
@@ -358,16 +407,11 @@ Deno.serve(async (req) => {
   }
 
   // ---- LIVE MODE ---------------------------------------------------------
-  if (!SEMAPHORE_KEY) {
-    // Fail loudly rather than silently falling back to stub. A live deployment
-    // missing its credentials is a configuration error, not a reason to start
-    // logging OTPs.
-    console.error('send-sms-hook: live mode is missing SEMAPHORE_API_KEY')
-    return new Response(
-      JSON.stringify({ error: { message: 'SMS provider is not configured' } }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+  // The approved sample, word for word (see the top of this file). With the
+  // sender name "Arangcada" it is 90 characters: one billable segment.
+  const message =
+    `${SEMAPHORE_SENDER}: Your ArangCada verification code is ${otp}. ` +
+    `Do not share this code with anyone.`
 
   try {
     await sendViaSemaphore(phone, message)
