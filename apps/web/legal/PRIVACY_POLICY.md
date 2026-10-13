@@ -78,6 +78,7 @@ ArangCada has three kinds of users:
 | Category | Examples | Where it lives | Who it's for |
 |---|---|---|---|
 | Account/profile info | Display name, phone number, role, account status | `profiles` table, Supabase Auth | You, and admins for verification |
+| Verification-code requests | A scrambled (hashed) form of the mobile number and of the network address the request came from, the time, and whether a text message was sent. No readable number and no code | `otp_send_log` table, kept while the pilot runs and not removed with your account, so that the limits cannot be reset by deleting an account | Limiting how often a code can be requested and how many numbers are texted |
 | Location data | Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, pickup/destination points and service-area checks | App state; driver location in `driver_availability`; active-trip updates in `trip_locations`; pickup/destination in `trips` | Dispatch, service-area validation, fare distance and tracking |
 | Driver verification documents | Driver's license, vehicle OR/CR, profile photo | `driver_documents` table + private Supabase Storage bucket (not public) | LGU/TODA admin review only |
 | Trip records | Pickup/destination, ride type (currently always Special), passenger count (1–4), fare amount, status history | `trips` table | You, your matched driver, TODA/LGU admin |
@@ -168,7 +169,7 @@ owner and authorized LGU/TODA admins, per existing RLS/Storage policy.
 | SOS/complaint reports | LGU/TODA admin reviewers only; never shown publicly, and emergency-contact details are not exposed to unauthorized users |
 | ISO 25010 / app-usage feedback | Capstone group (research); LGU/TODA admins, generally as aggregated per-TODA figures rather than individually attributed responses where the sample size allows it |
 | Shared ride-tracking link | Anyone you send the link to, for the duration of that one trip — see Section 6a |
-| Your mobile number | You; your matched driver during an active trip; LGU/TODA admins; our SMS provider, solely to deliver your verification code (see the Semaphore entry below for its current status) |
+| Your mobile number | You; your matched driver during an active trip; LGU/TODA admins; our SMS provider (Semaphore), solely to deliver your verification code |
 
 ### 6a. Ride-tracking links you choose to share
 
@@ -267,18 +268,27 @@ not a full copy of your account):
   transfer; we remain accountable for it under Section 21 of RA 10173 and
   send Google only what each request needs. Google Maps content is not
   shown in the admin console or on the ride-tracking page.
-- **Semaphore** (SOMBRA, Inc., Philippines) — designed to receive your mobile
-  number and a one-time verification code in order to deliver that code by
-  SMS when live SMS delivery is enabled. The current alpha testing mode
-  delivers the code to the account's email through Resend instead; Semaphore
-  is not used for those deliveries. Email delivery does not prove ownership
-  of the supplied mobile number. The app does not intentionally log the code.
+- **Semaphore** (SOMBRA, Inc., Philippines) — receives your mobile number
+  and a one-time verification code in order to deliver that code to you by
+  text message (SMS), under the sender name "Arangcada". Since 13 October
+  2026, verification codes are sent this way. A text is sent only when you
+  enter your number in the app and ask for a code. It contains the code and
+  a reminder not to share it, and nothing else: we do not send advertising
+  or any other message by SMS. Delivery depends on your mobile network; a
+  network that has not yet activated the sender name may not deliver the
+  text. During the pilot test, text verification is limited to a set number
+  of mobile numbers and ends on 31 July 2027. The app does not intentionally
+  log the code.
+  Numbers confirmed before 13 October 2026 were confirmed with a code sent
+  to the account's email, which does not prove ownership of the number.
+  Those accounts will be asked to confirm their number again by text.
 - **Resend** — receives recipient email addresses and message content for
-  administrator invitations and alpha verification-code emails. The code is
-  included in the email subject and body. These deliveries can apply to
-  commuters and drivers as well as administrators. The verification email
-  does not include your phone number, precise location, trip history or
-  password. Real SMS ownership verification remains a separate pilot gate.
+  administrator invitations. Until 13 October 2026, while text messaging was
+  being set up, it also delivered verification codes by email to commuters,
+  drivers and administrators, with the code in the subject and body. If text
+  delivery ever has to be suspended, codes would be emailed this way again.
+  A verification email does not include your phone number, precise location,
+  trip history or password.
   Resend also delivers the email-confirmation message: after your number is
   verified, and when you ask from the Profile screen, we email a single-use
   link to the address on your account. We keep a scrambled copy of that link
