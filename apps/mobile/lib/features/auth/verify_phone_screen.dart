@@ -87,6 +87,12 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
   int _codesSent = 1;
   int _sendsLeft = _codesPerHour - 1;
 
+  /// True when the server says no code has gone to this number in the last
+  /// hour. Sign-up sends one on the way here, but an account asked to confirm
+  /// its number again (20261006090000) arrives without one. The screen then
+  /// offers to send it, and does not say one was sent.
+  bool _noCodeYet = false;
+
   final _pinController = TextEditingController();
   final _pinFocus = FocusNode();
 
@@ -153,6 +159,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     final status = await ref.read(otpResendStatusProvider)(phone);
     if (!mounted || status == null) return;
     _sendsLeft = status.sendsLeft;
+    _noCodeYet = _codesSent <= 1 && status.sendsLeft >= _codesPerHour;
     _runCountdown(status.waitSeconds);
   }
 
@@ -221,7 +228,13 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
       if (!mounted) return;
       _codesSent += 1;
       _sendsLeft = math.max(0, _sendsLeft - 1);
-      setState(() => _notice = 'A new code is on its way.');
+      final first = _noCodeYet;
+      _noCodeYet = false;
+      setState(
+        () => _notice = first
+            ? 'Your code is on its way.'
+            : 'A new code is on its way.',
+      );
       _startCooldown();
     } on DemoAuthException catch (error) {
       if (!mounted) return;
@@ -354,10 +367,12 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          // The app cannot tell how the code was sent: while the SMS
-                          // sender name awaits approval the server emails it.
-                          'We sent a 6-digit code for $shown. Look in your texts '
-                          'and in your email: during the beta it may arrive by email.',
+                          // Codes go by text message since 13 Oct 2026.
+                          _noCodeYet
+                              ? 'Tap Send code and we will text a 6-digit '
+                                    'code to $shown.'
+                              : 'We sent a 6-digit code to $shown by text '
+                                    'message.',
                           style: AppTypography.bodySm.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -477,12 +492,13 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                           crossAxisAlignment: WrapCrossAlignment.center,
                           spacing: AppSpacing.xxs,
                           children: [
-                            Text(
-                              "Didn't get it?",
-                              style: AppTypography.bodySm.copyWith(
-                                color: AppColors.textSecondary,
+                            if (!_noCodeYet)
+                              Text(
+                                "Didn't get it?",
+                                style: AppTypography.bodySm.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                            ),
                             if (_secondsLeft > 0)
                               Text(
                                 _sendsLeft == 0
@@ -505,7 +521,9 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                                   padding: EdgeInsets.zero,
                                   minimumSize: const Size(0, 40),
                                 ),
-                                child: const Text('Resend code'),
+                                child: Text(
+                                  _noCodeYet ? 'Send code' : 'Resend code',
+                                ),
                               ),
                           ],
                         ),

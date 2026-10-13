@@ -335,4 +335,24 @@ void main() {
     );
     expect(find.text('Resend code'), findsNothing);
   });
+
+  // An account asked to confirm its number again (the switch to text
+  // messages, 20261006090000) reaches this screen with no code sent. The
+  // screen used to say one had been, and the only way to get it was Resend.
+  testWidgets('with no code sent yet it offers to send one', (tester) async {
+    await tester.pumpWidget(harness(server: (waitSeconds: 0, sendsLeft: 4)));
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('Tap Send code'), findsOneWidget);
+    expect(find.textContaining('We sent a 6-digit code'), findsNothing);
+    expect(find.text("Didn't get it?"), findsNothing);
+
+    await tester.tap(find.text('Send code'));
+    await tester.pump();
+    await tester.pump();
+    expect(auth.sendCalls, 1);
+    expect(find.textContaining('We sent a 6-digit code'), findsOneWidget);
+    expect(find.text('Your code is on its way.'), findsOneWidget);
+    expect(find.text('Send code'), findsNothing);
+  });
 }
