@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/trip_call_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
@@ -24,6 +25,12 @@ import '../../data/repositories/location_repository.dart';
 import '../../data/remote/supabase_ride_repository.dart';
 import '../../demo/demo_simulation.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
+import '../../domain/models/demo_user.dart';
+
+final driverScreenAwakeProvider = Provider<Future<void> Function(bool)>(
+  (ref) =>
+      (enabled) => WakelockPlus.toggle(enable: enabled),
+);
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -46,6 +53,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   LocationFix? _dashboardFix;
   LocationFailure? _locationError;
   bool _locating = false;
+  bool _screenAwakeRequested = false;
+  late final Future<void> Function(bool) _setScreenAwake;
+  Future<void> _screenAwakeUpdate = Future<void>.value();
+  VoidCallback? _removeScreenAwakeListener;
 
   @override
   void initState() {
@@ -60,6 +71,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       _startGpsTimer();
     });
     final state = ref.read(demoStateProvider);
+    _setScreenAwake = ref.read(driverScreenAwakeProvider);
+    state.addListener(_syncScreenAwake);
+    _removeScreenAwakeListener = () => state.removeListener(_syncScreenAwake);
+    _syncScreenAwake();
     if (ref.read(liveRideRepositoryProvider) != null) {
       state.addListener(_handleLiveDriverState);
       _removeLiveStateListener = () {
@@ -73,8 +88,32 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     }
   }
 
+  void _syncScreenAwake() {
+    final state = ref.read(demoStateProvider);
+    final active =
+        state.currentUser?.role == DemoRole.driver &&
+        (state.driverTrip.status == DriverTripStatus.accepted ||
+            state.driverTrip.status == DriverTripStatus.arrivedAtPickup ||
+            state.driverTrip.status == DriverTripStatus.inProgress);
+    _requestScreenAwake(active);
+  }
+
+  void _requestScreenAwake(bool enabled, {bool force = false}) {
+    if (_screenAwakeRequested == enabled && !force) return;
+    _screenAwakeRequested = enabled;
+    // Serialize platform calls so a late enable cannot outlive sign-out/dispose.
+    _screenAwakeUpdate = _screenAwakeUpdate
+        .then((_) => _setScreenAwake(enabled))
+        .catchError((Object error) {
+          debugPrint('Could not update driver screen wake lock: $error');
+        });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _screenAwakeRequested) {
+      _requestScreenAwake(true, force: true);
+    }
     if (ref.read(demoStateProvider).currentUser?.isDemoAccount != false) return;
     if (state == AppLifecycleState.resumed) {
       _locateDriver();
@@ -373,6 +412,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _gpsTimer?.cancel();
     _removeLiveStateListener?.call();
+    _removeScreenAwakeListener?.call();
+    _requestScreenAwake(false);
     _countdownTimer?.cancel();
     _completionTicker?.cancel();
     _requestRun?.cancel();
