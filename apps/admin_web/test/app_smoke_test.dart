@@ -39,6 +39,26 @@ class _ReportedChatFixtureController extends AdminController {
   );
 }
 
+class _ReportedChatGridFixtureController
+    extends _ReportedChatFixtureController {
+  @override
+  AdminState build() {
+    final state = super.build();
+    return state.copyWith(
+      reportedChats: [
+        ...state.reportedChats,
+        for (var i = 2; i <= 3; i++)
+          ReportedTripChat.fromRow({
+            'id': 'chat-report-$i',
+            'reason': 'Conversation report $i',
+            'consented_at': '2026-08-25T10:07:00Z',
+            'messages': [],
+          }),
+      ],
+    );
+  }
+}
+
 void main() {
   testWidgets('email focus exposes both credentials to autofill', (
     tester,
@@ -459,6 +479,55 @@ void main() {
       );
     },
   );
+
+  testWidgets('reported conversations use two columns and stack on phones', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+    addTearDown(() async {
+      auth.value = null;
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          adminProvider.overrideWith(_ReportedChatGridFixtureController.new),
+        ],
+        child: const AdminApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Safety reports'));
+    await tester.pumpAndSettle();
+
+    final first = find.text('Threatening language during pickup');
+    final second = find.text('Conversation report 2');
+    final third = find.text('Conversation report 3');
+    var firstPosition = tester.getTopLeft(first);
+    var secondPosition = tester.getTopLeft(second);
+    var thirdPosition = tester.getTopLeft(third);
+    expect(secondPosition.dy, firstPosition.dy);
+    expect(secondPosition.dx, greaterThan(firstPosition.dx));
+    expect(thirdPosition.dx, firstPosition.dx);
+    expect(thirdPosition.dy, greaterThan(firstPosition.dy));
+    expect(find.text('View conversation'), findsOneWidget);
+    expect(
+      find.text('The reported conversation contained no saved messages.'),
+      findsNWidgets(2),
+    );
+
+    await tester.binding.setSurfaceSize(const Size(500, 1200));
+    await tester.pumpAndSettle();
+    firstPosition = tester.getTopLeft(first);
+    secondPosition = tester.getTopLeft(second);
+    thirdPosition = tester.getTopLeft(third);
+    expect(secondPosition.dx, firstPosition.dx);
+    expect(secondPosition.dy, greaterThan(firstPosition.dy));
+    expect(thirdPosition.dx, firstPosition.dx);
+    expect(thirdPosition.dy, greaterThan(secondPosition.dy));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('TODA never renders consented chat snapshots even if injected', (
     tester,

@@ -196,8 +196,23 @@ class _ReportedConversationSection extends StatelessWidget {
         if (reportedChats.isEmpty)
           const EmptyState(message: 'No consented conversation reports.')
         else
-          for (final report in reportedChats)
-            _ReportedConversationCard(report: report),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth < 600
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                children: [
+                  for (final report in reportedChats)
+                    SizedBox(
+                      width: width,
+                      child: _ReportedConversationCard(report: report),
+                    ),
+                ],
+              );
+            },
+          ),
       ],
     ),
   );
