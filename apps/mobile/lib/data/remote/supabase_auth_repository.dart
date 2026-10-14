@@ -57,6 +57,7 @@ class SupabaseAuthRepository implements AuthRepository {
     bool isInternalTester = false,
     String? mobileNumber,
     bool phoneVerified = false,
+    bool phoneReverificationRequired = false,
     bool emailConfirmed = true,
     String? avatarUrl,
   }) {
@@ -77,6 +78,7 @@ class SupabaseAuthRepository implements AuthRepository {
       isAdminAccount: profileRole == 'admin',
       mobileNumber: mobileNumber,
       phoneVerified: phoneVerified,
+      phoneReverificationRequired: phoneReverificationRequired,
       emailConfirmed: emailConfirmed,
       avatarUrl: avatarUrl,
     );
@@ -114,7 +116,7 @@ class SupabaseAuthRepository implements AuthRepository {
         .from('profiles')
         .select(
           'role, display_name, is_internal_tester, phone_verified_at, '
-          'email_confirmed_at, avatar_path, fare_class',
+          'phone_reverify_since, email_confirmed_at, avatar_path, fare_class',
         )
         .eq('id', user.id)
         .single();
@@ -137,6 +139,7 @@ class SupabaseAuthRepository implements AuthRepository {
       // that mirrors it can lag a hair behind the session, so accept either.
       phoneVerified:
           profile['phone_verified_at'] != null || user.phoneConfirmedAt != null,
+      phoneReverificationRequired: profile['phone_reverify_since'] != null,
       emailConfirmed: profile['email_confirmed_at'] != null,
       avatarUrl: await _signedAvatarUrl(profile['avatar_path'] as String?),
     );

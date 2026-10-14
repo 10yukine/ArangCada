@@ -68,7 +68,12 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> sendPasswordReset(String email) => throw UnimplementedError();
 
   @override
-  Future<void> signOut() async => _state.setCurrentUser(null);
+  Future<void> signOut() async {
+    signOutCalls++;
+    _state.setCurrentUser(null);
+  }
+
+  int signOutCalls = 0;
 
   int abandonCalls = 0;
 
@@ -155,8 +160,12 @@ void main() {
             path: '/verify-phone',
             builder: (_, _) => const VerifyPhoneScreen(),
           ),
-          // Go Back's destination. A stand-in: the registration form itself is
-          // not under test here, only that leaving lands on it.
+          GoRoute(
+            path: '/login',
+            builder: (_, _) => const Scaffold(body: Text('login form')),
+          ),
+          // A stand-in: the registration form itself is not under test here,
+          // only that cancelling sign-up lands on it.
           GoRoute(
             path: '/signup',
             builder: (_, _) => const Scaffold(body: Text('signup form')),
@@ -180,6 +189,44 @@ void main() {
     // typing them; it is their own number on their own screen.
     expect(find.textContaining('0917\u00A0123\u00A04567'), findsOneWidget);
     expect(find.text('Step 4 of 4'), findsOneWidget);
+  });
+
+  testWidgets('an existing account confirms its number without sign-up', (
+    tester,
+  ) async {
+    state.setCurrentUser(
+      const DemoUser(
+        email: 'juan@example.test',
+        displayName: 'Juan Dela Cruz',
+        role: DemoRole.commuter,
+        mobileNumber: '+639171234567',
+        phoneReverificationRequired: true,
+      ),
+    );
+    await tester.pumpWidget(harness());
+    await tester.pump();
+
+    expect(find.text('Step 4 of 4'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(
+      find.text(
+        'We now send codes by text message. Confirm your number once more '
+        'to keep using ArangCada.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Cancel sign-up'), findsNothing);
+    expect(find.text('Sign out'), findsOneWidget);
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(auth.signOutCalls, 1);
+    expect(state.currentUser, isNull);
+    expect(find.text('login form'), findsOneWidget);
+    expect(find.text('signup form'), findsNothing);
+    expect(auth.abandonCalls, 0);
   });
 
   testWidgets('submits automatically once six digits are entered', (
