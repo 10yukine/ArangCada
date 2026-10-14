@@ -59,6 +59,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final state = DemoState(now: tester.binding.clock.now);
+    final rides = _CompletionRepository();
     addTearDown(state.dispose);
     state.setDestination(DemoData.places[1]);
     state.setActiveBooking(inProgressBooking());
@@ -76,7 +77,7 @@ void main() {
       ProviderScope(
         overrides: [
           demoStateProvider.overrideWithValue(state),
-          liveRideRepositoryProvider.overrideWithValue(_CompletionRepository()),
+          liveRideRepositoryProvider.overrideWithValue(rides),
         ],
         child: const MaterialApp(home: ActiveTripScreen()),
       ),
@@ -96,6 +97,7 @@ void main() {
       findsOneWidget,
     );
 
+    expect(rides.arrivalChecks, 2);
     receive('2026-10-14T05:33:57Z');
     await tester.pump();
     expect(
@@ -350,6 +352,11 @@ void main() {
 }
 
 class _CompletionRepository implements SupabaseRideRepository {
+  @override
+  Future<void> checkRiderDestinationArrival() async => arrivalChecks++;
+
+  int arrivalChecks = 0;
+
   int calls = 0;
   late Completer<void> pending;
 
