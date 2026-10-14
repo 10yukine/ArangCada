@@ -86,6 +86,11 @@ class DemoState extends ChangeNotifier {
   }
 
   DateTime? completionAvailableAt;
+
+  /// The commuter's in-app consent that lifts the driver's 100 m rule:
+  /// "My driver is here" at pickup, "Stop here" during the trip.
+  bool riderConfirmedPickup = false;
+  bool riderRequestedStop = false;
   bool driverFeedbackPending = false;
   String? pendingFeedbackTripId;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
@@ -175,7 +180,6 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void submitTripRating(int stars, String? comment) {
     if (activeBooking?.status != BookingStatus.completed) {
       throw StateError('A completed trip is required before rating.');
@@ -232,6 +236,8 @@ class DemoState extends ChangeNotifier {
     liveCounterpartAvatarUrl = null;
     clearLiveDriverLocation();
     completionAvailableAt = null;
+    riderConfirmedPickup = false;
+    riderRequestedStop = false;
     driverFeedbackPending = false;
     pendingFeedbackTripId = null;
     notifyListeners();
@@ -267,6 +273,8 @@ class DemoState extends ChangeNotifier {
     liveCounterpartAvatarUrl = null;
     clearLiveDriverLocation();
     completionAvailableAt = null;
+    riderConfirmedPickup = false;
+    riderRequestedStop = false;
     driverFeedbackPending = false;
     pendingFeedbackTripId = null;
     sampleContentEnabled = false;

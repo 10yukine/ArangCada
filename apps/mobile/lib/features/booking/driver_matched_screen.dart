@@ -68,6 +68,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
   int _cancelSecondsRemaining = _cancelWindowSeconds;
   bool _arrived = false;
   bool _cancelling = false;
+  bool _confirmingDriver = false;
   DemoState? _liveState;
 
   @override
@@ -212,6 +213,46 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
     _liveTransition?.cancel();
     _cancelWindowTimer?.cancel();
     super.dispose();
+  }
+
+  /// Lifts the driver's 100 m arrival rule when the two meet away from the
+  /// pickup pin. Only the commuter can say the driver is with them.
+  Future<void> _confirmDriverHere() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null || _confirmingDriver) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => ArangDialog(
+        title: 'Is your driver here?',
+        content: const Text(
+          'Tap Yes only if your driver is with you. They can then mark that '
+          'they have arrived.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Not yet'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Yes, they are here'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _confirmingDriver = true);
+    try {
+      await liveRides.confirmDriverHere();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not confirm. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _confirmingDriver = false);
+    }
   }
 
   Future<void> _cancelRide() async {
@@ -403,6 +444,19 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (live && !_arrived) ...[
+                  OutlinedButton(
+                    onPressed: state.riderConfirmedPickup || _confirmingDriver
+                        ? null
+                        : _confirmDriverHere,
+                    child: Text(
+                      state.riderConfirmedPickup
+                          ? 'You confirmed your driver is here'
+                          : 'My driver is here',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: AppColors.screenBackground,
