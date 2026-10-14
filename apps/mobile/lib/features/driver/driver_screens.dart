@@ -1061,13 +1061,14 @@ class _DriverTripModeCard extends ConsumerWidget {
     final hint = !live
         ? null
         : state.riderRequestedStop
-        ? 'Your passenger asked to stop here.'
+        ? 'Your passenger wants to get off early. End the trip where it is '
+              'safe to stop.'
         : distance == null
         ? 'Waiting for GPS to check your distance to the drop-off.'
         : near
         ? null
-        : '${_distanceLabel(distance)} from the drop-off. To stop early, ask '
-              'your passenger to tap “Stop here”.';
+        : '${_distanceLabel(distance)} from the drop-off. To end early, ask '
+              'your passenger to tap “Get off early”.';
     return Stack(
       children: [
         Positioned.fill(

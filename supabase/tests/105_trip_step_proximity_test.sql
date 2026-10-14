@@ -9,7 +9,7 @@ update public.app_evaluation_settings set feedback_interval = 100, repeat_feedba
 insert into auth.users(id, email, raw_user_meta_data)
 select ('00000000-0000-0000-0000-0000000105' || n)::uuid, 'step-' || n || '@example.test',
        jsonb_build_object('display_name', 'Step ' || n, 'mobile_number', '+6391700105' || n)
-  from unnest(array['01', '11', '12', '13', '14', '21', '22', '23', '24']) as n;
+  from unnest(array['01', '11', '12', '13', '14', '15', '21', '22', '23', '24', '25']) as n;
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-000000010501';
 update public.profiles set role = 'driver' where id::text like '%-00000001052_';
 insert into public.driver_profiles(id, toda_zone_id, promoted_by, verification_status)
@@ -32,7 +32,8 @@ select ('00000000-0000-0000-0000-0000000105' || v.n)::uuid,
        st_setsrid(st_makepoint(121.17, 14.21), 4326), 50,
        (select id from public.toda_zones where code = 'CAL-POB-01')
   from (values ('51', '11', '21', 'accepted'), ('52', '12', '22', 'in_progress'),
-               ('53', '13', '23', 'accepted'), ('54', '14', '24', 'in_progress'))
+               ('53', '13', '23', 'accepted'), ('54', '14', '24', 'in_progress'),
+               ('55', '15', '25', 'in_progress'))
        as v(n, rider, driver, status);
 
 select ok(has_function_privilege('authenticated', 'public.rider_confirm_pickup(uuid)', 'execute'),
@@ -129,6 +130,40 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010524';
 select is((public.complete_trip('00000000-0000-0000-0000-000000010554')).status::text, 'completed',
   'current GPS at the drop-off allows completion');
 reset role;
+
+-- Taking back "Get off early" (rider_cancel_stop), on trip 55.
+select ok(has_function_privilege('authenticated', 'public.rider_cancel_stop(uuid)', 'execute'),
+  'authenticated can take back a request to get off early');
+select ok(not has_function_privilege('anon', 'public.rider_cancel_stop(uuid)', 'execute'),
+  'anonymous cannot take it back');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010525';
+select throws_ok($$select public.rider_cancel_stop('00000000-0000-0000-0000-000000010555')$$,
+  '42501', null, 'the driver cannot take it back for the commuter');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010515';
+select ok((public.rider_cancel_stop('00000000-0000-0000-0000-000000010555')).rider_requested_stop_at is null,
+  'taking back with nothing requested is harmless');
+select ok((public.rider_request_stop('00000000-0000-0000-0000-000000010555')).rider_requested_stop_at is not null,
+  'the commuter asks to get off early');
+select ok((public.rider_cancel_stop('00000000-0000-0000-0000-000000010555')).rider_requested_stop_at is null,
+  'and then takes it back');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010525';
+select throws_ok($$select public.complete_trip('00000000-0000-0000-0000-000000010555')$$,
+  '22023', null, 'once taken back, the driver far from the drop-off cannot complete again');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010515';
+select lives_ok($$select public.rider_request_stop('00000000-0000-0000-0000-000000010555')$$,
+  'the commuter can ask again');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010525';
+select is((public.complete_trip('00000000-0000-0000-0000-000000010555')).status::text, 'completed',
+  'asking again lets the driver complete where it is safe to stop');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010515';
+select throws_ok($$select public.rider_cancel_stop('00000000-0000-0000-0000-000000010555')$$,
+  '22023', null, 'a finished trip cannot be taken back');
+reset role;
+select is((select count(*)::int from public.trip_events
+  where trip_id = '00000000-0000-0000-0000-000000010555'
+    and event_type in ('ride.rider_requested_stop', 'ride.rider_cancelled_stop')), 3,
+  'asking, taking back and asking again are each logged');
 
 select * from finish();
 rollback;

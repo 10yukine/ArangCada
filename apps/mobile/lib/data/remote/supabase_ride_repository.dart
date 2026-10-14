@@ -622,6 +622,7 @@ class SupabaseRideRepository extends ChangeNotifier {
   /// The commuter's consent that lifts the driver's 100 m rule.
   Future<void> confirmDriverHere() => _tripAction('rider_confirm_pickup');
   Future<void> requestStopHere() => _tripAction('rider_request_stop');
+  Future<void> cancelStopRequest() => _tripAction('rider_cancel_stop');
 
   /// The server checks the driver's last published GPS (at most 30 s old)
   /// against the pickup or drop-off, so send a current fix first. A failure
