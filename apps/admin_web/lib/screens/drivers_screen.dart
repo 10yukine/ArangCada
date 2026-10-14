@@ -499,6 +499,8 @@ class _DriverEnrollmentDialogState
       Navigator.pop(context, true);
     } catch (error) {
       if (!mounted) return;
+      if (!found && await _accountAppearedSinceCheck()) return;
+      if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -511,6 +513,32 @@ class _DriverEnrollmentDialogState
           ),
         ),
       );
+    }
+  }
+
+  /// Step 1 found no account, but the invite was refused. The driver may have
+  /// registered or confirmed their email since: check again, and if the
+  /// account is there now, show the existing-account step instead.
+  Future<bool> _accountAppearedSinceCheck() async {
+    try {
+      final candidates = await ref
+          .read(adminProvider.notifier)
+          .previewDriverCandidate(_email.text.trim());
+      if (!mounted || candidates.isEmpty) return false;
+      setState(() {
+        _submitting = false;
+        _candidates = candidates;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This email has an account now. Confirm it to make them a driver.',
+          ),
+        ),
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

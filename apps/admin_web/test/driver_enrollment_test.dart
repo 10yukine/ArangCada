@@ -33,9 +33,13 @@ class _DriverInviteFixtureController extends AdminController {
     ],
   );
 
+  int _lateChecks = 0;
+
   @override
   Future<List<DriverCandidate>> previewDriverCandidate(String email) async {
-    if (email == 'existing@example.test') {
+    // Confirms its email between the first check and the invite.
+    final late = email == 'late@example.test' && ++_lateChecks > 1;
+    if (email == 'existing@example.test' || late) {
       return const [
         DriverCandidate(
           maskedName: 'J*** D.',
@@ -66,6 +70,11 @@ class _DriverInviteFixtureController extends AdminController {
     required String todaZoneId,
     String? bodyNumber,
   }) async {
+    if (email == 'late@example.test') {
+      throw StateError(
+        'this email already belongs to an account -- use the promote flow instead',
+      );
+    }
     lastInvitedEmail = email;
   }
 
@@ -228,6 +237,39 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.lastInvitedEmail, 'new.driver@example.test');
+    },
+  );
+
+  testWidgets(
+    'an account that appears after the first check is offered for promotion '
+    'when the invite is refused',
+    (tester) async {
+      final controller = await openDriversScreen(tester);
+
+      await tester.tap(find.text('Enroll driver'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, "Driver's email address"),
+        'late@example.test',
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Send invite'), findsOneWidget);
+
+      await tester.tap(find.text('Send invite'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This email already has an account'), findsOneWidget);
+      expect(find.text('Promote to driver'), findsOneWidget);
+      expect(find.textContaining('use the promote flow'), findsNothing);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Confirm email'),
+        'late@example.test',
+      );
+      await tester.tap(find.text('Promote to driver'));
+      await tester.pumpAndSettle();
+      expect(controller.lastPromotedEmail, 'late@example.test');
     },
   );
 }
