@@ -170,6 +170,43 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     });
   }
 
+  /// The commuter's consent for the driver to complete away from the
+  /// drop-off point. The driver still ends the trip; the fare stays as quoted.
+  Future<void> _requestStop() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => ArangDialog(
+        title: 'Stop here?',
+        content: const Text(
+          'Your driver can then end the trip before your drop-off point. The '
+          'fare stays as quoted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep riding'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Stop here'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await liveRides.requestStopHere();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not ask to stop. Try again.')),
+        );
+      }
+    }
+  }
+
   Future<void> _recordSos() async {
     final liveRides = ref.read(liveRideRepositoryProvider);
     await showSafetyReportFlow(
@@ -363,6 +400,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 onShare: ref.read(liveRideRepositoryProvider) == null
                     ? null
                     : () => showTripShareSheet(context),
+                onStopHere: ref.read(liveRideRepositoryProvider) == null
+                    ? null
+                    : _requestStop,
+                stopRequested: state.riderRequestedStop,
                 onSos: _recordSos,
               ),
             );
@@ -434,6 +475,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
     required this.onMessage,
     required this.onCall,
     required this.onShare,
+    this.onStopHere,
+    this.stopRequested = false,
     required this.onSos,
   });
 
@@ -450,6 +493,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final VoidCallback onMessage;
   final VoidCallback onCall;
   final VoidCallback? onShare;
+  final VoidCallback? onStopHere;
+  final bool stopRequested;
   final Future<void> Function() onSos;
 
   /// "2:54", not "174s". Past a minute, raw seconds stop being a duration a
@@ -594,14 +639,28 @@ class _ActiveTripSheetBody extends StatelessWidget {
               ),
             ],
           ),
-        if (!awaitingConfirmation && onShare != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onShare,
-              icon: const Icon(Icons.share_location_outlined),
-              label: const Text('Share trip'),
-            ),
+        if (!awaitingConfirmation && (onShare != null || onStopHere != null))
+          Wrap(
+            spacing: AppSpacing.xs,
+            children: [
+              if (onShare != null)
+                TextButton.icon(
+                  onPressed: onShare,
+                  icon: const Icon(Icons.share_location_outlined),
+                  label: const Text('Share trip'),
+                ),
+              if (onStopHere != null)
+                TextButton.icon(
+                  onPressed: stopRequested ? null : onStopHere,
+                  icon: const Icon(Icons.front_hand_outlined),
+                  label: Text(stopRequested ? 'Stop requested' : 'Stop here'),
+                ),
+            ],
+          ),
+        if (!awaitingConfirmation && stopRequested)
+          const Text(
+            'You asked to stop here. Your driver will end the trip.',
+            style: AppTypography.caption,
           ),
         const SizedBox(height: AppSpacing.xs),
         // SOS outlives arrival deliberately. "SOS starts where the ride does"

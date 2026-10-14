@@ -101,6 +101,8 @@ void main() {
     expect(find.text('Arrived at Pickup'), findsOneWidget);
 
     state.driverTrip.status = DriverTripStatus.inProgress;
+    // At the drop-off, so the live 100 m completion rule is met.
+    state.liveDriverLocation = state.destination!.coordinate;
     state.driverChanged();
     await tester.pumpAndSettle();
     expect(find.text('Complete Trip'), findsOneWidget);

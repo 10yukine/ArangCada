@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../app/theme/app_colors.dart';
+import '../../core/geo/haversine.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../app/mobile_settings.dart';
@@ -939,6 +940,27 @@ class _PickupModeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final live = ref.watch(liveRideRepositoryProvider) != null;
+    final distance = state.liveDriverLocation == null
+        ? null
+        : haversineDistanceMeters(
+            state.liveDriverLocation!,
+            state.pickup.coordinate,
+          );
+    final near =
+        distance != null &&
+        distance <= SupabaseRideRepository.tripStepRadiusMeters;
+    final canArrive = arrived || !live || state.riderConfirmedPickup || near;
+    final hint = arrived || !live
+        ? null
+        : state.riderConfirmedPickup
+        ? 'Your passenger confirmed you are here.'
+        : distance == null
+        ? 'Waiting for GPS to check your distance to the pickup.'
+        : near
+        ? null
+        : '${_distanceLabel(distance)} from the pickup. You can mark arrival '
+              'within 100 m, or once your passenger taps “My driver is here”.';
     return Stack(
       children: [
         Positioned.fill(
@@ -990,8 +1012,12 @@ class _PickupModeCard extends ConsumerWidget {
               ],
               ArangButton(
                 label: arrived ? 'Start Trip' : 'Arrived at Pickup',
-                onPressed: onAction,
+                onPressed: canArrive ? onAction : null,
               ),
+              if (hint != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(hint, style: AppTypography.caption),
+              ],
               if (onCancel != null)
                 TextButton(
                   onPressed: onCancel,
@@ -1020,6 +1046,28 @@ class _DriverTripModeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
+    final live = ref.watch(liveRideRepositoryProvider) != null;
+    final distance =
+        state.liveDriverLocation == null || state.destination == null
+        ? null
+        : haversineDistanceMeters(
+            state.liveDriverLocation!,
+            state.destination!.coordinate,
+          );
+    final near =
+        distance != null &&
+        distance <= SupabaseRideRepository.tripStepRadiusMeters;
+    final canComplete = !live || state.riderRequestedStop || near;
+    final hint = !live
+        ? null
+        : state.riderRequestedStop
+        ? 'Your passenger asked to stop here.'
+        : distance == null
+        ? 'Waiting for GPS to check your distance to the drop-off.'
+        : near
+        ? null
+        : '${_distanceLabel(distance)} from the drop-off. To stop early, ask '
+              'your passenger to tap “Stop here”.';
     return Stack(
       children: [
         Positioned.fill(
@@ -1118,7 +1166,14 @@ class _DriverTripModeCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              ArangButton(label: 'Complete Trip', onPressed: onComplete),
+              ArangButton(
+                label: 'Complete Trip',
+                onPressed: canComplete ? onComplete : null,
+              ),
+              if (hint != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(hint, style: AppTypography.caption),
+              ],
             ],
           ),
         ),
@@ -1424,3 +1479,7 @@ class _AvailabilityCard extends StatelessWidget {
     );
   }
 }
+
+String _distanceLabel(double meters) => meters < 1000
+    ? '${meters.round()} m'
+    : '${(meters / 1000).toStringAsFixed(1)} km';

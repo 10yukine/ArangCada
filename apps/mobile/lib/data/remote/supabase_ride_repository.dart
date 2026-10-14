@@ -39,6 +39,10 @@ class SupabaseRideRepository extends ChangeNotifier {
 
   static const completionWindow = Duration(seconds: 60);
 
+  /// How close the driver's GPS must be to mark arrival at the pickup point
+  /// or complete at the drop-off point (the server enforces the same).
+  static const tripStepRadiusMeters = 100.0;
+
   /// Shown when a trip is closed but [finishDriverTrip] could not put the
   /// driver back online (no GPS fix, no connection, approval withdrawn).
   static const driverOfflineNotice =
@@ -202,6 +206,8 @@ class SupabaseRideRepository extends ChangeNotifier {
     _state.completionAvailableAt = completion == null
         ? null
         : DateTime.tryParse(completion)?.toUtc();
+    _state.riderConfirmedPickup = trip['rider_confirmed_pickup_at'] != null;
+    _state.riderRequestedStop = trip['rider_requested_stop_at'] != null;
 
     final pickup = _coordinate(trip, 'pickup');
     final destination = _coordinate(trip, 'destination');
@@ -601,9 +607,31 @@ class SupabaseRideRepository extends ChangeNotifier {
         as String;
   }
 
-  Future<void> markArrived() => _tripAction('mark_arrived');
+  Future<void> markArrived() async {
+    await _publishBeforeProximityCheck();
+    await _tripAction('mark_arrived');
+  }
+
   Future<void> startTrip() => _tripAction('start_trip');
-  Future<void> completeTrip() => _tripAction('complete_trip');
+
+  Future<void> completeTrip() async {
+    await _publishBeforeProximityCheck();
+    await _tripAction('complete_trip');
+  }
+
+  /// The commuter's consent that lifts the driver's 100 m rule.
+  Future<void> confirmDriverHere() => _tripAction('rider_confirm_pickup');
+  Future<void> requestStopHere() => _tripAction('rider_request_stop');
+
+  /// The server checks the driver's last published GPS (at most 30 s old)
+  /// against the pickup or drop-off, so send a current fix first. A failure
+  /// here is not fatal: the action still runs and the server decides.
+  Future<void> _publishBeforeProximityCheck() async {
+    if (!_isDriver) return;
+    try {
+      await _publishLocation();
+    } catch (_) {}
+  }
 
   /// A best-effort fallback for a backgrounded driver's GPS. The server checks
   /// the same conditions; unsupported RPCs/offline fixes simply retry later.
