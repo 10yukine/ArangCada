@@ -167,8 +167,8 @@ this document is supposed to describe reality, not the other way around.</p>
 </tr>
 <tr>
 <td>Location data</td>
-<td>Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, pickup/destination points and service-area checks</td>
-<td>App state; driver location in <code>driver_availability</code>; active-trip updates in <code>trip_locations</code>; pickup/destination in <code>trips</code></td>
+<td>Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, a commuter's arrival check when the driver's location is out of date, pickup/destination points and service-area checks</td>
+<td>App state; driver location in <code>driver_availability</code>; active-trip updates in <code>trip_locations</code>; pickup/destination in <code>trips</code>; for an arrival check, only the distance from the destination, in the trip's event log</td>
 <td>Dispatch, service-area validation, fare distance and tracking</td>
 </tr>
 <tr>
@@ -233,7 +233,11 @@ coordinates for matching. Device location access requires permission.</p>
 <li><strong>With device location permission</strong>: Home reads GPS for the map and pickup
   preview before a ride. Online drivers send availability coordinates to
   the backend for matching; during an assigned trip they send location
-  updates for rider tracking. Map, route and pin-label requests can also
+  updates for rider tracking. If the driver's location stops updating for
+  more than 30 seconds while you are riding near your destination, the app
+  may send your phone's current GPS reading to confirm that you have
+  arrived. The server keeps only your distance from the destination, not
+  the reading. Map, route and pin-label requests can also
   send coordinates to the configured providers described in Section 6a.</li>
 <li><strong>From LGU/TODA administrators</strong>: approval/rejection decisions, TODA-zone
   assignment.</li>

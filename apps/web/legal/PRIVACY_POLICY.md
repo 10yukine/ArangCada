@@ -79,7 +79,7 @@ ArangCada has three kinds of users:
 |---|---|---|---|
 | Account/profile info | Display name, phone number, role, account status | `profiles` table, Supabase Auth | You, and admins for verification |
 | Verification-code requests | A scrambled (hashed) form of the mobile number and of the network address the request came from, the time, and whether a text message was sent. No readable number and no code | `otp_send_log` table, kept while the pilot runs and not removed with your account, so that the limits cannot be reset by deleting an account | Limiting how often a code can be requested and how many numbers are texted |
-| Location data | Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, pickup/destination points and service-area checks | App state; driver location in `driver_availability`; active-trip updates in `trip_locations`; pickup/destination in `trips` | Dispatch, service-area validation, fare distance and tracking |
+| Location data | Device GPS for the Home map and pickup preview, online driver availability, assigned-trip tracking, a commuter's arrival check when the driver's location is out of date, pickup/destination points and service-area checks | App state; driver location in `driver_availability`; active-trip updates in `trip_locations`; pickup/destination in `trips`; for an arrival check, only the distance from the destination, in the trip's event log | Dispatch, service-area validation, fare distance and tracking |
 | Driver verification documents | Driver's license, vehicle OR/CR, profile photo | `driver_documents` table + private Supabase Storage bucket (not public) | LGU/TODA admin review only |
 | Trip records | Pickup/destination, ride type (currently always Special), passenger count (1–4), fare amount, status history | `trips` table | You, your matched driver, TODA/LGU admin |
 | Ride-tracking link data | An unguessable link code, the trip it points to, when it was created or revoked | `ride_share_links` table | You (the creator); anyone holding the link sees only a limited live view — see Section 6a |
@@ -102,7 +102,11 @@ coordinates for matching. Device location access requires permission.
 - **With device location permission**: Home reads GPS for the map and pickup
   preview before a ride. Online drivers send availability coordinates to
   the backend for matching; during an assigned trip they send location
-  updates for rider tracking. Map, route and pin-label requests can also
+  updates for rider tracking. If the driver's location stops updating for
+  more than 30 seconds while you are riding near your destination, the app
+  may send your phone's current GPS reading to confirm that you have
+  arrived. The server keeps only your distance from the destination, not
+  the reading. Map, route and pin-label requests can also
   send coordinates to the configured providers described in Section 6a.
 - **From LGU/TODA administrators**: approval/rejection decisions, TODA-zone
   assignment.
