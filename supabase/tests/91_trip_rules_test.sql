@@ -90,6 +90,9 @@ select is((select count(*)::int from public.trips
   0, 'the released rider holds no live trip');
 
 -- The driver with a passenger on board can finish, and nothing else.
+-- (At the drop-off, so the 100 m completion rule from 105 is met.)
+update public.driver_availability set latitude = 14.21, longitude = 121.17, updated_at = now()
+ where driver_id = '00000000-0000-0000-0000-000000009123';
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000009123';
 select is((public.complete_trip('00000000-0000-0000-0000-000000009133')).status::text,

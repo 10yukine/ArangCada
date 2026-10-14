@@ -146,8 +146,8 @@ update public.driver_availability set latitude=14.20, longitude=121.16, updated_
  where driver_id = '00000000-0000-0000-0000-000000010304';
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000010304';
-select is((public.complete_trip('00000000-0000-0000-0000-000000010312')).status::text,
- 'completed', 'driver completion stays unchanged without proximity or countdown');
+select throws_ok($$select public.complete_trip('00000000-0000-0000-0000-000000010312')$$,
+ '22023', null, 'driver completion away from the drop-off needs the commuter''s request (see 105)');
 reset role;
 select * from finish();
 rollback;
