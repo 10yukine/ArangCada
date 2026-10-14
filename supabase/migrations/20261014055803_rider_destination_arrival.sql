@@ -105,9 +105,13 @@ begin
   end if;
   v_definition := replace(v_definition, v_anchor, v_replacement);
   -- Hold the availability row so a fresh, distant fix cannot race completion.
-  v_definition := replace(v_definition,
-    'select * into v_location from public.driver_availability
-     where driver_id = v_trip.driver_id;',
+  v_anchor := 'select * into v_location from public.driver_availability
+     where driver_id = v_trip.driver_id;';
+  if (length(v_definition) - length(replace(v_definition, v_anchor, '')))
+     <> length(v_anchor) then
+    raise exception 'complete_trip changed; review the availability lock';
+  end if;
+  v_definition := replace(v_definition, v_anchor,
     'select * into v_location from public.driver_availability
      where driver_id = v_trip.driver_id for update;');
   execute v_definition;
