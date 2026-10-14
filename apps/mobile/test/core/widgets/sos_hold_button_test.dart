@@ -3,6 +3,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('SOS label fits a 320 px phone with trip-screen spacing', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final scale in [1.0, 1.3]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SosHoldButton(onCompleted: () {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(SosHoldButton)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(tester.takeException(), isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets(
     'SOS uses a full-button hold fill and completes after 3 seconds',
     (tester) async {

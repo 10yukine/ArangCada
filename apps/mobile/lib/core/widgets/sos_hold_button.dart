@@ -114,9 +114,14 @@ class _SosLabel extends StatelessWidget {
         children: [
           Icon(Icons.sos, size: 18, color: color),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            'Hold for 3 seconds',
-            style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Hold for 3 seconds',
+                style: TextStyle(color: color, fontWeight: FontWeight.w600),
+              ),
+            ),
           ),
         ],
       ),
