@@ -456,6 +456,19 @@ void main() {
       expect(find.text('Reported conversations · LGU only'), findsOneWidget);
       expect(find.text('Threatening language during pickup'), findsOneWidget);
       expect(find.text('1 message'), findsOneWidget);
+      final singleCard = find
+          .ancestor(
+            of: find.text('Threatening language during pickup'),
+            matching: find.byType(SizedBox),
+          )
+          .first;
+      final conversationRow = find
+          .ancestor(of: singleCard, matching: find.byType(Column))
+          .first;
+      expect(
+        tester.getSize(singleCard).width,
+        tester.getSize(conversationRow).width,
+      );
       expect(
         find.text('Only an LGU reviewer may read this message.'),
         findsNothing,
@@ -511,6 +524,16 @@ void main() {
     expect(secondPosition.dx, greaterThan(firstPosition.dx));
     expect(thirdPosition.dx, firstPosition.dx);
     expect(thirdPosition.dy, greaterThan(firstPosition.dy));
+    final lastCard = find
+        .ancestor(of: third, matching: find.byType(SizedBox))
+        .first;
+    final conversationRow = find
+        .ancestor(of: lastCard, matching: find.byType(Column))
+        .first;
+    expect(
+      tester.getSize(lastCard).width,
+      tester.getSize(conversationRow).width,
+    );
     expect(find.text('View conversation'), findsOneWidget);
     expect(
       find.text('The reported conversation contained no saved messages.'),

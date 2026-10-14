@@ -204,10 +204,16 @@ class _ReportedConversationSection extends StatelessWidget {
               return Wrap(
                 spacing: 12,
                 children: [
-                  for (final report in reportedChats)
+                  for (var i = 0; i < reportedChats.length; i++)
                     SizedBox(
-                      width: width,
-                      child: _ReportedConversationCard(report: report),
+                      width:
+                          reportedChats.length.isOdd &&
+                              i == reportedChats.length - 1
+                          ? constraints.maxWidth
+                          : width,
+                      child: _ReportedConversationCard(
+                        report: reportedChats[i],
+                      ),
                     ),
                 ],
               );
