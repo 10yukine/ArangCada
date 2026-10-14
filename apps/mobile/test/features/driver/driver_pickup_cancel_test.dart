@@ -57,6 +57,7 @@ Future<(_PickupRide, DemoState)> _pump(
     ProviderScope(
       overrides: [
         demoStateProvider.overrideWithValue(state),
+        driverScreenAwakeProvider.overrideWithValue((_) async {}),
         if (live) liveRideRepositoryProvider.overrideWithValue(rides),
         notificationsRepositoryProvider.overrideWithValue(_NoNotifications()),
       ],
