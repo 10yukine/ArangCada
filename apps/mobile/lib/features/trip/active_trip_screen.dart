@@ -45,6 +45,11 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
           state.activeBooking?.status == BookingStatus.inProgress &&
           state.liveDriverLocationReceivedAt != null) {
         setState(() {});
+        final rides = ref.read(liveRideRepositoryProvider);
+        final age = state.liveDriverLocationAge;
+        if (rides != null && age != null && age > const Duration(seconds: 30)) {
+          unawaited(rides.checkRiderDestinationArrival());
+        }
       }
     });
     final liveRides = ref.read(liveRideRepositoryProvider);

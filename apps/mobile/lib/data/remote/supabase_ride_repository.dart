@@ -62,6 +62,8 @@ class SupabaseRideRepository extends ChangeNotifier {
   StreamSubscription<List<Map<String, dynamic>>>? _feedbackSubscription;
   Timer? _locationTicker;
   bool _publishingLocation = false;
+  bool _checkingRiderArrival = false;
+  String? _riderArrivalReportedTripId;
   DateTime? _lastHeartbeatOk;
   bool _heartbeatStale = false;
   bool _disposed = false;
@@ -602,6 +604,63 @@ class SupabaseRideRepository extends ChangeNotifier {
   Future<void> markArrived() => _tripAction('mark_arrived');
   Future<void> startTrip() => _tripAction('start_trip');
   Future<void> completeTrip() => _tripAction('complete_trip');
+
+  /// A best-effort fallback for a backgrounded driver's GPS. The server checks
+  /// the same conditions; unsupported RPCs/offline fixes simply retry later.
+  Future<void> checkRiderDestinationArrival() async {
+    final tripId = _state.liveTripId;
+    final destination = _state.destination?.coordinate;
+    final age = _state.liveDriverLocationAge;
+    if (_disposed ||
+        _checkingRiderArrival ||
+        _state.currentUser?.role != DemoRole.commuter ||
+        _state.activeBooking?.status != BookingStatus.inProgress ||
+        tripId == null ||
+        tripId == _riderArrivalReportedTripId ||
+        _state.completionAvailableAt != null ||
+        destination == null ||
+        age == null ||
+        age <= const Duration(seconds: 30)) {
+      return;
+    }
+    _checkingRiderArrival = true;
+    try {
+      if (!await _location.hasPermission()) return;
+      final fix = await _location.currentLocation();
+      // A new trip, completion or driver update may arrive while GPS resolves.
+      final latestAge = _state.liveDriverLocationAge;
+      if (_disposed ||
+          _state.liveTripId != tripId ||
+          _state.activeBooking?.status != BookingStatus.inProgress ||
+          _state.completionAvailableAt != null ||
+          latestAge == null ||
+          latestAge <= const Duration(seconds: 30) ||
+          !fix.accuracyMeters.isFinite ||
+          fix.accuracyMeters < 0 ||
+          fix.accuracyMeters > 50 ||
+          haversineDistanceMeters(fix.coordinate, destination) > 100) {
+        return;
+      }
+      final result = await _client.rpc(
+        'rider_reached_destination',
+        params: {
+          'p_trip_id': tripId,
+          'p_lat': fix.coordinate.latitude,
+          'p_lng': fix.coordinate.longitude,
+          'p_accuracy_meters': fix.accuracyMeters,
+        },
+      );
+      if (_disposed || _state.liveTripId != tripId) return;
+      _riderArrivalReportedTripId = tripId;
+      if (_state.activeBooking?.status == BookingStatus.inProgress) {
+        _applyTrip(_row(result));
+      }
+    } catch (_) {
+      // No alert or connection error: arrival can still come from the driver.
+    } finally {
+      _checkingRiderArrival = false;
+    }
+  }
 
   Future<void> _tripAction(String name) async {
     final tripId = _state.liveTripId;
