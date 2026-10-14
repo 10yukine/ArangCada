@@ -146,11 +146,11 @@ void main() {
     await _pump(tester, status: DriverTripStatus.inProgress, metersNorth: 1500);
     expect(_onPressed(tester, 'Complete Trip'), isNull);
     expect(find.textContaining('1.5 km from the drop-off'), findsOneWidget);
-    expect(find.textContaining('“Stop here”'), findsOneWidget);
+    expect(find.textContaining('“Get off early”'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('completion is open at the drop-off or after "Stop here"', (
+  testWidgets('completion is open at the drop-off or after "Get off early"', (
     tester,
   ) async {
     await _pump(tester, status: DriverTripStatus.inProgress, metersNorth: 60);
@@ -164,7 +164,7 @@ void main() {
       riderConsent: true,
     );
     expect(_onPressed(tester, 'Complete Trip'), isNotNull);
-    expect(find.text('Your passenger asked to stop here.'), findsOneWidget);
+    expect(find.textContaining('wants to get off early'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -77,6 +77,7 @@ void main() {
             'mark_arrived',
             'rider_confirm_pickup',
             'rider_request_stop',
+            'rider_cancel_stop',
           }.contains(name);
           data = !tripStep
               ? <String, dynamic>{}
@@ -84,7 +85,8 @@ void main() {
                   'id': body['p_trip_id'],
                   'status': switch (name) {
                     'mark_arrived' => 'arrived',
-                    'rider_request_stop' => 'in_progress',
+                    'rider_request_stop' ||
+                    'rider_cancel_stop' => 'in_progress',
                     _ => 'accepted',
                   },
                   'rider_confirmed_pickup_at': name == 'rider_confirm_pickup'
@@ -151,12 +153,23 @@ void main() {
     },
   );
 
-  test('"Stop here" calls rider_request_stop and is recorded', () async {
+  test('"Get off early" calls rider_request_stop and is recorded', () async {
     await start(DemoRole.commuter);
     await rides.requestStopHere();
     expect(calls, ['rider_request_stop']);
     expect(state.riderRequestedStop, isTrue);
   });
+
+  test(
+    '"Keep riding" calls rider_cancel_stop and clears the request',
+    () async {
+      await start(DemoRole.commuter);
+      state.riderRequestedStop = true;
+      await rides.cancelStopRequest();
+      expect(calls, ['rider_cancel_stop']);
+      expect(state.riderRequestedStop, isFalse);
+    },
+  );
 
   test('a driver sends a current fix before asking to mark arrival', () async {
     await start(DemoRole.driver);

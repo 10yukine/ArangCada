@@ -24,6 +24,10 @@ class _LiveRide implements SupabaseRideRepository {
   @override
   Future<void> requestStopHere() async => stopCalls++;
 
+  int keepRidingCalls = 0;
+  @override
+  Future<void> cancelStopRequest() async => keepRidingCalls++;
+
   @override
   Future<void> checkRiderDestinationArrival() async {}
 
@@ -122,47 +126,60 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('"Stop here" asks first, then tells the server once', (
-    tester,
-  ) async {
-    final (rides, state) = await _pump(
-      tester,
-      const ActiveTripScreen(),
-      BookingStatus.inProgress,
-    );
+  testWidgets(
+    '"Get off early" asks first, tells the server once, and can be taken back',
+    (tester) async {
+      final (rides, state) = await _pump(
+        tester,
+        const ActiveTripScreen(),
+        BookingStatus.inProgress,
+      );
 
-    await tester.tap(find.text('Stop here'));
-    await tester.pumpAndSettle();
-    expect(find.text('Stop here?'), findsOneWidget);
-    await tester.tap(find.text('Keep riding'));
-    await tester.pumpAndSettle();
-    expect(rides.stopCalls, 0);
+      await tester.tap(find.text('Get off early'));
+      await tester.pumpAndSettle();
+      expect(find.text('Get off early?'), findsOneWidget);
+      await tester.tap(find.text('Keep riding'));
+      await tester.pumpAndSettle();
+      expect(rides.stopCalls, 0);
 
-    await tester.tap(find.text('Stop here'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Stop here'));
-    await tester.pumpAndSettle();
-    expect(rides.stopCalls, 1);
+      await tester.tap(find.text('Get off early'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Get off early'));
+      await tester.pumpAndSettle();
+      expect(rides.stopCalls, 1);
 
-    state.riderRequestedStop = true;
-    state.bookingChanged();
-    await tester.pump();
-    expect(find.text('Stop requested'), findsOneWidget);
-    expect(
-      find.text('You asked to stop here. Your driver will end the trip.'),
-      findsOneWidget,
-    );
-    await tester.pumpWidget(const SizedBox());
-  });
+      state.riderRequestedStop = true;
+      state.bookingChanged();
+      await tester.pump();
+      expect(find.text('Get off early'), findsNothing);
+      expect(
+        find.text(
+          'You asked to get off early. Your driver will end the trip where it '
+          'is safe to stop.',
+        ),
+        findsOneWidget,
+      );
 
-  testWidgets('demo trips have no "Stop here"', (tester) async {
+      await tester.tap(find.text('Keep riding'));
+      await tester.pump();
+      expect(rides.keepRidingCalls, 1);
+      state.riderRequestedStop = false;
+      state.bookingChanged();
+      await tester.pump();
+      expect(find.text('Get off early'), findsOneWidget);
+      expect(find.text('Keep riding'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('demo trips have no "Get off early"', (tester) async {
     await _pump(
       tester,
       const ActiveTripScreen(),
       BookingStatus.inProgress,
       live: false,
     );
-    expect(find.text('Stop here'), findsNothing);
+    expect(find.text('Get off early'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 }

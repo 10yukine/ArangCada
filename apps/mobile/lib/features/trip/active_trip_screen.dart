@@ -178,10 +178,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => ArangDialog(
-        title: 'Stop here?',
+        title: 'Get off early?',
         content: const Text(
-          'Your driver can then end the trip before your drop-off point. The '
-          'fare stays as quoted.',
+          'Your driver can then end the trip before your drop-off point, '
+          'wherever it is safe to stop. The fare stays as quoted.',
         ),
         actions: [
           TextButton(
@@ -190,7 +190,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Stop here'),
+            child: const Text('Get off early'),
           ),
         ],
       ),
@@ -202,6 +202,21 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not ask to stop. Try again.')),
+        );
+      }
+    }
+  }
+
+  /// Takes back "Get off early": the driver's 100 m rule applies again.
+  Future<void> _keepRiding() async {
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    if (liveRides == null) return;
+    try {
+      await liveRides.cancelStopRequest();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update. Try again.')),
         );
       }
     }
@@ -400,9 +415,10 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 onShare: ref.read(liveRideRepositoryProvider) == null
                     ? null
                     : () => showTripShareSheet(context),
-                onStopHere: ref.read(liveRideRepositoryProvider) == null
+                onGetOffEarly: ref.read(liveRideRepositoryProvider) == null
                     ? null
                     : _requestStop,
+                onKeepRiding: _keepRiding,
                 stopRequested: state.riderRequestedStop,
                 onSos: _recordSos,
               ),
@@ -475,7 +491,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
     required this.onMessage,
     required this.onCall,
     required this.onShare,
-    this.onStopHere,
+    this.onGetOffEarly,
+    this.onKeepRiding,
     this.stopRequested = false,
     required this.onSos,
   });
@@ -493,7 +510,8 @@ class _ActiveTripSheetBody extends StatelessWidget {
   final VoidCallback onMessage;
   final VoidCallback onCall;
   final VoidCallback? onShare;
-  final VoidCallback? onStopHere;
+  final VoidCallback? onGetOffEarly;
+  final VoidCallback? onKeepRiding;
   final bool stopRequested;
   final Future<void> Function() onSos;
 
@@ -639,7 +657,7 @@ class _ActiveTripSheetBody extends StatelessWidget {
               ),
             ],
           ),
-        if (!awaitingConfirmation && (onShare != null || onStopHere != null))
+        if (!awaitingConfirmation && (onShare != null || onGetOffEarly != null))
           Wrap(
             spacing: AppSpacing.xs,
             children: [
@@ -649,17 +667,24 @@ class _ActiveTripSheetBody extends StatelessWidget {
                   icon: const Icon(Icons.share_location_outlined),
                   label: const Text('Share trip'),
                 ),
-              if (onStopHere != null)
+              if (onGetOffEarly != null && !stopRequested)
                 TextButton.icon(
-                  onPressed: stopRequested ? null : onStopHere,
+                  onPressed: onGetOffEarly,
                   icon: const Icon(Icons.front_hand_outlined),
-                  label: Text(stopRequested ? 'Stop requested' : 'Stop here'),
+                  label: const Text('Get off early'),
+                ),
+              if (onGetOffEarly != null && stopRequested)
+                TextButton.icon(
+                  onPressed: onKeepRiding,
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Keep riding'),
                 ),
             ],
           ),
         if (!awaitingConfirmation && stopRequested)
           const Text(
-            'You asked to stop here. Your driver will end the trip.',
+            'You asked to get off early. Your driver will end the trip where '
+            'it is safe to stop.',
             style: AppTypography.caption,
           ),
         const SizedBox(height: AppSpacing.xs),

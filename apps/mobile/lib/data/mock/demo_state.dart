@@ -88,7 +88,7 @@ class DemoState extends ChangeNotifier {
   DateTime? completionAvailableAt;
 
   /// The commuter's in-app consent that lifts the driver's 100 m rule:
-  /// "My driver is here" at pickup, "Stop here" during the trip.
+  /// "My driver is here" at pickup, "Get off early" during the trip.
   bool riderConfirmedPickup = false;
   bool riderRequestedStop = false;
   bool driverFeedbackPending = false;
