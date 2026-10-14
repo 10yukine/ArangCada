@@ -435,11 +435,28 @@ void main() {
 
       expect(find.text('Reported conversations · LGU only'), findsOneWidget);
       expect(find.text('Threatening language during pickup'), findsOneWidget);
+      expect(find.text('1 message'), findsOneWidget);
+      expect(
+        find.text('Only an LGU reviewer may read this message.'),
+        findsNothing,
+      );
+      expect(find.textContaining('Reported by Ana Reyes'), findsOneWidget);
+      await tester.ensureVisible(find.text('View conversation'));
+      await tester.tap(find.text('View conversation'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsOneWidget);
       expect(
         find.text('Only an LGU reviewer may read this message.'),
         findsOneWidget,
       );
-      expect(find.textContaining('Reported by Ana Reyes'), findsOneWidget);
+      expect(find.text('Commuter · Ana Reyes'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        find.text('Only an LGU reviewer may read this message.'),
+        findsNothing,
+      );
     },
   );
 

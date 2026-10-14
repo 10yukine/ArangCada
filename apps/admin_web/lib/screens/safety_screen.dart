@@ -228,36 +228,81 @@ class _ReportedConversationCard extends StatelessWidget {
         const SizedBox(height: 12),
         if (report.messages.isEmpty)
           const Text('The reported conversation contained no saved messages.')
-        else
-          for (final message in report.messages)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: context.adminColor(AdminColors.surface),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        else ...[
+          Text(
+            '${report.messages.length} '
+            '${report.messages.length == 1 ? 'message' : 'messages'}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _viewConversation(context),
+            child: const Text('View conversation'),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  void _viewConversation(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (context) => Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    '${message.senderRole} · ${message.senderName}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(message.body),
-                  if (message.createdAt != null) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      shortTime(message.createdAt!),
-                      style: Theme.of(context).textTheme.bodySmall,
+                  Expanded(
+                    child: Text(
+                      'Reported conversation',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  ],
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
                 ],
               ),
-            ),
-      ],
+              const SizedBox(height: 8),
+              Text(report.reason),
+              const SizedBox(height: 16),
+              for (final message in report.messages)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.adminColor(AdminColors.surface),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${message.senderRole} · ${message.senderName}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(message.body),
+                      if (message.createdAt != null) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          shortTime(message.createdAt!),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }
