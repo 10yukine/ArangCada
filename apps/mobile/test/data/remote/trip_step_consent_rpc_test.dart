@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:arangcada/data/mock/demo_state.dart';
@@ -13,14 +14,19 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _Gps implements LocationRepository {
+  Completer<void>? hold;
+
   @override
   Future<bool> hasPermission() async => true;
   @override
-  Future<LocationFix> currentLocation() async => LocationFix(
-    coordinate: DemoData.places.first.coordinate,
-    accuracyMeters: 8,
-    timestamp: DateTime.now(),
-  );
+  Future<LocationFix> currentLocation() async {
+    await hold?.future;
+    return LocationFix(
+      coordinate: DemoData.places.first.coordinate,
+      accuracyMeters: 8,
+      timestamp: DateTime.now(),
+    );
+  }
 }
 
 void main() {
@@ -28,6 +34,7 @@ void main() {
   late DemoState state;
   late SupabaseRideRepository rides;
   late List<String> calls;
+  late _Gps gps;
 
   Future<void> start(DemoRole role) async {
     calls = [];
@@ -116,10 +123,11 @@ void main() {
     if (role == DemoRole.driver) {
       state.driverTrip.status = DriverTripStatus.accepted;
     }
+    gps = _Gps();
     rides = SupabaseRideRepository(
       client,
       state,
-      _Gps(),
+      gps,
       const MockFareRepository(),
     );
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -155,4 +163,23 @@ void main() {
     await rides.markArrived();
     expect(calls, ['publish_driver_location', 'mark_arrived']);
   });
+
+  test(
+    'arrival waits for a location publish that is already under way',
+    () async {
+      await start(DemoRole.driver);
+      gps.hold = Completer<void>();
+      final routine = rides.publishLocationNow();
+      final arrival = rides.markArrived();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(
+        calls,
+        isEmpty,
+        reason: 'nothing may reach the server before the fix',
+      );
+      gps.hold!.complete();
+      await Future.wait([routine, arrival]);
+      expect(calls, ['publish_driver_location', 'mark_arrived']);
+    },
+  );
 }

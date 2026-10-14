@@ -65,7 +65,7 @@ class SupabaseRideRepository extends ChangeNotifier {
   StreamSubscription<List<Map<String, dynamic>>>? _locationSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _feedbackSubscription;
   Timer? _locationTicker;
-  bool _publishingLocation = false;
+  Future<void>? _publishInFlight;
   bool _checkingRiderArrival = false;
   String? _riderArrivalReportedTripId;
   DateTime? _lastHeartbeatOk;
@@ -748,9 +748,14 @@ class SupabaseRideRepository extends ChangeNotifier {
   @visibleForTesting
   Future<void> publishLocationNow() => _publishLocation();
 
-  Future<void> _publishLocation() async {
-    if (_publishingLocation || _disposed) return;
-    _publishingLocation = true;
+  /// One publish at a time: a caller arriving mid-publish waits for that one
+  /// instead of returning early, so an action that needs a current fix on the
+  /// server (arrival, completion) never runs ahead of it.
+  Future<void> _publishLocation() => _publishInFlight ??= _publishLocationOnce()
+      .whenComplete(() => _publishInFlight = null);
+
+  Future<void> _publishLocationOnce() async {
+    if (_disposed) return;
     var idle = false;
     try {
       final fix = await _location.currentLocation();
@@ -799,7 +804,6 @@ class SupabaseRideRepository extends ChangeNotifier {
     } on Exception {
       // A missed foreground GPS fix must not end or rewrite the server trip.
     } finally {
-      _publishingLocation = false;
       final lastOk = _lastHeartbeatOk;
       final stale =
           _state.driverTrip.status == DriverTripStatus.available &&
