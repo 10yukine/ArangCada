@@ -224,4 +224,4 @@ grant select on storage.buckets to anon, authenticated, service_role;
 -- Matches how the public schema is pre-granted above: broad table
 -- access, RLS is the real gate. Hosted Supabase's storage schema is
 -- configured the same way.
-grant select, insert on storage.objects to anon, authenticated, service_role;
+grant select, insert, delete on storage.objects to anon, authenticated, service_role;

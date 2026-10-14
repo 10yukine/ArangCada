@@ -35,6 +35,16 @@ class _ClaimFixtureController extends AdminController {
       }),
     ],
   );
+
+  @override
+  Future<void> deleteFareClassClaim(FareClassClaim claim) async {
+    state = state.copyWith(
+      fareClassClaims: [
+        for (final other in state.fareClassClaims)
+          if (other.id != claim.id) other,
+      ],
+    );
+  }
 }
 
 void main() {
@@ -104,7 +114,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ana Reyes'), findsWidgets);
-      expect(find.text('Student'), findsWidgets);
+      expect(find.textContaining('Student'), findsWidgets);
       expect(find.text('Approve'), findsOneWidget);
       expect(find.text('Reject'), findsOneWidget);
     },
@@ -138,6 +148,42 @@ void main() {
       expect(find.text('Reject'), findsNothing);
     },
   );
+
+  testWidgets('only a rejected claim can be deleted, and only once confirmed', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    auth.value = const AdminSession(name: 'LGU evaluator', role: AdminRole.lgu);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [adminProvider.overrideWith(_ClaimFixtureController.new)],
+        child: const AdminApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Discount claims'));
+    await tester.pumpAndSettle();
+    // The pending claim is open first.
+    expect(find.text('Delete claim'), findsNothing);
+
+    await tester.tap(find.text('Paolo Cruz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete claim'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Paolo Cruz'), findsWidgets);
+
+    await tester.tap(find.text('Delete claim'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete claim'));
+    await tester.pumpAndSettle();
+    expect(find.text('Paolo Cruz'), findsNothing);
+    expect(find.text('Claim deleted.'), findsOneWidget);
+  });
 
   testWidgets(
     'a TODA administrator sees an LGU-only explanation instead of the list',

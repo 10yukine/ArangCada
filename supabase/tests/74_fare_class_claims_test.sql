@@ -7,7 +7,7 @@
 
 begin;
 
-select plan(22);
+select plan(35);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -247,6 +247,128 @@ select throws_ok(
       'student', '00000000-0000-0000-0000-0000000074d1/unverified.jpg')$$,
   '42501', null,
   'or file a discount claim'
+);
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 20261014090000: an admin deletes a rejected claim, ID photo first
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000074a2';
+
+insert into storage.objects (bucket_id, name, owner) values (
+  'discount-eligibility-ids',
+  '00000000-0000-0000-0000-0000000074a2/id.jpg',
+  '00000000-0000-0000-0000-0000000074a2');
+
+select is(
+  (select status from public.submit_fare_class_claim('pwd',
+      '00000000-0000-0000-0000-0000000074a2/id.jpg')),
+  'pending_review',
+  'fixture: the control rider files a claim'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000074c1';
+
+select throws_ok(
+  $$select public.delete_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a2'))$$,
+  '22023', null,
+  'a pending claim cannot be deleted'
+);
+
+delete from storage.objects
+ where name = '00000000-0000-0000-0000-0000000074a2/id.jpg';
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000074a2/id.jpg'),
+  1,
+  'SECURITY: an admin cannot remove the ID photo of a claim still pending'
+);
+
+select is(
+  (select status from public.review_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a2'),
+      false, 'Photo was too blurry to read.')),
+  'rejected',
+  'fixture: the admin rejects it'
+);
+
+select throws_ok(
+  $$select public.delete_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a2'))$$,
+  '55000', null,
+  'a rejected claim cannot be deleted while its ID photo is still stored'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000074a2';
+
+delete from storage.objects
+ where name = '00000000-0000-0000-0000-0000000074a2/id.jpg';
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000074a2/id.jpg'),
+  1,
+  'SECURITY: a commuter cannot remove an ID photo, not even their own'
+);
+
+select throws_ok(
+  $$select public.delete_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a2'))$$,
+  '42501', null,
+  'SECURITY: a non-admin cannot delete a claim'
+);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000074c1';
+
+delete from storage.objects
+ where name = '00000000-0000-0000-0000-0000000074a2/id.jpg';
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000074a2/id.jpg'),
+  0,
+  'an admin can remove the ID photo of a rejected claim'
+);
+
+select lives_ok(
+  $$select public.delete_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a2'))$$,
+  'and then delete the claim'
+);
+
+select is(
+  (select count(*)::integer from public.fare_class_claims
+    where profile_id = '00000000-0000-0000-0000-0000000074a2'),
+  0,
+  'the rejected claim is gone'
+);
+
+select is(
+  (select count(*)::integer from public.admin_audit_logs
+    where action = 'fare_class_claim.deleted'
+      and target_profile_id = '00000000-0000-0000-0000-0000000074a2'),
+  1,
+  'the deletion wrote exactly one admin_audit_logs row'
+);
+
+select throws_ok(
+  $$select public.delete_fare_class_claim(
+      (select id from public.fare_class_claims where profile_id = '00000000-0000-0000-0000-0000000074a1'))$$,
+  '22023', null,
+  'an approved claim cannot be deleted'
+);
+
+delete from storage.objects
+ where name = '00000000-0000-0000-0000-0000000074a1/id.jpg';
+
+select is(
+  (select count(*)::integer from storage.objects
+    where name = '00000000-0000-0000-0000-0000000074a1/id.jpg'),
+  1,
+  'SECURITY: nor can the ID photo behind an approved discount be removed'
 );
 reset role;
 

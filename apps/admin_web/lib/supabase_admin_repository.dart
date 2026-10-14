@@ -671,6 +671,24 @@ class SupabaseAdminRepository {
     );
   }
 
+  /// Deletes a rejected claim and its ID photo. The photo goes first, and
+  /// delete_fare_class_claim() refuses while it is still stored: with the
+  /// row gone, nothing would point at the photo any more.
+  Future<void> deleteFareClassClaim({
+    required String claimId,
+    required String idPhotoPath,
+  }) async {
+    if (idPhotoPath.isNotEmpty) {
+      await client.storage.from('discount-eligibility-ids').remove([
+        idPhotoPath,
+      ]);
+    }
+    await client.rpc(
+      'delete_fare_class_claim',
+      params: {'p_claim_id': claimId},
+    );
+  }
+
   /// A short-lived signed URL for a submitted ID photo. Never a public read
   /// grant -- `discount_id_select_own_or_admin`'s RLS policy on
   /// `storage.objects` is what actually decides an admin may read this

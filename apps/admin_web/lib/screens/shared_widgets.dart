@@ -16,10 +16,13 @@ class ReviewWorkspace extends StatelessWidget {
   final bool showDetail;
   final VoidCallback onBack;
 
+  /// Narrower than this, the queue and the detail take turns.
+  static const double sideBySideFrom = 840;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 840) {
+      if (constraints.maxWidth < sideBySideFrom) {
         if (!showDetail) return queue;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

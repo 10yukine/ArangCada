@@ -449,6 +449,23 @@ class AdminController extends Notifier<AdminState> {
     await refresh();
   }
 
+  /// Removes a rejected claim and its ID photo for good. The server refuses
+  /// a claim that is pending or approved.
+  Future<void> deleteFareClassClaim(FareClassClaim claim) async {
+    if (!state.connected) {
+      throw StateError(
+        'Deleting a discount claim requires the live Supabase connection.',
+      );
+    }
+    await ref
+        .read(adminRepositoryProvider)!
+        .deleteFareClassClaim(
+          claimId: claim.id,
+          idPhotoPath: claim.idPhotoPath,
+        );
+    await refresh();
+  }
+
   /// A short-lived signed URL for a driver's uploaded document. Same
   /// rejected-Future-not-a-throw shape as fareClassClaimPhotoUrl above, and
   /// for the same reason.
