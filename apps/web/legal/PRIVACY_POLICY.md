@@ -11,8 +11,8 @@
 ArangCada LGU/TODA admin web console.
 
 **Prepared by:** ArangCada capstone group (NU Laguna, Department of Computer
-Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Dr. Juliet
-O. Niega.
+Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Engr. Mark
+Angelo T. Mercado.
 
 **Last updated:** October 2026 · **Effective date:** September 2026 (Academic
 Pilot)
@@ -442,7 +442,7 @@ version is always published on this page.
 **Data controller (for capstone purposes):** ArangCada capstone group,
 Section CpE231B, Department of Computer Engineering, National University Laguna.
 
-- **Capstone Adviser:** Dr. Juliet O. Niega
+- **Capstone Adviser:** Engr. Mark Angelo T. Mercado
 - **Group Legal-Research Contact:** Hernandez, Justin T.
 - **Privacy & DPO Inquiries:** [privacy@arangcada.app](mailto:privacy@arangcada.app)
 - **General Support Inquiries:** [support@arangcada.app](mailto:support@arangcada.app)
