@@ -359,9 +359,13 @@ class SupabaseRideRepository extends ChangeNotifier {
           final latitude = row['latitude'] as num?;
           final longitude = row['longitude'] as num?;
           if (latitude != null && longitude != null) {
-            _state.liveDriverLocation = GeoCoordinate(
-              latitude: latitude.toDouble(),
-              longitude: longitude.toDouble(),
+            _state.recordLiveDriverLocation(
+              GeoCoordinate(
+                latitude: latitude.toDouble(),
+                longitude: longitude.toDouble(),
+              ),
+              driverId: driverId,
+              updatedAt: row['updated_at'] as String?,
             );
           }
           if (_isDriver &&
@@ -496,6 +500,7 @@ class SupabaseRideRepository extends ChangeNotifier {
             latitude: latitude.toDouble(),
             longitude: longitude.toDouble(),
           );
+    if (_state.liveDriverLocation == null) _state.clearLiveDriverLocation();
     _state.driverTrip.status = online
         ? DriverTripStatus.available
         : DriverTripStatus.offline;
