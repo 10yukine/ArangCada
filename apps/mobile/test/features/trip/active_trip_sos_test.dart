@@ -1,3 +1,4 @@
+import 'package:arangcada/core/geo/haversine.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -51,6 +52,66 @@ void main() {
     overrides: [demoStateProvider.overrideWithValue(state)],
     child: const MaterialApp(home: ActiveTripScreen()),
   );
+
+  testWidgets('driver location age updates and a fresh update hides it', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final state = DemoState(now: tester.binding.clock.now);
+    addTearDown(state.dispose);
+    state.setDestination(DemoData.places[1]);
+    state.setActiveBooking(inProgressBooking());
+    void receive(String version) {
+      state.recordLiveDriverLocation(
+        const GeoCoordinate(latitude: 14.2, longitude: 121.1),
+        driverId: 'driver-1',
+        updatedAt: version,
+      );
+      state.driverChanged();
+    }
+
+    receive('2026-10-14T05:33:57Z');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          demoStateProvider.overrideWithValue(state),
+          liveRideRepositoryProvider.overrideWithValue(_CompletionRepository()),
+        ],
+        child: const MaterialApp(home: ActiveTripScreen()),
+      ),
+    );
+    await tester.pump();
+    expect(find.textContaining("Driver's location last updated"), findsNothing);
+    await tester.pump(const Duration(seconds: 15));
+    expect(find.textContaining("Driver's location last updated"), findsNothing);
+    await tester.pump(const Duration(seconds: 5));
+    expect(
+      find.text("Driver's location last updated 20 s ago"),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 20));
+    expect(
+      find.text("Driver's location last updated 40 s ago"),
+      findsOneWidget,
+    );
+
+    receive('2026-10-14T05:33:57Z');
+    await tester.pump();
+    expect(
+      find.text("Driver's location last updated 40 s ago"),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 20));
+    expect(
+      find.text("Driver's location last updated 1 min ago"),
+      findsOneWidget,
+    );
+    receive('2026-10-14T05:35:09Z');
+    await tester.pump();
+    expect(find.textContaining("Driver's location last updated"), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('failed live completion remains retryable without another update', (
     tester,

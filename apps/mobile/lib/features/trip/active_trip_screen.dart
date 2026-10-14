@@ -34,10 +34,19 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   DemoSimulationRun? _completionRun;
   bool _completionStarted = false;
   Listenable? _liveState;
+  Timer? _locationAgeTicker;
 
   @override
   void initState() {
     super.initState();
+    _locationAgeTicker = Timer.periodic(const Duration(seconds: 5), (_) {
+      final state = ref.read(demoStateProvider);
+      if (mounted &&
+          state.activeBooking?.status == BookingStatus.inProgress &&
+          state.liveDriverLocationReceivedAt != null) {
+        setState(() {});
+      }
+    });
     final liveRides = ref.read(liveRideRepositoryProvider);
     if (liveRides == null) {
       _scheduleCompletion();
@@ -112,6 +121,7 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
   void dispose() {
     _liveState?.removeListener(_handleLiveTripChange);
     _confirmTicker?.cancel();
+    _locationAgeTicker?.cancel();
     _completionRun?.cancel();
     super.dispose();
   }
@@ -261,6 +271,11 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 ),
               );
             }
+            final locationAge = state.liveDriverLocationAge;
+            final staleLocation =
+                state.liveDriverLocation != null &&
+                locationAge != null &&
+                locationAge > const Duration(seconds: 15);
             return DragSheetScaffold(
               sheetKey: _mapController.panelKey,
               collapsedHeight: 330,
@@ -288,6 +303,27 @@ class _ActiveTripScreenState extends ConsumerState<ActiveTripScreen> {
                 onPressed: () => _mapController.fitRoute(),
               ),
               overlay: [
+                if (staleLocation)
+                  Positioned(
+                    top:
+                        MediaQuery.paddingOf(context).top +
+                        AppSizes.iconButton +
+                        16,
+                    left: 14,
+                    right: 14,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                      ),
+                      child: Text(
+                        "Driver's location last updated "
+                        '${locationAge.inSeconds < 60 ? '${locationAge.inSeconds} s' : '${locationAge.inMinutes} min'} ago',
+                        style: AppTypography.caption,
+                      ),
+                    ),
+                  ),
                 Positioned(
                   top: MediaQuery.paddingOf(context).top + 8,
                   left: 14,

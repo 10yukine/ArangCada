@@ -12,7 +12,11 @@ import '../../domain/state/driver_trip_state_machine.dart';
 /// Separate repository interfaces remain replaceable, while their mock
 /// implementations cannot drift into contradictory sessions or balances.
 class DemoState extends ChangeNotifier {
-  DemoState({DemoUser? initialUser}) : _currentUser = initialUser;
+  DemoState({DemoUser? initialUser, DateTime Function()? now})
+    : _currentUser = initialUser,
+      _now = now ?? DateTime.now;
+
+  final DateTime Function() _now;
 
   DemoUser? get currentUser => _currentUser;
 
@@ -49,6 +53,38 @@ class DemoState extends ChangeNotifier {
   // uploaded, or the trip has ended -- see that RPC's own scoping).
   String? liveCounterpartAvatarUrl;
   GeoCoordinate? liveDriverLocation;
+  DateTime? liveDriverLocationReceivedAt;
+  String? _liveDriverLocationUpdatedAt;
+  String? _liveLocationDriverId;
+
+  Duration? get liveDriverLocationAge => liveDriverLocationReceivedAt == null
+      ? null
+      : _now().difference(liveDriverLocationReceivedAt!);
+
+  /// Server time identifies an update; local receipt time measures its age.
+  /// Replaying the same row on reconnect must not make a frozen marker fresh.
+  void recordLiveDriverLocation(
+    GeoCoordinate coordinate, {
+    required String driverId,
+    required String? updatedAt,
+  }) {
+    liveDriverLocation = coordinate;
+    if (_liveLocationDriverId != driverId ||
+        _liveDriverLocationUpdatedAt != updatedAt ||
+        liveDriverLocationReceivedAt == null) {
+      _liveLocationDriverId = driverId;
+      _liveDriverLocationUpdatedAt = updatedAt;
+      liveDriverLocationReceivedAt = _now();
+    }
+  }
+
+  void clearLiveDriverLocation() {
+    liveDriverLocation = null;
+    liveDriverLocationReceivedAt = null;
+    _liveDriverLocationUpdatedAt = null;
+    _liveLocationDriverId = null;
+  }
+
   DateTime? completionAvailableAt;
   bool driverFeedbackPending = false;
   String? pendingFeedbackTripId;
@@ -194,7 +230,7 @@ class DemoState extends ChangeNotifier {
     liveCommuterName = null;
     liveTodaName = null;
     liveCounterpartAvatarUrl = null;
-    liveDriverLocation = null;
+    clearLiveDriverLocation();
     completionAvailableAt = null;
     driverFeedbackPending = false;
     pendingFeedbackTripId = null;
@@ -229,7 +265,7 @@ class DemoState extends ChangeNotifier {
     liveTodaName = null;
     driverTodaName = null;
     liveCounterpartAvatarUrl = null;
-    liveDriverLocation = null;
+    clearLiveDriverLocation();
     completionAvailableAt = null;
     driverFeedbackPending = false;
     pendingFeedbackTripId = null;
