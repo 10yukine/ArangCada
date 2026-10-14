@@ -9,6 +9,7 @@ class DemoUser {
     this.isAdminAccount = false,
     this.mobileNumber,
     this.phoneVerified = false,
+    this.phoneReverificationRequired = false,
     this.emailConfirmed = true,
     this.avatarUrl,
   });
@@ -34,6 +35,10 @@ class DemoUser {
   /// verification server-side, so a tampered client that forces this to true
   /// still cannot book, drive, or share a link.
   final bool phoneVerified;
+
+  /// Whether this existing account was asked to confirm its number again.
+  /// Mirrors the persistent `profiles.phone_reverify_since` marker.
+  final bool phoneReverificationRequired;
 
   /// Whether the account holder has opened the confirmation link sent to
   /// [email]. Mirrors `profiles.email_confirmed_at` and only decides whether
@@ -62,6 +67,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    phoneReverificationRequired: phoneReverificationRequired,
     emailConfirmed: emailConfirmed,
     avatarUrl: avatarUrl,
   );
@@ -74,6 +80,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    phoneReverificationRequired: phoneReverificationRequired,
     emailConfirmed: emailConfirmed,
     avatarUrl: value,
   );
@@ -86,6 +93,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: mobileNumber,
     phoneVerified: phoneVerified,
+    phoneReverificationRequired: phoneReverificationRequired,
     emailConfirmed: value,
     avatarUrl: avatarUrl,
   );
@@ -98,6 +106,7 @@ class DemoUser {
     isAdminAccount: isAdminAccount,
     mobileNumber: number,
     phoneVerified: false,
+    phoneReverificationRequired: phoneReverificationRequired,
     emailConfirmed: emailConfirmed,
     avatarUrl: avatarUrl,
   );

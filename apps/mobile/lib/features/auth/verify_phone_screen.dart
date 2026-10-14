@@ -16,7 +16,7 @@ import '../../core/widgets/arang_ui.dart';
 import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/auth_repository.dart';
 
-/// Holds a newly registered account until a 6-digit SMS code proves the user
+/// Holds an account until a 6-digit SMS code proves the account holder
 /// controls the mobile number they typed.
 ///
 /// Decided with Calamba City Hall context on 31 Aug 2026: a Filipino holds one
@@ -28,7 +28,8 @@ import '../../data/repositories/auth_repository.dart';
 /// refuse an unverified account, so a tampered client that skips this screen
 /// still cannot book, drive, or share a link.
 ///
-/// Registration only. A later change to an already-verified number is
+/// Used for registration and accounts asked to confirm their number again.
+/// A later change to an already-verified number is
 /// confirmed inline on the Account & Security screen instead of here -- see
 /// `edit_profile_screen.dart` -- because the owner decided that flow should
 /// not have its own page at all (5 Sep 2026).
@@ -285,6 +286,19 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     }
   }
 
+  Future<void> _signOut() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        context.go('/login');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final phone = _phone;
@@ -294,8 +308,10 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
     final shown = phone == null
         ? 'your mobile number'
         : normalizePhMobile(phone).display.replaceAll(' ', '\u00A0');
-    final isAdmin =
-        ref.watch(demoStateProvider).currentUser?.isAdminAccount == true;
+    final account = ref.watch(demoStateProvider).currentUser;
+    final isAdmin = account?.isAdminAccount == true;
+    final isReconfirming =
+        !isAdmin && account?.phoneReverificationRequired == true;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     // The pin row is the one thing on this screen that cannot wrap. Six fixed
@@ -315,7 +331,7 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
               children: [
                 // Registration's fourth and final step: the bar continues
                 // from where the sign-up form left it and fills on arrival.
-                if (!isAdmin)
+                if (!isAdmin && !isReconfirming)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.xl,
@@ -355,7 +371,9 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          isAdmin ? 'Verify your number' : 'Step 4 of 4',
+                          isAdmin || isReconfirming
+                              ? 'Verify your number'
+                              : 'Step 4 of 4',
                           style: AppTypography.label.copyWith(
                             color: AppColors.primary,
                           ),
@@ -366,6 +384,16 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                           style: AppTypography.display,
                         ),
                         const SizedBox(height: AppSpacing.xs),
+                        if (isReconfirming) ...[
+                          Text(
+                            'We now send codes by text message. Confirm your '
+                            'number once more to keep using ArangCada.',
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
                         Text(
                           // Codes go by text message since 13 Oct 2026.
                           _noCodeYet
@@ -557,8 +585,14 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen>
                       if (!isAdmin &&
                           MediaQuery.viewInsetsOf(context).bottom == 0)
                         TextButton(
-                          onPressed: _busy || _verified ? null : _cancelSignUp,
-                          child: const Text('Cancel sign-up'),
+                          onPressed: _busy || _verified
+                              ? null
+                              : isReconfirming
+                              ? _signOut
+                              : _cancelSignUp,
+                          child: Text(
+                            isReconfirming ? 'Sign out' : 'Cancel sign-up',
+                          ),
                         ),
                     ],
                   ),
