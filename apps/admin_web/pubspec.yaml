@@ -68,6 +68,10 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
+  # Note for the PC (14 Oct 2026): `flutter build web --release` on the laptop
+  # warned that the CupertinoIcons font is missing. This console does not use
+  # CupertinoIcons itself, so a dependency may. Check it, then add
+  # cupertino_icons or confirm the warning is harmless. The build still worked.
   uses-material-design: true
   assets:
     - assets/branding/arangcada-mark-dark.svg
