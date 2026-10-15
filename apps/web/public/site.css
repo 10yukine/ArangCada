@@ -1,6 +1,8 @@
 /* Fredoka's variable file carries a width axis (75-125%) as well as weight;
-   declaring the range lets headings use the semi-condensed cut on phones. */
-@font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-stretch:75% 125%;font-display:swap;src:local('Fredoka'),url('/assets/fonts/Fredoka-Latin.woff2') format('woff2')}
+   declaring the range lets headings use the semi-condensed cut on phones.
+   No local('Fredoka'): an installed copy (often a single static or Light
+   default instance) would replace this file and render every weight thin. */
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:300 700;font-stretch:75% 125%;font-display:swap;src:url('/assets/fonts/Fredoka-Latin.woff2') format('woff2')}
 
 /* Tokens. Action blue matches the mobile app (#1262D0). Royal and azure are
    the Calamba City blues -- used for brand moments only, never body text. */
