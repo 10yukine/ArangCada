@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/mobile_settings.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/format/money_format.dart';
 import '../../data/providers/repository_providers.dart';
+import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
@@ -44,6 +46,23 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
     DemoBooking booking,
   ) async {
     final liveRides = ref.read(liveRideRepositoryProvider);
+    if ((booking.fareQuote.systemFeeCentavos > 0) != appFareEnabled.value) {
+      booking.fareQuote = ref
+          .read(fareRepositoryProvider)
+          .quote(
+            distanceMeters: booking.fareQuote.distanceMeters,
+            rideType: booking.rideType,
+            passengerCount: booking.passengerCount,
+            discountClass: booking.userFareClass.discountClass,
+          );
+      ref.read(demoStateProvider).bookingChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fare updated. Review the total and request again.'),
+        ),
+      );
+      return;
+    }
     if (liveRides != null && booking.rideType != RideType.special) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -115,7 +134,11 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(demoStateProvider);
     return ListenableBuilder(
-      listenable: state,
+      listenable: Listenable.merge([
+        state,
+        appFareEnabled,
+        pickupChargeMaxMeters,
+      ]),
       builder: (context, _) {
         final booking = state.activeBooking;
         if (booking == null) {
@@ -130,6 +153,10 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           );
         }
         final quote = booking.fareQuote;
+        final pickupCap = const FareCalculator().maximumPickupExtraCentavos(
+          quote,
+          pickupChargeMaxMeters.value,
+        );
         final espesyal = booking.rideType != RideType.pooling;
         return Scaffold(
           appBar: AppBar(title: const Text('Review booking')),
@@ -161,7 +188,15 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'LGU fare · locked when you request',
+                  quote.systemFeeCentavos > 0
+                      ? 'Includes the driver supplement and system fee. '
+                            'A farther pickup can add up to ${formatCentavos(pickupCap)}. '
+                            'The pickup and service supplements do not stack.'
+                      : pickupCap > 0
+                      ? 'Trip fare. If your driver is more than '
+                            '$pickupFreeDistance away, a pickup charge of up '
+                            'to ${formatCentavos(pickupCap)} is added.'
+                      : 'LGU fare · locked when you request',
                   style: AppTypography.bodySm.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -193,13 +228,11 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 const SizedBox(height: AppSpacing.xs),
                 _ReviewRow(
                   label: 'Ride',
-                  value: espesyal
-                      ? 'Espesyal na Byahe'
-                      : 'Regular na Byahe',
+                  value: espesyal ? 'Espesyal na Byahe' : 'Regular na Byahe',
                 ),
                 _ReviewRow(
                   label: 'Passengers',
-                  value: espesyal
+                  value: espesyal && quote.systemFeeCentavos == 0
                       ? '${booking.passengerCount} · same fare'
                       : '${booking.passengerCount}',
                 ),
@@ -207,6 +240,20 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                   label: 'Fare class',
                   value: booking.userFareClass.label,
                 ),
+                if (quote.systemFeeCentavos > 0) ...[
+                  _ReviewRow(
+                    label: 'Trip fare',
+                    value: formatCentavos(quote.unitFareCentavos),
+                  ),
+                  _ReviewRow(
+                    label: 'Driver supplement',
+                    value: formatCentavos(quote.serviceSupplementCentavos),
+                  ),
+                  _ReviewRow(
+                    label: 'System fee',
+                    value: formatCentavos(quote.systemFeeCentavos),
+                  ),
+                ],
                 _ReviewRow(
                   label: 'Distance',
                   value:
@@ -214,7 +261,10 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                       ' · billed as ${quote.chargeableKm} km',
                 ),
                 // Cash is the only payment method, so a plain row says so.
-                const _ReviewRow(label: 'Payment', value: 'Cash · pay your driver'),
+                const _ReviewRow(
+                  label: 'Payment',
+                  value: 'Cash · pay your driver',
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 const Divider(height: 1),
                 const SizedBox(height: AppSpacing.md),

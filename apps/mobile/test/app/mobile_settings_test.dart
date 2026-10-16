@@ -62,6 +62,7 @@ class _Router implements RoutingRepository {
 void main() {
   void reset() {
     updateRequired.value = false;
+    appFareEnabled.value = false;
     serviceChoices.value = (routing: 'google', search: 'google');
   }
 
@@ -99,6 +100,56 @@ void main() {
     expect(serviceChoices.value, (routing: 'ors_only', search: 'maptiler'));
     expect(updateRequired.value, isFalse);
   });
+
+  test(
+    'the pickup charge ranges are taken up, and switched off again',
+    () async {
+      addTearDown(() {
+        pickupFreeMeters.value = 0;
+        pickupChargeMaxMeters.value = 0;
+      });
+      final on = _serverAnswering(200, {
+        ..._settings(),
+        'pickup_free_m': 500,
+        'pickup_charge_max_m': 2500,
+      });
+      addTearDown(on.dispose);
+      await loadMobileSettings(on);
+      expect(pickupFreeMeters.value, 500);
+      expect(pickupChargeMaxMeters.value, 2500);
+      expect(pickupFreeDistance, '500 m');
+      pickupFreeMeters.value = 1000;
+      expect(pickupFreeDistance, '1 km');
+      pickupFreeMeters.value = 1500;
+      expect(pickupFreeDistance, '1.5 km');
+
+      final off = _serverAnswering(200, {
+        ..._settings(),
+        'pickup_free_m': 0,
+        'pickup_charge_max_m': 0,
+      });
+      addTearDown(off.dispose);
+      await loadMobileSettings(off);
+      expect(pickupChargeMaxMeters.value, 0);
+    },
+  );
+
+  test(
+    'proposal enables only on an explicit server flag and resets on old settings',
+    () async {
+      final enabled = _serverAnswering(200, {
+        ..._settings(),
+        'app_fare_enabled': true,
+      });
+      addTearDown(enabled.dispose);
+      await loadMobileSettings(enabled);
+      expect(appFareEnabled.value, isTrue);
+      final old = _serverAnswering(200, _settings());
+      addTearDown(old.dispose);
+      await loadMobileSettings(old);
+      expect(appFareEnabled.value, isFalse);
+    },
+  );
 
   // Locking everyone out, or dropping a switch the owner set, because the
   // question could not be asked would be worse than waiting for the next ask.

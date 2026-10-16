@@ -71,6 +71,54 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a pickup charge is shown with how far the driver was', (
+    tester,
+  ) async {
+    final state = DemoState();
+    addTearDown(state.dispose);
+    final now = DateTime.utc(2026, 10, 8, 12);
+    final booking =
+        DemoBooking.draft(
+            pickupName: 'Pickup',
+            destinationName: 'Destination',
+            rideType: RideType.special,
+            passengerCount: 1,
+            userFareClass: UserFareClass.regular,
+            paymentMethod: PaymentMethod.cash,
+            fareQuote: const FareCalculator().quote(
+              distanceMeters: 2400,
+              rideType: RideType.special,
+              passengerCount: 1,
+              discountClass: DiscountClass.full,
+            ),
+          )
+          ..status = BookingStatus.approaching
+          ..driverAcceptedAt = now;
+    state.setActiveBooking(booking);
+    Widget screen() => ProviderScope(
+      overrides: [
+        demoStateProvider.overrideWithValue(state),
+        liveRideRepositoryProvider.overrideWithValue(_LiveRide()),
+      ],
+      child: MaterialApp(home: DriverMatchedScreen(now: () => now)),
+    );
+    await tester.pumpWidget(screen());
+    await tester.pump();
+    expect(find.textContaining('pickup charge'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    booking
+      ..pickupChargeCentavos = 1000
+      ..pickupDistanceMeters = 1800;
+    await tester.pumpWidget(screen());
+    await tester.pump();
+    expect(
+      find.textContaining('includes ₱10.00 pickup charge, driver 1.8 km away'),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'failed cancellation keeps its deadline and permits a safe retry',
     (tester) async {

@@ -147,9 +147,83 @@ void main() {
     });
   });
 
+  // The same figures as supabase/tests/100_pickup_leg_fare_test.sql: the
+  // phone's quote and the server's charge must not part.
+  test('the pickup charge is the per-km rate by the metre, to the peso', () {
+    final regular = quote(distanceMeters: 2400, rideType: RideType.special);
+    expect(calculator.pickupChargeCentavos(regular, 0), 0);
+    expect(calculator.pickupChargeCentavos(regular, 400), 300); // 3.20
+    expect(calculator.pickupChargeCentavos(regular, 1300), 1000); // 10.40
+    expect(calculator.pickupChargeCentavos(regular, 2500), 2000); // 20.00
+
+    final discounted = quote(
+      distanceMeters: 2400,
+      rideType: RideType.special,
+      discountClass: DiscountClass.discounted,
+    );
+    expect(calculator.pickupChargeCentavos(discounted, 1300), 800); // 8.32
+  });
+
   test('rejects NaN, infinity, and negative distance', () {
     for (final distance in [double.nan, double.infinity, -0.001]) {
       expect(() => quote(distanceMeters: distance), throwsArgumentError);
     }
   });
+  test('staged minimum fares separate driver receipts and system fees', () {
+    for (var count = 1; count <= 4; count++) {
+      for (final discounted in [false, true]) {
+        final quote = calculator.quote(
+          distanceMeters: 2000,
+          rideType: RideType.special,
+          passengerCount: count,
+          discountClass: discounted
+              ? DiscountClass.discounted
+              : DiscountClass.full,
+          appFareEnabled: true,
+        );
+        final full = count <= 2
+            ? 7500
+            : count == 3
+            ? 8000
+            : 8500;
+        expect(quote.partyTotalCentavos, discounted ? full * .8 : full);
+        expect(quote.systemFeeCentavos, discounted ? 400 : 500);
+        expect(
+          quote.driverReceiptsCentavos,
+          quote.partyTotalCentavos - quote.systemFeeCentavos,
+        );
+        expect(quote.unitFareCentavos, discounted ? 4800 : 6000);
+      }
+    }
+  });
+
+  test(
+    'staged fares preserve literal distance discounts and do not stack pickup',
+    () {
+      final quote = calculator.quote(
+        distanceMeters: 3000,
+        rideType: RideType.special,
+        passengerCount: 4,
+        discountClass: DiscountClass.discounted,
+        appFareEnabled: true,
+      );
+      expect(quote.partyTotalCentavos, 7400); // printed54 + supplement16 + fee4
+      expect(calculator.maximumPickupExtraCentavos(quote, 2500), 0);
+      final single = calculator.quote(
+        distanceMeters: 2000,
+        rideType: RideType.special,
+        passengerCount: 1,
+        discountClass: DiscountClass.full,
+        appFareEnabled: true,
+      );
+      expect(calculator.maximumPickupExtraCentavos(single, 1300), 0);
+      expect(calculator.maximumPickupExtraCentavos(single, 2500), 1000);
+      expect(
+        single.partyTotalCentavos +
+            calculator.maximumPickupExtraCentavos(single, 2500),
+        8500,
+      );
+      expect(single.fareMatrixVersion, 'app-fare-v1');
+    },
+  );
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../app/mobile_settings.dart';
 
 import '../../core/geo/haversine.dart';
 import '../../demo/demo_data.dart';
@@ -244,6 +245,10 @@ class SupabaseRideRepository extends ChangeNotifier {
       // The server prices the trip (it knows the rider's approved fare class);
       // the phone's own estimate must not outlive the request.
       booking.fareQuote = _serverFare(trip, booking.fareQuote);
+      booking.pickupChargeCentavos =
+          (((trip['pickup_fare'] as num?) ?? 0) * 100).round();
+      booking.pickupDistanceMeters = (trip['pickup_distance_m'] as num?)
+          ?.round();
       booking.driverAcceptedAt = DateTime.tryParse(
         trip['accepted_at'] as String? ?? '',
       )?.toUtc();
@@ -309,15 +314,17 @@ class SupabaseRideRepository extends ChangeNotifier {
         destination.coordinate,
       ),
       rideType: RideType.special,
-      passengerCount: 1,
-      discountClass: DiscountClass.full,
+      passengerCount: (trip['passenger_count'] as num?)?.toInt() ?? 1,
+      discountClass: trip['fare_class_at_booking'] == 'discounted'
+          ? DiscountClass.discounted
+          : DiscountClass.full,
     );
     final quote = _serverFare(trip, localQuote);
     final booking = DemoBooking.draft(
       pickupName: _state.pickup.name,
       destinationName: destination.name,
       rideType: RideType.special,
-      passengerCount: 1,
+      passengerCount: (trip['passenger_count'] as num?)?.toInt() ?? 1,
       userFareClass: UserFareClass.regular,
       paymentMethod: PaymentMethod.cash,
       fareQuote: quote,
@@ -331,20 +338,28 @@ class SupabaseRideRepository extends ChangeNotifier {
     final serverPesos = trip['final_fare'] ?? trip['fare_estimate'];
     if (serverPesos == null) return quote;
     final serverCentavos = ((serverPesos as num).toDouble() * 100).round();
-    if (serverCentavos == quote.partyTotalCentavos) return quote;
+    final systemFee = (((trip['system_fee'] as num?) ?? 0) * 100).round();
+    final supplement = (((trip['service_supplement'] as num?) ?? 0) * 100)
+        .round();
+    final base = trip['base_trip_fare'] as num?;
+    final baseCentavos = base == null ? serverCentavos : (base * 100).round();
     return FareQuote(
-      unitFareCentavos: serverCentavos,
+      unitFareCentavos: baseCentavos,
       partyTotalCentavos: serverCentavos,
       farePerPassengerCentavos: null,
       baseFareCentavos: quote.baseFareCentavos,
-      additionalDistanceCentavos: serverCentavos - quote.baseFareCentavos,
+      additionalDistanceCentavos: baseCentavos - quote.baseFareCentavos,
       distanceMeters: quote.distanceMeters,
       chargeableKm: quote.chargeableKm,
       rideType: quote.rideType,
-      passengerCount: quote.passengerCount,
+      passengerCount:
+          (trip['passenger_count'] as num?)?.toInt() ?? quote.passengerCount,
       discountClass: quote.discountClass,
-      fareMatrixVersion: quote.fareMatrixVersion,
+      fareMatrixVersion:
+          trip['app_fare_version'] as String? ?? FareMatrix.version,
       createdAt: quote.createdAt,
+      serviceSupplementCentavos: supplement,
+      systemFeeCentavos: systemFee,
     );
   }
 
@@ -443,6 +458,7 @@ class SupabaseRideRepository extends ChangeNotifier {
           'p_pickup_label': pickupLabel,
           'p_destination_label': destinationLabel,
           'p_idempotency_key': idempotencyKey,
+          if (appFareEnabled.value) 'p_passenger_count': booking.passengerCount,
         },
       );
     } on PostgrestException catch (error) {

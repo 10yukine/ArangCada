@@ -742,6 +742,9 @@ class _IncomingRequestCard extends ConsumerWidget {
     final state = ref.watch(demoStateProvider);
     final trip = ref.read(liveRideRepositoryProvider)?.activeTrip;
     final fare = trip?['fare_estimate'] as num?;
+    final systemFee = (trip?['system_fee'] as num?) ?? 0;
+    // What the fare includes for this driver's way to the pickup, if anything.
+    final pickupCharge = (((trip?['pickup_fare'] as num?) ?? 0) * 100).round();
     // The server gives a driver at most 30 s to answer an offer.
     const window = 30;
     final urgent = secondsRemaining <= 10;
@@ -794,8 +797,11 @@ class _IncomingRequestCard extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Text(
-                      'Espesyal na Byahe · cash',
+                    Text(
+                      pickupCharge > 0
+                          ? 'Espesyal na Byahe · cash · includes '
+                                '${formatCentavos(pickupCharge)} pickup charge'
+                          : 'Espesyal na Byahe · cash',
                       style: AppTypography.caption,
                     ),
                   ],
@@ -804,7 +810,7 @@ class _IncomingRequestCard extends ConsumerWidget {
               Text(
                 fare == null
                     ? 'Fare unavailable'
-                    : formatCentavos((fare * 100).round()),
+                    : formatCentavos(((fare - systemFee) * 100).round()),
                 style: fare == null
                     ? AppTypography.caption
                     : AppTypography.displaySm.copyWith(
@@ -813,6 +819,11 @@ class _IncomingRequestCard extends ConsumerWidget {
               ),
             ],
           ),
+          if (systemFee > 0 && fare != null)
+            Text(
+              'Your fare share · collect ${formatCentavos((fare * 100).round())} cash, including ${formatCentavos((systemFee * 100).round())} system fee. ${trip?['passenger_count'] ?? 1} passengers.',
+              style: AppTypography.caption,
+            ),
           const SizedBox(height: AppSpacing.md),
           ArangRouteStop(
             destination: false,

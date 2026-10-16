@@ -12,7 +12,9 @@ class DriverEarningsScreen extends ConsumerWidget {
 
   int? _fare(Map<String, dynamic> trip) {
     final pesos = trip['final_fare'];
-    return pesos is num ? (pesos * 100).round() : null;
+    return pesos is num
+        ? ((pesos - ((trip['system_fee'] as num?) ?? 0)) * 100).round()
+        : null;
   }
 
   @override
@@ -55,7 +57,9 @@ class DriverEarningsScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                const Text('Based on completed trips in your account.'),
+                const Text(
+                  'Completed trip fares less system fees. Fuel and other operating costs are not deducted.',
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 Text('Today', style: Theme.of(context).textTheme.titleMedium),
                 Text(

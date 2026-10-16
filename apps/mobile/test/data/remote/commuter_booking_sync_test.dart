@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:arangcada/app/mobile_settings.dart';
 
 import 'package:arangcada/core/geo/haversine.dart';
 import 'package:arangcada/core/network/api_exceptions.dart';
@@ -65,6 +66,7 @@ void main() {
   Map<String, dynamic>? requestRideBody;
 
   setUp(() async {
+    appFareEnabled.value = false;
     photoLinkSeconds = null;
     requestRideBody = null;
     profile = {'role': 'commuter', 'display_name': 'Test Rider'};
@@ -192,6 +194,65 @@ void main() {
 
     expect(booking.fareQuote.partyTotalCentavos, 5400);
     expect(booking.fareQuote.unitFareCentavos, 5400);
+  });
+
+  test(
+    'party count is sent with the policy and server breakdown replaces preview',
+    () async {
+      appFareEnabled.value = true;
+      addTearDown(() => appFareEnabled.value = false);
+      requestRideAnswer = (
+        200,
+        {
+          'id': 'trip-1',
+          'status': 'searching_driver',
+          'fare_estimate': 85,
+          'base_trip_fare': 60,
+          'service_supplement': 20,
+          'system_fee': 5,
+          'passenger_count': 4,
+          'app_fare_version': 'app-fare-v1',
+        },
+      );
+      final (rides, booking) = await book();
+      booking.passengerCount = 4;
+      await rides.requestRide(booking);
+      expect(requestRideBody!['p_passenger_count'], 4);
+      expect(booking.fareQuote.partyTotalCentavos, 8500);
+      expect(booking.fareQuote.unitFareCentavos, 6000);
+      expect(booking.fareQuote.systemFeeCentavos, 500);
+      expect(booking.fareQuote.driverReceiptsCentavos, 8000);
+      expect(booking.fareQuote.passengerCount, 4);
+    },
+  );
+
+  // A driver from beyond the free distance: the server adds the pickup charge
+  // to the fare and says how far the driver was (20261016011642). The rider's
+  // screens show what the server said, not an amount worked out on the phone.
+  test('the pickup charge and the driver distance are the server’s', () async {
+    requestRideAnswer = (
+      200,
+      {
+        'id': 'trip-1',
+        'status': 'searching_driver',
+        'fare_estimate': 78.0,
+        'pickup_fare': 10,
+        'pickup_distance_m': 1800,
+        'pickup_lat': 14.2117,
+        'pickup_lng': 121.1653,
+        'destination_lat': 14.22,
+        'destination_lng': 121.17,
+      },
+    );
+    final (rides, booking) = await book();
+    expect(booking.pickupChargeCentavos, 0);
+    expect(booking.pickupDistanceMeters, isNull);
+
+    await rides.requestRide(booking);
+
+    expect(booking.fareQuote.partyTotalCentavos, 7800);
+    expect(booking.pickupChargeCentavos, 1000);
+    expect(booking.pickupDistanceMeters, 1800);
   });
 
   // Google's place name may not be stored, and its coordinate may not go to

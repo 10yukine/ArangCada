@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/mobile_settings.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
 import '../../app/theme/app_typography.dart';
@@ -44,7 +45,11 @@ class _RideOptionsScreenState extends ConsumerState<RideOptionsScreen> {
     final state = ref.watch(demoStateProvider);
 
     return ListenableBuilder(
-      listenable: state,
+      listenable: Listenable.merge([
+        state,
+        appFareEnabled,
+        pickupChargeMaxMeters,
+      ]),
       builder: (context, _) {
         if (!state.hasPickup) {
           return Scaffold(
@@ -345,7 +350,12 @@ class _PassengerRow extends StatelessWidget {
             const Text('Espesyal · Passengers', style: AppTypography.label),
             // Espesyal is billed per trip, so the count never moves the
             // price. Saying so stops people under-reporting to save money.
-            Text('Same fare for 1–$max', style: AppTypography.caption),
+            Text(
+              appFareEnabled.value
+                  ? 'Driver supplement varies by party size'
+                  : 'Same fare for 1–$max',
+              style: AppTypography.caption,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -394,7 +404,7 @@ class _FareSummary extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Private trip · ${distanceKm.toStringAsFixed(1)} km · '
-                'LGU fare, no surge'
+                '${appFareEnabled.value ? 'Trip fare + driver supplement + system fee' : 'LGU fare, no surge'}'
                 '${discounted ? ' · discount applied' : ''}',
                 style: AppTypography.caption,
               ),
@@ -421,6 +431,10 @@ class _FareBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pooling = quote.rideType == RideType.pooling;
+    final pickupCap = const FareCalculator().maximumPickupExtraCentavos(
+      quote,
+      pickupChargeMaxMeters.value,
+    );
     return Container(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       decoration: const BoxDecoration(
@@ -443,6 +457,23 @@ class _FareBreakdown extends StatelessWidget {
             label: 'Billed distance',
             value: '${quote.chargeableKm} km',
           ),
+          if (quote.systemFeeCentavos > 0) ...[
+            _BreakdownLine(
+              label: 'Driver supplement',
+              value: formatCentavos(quote.serviceSupplementCentavos),
+            ),
+            _BreakdownLine(
+              label: 'System fee',
+              value: formatCentavos(quote.systemFeeCentavos),
+            ),
+          ],
+          if (pickupCap > 0)
+            _BreakdownLine(
+              label: quote.systemFeeCentavos > 0
+                  ? 'Extra for a farther pickup (not stacked)'
+                  : 'Pickup charge, driver over $pickupFreeDistance away',
+              value: 'up to ${formatCentavos(pickupCap)}',
+            ),
           const Divider(height: AppSpacing.lg),
           Row(
             children: [
@@ -468,11 +499,21 @@ class _FareBreakdown extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Fares follow Calamba City Ordinance No. 743, s. 2022. No surge '
+            '${quote.systemFeeCentavos > 0 ? 'Trip fare uses the ordinance matrix, plus the displayed driver supplement and system fee.' : 'Fares follow Calamba City Ordinance No. 743, s. 2022.'} No surge '
             'pricing. Students, seniors and PWD get the published discounted '
             'rate once their ID is verified.',
             style: AppTypography.caption.copyWith(height: 1.45),
           ),
+          if (pickupCap > 0) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'No pickup charge if your driver is within $pickupFreeDistance. '
+              'Beyond that it is '
+              '${formatCentavos(const FareCalculator().pickupRateCentavos(quote))} '
+              "per km of your driver's way to you, counted by the metre.",
+              style: AppTypography.caption.copyWith(height: 1.45),
+            ),
+          ],
         ],
       ),
     );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../core/format/distance_format.dart';
 import '../../core/format/money_format.dart';
 import '../../core/widgets/arang_ui.dart';
 import '../../core/widgets/report_issue_sheet.dart';
@@ -52,6 +53,21 @@ class DigitalReceiptScreen extends ConsumerWidget {
               return const Center(child: Text('No completed trip receipt.'));
             }
             final rawFare = trip?['final_fare'] ?? trip?['fare_estimate'];
+            final systemFee = connectedReceipt
+                ? (((trip?['system_fee'] as num?) ?? 0) * 100).round()
+                : booking!.fareQuote.systemFeeCentavos;
+            final supplement = connectedReceipt
+                ? (((trip?['service_supplement'] as num?) ?? 0) * 100).round()
+                : booking!.fareQuote.serviceSupplementCentavos;
+            final baseFare = connectedReceipt
+                ? (((trip?['base_trip_fare'] as num?) ?? 0) * 100).round()
+                : booking!.fareQuote.unitFareCentavos;
+            final pickupCharge = connectedReceipt
+                ? (((trip?['pickup_fare'] as num?) ?? 0) * 100).round()
+                : booking!.pickupChargeCentavos;
+            final pickupDistance = connectedReceipt
+                ? (trip?['pickup_distance_m'] as num?)?.round()
+                : booking!.pickupDistanceMeters;
             final reference = connectedReceipt
                 ? (trip!['receipt_ref'] as String? ??
                       'TRIP-${trip['id'].toString().split('-').first.toUpperCase()}')
@@ -125,6 +141,28 @@ class DigitalReceiptScreen extends ConsumerWidget {
                                         : payment?.toString() ?? 'Unavailable')
                                   : booking!.paymentMethod.label,
                             ),
+                            if (systemFee > 0) ...[
+                              _ReceiptRow(
+                                label: 'Trip fare',
+                                value: formatCentavos(baseFare),
+                              ),
+                              _ReceiptRow(
+                                label: 'Driver supplement (includes pickup)',
+                                value: formatCentavos(supplement),
+                              ),
+                              _ReceiptRow(
+                                label: 'System fee',
+                                value: formatCentavos(systemFee),
+                              ),
+                            ],
+                            if (pickupCharge > 0 && systemFee == 0)
+                              _ReceiptRow(
+                                label: pickupDistance == null
+                                    ? 'Pickup charge, included'
+                                    : 'Pickup charge · driver '
+                                          '${formatMeters(pickupDistance)} away',
+                                value: formatCentavos(pickupCharge),
+                              ),
                             const Divider(height: AppSpacing.lg),
                             _ReceiptRow(
                               label: 'Total fare',

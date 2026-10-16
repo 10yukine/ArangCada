@@ -1,5 +1,6 @@
 import '../../domain/fare/fare_calculator.dart';
 import '../../domain/fare/fare_matrix.dart';
+import '../../app/mobile_settings.dart';
 import '../repositories/fare_repository.dart';
 
 class MockFareRepository implements FareRepository {
@@ -19,6 +20,7 @@ class MockFareRepository implements FareRepository {
       rideType: rideType,
       passengerCount: passengerCount,
       discountClass: discountClass,
+      appFareEnabled: appFareEnabled.value,
     );
   }
 }

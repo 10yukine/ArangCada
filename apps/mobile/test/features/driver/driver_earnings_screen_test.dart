@@ -20,7 +20,7 @@ class _Rides extends ChangeNotifier implements SupabaseRideRepository {
 
 void main() {
   testWidgets(
-    'live earnings use completed server fares without sample amounts',
+    'earnings exclude retained system fees and ignore uncompleted trips',
     (tester) async {
       final state = DemoState(
         initialUser: const DemoUser(
@@ -32,7 +32,8 @@ void main() {
       final rides = _Rides([
         {
           'status': 'completed',
-          'final_fare': 75,
+          'final_fare': 80,
+          'system_fee': 5,
           'completed_at': DateTime.now().toUtc().toIso8601String(),
           'pickup_label': 'Cabuyao',
           'destination_label': 'Calamba',
@@ -54,7 +55,7 @@ void main() {
         ),
       );
 
-    expect(find.text('₱75.00'), findsNWidgets(3));
+      expect(find.text('₱75.00'), findsNWidgets(3));
       expect(find.text('₱999.00'), findsNothing);
       expect(find.text('₱478.00'), findsNothing);
       expect(find.text('Cabuyao → Calamba'), findsOneWidget);

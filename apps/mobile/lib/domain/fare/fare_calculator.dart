@@ -14,6 +14,8 @@ class FareQuote {
     required this.discountClass,
     required this.fareMatrixVersion,
     required this.createdAt,
+    this.serviceSupplementCentavos = 0,
+    this.systemFeeCentavos = 0,
   });
 
   /// Per passenger for pooling; per trip for special.
@@ -29,16 +31,42 @@ class FareQuote {
   final DiscountClass discountClass;
   final String fareMatrixVersion;
   final DateTime createdAt;
+  final int serviceSupplementCentavos;
+  final int systemFeeCentavos;
+  int get driverReceiptsCentavos => partyTotalCentavos - systemFeeCentavos;
 }
 
 class FareCalculator {
   const FareCalculator();
+
+  /// What the driver's way to the pickup adds to [trip] for [billedMeters]
+  /// beyond the free distance: the matrix's per-kilometre rate for the
+  /// rider's fare class, counted by the metre and rounded to the peso, as the
+  /// server does (20261016011642). With the most that can be billed, it is
+  /// the largest pickup charge, which is what is quoted before booking.
+  int pickupChargeCentavos(FareQuote trip, int billedMeters) {
+    if (billedMeters <= 0) return 0;
+    return (billedMeters * pickupRateCentavos(trip) / 100000).round() * 100;
+  }
+
+  /// Centavos per kilometre of the driver's way beyond the free distance.
+  int pickupRateCentavos(FareQuote trip) =>
+      FareMatrix.incrementPast20Centavos(trip.rideType, trip.discountClass);
+
+  /// Only the excess above the service supplement is added at assignment.
+  int maximumPickupExtraCentavos(FareQuote trip, int billedMeters) {
+    final pickup = pickupChargeCentavos(trip, billedMeters);
+    return pickup > trip.serviceSupplementCentavos
+        ? pickup - trip.serviceSupplementCentavos
+        : 0;
+  }
 
   FareQuote quote({
     required double distanceMeters,
     required RideType rideType,
     required int passengerCount,
     required DiscountClass discountClass,
+    bool appFareEnabled = false,
   }) {
     if (distanceMeters.isNaN ||
         distanceMeters.isInfinite ||
@@ -81,12 +109,23 @@ class FareCalculator {
       discountClass: discountClass,
     );
     final isPooling = rideType == RideType.pooling;
+    final appFare = appFareEnabled && !isPooling;
+    final discounted = discountClass == DiscountClass.discounted;
+    final premium = appFare
+        ? (passengerCount <= 2
+              ? 1000
+              : passengerCount == 3
+              ? 1500
+              : 2000)
+        : 0;
+    final supplement = discounted ? premium * 4 ~/ 5 : premium;
+    final systemFee = appFare ? (discounted ? 400 : 500) : 0;
 
     return FareQuote(
       unitFareCentavos: unitFareCentavos,
       partyTotalCentavos: isPooling
           ? unitFareCentavos * passengerCount
-          : unitFareCentavos,
+          : unitFareCentavos + supplement + systemFee,
       farePerPassengerCentavos: isPooling ? unitFareCentavos : null,
       baseFareCentavos: baseFareCentavos,
       additionalDistanceCentavos: unitFareCentavos - baseFareCentavos,
@@ -95,8 +134,10 @@ class FareCalculator {
       rideType: rideType,
       passengerCount: passengerCount,
       discountClass: discountClass,
-      fareMatrixVersion: FareMatrix.version,
+      fareMatrixVersion: appFare ? 'app-fare-v1' : FareMatrix.version,
       createdAt: DateTime.now().toUtc(),
+      serviceSupplementCentavos: supplement,
+      systemFeeCentavos: systemFee,
     );
   }
 }

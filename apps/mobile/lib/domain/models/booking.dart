@@ -60,6 +60,13 @@ class DemoBooking {
   UserFareClass userFareClass;
   PaymentMethod paymentMethod;
   FareQuote fareQuote;
+
+  /// The pickup charge inside the fare, once a driver is assigned; 0 before
+  /// that and when the server does not charge it.
+  int pickupChargeCentavos = 0;
+
+  /// How far the driver was from the pickup when the booking reached them.
+  int? pickupDistanceMeters;
   BookingStatus status = BookingStatus.draft;
   String? receiptReference;
   DateTime? driverAcceptedAt;

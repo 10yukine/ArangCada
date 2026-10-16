@@ -83,8 +83,7 @@ class TripsScreen extends ConsumerWidget {
                   final driverCancelled = status == 'cancelled_by_driver';
                   final rawFare = trip['final_fare'] ?? trip['fare_estimate'];
                   final when = DateTime.tryParse(
-                    (trip['completed_at'] ?? trip['requested_at'])
-                            as String? ??
+                    (trip['completed_at'] ?? trip['requested_at']) as String? ??
                         '',
                   )?.toLocal();
                   final route = isDriver
@@ -126,7 +125,15 @@ class TripsScreen extends ConsumerWidget {
                     ].join(' · '),
                     // Only a completed trip was actually paid.
                     amount: completed && rawFare is num
-                        ? formatCentavos((rawFare * 100).round())
+                        ? formatCentavos(
+                            ((rawFare -
+                                        (isDriver
+                                            ? ((trip['system_fee'] as num?) ??
+                                                  0)
+                                            : 0)) *
+                                    100)
+                                .round(),
+                          )
                         : null,
                     buttonLabel: completed ? 'View summary' : 'Open trip',
                     onButtonPressed: () {
@@ -134,7 +141,13 @@ class TripsScreen extends ConsumerWidget {
                         final rawPesos =
                             trip['final_fare'] ?? trip['fare_estimate'];
                         final fare = rawPesos is num
-                            ? formatCentavos((rawPesos * 100).round())
+                            ? formatCentavos(
+                                ((rawPesos -
+                                            ((trip['system_fee'] as num?) ??
+                                                0)) *
+                                        100)
+                                    .round(),
+                              )
                             : 'Unavailable';
                         _showDriverTripSummarySheet(
                           context,
@@ -250,9 +263,7 @@ class TripsScreen extends ConsumerWidget {
                   subtitle: booking.status == BookingStatus.completed
                       ? 'Completed'
                       : 'In progress',
-                  amount: formatCentavos(
-                    booking.fareQuote.partyTotalCentavos,
-                  ),
+                  amount: formatCentavos(booking.fareQuote.partyTotalCentavos),
                   buttonLabel: booking.status == BookingStatus.completed
                       ? 'View receipt'
                       : 'Resume trip',
@@ -342,7 +353,8 @@ class _TripSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: '$title, $subtitle${amount == null ? '' : ', $amount'}. '
+      label:
+          '$title, $subtitle${amount == null ? '' : ', $amount'}. '
           '$buttonLabel',
       excludeSemantics: true,
       child: InkWell(
@@ -555,7 +567,7 @@ void _showDriverTripSummarySheet(
                     _SummaryRow(label: 'Reference', value: reference),
                   const Divider(height: AppSpacing.lg),
                   _SummaryRow(
-                    label: 'Fare collected',
+                    label: 'Your fare share',
                     value: fare,
                     emphasize: true,
                   ),

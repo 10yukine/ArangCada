@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_build.dart';
+import '../core/format/distance_format.dart';
 
 /// Set when the server says this build is too old to keep using. While set,
 /// the only screen is /update-required.
@@ -15,6 +16,20 @@ final serviceChoices = ValueNotifier<({String routing, String search})>((
   routing: 'google',
   search: 'google',
 ));
+
+/// The fare includes the driver's way to the pickup beyond a free distance
+/// (20261016011642). [pickupFreeMeters] is that distance, which costs
+/// nothing; [pickupChargeMaxMeters] is the most that can be billed beyond it,
+/// which bounds the pickup charge quoted before booking. Both 0 when the
+/// charge is off.
+final pickupFreeMeters = ValueNotifier<int>(0);
+final pickupChargeMaxMeters = ValueNotifier<int>(0);
+
+/// Staged proposal; only the server's owner-controlled setting enables it.
+final appFareEnabled = ValueNotifier<bool>(false);
+
+/// The free distance as the screens say it.
+String get pickupFreeDistance => formatMeters(pickupFreeMeters.value);
 
 /// Whether the Google map, Google Places and Google Routes are in use. They
 /// are used together or not at all: Google's terms keep its content off other
@@ -45,6 +60,13 @@ Future<void> loadMobileSettings(SupabaseClient client) async {
     if (routing is String && search is String) {
       serviceChoices.value = (routing: routing, search: search);
     }
+    final pickupFree = settings['pickup_free_m'];
+    final pickupMax = settings['pickup_charge_max_m'];
+    if (pickupFree is int && pickupMax is int) {
+      pickupFreeMeters.value = pickupFree;
+      pickupChargeMaxMeters.value = pickupMax;
+    }
+    appFareEnabled.value = settings['app_fare_enabled'] == true;
   } catch (_) {
     // Offline, or a server that does not have the function yet.
   }
