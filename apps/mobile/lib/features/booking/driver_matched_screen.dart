@@ -567,7 +567,7 @@ class _DriverMatchedScreenState extends ConsumerState<DriverMatchedScreen>
                   const SizedBox(height: AppSpacing.sm),
                   ArangRouteStop(
                     destination: true,
-                    label: 'Drop-off',
+                    label: 'Destination',
                     name: booking.destinationName,
                   ),
                 ],

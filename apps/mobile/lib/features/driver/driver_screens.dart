@@ -25,6 +25,7 @@ import '../../data/providers/repository_providers.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/remote/supabase_ride_repository.dart';
 import '../../demo/demo_simulation.dart';
+import '../../domain/fare/fare_matrix.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 import '../../domain/models/demo_user.dart';
 
@@ -557,6 +558,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                   ),
                 if (state.driverTrip.status == DriverTripStatus.incoming)
                   _IncomingRequestCard(
+                    driverPosition:
+                        state.liveDriverLocation ?? _dashboardFix?.coordinate,
                     secondsRemaining: _secondsRemaining,
                     onAccept: _acceptRequest,
                     onDecline: _declineRequest,
@@ -727,11 +730,13 @@ class _TripCompletedCard extends StatelessWidget {
 
 class _IncomingRequestCard extends ConsumerWidget {
   const _IncomingRequestCard({
+    required this.driverPosition,
     required this.secondsRemaining,
     required this.onAccept,
     required this.onDecline,
   });
 
+  final GeoCoordinate? driverPosition;
   final int secondsRemaining;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
@@ -739,8 +744,38 @@ class _IncomingRequestCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(demoStateProvider);
-    final trip = ref.read(liveRideRepositoryProvider)?.activeTrip;
-    final fare = trip?['fare_estimate'] as num?;
+    final liveRides = ref.read(liveRideRepositoryProvider);
+    final trip = liveRides?.activeTrip;
+    final destination = state.destination;
+    final tripMeters = destination == null
+        ? null
+        : haversineDistanceMeters(
+            state.pickup.coordinate,
+            destination.coordinate,
+          );
+    final pickupMeters = driverPosition == null
+        ? null
+        : haversineDistanceMeters(driverPosition!, state.pickup.coordinate);
+    // A commuter on build 4059 or older never sends the count, so the trip
+    // says 1 whatever the party. Only a larger number is worth showing.
+    final passengers = liveRides == null
+        ? state.passengerCount
+        : (trip?['passenger_count'] as num?)?.toInt() ?? 1;
+    // A local walkthrough has no server fare; it quotes the matrix itself.
+    final fare = liveRides == null
+        ? (tripMeters == null
+              ? null
+              : ref
+                        .read(fareRepositoryProvider)
+                        .quote(
+                          distanceMeters: tripMeters,
+                          rideType: RideType.special,
+                          passengerCount: passengers.clamp(1, 4),
+                          discountClass: DiscountClass.full,
+                        )
+                        .partyTotalCentavos /
+                    100)
+        : trip?['fare_estimate'] as num?;
     // The server gives a driver at most 30 s to answer an offer.
     const window = 30;
     final urgent = secondsRemaining <= 10;
@@ -793,8 +828,10 @@ class _IncomingRequestCard extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Text(
-                      'Espesyal na Byahe · cash',
+                    Text(
+                      passengers > 1
+                          ? 'Espesyal na Byahe · cash · $passengers passengers'
+                          : 'Espesyal na Byahe · cash',
                       style: AppTypography.caption,
                     ),
                   ],
@@ -815,14 +852,18 @@ class _IncomingRequestCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           ArangRouteStop(
             destination: false,
-            label: 'Pickup',
+            label: pickupMeters == null
+                ? 'Pickup'
+                : 'Pickup · ${_distanceLabel(pickupMeters)} from you',
             name: state.pickup.name,
           ),
           const SizedBox(height: AppSpacing.sm),
           ArangRouteStop(
             destination: true,
-            label: 'Drop-off',
-            name: state.destination?.name ?? 'Destination',
+            label: tripMeters == null
+                ? 'Destination'
+                : 'Destination · ${_distanceLabel(tripMeters)} trip',
+            name: destination?.name ?? 'Destination',
           ),
           const SizedBox(height: AppSpacing.md),
           Row(

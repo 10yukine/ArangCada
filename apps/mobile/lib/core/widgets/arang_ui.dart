@@ -665,7 +665,7 @@ class ArangRouteMarker extends StatelessWidget {
 }
 
 /// One stop of a trip: the route marker, a small label ("Pickup",
-/// "Drop-off") and the place name. Shared by every ride screen so the route
+/// "Destination") and the place name. Shared by every ride screen so the route
 /// reads the same from search to receipt.
 class ArangRouteStop extends StatelessWidget {
   const ArangRouteStop({

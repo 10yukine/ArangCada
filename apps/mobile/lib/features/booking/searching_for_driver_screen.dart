@@ -289,7 +289,7 @@ class _SearchingForDriverScreenState
                 const SizedBox(height: AppSpacing.sm),
                 ArangRouteStop(
                   destination: true,
-                  label: 'Drop-off',
+                  label: 'Destination',
                   name: booking.destinationName,
                 ),
               ],

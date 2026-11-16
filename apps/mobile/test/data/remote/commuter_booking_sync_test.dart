@@ -63,10 +63,12 @@ void main() {
   var claims = <Map<String, dynamic>>[];
   Object? photoLinkSeconds;
   Map<String, dynamic>? requestRideBody;
+  Map<String, dynamic>? passengerCountBody;
 
   setUp(() async {
     photoLinkSeconds = null;
     requestRideBody = null;
+    passengerCountBody = null;
     profile = {'role': 'commuter', 'display_name': 'Test Rider'};
     claims = [];
     client = SupabaseClient(
@@ -101,6 +103,13 @@ void main() {
         } else if (path.endsWith('/rpc/request_ride')) {
           requestRideBody = jsonDecode(request.body) as Map<String, dynamic>;
           (status, data) = requestRideAnswer;
+        } else if (path.endsWith('/rpc/set_trip_passenger_count')) {
+          passengerCountBody = jsonDecode(request.body) as Map<String, dynamic>;
+          data = {
+            'id': passengerCountBody!['p_trip_id'],
+            'status': 'searching_driver',
+            'passenger_count': passengerCountBody!['p_passenger_count'],
+          };
         } else if (path.endsWith('/profiles')) {
           data = profile;
         } else if (path.endsWith('/fare_class_claims')) {
@@ -192,6 +201,30 @@ void main() {
 
     expect(booking.fareQuote.partyTotalCentavos, 5400);
     expect(booking.fareQuote.unitFareCentavos, 5400);
+  });
+
+  // request_ride books one passenger; the driver must learn the real party.
+  test('the chosen number of passengers reaches the server', () async {
+    requestRideAnswer = (
+      200,
+      {'id': 'trip-1', 'status': 'searching_driver', 'fare_estimate': 60.0},
+    );
+    final (rides, booking) = await book();
+    await rides.requestRide(booking);
+    expect(passengerCountBody, isNull, reason: 'one passenger is the default');
+
+    final party = DemoBooking.draft(
+      pickupName: state.pickup.name,
+      destinationName: state.destination!.name,
+      rideType: RideType.special,
+      passengerCount: 3,
+      userFareClass: UserFareClass.regular,
+      paymentMethod: PaymentMethod.cash,
+      fareQuote: booking.fareQuote,
+    );
+    await rides.requestRide(party);
+    expect(passengerCountBody, {'p_trip_id': 'trip-1', 'p_passenger_count': 3});
+    expect(rides.activeTrip?['passenger_count'], 3);
   });
 
   // Google's place name may not be stored, and its coordinate may not go to

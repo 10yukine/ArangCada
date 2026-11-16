@@ -444,7 +444,27 @@ class SupabaseRideRepository extends ChangeNotifier {
         _ => const ApiUnexpectedException(),
       };
     }
-    _applyTrip(_row(result));
+    var trip = _row(result);
+    // request_ride creates every trip with one passenger; the commuter's
+    // choice goes in through set_trip_passenger_count so the driver knows how
+    // many are waiting. The ride already exists, so a failure here must not
+    // fail the booking.
+    if (booking.passengerCount > 1) {
+      try {
+        trip = _row(
+          await _client.rpc(
+            'set_trip_passenger_count',
+            params: {
+              'p_trip_id': trip['id'],
+              'p_passenger_count': booking.passengerCount,
+            },
+          ),
+        );
+      } on Exception {
+        // The driver sees no count; the fare is the same either way.
+      }
+    }
+    _applyTrip(trip);
   }
 
   Future<void> retryDispatch() async {

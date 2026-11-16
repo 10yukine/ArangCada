@@ -232,7 +232,7 @@ class _LocationCard extends StatelessWidget {
             padding: EdgeInsets.only(left: 32),
             child: Divider(height: 1, color: AppColors.dividerLight),
           ),
-          _Line(destination: true, label: 'Drop-off', value: destinationName),
+          _Line(destination: true, label: 'Destination', value: destinationName),
         ],
       ),
     );

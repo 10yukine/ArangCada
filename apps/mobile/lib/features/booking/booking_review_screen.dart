@@ -185,7 +185,7 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                 ),
                 ArangRouteStop(
                   destination: true,
-                  label: 'Drop-off',
+                  label: 'Destination',
                   name: booking.destinationName,
                 ),
                 const SizedBox(height: AppSpacing.lg),

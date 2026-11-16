@@ -3,8 +3,10 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/geo/haversine.dart';
 import '../data/mock/demo_state.dart';
 import '../domain/models/booking.dart';
+import 'demo_data.dart';
 import '../domain/state/driver_trip_state_machine.dart';
 
 class DemoSimulationDurations {
@@ -232,6 +234,20 @@ class DemoSimulationService {
             state.driverTrip.status != DriverTripStatus.available) {
           return;
         }
+        // The walkthrough's request: two passengers bound for SM City
+        // Calamba, the driver about 700 m from the pickup.
+        state.destination ??= DemoData.places.firstWhere(
+          (place) => place.id == 'sm-city-calamba',
+        );
+        state.passengerCount = 2;
+        state.recordLiveDriverLocation(
+          GeoCoordinate(
+            latitude: state.pickup.coordinate.latitude + 0.006,
+            longitude: state.pickup.coordinate.longitude,
+          ),
+          driverId: 'demo-driver',
+          updatedAt: null,
+        );
         state.driverTrip.receiveRequest();
         state.driverChanged();
         onRequestReceived();

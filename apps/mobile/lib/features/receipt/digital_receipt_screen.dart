@@ -101,7 +101,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                             const SizedBox(height: AppSpacing.sm),
                             ArangRouteStop(
                               destination: true,
-                              label: 'Drop-off',
+                              label: 'Destination',
                               name: destinationName,
                             ),
                             const Divider(height: AppSpacing.lg),
