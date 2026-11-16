@@ -6,7 +6,6 @@ import 'package:arangcada_admin/models.dart';
 AdminState testAdminState() {
   final now = DateTime(2026, 8, 22, 10, 30);
   return AdminState(
-    feedbackCounts: const {'Brgy. Real': 8, 'Parian': 7, 'Canlubang': 5},
     drivers: [
       Driver(
         id: '123',

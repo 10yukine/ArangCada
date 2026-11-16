@@ -15,12 +15,7 @@ class AdminSnapshot {
     required this.reportedChats,
     required this.rides,
     required this.boundaries,
-    required this.feedbackSummaries,
-    required this.feedbackResponses,
     this.driverCancellations = const [],
-    required this.feedbackInterval,
-    required this.respondentTarget,
-    required this.repeatFeedback,
   });
 
   final List<Driver> drivers;
@@ -31,12 +26,7 @@ class AdminSnapshot {
   final List<ReportedTripChat> reportedChats;
   final List<Ride> rides;
   final List<Boundary> boundaries;
-  final List<TodaFeedbackSummary> feedbackSummaries;
-  final List<DriverAppFeedback> feedbackResponses;
   final List<DriverCancellation> driverCancellations;
-  final int feedbackInterval;
-  final int respondentTarget;
-  final bool repeatFeedback;
 }
 
 /// LGU-only, loaded on demand by AdminsScreen -- see AdminSnapshot's own
@@ -294,21 +284,6 @@ class SupabaseAdminRepository {
           )
           .order('created_at', ascending: false)
           .limit(100),
-      client
-          .from('driver_app_feedback')
-          .select(
-            'id, toda_zone_id, answers, comment, is_anonymous, '
-            'driver_display_name, submitted_at',
-          )
-          .order('submitted_at', ascending: false)
-          .limit(100),
-      session.todaZoneId == null
-          ? client.rpc('get_feedback_summary')
-          : client.rpc(
-              'get_feedback_summary',
-              params: {'p_toda_zone_id': session.todaZoneId},
-            ),
-      client.rpc('get_feedback_settings'),
       client.from('toda_zones').select('id, name, boundary'),
       client
           .from('driver_documents')
@@ -349,23 +324,16 @@ class SupabaseAdminRepository {
     final tripRows = _rows(results[1]);
     final availabilityRows = _rows(results[2]);
     final reportRows = _rows(results[3]);
-    final feedbackRows = _rows(results[4]);
-    final summaryRows = _rows(results[5]);
-    final settings = _row(results[6]);
-    final zoneRows = _rows(results[7]);
-    final documentRows = _rows(results[8]);
-    final complaintRows = _rows(results[9]);
-    final ratingRows = _rows(results[10]);
+    final zoneRows = _rows(results[4]);
+    final documentRows = _rows(results[5]);
+    final complaintRows = _rows(results[6]);
+    final ratingRows = _rows(results[7]);
     final reportedChats = session.role == AdminRole.lgu
-        ? results[11] as List<ReportedTripChat>
+        ? results[8] as List<ReportedTripChat>
         : const <ReportedTripChat>[];
     // Always the last element (see the comment where it is queried above),
     // regardless of whether the conditional reportedChats entry shifted it.
     final fareClassClaimRows = _rows(results.last);
-    final zones = {
-      for (final zone in zoneRows)
-        zone['id'].toString(): zone['name'].toString(),
-    };
     final locations = {
       for (final row in availabilityRows) row['driver_id'].toString(): row,
     };
@@ -441,19 +409,6 @@ class SupabaseAdminRepository {
       rides: rides,
       driverCancellations: driverCancellations,
       boundaries: _boundaries(zoneRows),
-      feedbackSummaries: [
-        for (final row in summaryRows) TodaFeedbackSummary.fromRow(row),
-      ],
-      feedbackResponses: [
-        for (final row in feedbackRows)
-          DriverAppFeedback.fromRow(
-            row,
-            todaName: zones[row['toda_zone_id']?.toString()],
-          ),
-      ],
-      feedbackInterval: (settings['feedback_interval'] as num?)?.toInt() ?? 1,
-      respondentTarget: (settings['respondent_target'] as num?)?.toInt() ?? 10,
-      repeatFeedback: settings['repeat_feedback'] as bool? ?? true,
     );
   }
 
@@ -503,8 +458,6 @@ class SupabaseAdminRepository {
       // already covered; these two were not.
       'fare_class_claims',
       'driver_invites',
-      'driver_app_feedback',
-      'app_evaluation_settings',
     ]) {
       channel.onPostgresChanges(
         event: PostgresChangeEvent.all,
@@ -746,21 +699,6 @@ class SupabaseAdminRepository {
         'p_document_id': documentId,
         'p_approve': approve,
         'p_rejection_reason': rejectionReason?.trim(),
-      },
-    );
-  }
-
-  Future<void> updateFeedbackSettings({
-    required int feedbackInterval,
-    required int respondentTarget,
-    required bool repeatFeedback,
-  }) async {
-    await client.rpc(
-      'update_feedback_settings',
-      params: {
-        'p_feedback_interval': feedbackInterval,
-        'p_respondent_target': respondentTarget,
-        'p_repeat_feedback': repeatFeedback,
       },
     );
   }
@@ -1107,14 +1045,6 @@ class SupabaseAdminRepository {
   static List<Map<String, dynamic>> _rows(dynamic result) {
     if (result is! List) return const [];
     return [for (final row in result) Map<String, dynamic>.from(row as Map)];
-  }
-
-  static Map<String, dynamic> _row(dynamic result) {
-    if (result is List && result.isNotEmpty) {
-      return Map<String, dynamic>.from(result.first as Map);
-    }
-    if (result is Map) return Map<String, dynamic>.from(result);
-    return const {};
   }
 
   static List<Boundary> _boundaries(List<Map<String, dynamic>> zones) {

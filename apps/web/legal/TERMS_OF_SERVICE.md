@@ -14,7 +14,7 @@ ArangCada LGU/TODA admin web console.
 Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Engr. Mark
 Angelo T. Mercado.
 
-**Last updated:** October 2026 · **Effective date:** September 2026 (Academic
+**Last updated:** November 2026 · **Effective date:** September 2026 (Academic
 Pilot)
 
 **Published at:** [arangcada.app/terms](https://arangcada.app/terms)
@@ -37,7 +37,7 @@ Pilot)
   official Calamba City fare ordinance — never a surprise "surge" price.
 - If you're a **driver**, you must be verified (license, TODA membership,
   vehicle documents) by an LGU/TODA administrator before you can accept
-  rides, and you are required to complete short in-app feedback surveys.
+  rides.
 - During a trip you can **share a live ride-tracking link** with family or
   friends — no account is needed to view it, and it stops working once the
   trip ends. See the Privacy Policy for exactly what it shows.
@@ -102,9 +102,6 @@ ArangCada digitizes the manual tricycle "pila" (queue) process. It offers:
   the [Privacy Policy](/policy), Section 6a for exactly what it shows, what
   it does not show, and when it stops working.
 - An in-app SOS/emergency reporting feature (see Section 7).
-- Mandatory ISO/IEC 25010 evaluation and driver app-usage feedback, used to
-  measure this system against the LGU's manual dispatch baseline (see
-  Section 8 and the [Privacy Policy](/policy), Section 10).
 
 ## 4. Accounts and verification
 
@@ -172,17 +169,12 @@ triggering the in-app SOS.
 > publication from the City Government of Calamba and will be incorporated into
 > this section and the app's safety dialer upon formal release.
 
-## 8. Mandatory evaluation participation
+## 8. Capstone evaluation
 
-As part of the underlying capstone research, **registered drivers are
-required** to complete a short bilingual, five-point Likert app-usage
-feedback survey after a configurable number of completed trips (currently
-every trip, an LGU-administrator-configurable setting). Both drivers and the
-LGU/TODA office may also see ISO/IEC 25010 evaluation results comparing this
-system to the manual dispatch baseline. This is separate from, and does not
-replace, the optional driver-to-commuter star rating. See
-the [Privacy Policy](/policy), Section 10 for how this data is shared with
-the Calamba City LGU/TODA office.
+The capstone study evaluates this system with separate questionnaires that
+are answered outside the app. The app does not ask for or record survey
+answers, and answering a questionnaire is not a condition of holding an
+account. The optional star rating after a trip is unaffected.
 
 ## 9. Service availability; no warranty
 

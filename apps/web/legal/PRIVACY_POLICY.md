@@ -14,7 +14,7 @@ ArangCada LGU/TODA admin web console.
 Engineering, Section CpE231B), CPTHS120 Capstone Design 1, adviser Engr. Mark
 Angelo T. Mercado.
 
-**Last updated:** October 2026 · **Effective date:** September 2026 (Academic
+**Last updated:** November 2026 · **Effective date:** September 2026 (Academic
 Pilot)
 
 **Published at:** [arangcada.app/policy](https://arangcada.app/policy)
@@ -44,11 +44,8 @@ Pilot)
 - During a trip you can generate a **live ride-tracking link** to send to
   family or friends — see Section 6a for exactly what it shows and when it
   stops working.
-- If you're a **driver**, you're also asked to complete short **feedback
-  surveys** about using the app and about the LGU's own manual dispatch
-  process (the "pila" system). Those results, and your ISO-quality-testing
-  results, are shared with the **Calamba City LGU/TODA office**, usually as
-  combined numbers rather than singling you out where possible.
+- The app does **not** ask you to answer surveys. The capstone's evaluation
+  questionnaires are answered separately, outside the app.
 - We do **not sell** your data. We do **not** show ads. We do **not** log
   your full name, phone number, government ID numbers, or your full GPS
   trail in plain system logs.
@@ -70,8 +67,8 @@ ArangCada has three kinds of users:
 | Role | What ArangCada does for/with them |
 |---|---|
 | Commuter | Books a Special tricycle ride (up to 4 passengers), sees a fare estimate, tracks the assigned driver, can share a live ride-tracking link, can send an SOS report |
-| Driver | Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares location while available online and during an assigned trip, completes mandatory in-app feedback |
-| LGU/TODA administrator | Approves drivers, manages TODA zones, reviews trips and complaints, monitors dispatch, views evaluation results |
+| Driver | Registers under a Calamba TODA, uploads verification documents, receives dispatch requests, updates ride status, shares location while available online and during an assigned trip |
+| LGU/TODA administrator | Approves drivers, manages TODA zones, reviews trips and complaints, monitors dispatch |
 
 ## 2. What we collect
 
@@ -86,8 +83,6 @@ ArangCada has three kinds of users:
 | Payment method | Always cash; the fare is stored with the trip | `trips` table | You, your matched driver, TODA/LGU admin |
 | Emergency/safety reports | SOS event, linked ride, location snapshot at time of report | `emergency_reports` table | LGU/TODA admin review |
 | Complaints | Commuter or driver complaint text | `complaints` table | LGU/TODA admin review |
-| ISO/IEC 25010 evaluation responses | Your ratings/answers comparing the app to the manual dispatch baseline | Evaluation dataset (admin console) | Capstone research + LGU/TODA program review |
-| Mandatory driver app-usage feedback | Bilingual five-point Likert responses, collected after a configurable number of completed trips (currently every trip) | Evaluation dataset (admin console) | Capstone research + LGU/TODA program review, reported with per-TODA counts and item means |
 
 We **do not** intentionally collect: government ID numbers beyond what's on
 an uploaded driver document image itself, health data or biometric data
@@ -97,8 +92,8 @@ coordinates for matching. Device location access requires permission.
 
 ## 3. How we collect it
 
-- **Directly from you**: registration forms, document uploads, in-app
-  feedback surveys, complaint/SOS submissions.
+- **Directly from you**: registration forms, document uploads,
+  complaint/SOS submissions.
 - **With device location permission**: Home reads GPS for the map and pickup
   preview before a ride. Online drivers send availability coordinates to
   the backend for matching; during an assigned trip they send location
@@ -126,11 +121,10 @@ coordinates for matching. Device location access requires permission.
   registered under a legitimate TODA before you can receive ride requests.
 - **Safety response**: route SOS reports and complaints to LGU/TODA admins
   for review.
-- **Capstone research and LGU program evaluation**: the ISO/IEC 25010
-  comparison against manual dispatch, and the mandatory driver app-usage
-  survey, exist specifically to measure whether this system is worth
-  recommending to the LGU beyond the capstone — this is a required part of
-  the underlying academic study, not incidental data collection.
+- **Capstone research and LGU program evaluation**: trip and dispatch
+  records help measure whether this system is worth recommending to the LGU
+  beyond the capstone. The study's evaluation questionnaires are answered
+  outside the app and are not covered by this policy.
 
 ## 5. Legal basis (Republic Act No. 10173, the Data Privacy Act of 2012)
 
@@ -142,19 +136,14 @@ personal data, under the oversight of the **National Privacy Commission
 - **Consent** — you agree to this policy and to specific permissions (e.g.
   location access) when you use the app.
 - **Contractual necessity (RA 10173 Sec. 12[b])** — we cannot match you with a
-  driver or compute a fare without your pickup location and trip details. For
-  drivers, participation in short app-usage and ISO/IEC 25010 evaluations is a
-  contractual condition of participation in this academic pilot, explicitly
-  accepted upon onboarding.
+  driver or compute a fare without your pickup location and trip details.
 - **Legal obligation / public function (RA 10173 Sec. 12[c] & [e])** — verifying
   drivers and routing safety reports supports the LGU's regulatory and public
   transport-safety oversight.
-- **Legitimate research interest (RA 10173 Sec. 12[f])** — collecting driver
-  app feedback directly supports the capstone evaluation comparing digital
-  dispatch to the manual "pila" baseline. All academic publications and thesis
-  disclosures report only aggregated, de-identified statistical metrics (item
-  means and per-TODA distributions) without exposing individual driver
-  identities.
+- **Legitimate research interest (RA 10173 Sec. 12[f])** — trip and dispatch
+  records support the capstone study of digital dispatch. All academic
+  publications and thesis disclosures report only aggregated, de-identified
+  figures without exposing individual identities.
 
 Driver's license and vehicle registration images may fall under RA 10173's
 definition of **sensitive personal information** once uploaded (government
@@ -171,7 +160,6 @@ owner and authorized LGU/TODA admins, per existing RLS/Storage policy.
 | Driver documents | You (the driver); LGU/TODA admins reviewing verification — never other drivers or commuters |
 | Trip/payment history | You; your counterpart on that trip; LGU/TODA admin |
 | SOS/complaint reports | LGU/TODA admin reviewers only; never shown publicly, and emergency-contact details are not exposed to unauthorized users |
-| ISO 25010 / app-usage feedback | Capstone group (research); LGU/TODA admins, generally as aggregated per-TODA figures rather than individually attributed responses where the sample size allows it |
 | Shared ride-tracking link | Anyone you send the link to, for the duration of that one trip — see Section 6a |
 | Your mobile number | You; your matched driver during an active trip; LGU/TODA admins; our SMS provider (Semaphore), solely to deliver your verification code |
 
@@ -359,7 +347,6 @@ purposes:
 | Driver verification documents (`driver_documents`) | Duration of driver active verification + 30 days after deactivation or capstone end | File assets permanently purged from private storage bucket |
 | Trip and payment records (`trips`, `payments`) | 1 academic year (covering capstone research, evaluation, and defense) | Database rows scrubbed of direct user identifiers |
 | SOS & complaint reports | 1 calendar year pursuant to LGU incident recordkeeping standards | Archived or purged per LGU administrative schedule |
-| Evaluation & survey responses | Maintained during capstone evaluation; de-identified statistical datasets retained | Fully anonymized; research statistical datasets may be published in thesis papers |
 
 ## 9. Payments
 
@@ -379,16 +366,6 @@ internal to the app:
 
 - Driver verification status and documents (for approval decisions).
 - Trip, complaint, and SOS records relevant to dispatch oversight and safety.
-- **ISO/IEC 25010 evaluation results**, comparing the app against the manual
-  "pila" baseline.
-- **Mandatory driver app-usage feedback** (bilingual five-point Likert
-  survey), reported to LGU/TODA administrators with per-TODA submission
-  counts, unique-driver sample progress, and item means — kept separate from
-  any optional driver-to-commuter star rating, which is not shared with the
-  LGU in the same way.
-
-Only LGU administrators may configure how often the mandatory feedback is
-requested; during internal testing that interval is every trip.
 
 ## 11. Your rights under RA 10173
 

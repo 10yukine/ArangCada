@@ -11,7 +11,6 @@ import '../../domain/fare/fare_matrix.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../domain/models/booking.dart';
 import '../../domain/models/demo_user.dart';
-import '../../domain/models/driver_app_feedback.dart';
 import '../../domain/state/driver_trip_state_machine.dart';
 import '../mock/demo_state.dart';
 import '../repositories/fare_repository.dart';
@@ -21,7 +20,7 @@ import '../repositories/location_repository.dart';
 /// Mirrors server-authoritative ride rows into the existing mobile screens.
 ///
 /// Critical writes always call a guarded SQL RPC; the client never patches a
-/// trip, an approval, a fare, or a feedback obligation directly.
+/// trip, an approval or a fare directly.
 class SupabaseRideRepository extends ChangeNotifier {
   SupabaseRideRepository(
     this._client,
@@ -31,10 +30,7 @@ class SupabaseRideRepository extends ChangeNotifier {
     this._geocoding,
   }) {
     _subscribeToTrips();
-    if (_isDriver) {
-      unawaited(refreshFeedbackState());
-      _subscribeToAvailability(_userId);
-    }
+    if (_isDriver) _subscribeToAvailability(_userId);
   }
 
   static const completionWindow = Duration(seconds: 60);
@@ -63,7 +59,6 @@ class SupabaseRideRepository extends ChangeNotifier {
 
   StreamSubscription<List<Map<String, dynamic>>>? _tripSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _locationSubscription;
-  StreamSubscription<List<Map<String, dynamic>>>? _feedbackSubscription;
   Timer? _locationTicker;
   Future<void>? _publishInFlight;
   bool _checkingRiderArrival = false;
@@ -132,17 +127,6 @@ class SupabaseRideRepository extends ChangeNotifier {
         .eq(ownerColumn, _userId)
         .order('requested_at', ascending: false)
         .listen(_receiveTrips, onError: _recordError);
-
-    if (_isDriver) {
-      _feedbackSubscription = _client
-          .from('driver_feedback_obligations')
-          .stream(primaryKey: ['trip_id'])
-          .eq('driver_id', _userId)
-          .listen(
-            (_) => unawaited(refreshFeedbackState()),
-            onError: _recordError,
-          );
-    }
   }
 
   void _receiveTrips(List<Map<String, dynamic>> rows) {
@@ -169,9 +153,7 @@ class SupabaseRideRepository extends ChangeNotifier {
       final alreadyApplied =
           _activeTrip?['id'] == latest['id'] &&
           _activeTrip?['status'] == latest['status'];
-      if (!alreadyApplied &&
-          (latest['id'] == _state.liveTripId ||
-              latest['id'] == _state.pendingFeedbackTripId)) {
+      if (!alreadyApplied && latest['id'] == _state.liveTripId) {
         selected = latest;
       }
     }
@@ -238,7 +220,6 @@ class SupabaseRideRepository extends ChangeNotifier {
       // Nothing else restarts it when the offer is declined, expires or is
       // cancelled, and dispatch skips a driver it has not heard from.
       if (next == DriverTripStatus.available) _ensureLocationUpdates();
-      if (status == 'completed') unawaited(refreshFeedbackState());
     } else {
       final booking = _state.activeBooking ?? _restoreBooking(trip);
       // The server prices the trip (it knows the rider's approved fare class);
@@ -477,11 +458,6 @@ class SupabaseRideRepository extends ChangeNotifier {
   }
 
   Future<void> setDriverOnline(bool online) async {
-    if (online && _state.driverFeedbackPending) {
-      throw StateError(
-        'Complete your required app feedback before going online.',
-      );
-    }
     LocationFix? fix;
     if (online) fix = await _location.currentLocation();
     if (fix?.isCoarse ?? false) {
@@ -798,7 +774,7 @@ class SupabaseRideRepository extends ChangeNotifier {
       _heartbeatAccepted();
     } on PostgrestException catch (error) {
       // 42501 on the idle heartbeat means the server will not have this driver
-      // online at all (suspended, approval withdrawn, feedback due). Anything
+      // online at all (suspended, approval withdrawn). Anything
       // else, such as the 22023 a heartbeat gets while an offer is being
       // assigned, is left for the next tick.
       if (idle && error.code == '42501') _showOffline();
@@ -816,64 +792,6 @@ class SupabaseRideRepository extends ChangeNotifier {
         notifyListeners();
       }
     }
-  }
-
-  Future<void> refreshFeedbackState() async {
-    if (!_isDriver || _disposed) return;
-    try {
-      final result = await _client.rpc('get_driver_feedback_state');
-      if (_disposed) return;
-      final row = _row(result);
-      _state.driverFeedbackPending = row['pending'] == true;
-      _state.pendingFeedbackTripId = row['pending_trip_id'] as String?;
-      if (_state.driverFeedbackPending && _trips.isNotEmpty) {
-        final index = _trips.indexWhere(
-          (trip) => trip['id'] == _state.pendingFeedbackTripId,
-        );
-        if (index >= 0 && _activeTrip?['id'] != _state.pendingFeedbackTripId) {
-          _applyTrip(_trips[index]);
-          return;
-        }
-      }
-      _state.driverChanged();
-      notifyListeners();
-    } on Exception catch (error) {
-      _recordError(error);
-    }
-  }
-
-  Future<void> submitDriverFeedback({
-    required Map<String, int> answers,
-    required bool anonymous,
-    String? comment,
-  }) async {
-    if (!DriverAppFeedback.hasValidAnswers(answers)) {
-      throw StateError('Answer every app-feedback question from 1 to 5.');
-    }
-    final tripId = _state.pendingFeedbackTripId ?? _state.liveTripId;
-    if (tripId == null) throw StateError('No completed trip needs feedback.');
-    final trimmed = comment?.trim();
-    if (trimmed != null && trimmed.length > 500) {
-      throw StateError('Feedback comments cannot exceed 500 characters.');
-    }
-    await _client.rpc(
-      'submit_driver_feedback',
-      params: {
-        'p_trip_id': tripId,
-        'p_answers': answers,
-        'p_comment': trimmed == null || trimmed.isEmpty ? null : trimmed,
-        'p_anonymous': anonymous,
-      },
-    );
-    _state.driverFeedbackPending = false;
-    _state.pendingFeedbackTripId = null;
-    try {
-      await finishDriverTrip();
-    } on Exception {
-      // The feedback is saved. The driver stays Offline and can switch Online
-      // by hand.
-    }
-    notifyListeners();
   }
 
   Future<void> createSafetyReport(String reason) async {
@@ -968,7 +886,6 @@ class SupabaseRideRepository extends ChangeNotifier {
     _locationTicker?.cancel();
     unawaited(_tripSubscription?.cancel());
     unawaited(_locationSubscription?.cancel());
-    unawaited(_feedbackSubscription?.cancel());
     super.dispose();
   }
 }

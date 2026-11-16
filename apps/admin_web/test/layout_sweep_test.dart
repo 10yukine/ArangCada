@@ -38,10 +38,6 @@ void main() {
     '/admins',
     '/discount-claims',
     '/reviews',
-    '/evaluation',
-    '/evaluation/feedback',
-    '/evaluation/responses',
-    '/evaluation/iso',
     '/settings',
   ];
   const sizes = [

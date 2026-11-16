@@ -1,7 +1,5 @@
 begin;
 select no_plan();
--- Isolate destination rules from the unrelated recurring feedback workflow.
-update public.app_evaluation_settings set feedback_interval = 100, repeat_feedback = false where id;
 
 insert into auth.users(id, email, raw_user_meta_data) values
 ('00000000-0000-0000-0000-000000010301', 'arrival-admin@example.test', '{"display_name":"Arrival Admin","mobile_number":"+639170010301"}'),

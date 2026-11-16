@@ -72,8 +72,6 @@ void main() {
               'created_at': '2026-09-01T00:00:00Z',
             },
           };
-        } else if (path.endsWith('/rpc/get_driver_feedback_state')) {
-          data = {'pending': false, 'pending_trip_id': null};
         } else if (path.endsWith('/rpc/set_driver_availability')) {
           heartbeats.add(jsonDecode(request.body) as Map<String, dynamic>);
           if (refuseWith != null && heartbeats.length >= refuseFrom) {

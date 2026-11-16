@@ -70,32 +70,6 @@ class SettingsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Driver app-feedback rules',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    session.role == AdminRole.lgu
-                        ? 'Global settings apply to all TODAs and are enforced on the server.'
-                        : 'Global settings are managed by the LGU and shown here as read-only.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  _FeedbackIntervalSetting(session: session),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Participation target: ${state.respondentTarget} unique drivers per TODA.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
                     'Map and data status',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
@@ -573,100 +547,6 @@ class _PasswordSettingsPanelState
       ),
     ),
   );
-}
-
-class _FeedbackIntervalSetting extends ConsumerStatefulWidget {
-  const _FeedbackIntervalSetting({required this.session});
-
-  final AdminSession session;
-
-  @override
-  ConsumerState<_FeedbackIntervalSetting> createState() =>
-      _FeedbackIntervalSettingState();
-}
-
-class _FeedbackIntervalSettingState
-    extends ConsumerState<_FeedbackIntervalSetting> {
-  late final TextEditingController interval = TextEditingController(
-    text: '${ref.read(adminProvider).feedbackInterval}',
-  );
-  bool saving = false;
-  String? error;
-
-  @override
-  void dispose() {
-    interval.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final value = int.tryParse(interval.text.trim());
-    if (value == null || value < 1) {
-      setState(() => error = 'Enter a whole number greater than zero.');
-      return;
-    }
-    setState(() {
-      saving = true;
-      error = null;
-    });
-    try {
-      await ref
-          .read(adminProvider.notifier)
-          .updateFeedbackSettings(
-            session: widget.session,
-            feedbackInterval: value,
-          );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Drivers will provide app feedback after every $value completed trip${value == 1 ? '' : 's'}.',
-          ),
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => error = 'The global feedback setting could not be saved.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final canEdit = widget.session.role == AdminRole.lgu;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextField(
-            controller: interval,
-            enabled: canEdit && !saving,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Completed trips between required feedback',
-              errorText: error,
-              suffixText: 'trip(s)',
-            ),
-            onSubmitted: canEdit ? (_) => _save() : null,
-          ),
-        ),
-        if (canEdit) ...[
-          const SizedBox(width: 12),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: FilledButton(
-              onPressed: saving ? null : _save,
-              child: Text(saving ? 'Saving…' : 'Save interval'),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 }
 
 class _SettingRow extends StatelessWidget {

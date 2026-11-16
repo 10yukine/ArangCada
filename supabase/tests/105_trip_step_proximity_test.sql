@@ -1,7 +1,5 @@
 begin;
 select no_plan();
--- Isolate the proximity rules from the unrelated recurring feedback workflow.
-update public.app_evaluation_settings set feedback_interval = 100, repeat_feedback = false where id;
 
 -- One commuter and one driver per trip: each may hold only one live trip.
 -- Trip 51: accepted, the commuter confirms.   Trip 52: in progress, the commuter stops early.

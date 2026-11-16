@@ -1,5 +1,4 @@
 import 'package:arangcada/app/app.dart';
-import 'package:arangcada/app/router.dart';
 import 'package:arangcada/data/mock/demo_state.dart';
 import 'package:arangcada/data/mock/local_chat_repository.dart';
 import 'package:arangcada/data/providers/repository_providers.dart';
@@ -11,9 +10,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FeedbackRideRepository extends ChangeNotifier
+class _RideRepository extends ChangeNotifier
     implements SupabaseRideRepository {
-  _FeedbackRideRepository(this.state);
+  _RideRepository(this.state);
 
   final DemoState state;
 
@@ -33,18 +32,7 @@ class _FeedbackRideRepository extends ChangeNotifier
   }
 
   @override
-  Future<void> refreshFeedbackState() async {
-    state.driverFeedbackPending = true;
-    state.pendingFeedbackTripId = 'completed-trip';
-    state.driverChanged();
-  }
-
-  @override
-  Future<void> submitDriverFeedback({
-    required Map<String, int> answers,
-    required bool anonymous,
-    String? comment,
-  }) async {
+  Future<void> finishDriverTrip() async {
     state.finishDriverTrip();
     notifyListeners();
   }
@@ -54,7 +42,7 @@ class _FeedbackRideRepository extends ChangeNotifier
 }
 
 void main() {
-  testWidgets('driver dashboard survives mandatory feedback completion', (
+  testWidgets('driver returns to the dashboard after rating a passenger', (
     tester,
   ) async {
     final state = DemoState(
@@ -68,7 +56,7 @@ void main() {
         isInternalTester: true,
       ),
     );
-    final rides = _FeedbackRideRepository(state);
+    final rides = _RideRepository(state);
     final chat = LocalChatRepository();
     final container = ProviderContainer(
       overrides: [
@@ -91,7 +79,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Hello, Connected'), findsOneWidget);
 
-    final router = container.read(appRouterProvider);
     state.destination = DemoData.places.firstWhere(
       (place) => place.name == 'SM City Calamba',
     );
@@ -112,15 +99,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Rate your passenger'), findsOneWidget);
 
+    // No survey stands between the rating and the dashboard.
     await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
-    expect(find.text('Required app feedback'), findsOneWidget);
-
-    await rides.submitDriverFeedback(answers: const {}, anonymous: true);
-    router.go('/driver');
-    state.driverChanged();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
     expect(find.text('Hello, Connected'), findsOneWidget);

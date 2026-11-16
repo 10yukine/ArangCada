@@ -197,18 +197,6 @@ class _AdminAppState extends ConsumerState<AdminApp> {
             path: '/discount-claims',
             builder: (context, state) => _consolePage(const ClaimsScreen()),
           ),
-          // The Evaluation sub-pages are flat sibling routes sharing one page
-          // key: switching tabs updates that page in place (no page
-          // transition) and EvaluationScreen slides only the tab content.
-          for (final section in EvaluationSection.values)
-            GoRoute(
-              path: section.location,
-              pageBuilder: (context, state) => NoTransitionPage(
-                key: const ValueKey('evaluation'),
-                child: _consolePage(EvaluationScreen(section: section)),
-              ),
-            ),
-          GoRoute(path: '/survey', redirect: (context, state) => '/evaluation'),
           GoRoute(
             path: '/settings',
             builder: (context, state) => _consolePage(const SettingsScreen()),
@@ -760,7 +748,6 @@ class AdminShell extends ConsumerWidget {
     ('/admins', 'Admins', Icons.admin_panel_settings_outlined),
     ('/discount-claims', 'Discount claims', Icons.percent_outlined),
     ('/reviews', 'Reviews', Icons.star_outline),
-    ('/evaluation', 'Evaluation', Icons.fact_check_outlined),
     ('/settings', 'Settings', Icons.settings_outlined),
   ];
 
@@ -777,7 +764,7 @@ class AdminShell extends ConsumerWidget {
           for (final item in destinations)
             if (session.role == AdminRole.lgu || item.$1 != '/admins') item,
         ];
-        // Sub-pages such as /evaluation/iso belong to their parent section.
+        // A sub-page belongs to its parent section.
         bool inSection(String path) =>
             location == path || location.startsWith('$path/');
         final title =

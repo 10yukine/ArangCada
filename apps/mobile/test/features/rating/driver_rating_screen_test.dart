@@ -19,9 +19,6 @@ class _Rides implements SupabaseRideRepository {
   int finishCalls = 0;
 
   @override
-  Future<void> refreshFeedbackState() async {}
-
-  @override
   Future<void> finishDriverTrip() async {
     finishCalls++;
     if (goOnlineFails) {

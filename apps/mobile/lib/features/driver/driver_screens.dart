@@ -327,8 +327,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       }
     } on Exception {
       _showLiveActionError(
-        'Could not change availability. Check driver approval, required '
-        'feedback, GPS, and connection.',
+        'Could not change availability. Check driver approval, GPS, and '
+        'connection.',
       );
     } finally {
       _actionPending = false;
@@ -525,7 +525,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                   online: state.driverTrip.isOnline,
                   canToggle:
                       !_actionPending &&
-                      !state.driverFeedbackPending &&
                       (state.driverTrip.status == DriverTripStatus.available ||
                           state.driverTrip.status == DriverTripStatus.offline ||
                           state.driverTrip.status == DriverTripStatus.declined),

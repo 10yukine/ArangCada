@@ -57,7 +57,6 @@ class AdminController extends Notifier<AdminState> {
       rides: [],
       boundaries: [],
       audit: [],
-      feedbackCounts: {},
       connected: true,
       loading: true,
     );
@@ -115,16 +114,7 @@ class AdminController extends Notifier<AdminState> {
         reportedChats: snapshot.reportedChats,
         rides: snapshot.rides,
         boundaries: snapshot.boundaries,
-        feedbackSummaries: snapshot.feedbackSummaries,
-        feedbackResponses: snapshot.feedbackResponses,
         driverCancellations: snapshot.driverCancellations,
-        feedbackCounts: {
-          for (final item in snapshot.feedbackSummaries)
-            item.toda: item.uniqueDrivers,
-        },
-        feedbackInterval: snapshot.feedbackInterval,
-        respondentTarget: snapshot.respondentTarget,
-        repeatFeedback: snapshot.repeatFeedback,
         connected: true,
         loading: false,
         clearConnectionError: true,
@@ -523,34 +513,6 @@ class AdminController extends Notifier<AdminState> {
     await refresh();
   }
 
-  Future<void> updateFeedbackSettings({
-    required AdminSession session,
-    required int feedbackInterval,
-    int? respondentTarget,
-    bool? repeatFeedback,
-  }) async {
-    if (session.role != AdminRole.lgu) {
-      throw StateError(
-        'Only an LGU administrator can change global feedback settings.',
-      );
-    }
-    if (feedbackInterval < 1) {
-      throw ArgumentError.value(
-        feedbackInterval,
-        'feedbackInterval',
-        'Must be positive.',
-      );
-    }
-    final target = respondentTarget ?? state.respondentTarget;
-    final repeat = repeatFeedback ?? state.repeatFeedback;
-    await _live('Changing feedback settings').updateFeedbackSettings(
-      feedbackInterval: feedbackInterval,
-      respondentTarget: target,
-      repeatFeedback: repeat,
-    );
-    await refresh();
-  }
-
   /// LGU-only. Loaded on demand by AdminsScreen, not part of the main
   /// refresh() snapshot -- same reasoning refreshReportedChats already
   /// establishes for its own LGU-only, low-frequency data.
@@ -769,5 +731,4 @@ const emptyAdminState = AdminState(
   rides: [],
   boundaries: [],
   audit: [],
-  feedbackCounts: {},
 );

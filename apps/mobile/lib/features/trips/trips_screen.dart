@@ -304,8 +304,8 @@ Future<void> _openDriverDashboard(
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not go online. Check driver approval, required feedback, '
-              'GPS, and connection.',
+              'Could not go online. Check driver approval, GPS, and '
+              'connection.',
             ),
           ),
         );

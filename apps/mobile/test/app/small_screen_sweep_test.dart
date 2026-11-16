@@ -21,7 +21,6 @@ import 'package:arangcada/features/fare/fare_matrix_screen.dart';
 import 'package:arangcada/features/home/commuter_home_screen.dart';
 import 'package:arangcada/features/profile/delete_account_screen.dart';
 import 'package:arangcada/features/profile/profile_screen.dart';
-import 'package:arangcada/features/rating/driver_app_feedback_screen.dart';
 import 'package:arangcada/features/rating/rating_screen.dart';
 import 'package:arangcada/features/receipt/digital_receipt_screen.dart';
 import 'package:arangcada/features/search/destination_search_screen.dart';
@@ -125,11 +124,6 @@ void main() {
     'fare matrix': (DemoRole.commuter, null, const FareMatrixScreen()),
     'driver home': (DemoRole.driver, null, const DriverHomeScreen()),
     'driver earnings': (DemoRole.driver, null, const DriverEarningsScreen()),
-    'driver app feedback': (
-      DemoRole.driver,
-      null,
-      const DriverAppFeedbackScreen(),
-    ),
     'delete account': (DemoRole.commuter, null, const DeleteAccountScreen()),
   };
 

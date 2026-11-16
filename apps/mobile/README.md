@@ -25,7 +25,6 @@ This is the single most important table in this file. Do not blur it.
 | Trip persistence | **Live for authenticated accounts.** Server-owned trip transitions, locked ordinance fare, and a 30-second driver offer. |
 | Chat transport | **Live for authenticated accounts.** Private realtime text chat; completed trips remain read-only for 30 days. |
 | Safety reports | **Live for authenticated accounts.** Three-second hold, issue selection, then delivery to scoped LGU/TODA administrators. No emergency service is contacted. |
-| Driver app evaluation | **Live for authenticated drivers.** Required bilingual five-point feedback after the configured completed-trip interval; passenger ratings remain separate. |
 | Wallet balance and payments | Disabled during beta testing, pending full implementation. Cash only; no provider connected. |
 | Driver payouts / settlement | Sandbox. |
 | Predictive ETA | Mock range. |
@@ -198,7 +197,7 @@ balance is provider-held. `PaymentRepository` is the single replacement point.
 
 ## Development backend prerequisite
 
-Connected trips, chat, SOS, and evaluation require the reviewed live-connected
+Connected trips, chat, and SOS require the reviewed live-connected
 Supabase migration chain to exist on the configured development project. When a
 hidden demo account is chosen, the previous on-device walkthrough remains
 available without remote ride data. This is internal testing only.

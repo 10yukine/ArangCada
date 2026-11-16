@@ -67,14 +67,6 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen> {
   Future<void> _done() async {
     final state = ref.read(demoStateProvider);
     final liveRides = ref.read(liveRideRepositoryProvider);
-    if (liveRides != null) {
-      await liveRides.refreshFeedbackState();
-      if (!mounted) return;
-      if (state.driverFeedbackPending) {
-        context.go('/driver/app-feedback');
-        return;
-      }
-    }
     // Skipping the rating entirely is allowed -- the trip still has to
     // finish and hand the driver back to available either way.
     final messenger = ScaffoldMessenger.of(context);

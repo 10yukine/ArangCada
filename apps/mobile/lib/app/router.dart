@@ -34,7 +34,6 @@ import '../features/profile/profile_screen.dart';
 import '../features/profile/driver_documents_screen.dart';
 import '../features/profile/support_screen.dart';
 import '../features/rating/driver_rating_screen.dart';
-import '../features/rating/driver_app_feedback_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/receipt/digital_receipt_screen.dart';
 import '../features/search/destination_search_screen.dart';
@@ -168,12 +167,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           !isSharedFullScreenPath(path)) {
         return '/driver';
       }
-      if (user.role == DemoRole.driver &&
-          demoState.driverFeedbackPending &&
-          path != '/driver/rating' &&
-          path != '/driver/app-feedback') {
-        return '/driver/app-feedback';
-      }
       return null;
     },
     routes: [
@@ -276,11 +269,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/driver/earnings',
         pageBuilder: (context, state) =>
             _screenPage(state, const DriverEarningsScreen()),
-      ),
-      GoRoute(
-        path: '/driver/app-feedback',
-        pageBuilder: (context, state) =>
-            _screenPage(state, const DriverAppFeedbackScreen()),
       ),
       GoRoute(
         path: '/chat/:threadId',

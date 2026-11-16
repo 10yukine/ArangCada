@@ -68,11 +68,6 @@ class DashboardScreen extends ConsumerWidget {
     }
 
     final theme = Theme.of(context);
-    final evaluated = todas.fold<int>(
-      0,
-      (total, toda) => total + (state.feedbackCounts[toda] ?? 0),
-    );
-    final evaluationTarget = todas.length * state.respondentTarget;
 
     // ---------------------------------------------------------------- header
     // Phones drop the "Open live map" link: the menu already has Live map.
@@ -313,49 +308,6 @@ class DashboardScreen extends ConsumerWidget {
       borderRadius: BorderRadius.circular(12),
       child: DashboardMapPreview(rides: rides, connected: state.connected),
     );
-    final evaluation = Panel(
-      onTap: () => context.go('/evaluation'),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.insights_outlined,
-                color: context.adminColor(AdminColors.primary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Evaluation readiness',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              const Icon(Icons.arrow_forward, size: 18),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '$evaluated of $evaluationTarget target drivers',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: evaluationTarget == 0
-                  ? 0
-                  : (evaluated / evaluationTarget).clamp(0, 1),
-              minHeight: 8,
-              backgroundColor: context.adminColor(AdminColors.surface),
-            ),
-          ),
-        ],
-      ),
-    );
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final pad = constraints.maxWidth < 600 ? 16.0 : 32.0;
@@ -418,21 +370,9 @@ class DashboardScreen extends ConsumerWidget {
                                   const SizedBox(height: 16),
                                   SizedBox(
                                     height: 150,
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Expanded(
-                                          child: _FillPanel(
-                                            title: 'Terminal activity',
-                                            child: ListView(
-                                              children: terminalRows,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        SizedBox(width: 300, child: evaluation),
-                                      ],
+                                    child: _FillPanel(
+                                      title: 'Terminal activity',
+                                      child: ListView(children: terminalRows),
                                     ),
                                   ),
                                 ],
@@ -581,8 +521,6 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     const SizedBox(height: 16),
                     listPanel('Terminal activity', null, terminalRows),
-                    const SizedBox(height: 16),
-                    evaluation,
                   ],
                 ),
               ),

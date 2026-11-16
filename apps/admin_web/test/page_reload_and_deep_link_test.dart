@@ -56,11 +56,6 @@ class _FakeRepository extends Fake implements SupabaseAdminRepository {
       reportedChats: [],
       rides: [],
       boundaries: [],
-      feedbackSummaries: [],
-      feedbackResponses: [],
-      feedbackInterval: 1,
-      respondentTarget: 10,
-      repeatFeedback: false,
     );
   }
 

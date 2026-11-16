@@ -16,7 +16,6 @@ void main() {
     expect(state.reports, isEmpty);
     expect(state.rides, isEmpty);
     expect(state.audit, isEmpty);
-    expect(state.feedbackCounts, isEmpty);
   });
 
   test(
@@ -94,30 +93,6 @@ void main() {
       expect(after.reports, same(before.reports));
       expect(after.complaints, same(before.complaints));
       expect(after.audit, same(before.audit));
-    },
-  );
-
-  test(
-    'only LGU administrators can update the global feedback interval',
-    () async {
-      final container = ProviderContainer(overrides: fixtureOverrides);
-      addTearDown(container.dispose);
-      final controller = container.read(adminProvider.notifier);
-      const todaSession = AdminSession(
-        name: 'Coordinator',
-        role: AdminRole.toda,
-        toda: 'Brgy. Real',
-      );
-
-      expect(container.read(adminProvider).feedbackInterval, 1);
-      await expectLater(
-        controller.updateFeedbackSettings(
-          session: todaSession,
-          feedbackInterval: 3,
-        ),
-        throwsStateError,
-      );
-      expect(container.read(adminProvider).feedbackInterval, 1);
     },
   );
 

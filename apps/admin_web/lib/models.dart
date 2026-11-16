@@ -749,114 +749,6 @@ class Ride {
   final String? destinationLabel;
 }
 
-const feedbackQuestionLabels = <String, String>{
-  'ease_of_use': 'Ease of use',
-  'booking_clarity': 'Booking and dispatch clarity',
-  'navigation_clarity': 'Map and trip information',
-  'fare_fairness': 'Trust in the approved fare',
-  'reliability': 'Reliable app behavior',
-  'safety_confidence': 'Safety visibility',
-  'continued_use': 'Intention to keep using ArangCada',
-};
-
-class DriverAppFeedback {
-  const DriverAppFeedback({
-    required this.id,
-    required this.toda,
-    required this.scores,
-    required this.anonymous,
-    required this.submittedAt,
-    this.comment,
-    this.identifiedDriverName,
-    this.todaZoneId,
-  });
-
-  factory DriverAppFeedback.fromRow(
-    Map<String, dynamic> row, {
-    String? todaName,
-  }) {
-    final answers = row['answers'] is Map
-        ? Map<String, dynamic>.from(row['answers'] as Map)
-        : row;
-    final anonymous = row['is_anonymous'] as bool? ?? true;
-    return DriverAppFeedback(
-      id: row['id'].toString(),
-      toda: todaName ?? row['toda_name']?.toString() ?? 'Assigned TODA',
-      todaZoneId: row['toda_zone_id']?.toString(),
-      scores: {
-        for (final key in feedbackQuestionLabels.keys)
-          if (answers[key] case final num score) key: score.toInt(),
-      },
-      anonymous: anonymous,
-      identifiedDriverName: anonymous
-          ? null
-          : row['driver_display_name']?.toString() ??
-                row['driver_name']?.toString(),
-      comment: row['comment']?.toString(),
-      submittedAt:
-          DateTime.tryParse(
-            row['submitted_at']?.toString() ??
-                row['created_at']?.toString() ??
-                '',
-          )?.toLocal() ??
-          DateTime.now(),
-    );
-  }
-
-  final String id;
-  final String toda;
-  final String? todaZoneId;
-  final Map<String, int> scores;
-  final bool anonymous;
-  final String? identifiedDriverName;
-  final String? comment;
-  final DateTime submittedAt;
-
-  String get displayName => anonymous
-      ? 'Anonymous driver'
-      : identifiedDriverName ?? 'Identified driver';
-}
-
-class TodaFeedbackSummary {
-  const TodaFeedbackSummary({
-    required this.toda,
-    required this.responseCount,
-    required this.uniqueDrivers,
-    required this.target,
-    this.todaZoneId,
-    this.overallMean,
-    this.questionMeans = const {},
-  });
-
-  factory TodaFeedbackSummary.fromRow(Map<String, dynamic> row) {
-    final means = row['question_means'] is Map
-        ? Map<String, dynamic>.from(row['question_means'] as Map)
-        : const <String, dynamic>{};
-    return TodaFeedbackSummary(
-      toda: row['toda_name']?.toString() ?? 'Assigned TODA',
-      todaZoneId: row['toda_zone_id']?.toString(),
-      responseCount: (row['response_count'] as num?)?.toInt() ?? 0,
-      uniqueDrivers: (row['unique_driver_count'] as num?)?.toInt() ?? 0,
-      target: (row['respondent_target'] as num?)?.toInt() ?? 10,
-      overallMean: (row['overall_mean'] as num?)?.toDouble(),
-      questionMeans: {
-        for (final entry in means.entries)
-          if (entry.value case final num value) entry.key: value.toDouble(),
-      },
-    );
-  }
-
-  final String toda;
-  final String? todaZoneId;
-  final int responseCount;
-  final int uniqueDrivers;
-  final int target;
-  final double? overallMean;
-  final Map<String, double> questionMeans;
-
-  double get progress => target <= 0 ? 0 : (uniqueDrivers / target).clamp(0, 1);
-}
-
 class AuditEvent {
   const AuditEvent(this.title, this.detail, this.time, {this.toda});
   final String title;
@@ -879,17 +771,11 @@ class AdminState {
     required this.rides,
     required this.boundaries,
     required this.audit,
-    required this.feedbackCounts,
     this.complaints = const [],
     this.ratings = const [],
     this.fareClassClaims = const [],
     this.reportedChats = const [],
-    this.feedbackSummaries = const [],
-    this.feedbackResponses = const [],
     this.driverCancellations = const [],
-    this.feedbackInterval = 1,
-    this.respondentTarget = 10,
-    this.repeatFeedback = true,
     this.connected = false,
     this.loading = false,
     this.connectionError,
@@ -914,14 +800,8 @@ class AdminState {
   final List<Ride> rides;
   final List<Boundary> boundaries;
   final List<AuditEvent> audit;
-  final Map<String, int> feedbackCounts;
   final List<ReportedTripChat> reportedChats;
-  final List<TodaFeedbackSummary> feedbackSummaries;
-  final List<DriverAppFeedback> feedbackResponses;
   final List<DriverCancellation> driverCancellations;
-  final int feedbackInterval;
-  final int respondentTarget;
-  final bool repeatFeedback;
   final bool connected;
   final bool loading;
   final String? connectionError;
@@ -954,14 +834,8 @@ class AdminState {
     List<Ride>? rides,
     List<AuditEvent>? audit,
     List<Boundary>? boundaries,
-    Map<String, int>? feedbackCounts,
     List<ReportedTripChat>? reportedChats,
-    List<TodaFeedbackSummary>? feedbackSummaries,
-    List<DriverAppFeedback>? feedbackResponses,
     List<DriverCancellation>? driverCancellations,
-    int? feedbackInterval,
-    int? respondentTarget,
-    bool? repeatFeedback,
     bool? connected,
     bool? loading,
     String? connectionError,
@@ -987,14 +861,8 @@ class AdminState {
     rides: rides ?? this.rides,
     boundaries: boundaries ?? this.boundaries,
     audit: audit ?? this.audit,
-    feedbackCounts: feedbackCounts ?? this.feedbackCounts,
     reportedChats: reportedChats ?? this.reportedChats,
-    feedbackSummaries: feedbackSummaries ?? this.feedbackSummaries,
-    feedbackResponses: feedbackResponses ?? this.feedbackResponses,
     driverCancellations: driverCancellations ?? this.driverCancellations,
-    feedbackInterval: feedbackInterval ?? this.feedbackInterval,
-    respondentTarget: respondentTarget ?? this.respondentTarget,
-    repeatFeedback: repeatFeedback ?? this.repeatFeedback,
     connected: connected ?? this.connected,
     loading: loading ?? this.loading,
     connectionError: clearConnectionError

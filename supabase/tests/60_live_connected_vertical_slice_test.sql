@@ -392,17 +392,16 @@ select is(
   'duplicate trip completion is idempotent'
 );
 
+-- The in-app evaluation was withdrawn (20261116090000).
 select is(
-  (select count(*)::integer from public.driver_feedback_obligations
-    where submitted_at is null),
-  1,
-  'a completed trip creates exactly one durable mandatory feedback obligation'
+  (select count(*)::integer from public.driver_feedback_obligations),
+  0,
+  'a completed trip owes no app evaluation'
 );
 
-select throws_ok(
-  $$select public.set_driver_availability(true, 14.2825, 121.1150)$$,
-  '42501', null,
-  'pending mandatory app feedback prevents the driver from going online'
+select ok(
+  not (public.get_driver_feedback_state() ->> 'pending')::boolean,
+  'mobile build 4059 is told that no evaluation is pending'
 );
 
 select throws_ok(
@@ -417,68 +416,33 @@ select throws_ok(
 select is((select count(*)::integer from public.trip_messages), 2,
   'the completed conversation remains readable during its 30-day retention period');
 
-select throws_ok(
-  $$select public.submit_driver_feedback(
-      (select id from public.trips where idempotency_key = 'live-booking-001'),
-      '{"ease_of_use":6}'::jsonb, null, true
-    )$$,
-  '22023', null,
-  'feedback rejects incomplete instruments and ratings outside the five-point scale'
-);
-
-select lives_ok(
-  $$select public.submit_driver_feedback(
-      (select id from public.trips where idempotency_key = 'live-booking-001'),
-      '{"ease_of_use":5,"booking_clarity":4,"navigation_clarity":4,"fare_fairness":5,"reliability":4,"safety_confidence":5,"continued_use":5}'::jsonb,
-      'Synthetic anonymous comment', true
-    )$$,
-  'a driver can submit all seven required bilingual Likert answers anonymously'
-);
-
-select ok(
-  not (public.get_driver_feedback_state() ->> 'pending')::boolean,
-  'submitting the response clears the durable mandatory feedback state'
-);
-
 select lives_ok(
   $$select public.set_driver_availability(true, 14.2825, 121.1150)$$,
-  'the driver may resume dispatch only after feedback is submitted'
+  'the driver may go online again straight after a completed trip'
 );
+
+select hasnt_function('public', 'submit_driver_feedback',
+  'an evaluation response can no longer be submitted');
 
 reset role;
 
--- An admin who can read both tables must not be able to join an anonymous
--- response to its driver (20261002092000).
-select is(
-  (select count(*)::integer from public.trip_events
-    where event_type = 'evaluation.driver_feedback_submitted'),
-  0,
-  'an anonymous evaluation leaves no event naming the driver and the trip'
-);
-
-select is(
-  (select submitted_at from public.driver_app_feedback
-    where comment = 'Synthetic anonymous comment'),
-  date_trunc('day', now(), 'Asia/Manila'),
-  'and records the day it was submitted, not the instant'
-);
+-- Responses collected before the withdrawal are kept; this row stands for one.
+insert into public.driver_app_feedback (toda_zone_id, answers, comment)
+select toda_zone_id,
+       '{"ease_of_use":5,"booking_clarity":4,"navigation_clarity":4,"fare_fairness":5,"reliability":4,"safety_confidence":5,"continued_use":5}'::jsonb,
+       'Synthetic anonymous comment'
+  from public.trips where idempotency_key = 'live-booking-001';
 
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000060c2';
 
 select is((select count(*)::integer from public.driver_app_feedback), 1,
-  'the assigned TODA sees its submitted driver app evaluation');
+  'the assigned TODA still sees a driver app evaluation collected earlier');
 
 select ok(
   (select is_anonymous and driver_display_name is null
      from public.driver_app_feedback),
   'anonymous evaluation rows expose neither a driver name nor a driver identifier'
-);
-
-select is(
-  (select unique_driver_count::integer from public.get_feedback_summary(null)),
-  1,
-  'TODA participation progress counts one unique driver independently of response totals'
 );
 
 reset role;

@@ -165,7 +165,8 @@ void main() {
 
     expect(find.text('Operations overview'), findsOneWidget);
     expect(find.text('Live map'), findsAtLeastNWidgets(1));
-    expect(find.text('Evaluation'), findsAtLeastNWidgets(1));
+    // The in-app evaluation was withdrawn on 16 Nov 2026.
+    expect(find.text('Evaluation'), findsNothing);
     expect(find.text('Driver survey'), findsNothing);
     expect(find.text('Settings'), findsAtLeastNWidgets(1));
   });
@@ -250,62 +251,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'TODA feedback evaluation stays scoped and removes manual surveys',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 1000));
-      auth.value = const AdminSession(
-        name: 'Coordinator',
-        role: AdminRole.toda,
-        toda: 'Brgy. Real',
-      );
-      addTearDown(() async {
-        auth.value = null;
-        await tester.binding.setSurfaceSize(null);
-      });
-
-      await tester.pumpWidget(
-        ProviderScope(overrides: fixtureOverrides, child: const AdminApp()),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Evaluation'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Driver App Feedback · Objective 4'), findsOneWidget);
-      expect(find.byType(SelectionArea), findsOneWidget);
-      expect(find.text('ISO/IEC 25010:2023 · Objective 3'), findsOneWidget);
-      expect(find.text('Parian'), findsNothing);
-      expect(find.text('Canlubang'), findsNothing);
-      expect(find.text('Record response'), findsNothing);
-
-      // Each study instrument has its own sub-page inside the Evaluation tab.
-      await tester.tap(find.text('Driver feedback'));
-      await tester.pumpAndSettle();
-      expect(find.text('Participation by TODA'), findsOneWidget);
-      expect(
-        find.text('8 of 10 unique drivers · 8 total responses'),
-        findsOneWidget,
-      );
-      expect(find.text('Parian'), findsNothing);
-      expect(find.text('Evaluation'), findsAtLeastNWidgets(1));
-
-      await tester.tap(find.textContaining('Responses ('));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('No submitted driver app feedback yet.'),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('ISO/IEC 25010'));
-      await tester.pumpAndSettle();
-      expect(find.text('Quality characteristics'), findsOneWidget);
-      expect(find.text('Manual baseline comparison'), findsOneWidget);
-
-      await tester.tap(find.text('Dashboard'));
-      await tester.pumpAndSettle();
-      expect(find.text('8 of 10 target drivers'), findsOneWidget);
-    },
-  );
 
   testWidgets(
     'TODA safety reports are visible but status actions are read-only',
@@ -583,33 +528,6 @@ void main() {
       find.text('Only an LGU reviewer may read this message.'),
       findsNothing,
     );
-  });
-
-  testWidgets('TODA administrators see read-only global feedback settings', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 1000));
-    auth.value = const AdminSession(
-      name: 'Coordinator',
-      role: AdminRole.toda,
-      toda: 'Brgy. Real',
-    );
-    addTearDown(() async {
-      auth.value = null;
-      await tester.binding.setSurfaceSize(null);
-    });
-    await tester.pumpWidget(
-      ProviderScope(overrides: fixtureOverrides, child: const AdminApp()),
-    );
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Settings'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Driver app-feedback rules'), findsOneWidget);
-    expect(find.text('Save interval'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
   });
 
   testWidgets(

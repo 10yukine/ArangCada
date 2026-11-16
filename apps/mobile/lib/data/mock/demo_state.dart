@@ -91,8 +91,6 @@ class DemoState extends ChangeNotifier {
   /// "My driver is here" at pickup, "Get off early" during the trip.
   bool riderConfirmedPickup = false;
   bool riderRequestedStop = false;
-  bool driverFeedbackPending = false;
-  String? pendingFeedbackTripId;
   final DriverTripStateMachine driverTrip = DriverTripStateMachine();
 
   /// Sample content is OFF by default. Pre-populated chats read as things
@@ -107,17 +105,6 @@ class DemoState extends ChangeNotifier {
       hasPickup = false;
     }
     _currentUser = user;
-    // driverFeedbackPending is per-account server state (set only by
-    // SupabaseRideRepository.refreshFeedbackState()). Leaving a stale true
-    // from a previous account's session was a real bug: switching to any
-    // other driver -- including a local sandbox account, which has no live
-    // repository to ever clear it -- force-redirected into the mandatory,
-    // unpoppable feedback screen with a Submit button that could only
-    // silently no-op, permanently stranding that account. The live
-    // repository re-populates this immediately after sign-in if it is
-    // genuinely still pending for the new account.
-    driverFeedbackPending = false;
-    pendingFeedbackTripId = null;
     notifyListeners();
   }
 
@@ -213,16 +200,6 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clears a mandatory-feedback gate that has no live repository to answer
-  /// it (a local sandbox/demo session). See setCurrentUser() for how this
-  /// flag is meant to be scoped per-account, and driver_app_feedback_screen
-  /// for the stuck-screen case this exists to escape.
-  void clearDriverFeedbackPending() {
-    driverFeedbackPending = false;
-    pendingFeedbackTripId = null;
-    notifyListeners();
-  }
-
   /// Rating is over; the driver returns to available and this trip's rating
   /// state clears so the next trip starts fresh.
   void finishDriverTrip() {
@@ -238,8 +215,6 @@ class DemoState extends ChangeNotifier {
     completionAvailableAt = null;
     riderConfirmedPickup = false;
     riderRequestedStop = false;
-    driverFeedbackPending = false;
-    pendingFeedbackTripId = null;
     notifyListeners();
   }
 
@@ -275,8 +250,6 @@ class DemoState extends ChangeNotifier {
     completionAvailableAt = null;
     riderConfirmedPickup = false;
     riderRequestedStop = false;
-    driverFeedbackPending = false;
-    pendingFeedbackTripId = null;
     sampleContentEnabled = false;
     driverTrip.reset();
     notifyListeners();
